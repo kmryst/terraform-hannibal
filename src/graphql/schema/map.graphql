@@ -1,0 +1,66 @@
+
+
+
+
+type Query {
+  capitalCities: CapitalCityCollection
+  hannibalRoute: HannibalRouteCollection
+  pointRoute: PointRouteCollection
+}
+
+type CapitalCityCollection {
+  type: String
+  features: [CapitalCityFeature]
+}
+
+type CapitalCityFeature {
+  type: String
+  geometry: GeometryPoint
+  properties: CapitalCityProperties
+}
+
+type HannibalRouteCollection {
+  type: String
+  features: [HannibalRouteFeature]
+}
+
+type HannibalRouteFeature {
+  type: String
+  geometry: GeometryLineString
+  properties: HannibalRouteProperties
+}
+
+type PointRouteCollection {
+  type: String
+  features: [PointRouteFeature]
+}
+
+type PointRouteFeature {
+  type: String
+  geometry: GeometryPoint
+  properties: PointRouteProperties
+}
+
+type GeometryPoint {
+  type: String
+  coordinates: [Float]
+}
+
+type GeometryLineString {
+  type: String
+  coordinates: [[Float]]
+}
+
+type CapitalCityProperties {
+  name: String
+  description: String
+  empire: String
+}
+
+type HannibalRouteProperties {
+  description: String
+}
+
+type PointRouteProperties {
+  description: String
+}
