@@ -1,90 +1,19 @@
-
-// C:\code\javascript\nestjs-hannibal-1\client\src\apollo\client.ts
-
-/* import { ApolloClient, InMemoryCache } from "@apollo/client";
-
-// localhost ではなく、ローカルIPアドレスを使用
-const client = new ApolloClient({
-  uri: "https://18.183.38.34:4000/graphql",
-  cache: new InMemoryCache(),
-});
-
-export default client;
-
-
- */
-
-
-
-
+// C:\code\javascript\nestjs-hannibal-3\client\src\apollo\client.ts
 import { ApolloClient, InMemoryCache } from "@apollo/client";
 
-// localhost ではなく、ローカルIPアドレスを使用
+// Viteの環境変数からエンドポイントを取得 (プレフィックス 'VITE_' が必要)
+const graphqlUri = import.meta.env.VITE_GRAPHQL_ENDPOINT;
+
+if (!graphqlUri) {
+  console.error("ERROR: VITE_GRAPHQL_ENDPOINT is not defined in your environment variables (.env.* file).");
+  // フォールバックを設定するか、エラーを発生させる
+}
+
+console.log(`[Apollo Client] Connecting to GraphQL at: ${graphqlUri}`);
+
 const client = new ApolloClient({
-   uri: "http://192.168.1.3:4000/graphql",
+   uri: graphqlUri || '/graphql', // 環境変数が未定義の場合のフォールバック例
    cache: new InMemoryCache(),
  });
 
  export default client;
-
-
-
-
-
-
-
-
-// import { ApolloClient, InMemoryCache } from "@apollo/client";
-
-// const client = new ApolloClient({
-//   uri: "http://localhost:4000/graphql", // NestJSサーバーのGraphQLエンドポイント
-//   cache: new InMemoryCache(),
-// });
-
-// export default client;
-
-
-
-
-
-
-// import { ApolloClient, InMemoryCache } from "@apollo/client";
-
-// const client = new ApolloClient({
-//   uri: "http://localhost:4000/graphql", // NestJSサーバーのGraphQLエンドポイント
-//   cache: new InMemoryCache(),
-// });
-
-// export default client;
-
-
-
-
-
-
-// import { ApolloClient, InMemoryCache } from "@apollo/client";
-
-// // localhost ではなく、ローカルIPアドレスを使用
-// const client = new ApolloClient({
-//   uri: "https://18.179.45.142:4000/graphql", // EC2インスタンスのドメイン
-//   cache: new InMemoryCache(),
-// });
-
-// export default client;
-
-
-
-
-
-// import { ApolloClient, InMemoryCache } from "@apollo/client";
-
-
-// const client = new ApolloClient({
-//   uri: process.env.REACT_APP_GRAPHQL_ENDPOINT || "http://192.168.1.3:4000/graphql", 
-//   cache: new InMemoryCache(),
-// });
-
-// export default client;
-
-
-
