@@ -50,6 +50,7 @@ jobs:
       s3_bucket_name: ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}
       cloudfront_distribution_id: ${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}
       ec2_instance_id: ${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}
+      backend_eip_address: ${{ steps.get_terraform_outputs.outputs.backend_eip_address }} # EIPアドレスを追加
 
     steps:
       - uses: actions/checkout@v3
@@ -75,22 +76,18 @@ jobs:
         run: terraform init
         working-directory: ./terraform # terraformディレクトリで実行
 
-      # --- ここから修正 ---
-      # Terraformプランを表示 (オプション) - -var-file を削除
+      # Terraformプランを表示 (オプション)
       - name: Terraform Plan
         id: plan # ステップIDを追加
-        run: terraform plan
+        run: terraform plan # -var-file オプションを削除
         working-directory: ./terraform # terraformディレクトリで実行
-      # --- 修正ここまで ---
 
-      # --- ここから修正 ---
-      # Terraformを適用（インフラをデプロイ） - -var-file を削除
-      # 注意: user_data を変更した場合、インスタンスの再作成が必要です。
+      # Terraformを適用（インフラをデプロイ）
+      # 注意: user_data やインスタンス設定変更を伴う場合、インスタンスの再作成や更新が発生します。
       - name: Terraform Apply
         id: apply # ステップIDを追加
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve # -var-file オプションを削除
         working-directory: ./terraform # terraformディレクトリで実行
-      # --- 修正ここまで ---
 
       # Terraform Outputs を取得してステップの Output に設定
       - name: Get Terraform Outputs
@@ -99,23 +96,23 @@ jobs:
           # terraform output の結果を整形してステップの outputs に設定
           S3_BUCKET=$(terraform output -raw s3_bucket_name | head -n 1 | tr -d '\n' | tr -d '\r')
           CF_DIST_ID=$(terraform output -raw cloudfront_distribution_id | head -n 1 | tr -d '\n' | tr -d '\r')
-          # インスタンスが再作成される可能性を考慮し、タグで最新の実行中インスタンスIDを取得
-          PROJECT_NAME=${TF_VAR_project_name:-nestjs-hannibal} # 環境変数から project_name を取得 (デフォルト値付き)
-          EC2_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=$PROJECT_NAME-backend" "Name=instance-state-name,Values=running" --query "Reservations[].Instances[].InstanceId" --output text | tr -d '\n' | tr -d '\r')
+          EC2_ID=$(terraform output -raw ec2_instance_id | head -n 1 | tr -d '\n' | tr -d '\r') # Terraform Outputから取得
+          EIP_ADDR=$(terraform output -raw backend_eip_address | head -n 1 | tr -d '\n' | tr -d '\r') # EIPアドレスを取得
 
           # GitHub Actions の新しい構文を使用
           echo "s3_bucket_name=$S3_BUCKET" >> $GITHUB_OUTPUT
           echo "cloudfront_distribution_id=$CF_DIST_ID" >> $GITHUB_OUTPUT
           echo "ec2_instance_id=$EC2_ID" >> $GITHUB_OUTPUT
+          echo "backend_eip_address=$EIP_ADDR" >> $GITHUB_OUTPUT # EIPアドレスをOutputに追加
 
           # デバッグ用に取得した値を出力
           echo "S3 Bucket Name: $S3_BUCKET"
           echo "CloudFront Distribution ID: $CF_DIST_ID"
           echo "EC2 Instance ID: $EC2_ID"
+          echo "Backend EIP Address: $EIP_ADDR"
         working-directory: ./terraform # terraformディレクトリで実行
-        env:
-          # TF_VAR_project_name を環境変数として設定 (GitHub Actions Variables推奨)
-          TF_VAR_project_name: ${{ vars.TF_VAR_project_name || 'nestjs-hannibal' }}
+        # env: # 環境変数が必要な場合
+        #   TF_VAR_project_name: ${{ vars.TF_VAR_project_name || 'nestjs-hannibal' }}
 
       # フロントエンドのビルド
       - name: Setup Node.js for Frontend
