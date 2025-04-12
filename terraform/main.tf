@@ -120,14 +120,16 @@ resource "aws_iam_instance_profile" "ec2_profile" {
   role = aws_iam_role.ec2_role.name
 }
 
-# Elastic IP
+# --- Elastic IP を修正 ---
 resource "aws_eip" "backend_eip" {
-  domain   = "vpc" # VPC内での利用を指定
+  # domain   = "vpc" # この行を削除またはコメントアウト
+  vpc      = true   # この行を追加
 
   tags = {
     Name = "${var.project_name}-backend-eip"
   }
 }
+# --- 修正ここまで ---
 
 # EC2インスタンス
 resource "aws_instance" "backend" {
@@ -182,9 +184,6 @@ resource "aws_s3_bucket_ownership_controls" "frontend" {
   bucket = aws_s3_bucket.frontend.id
   rule { object_ownership = "BucketOwnerEnforced" }
 }
-
-# --- aws_s3_bucket_public_access_block を修正 ---
-# セミコロンを削除し、各引数を改行
 resource "aws_s3_bucket_public_access_block" "frontend" {
   bucket = aws_s3_bucket.frontend.id
   block_public_acls       = true
@@ -192,12 +191,14 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
-# --- 修正ここまで ---
 
 # CloudFront OAC
 resource "aws_cloudfront_origin_access_control" "frontend" {
-  name = "${var.project_name}-oac"; description = "OAC for ${var.project_name} frontend"
-  origin_access_control_origin_type = "s3"; signing_behavior = "always"; signing_protocol = "sigv4"
+  name                              = "${var.project_name}-oac"
+  description                       = "OAC for ${var.project_name} frontend"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
 }
 
 # S3バケットポリシー
@@ -205,22 +206,39 @@ resource "aws_s3_bucket_policy" "frontend" {
   bucket = aws_s3_bucket.frontend.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Sid = "AllowCloudFrontServicePrincipalReadOnly"; Action = "s3:GetObject"; Effect = "Allow"
-      Resource = "${aws_s3_bucket.frontend.arn}/*"; Principal = { Service = "cloudfront.amazonaws.com" }
-      Condition = { StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.frontend.arn } }
-    }]
+    Statement = [
+      {
+        Sid       = "AllowCloudFrontServicePrincipalReadOnly",
+        Action    = "s3:GetObject",
+        Effect    = "Allow",
+        Resource  = "${aws_s3_bucket.frontend.arn}/*",
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        },
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.frontend.arn
+          }
+        }
+      }
+    ]
   })
-  depends_on = [aws_cloudfront_origin_access_control.frontend, aws_cloudfront_distribution.frontend]
+  depends_on = [
+    aws_cloudfront_origin_access_control.frontend,
+    aws_cloudfront_distribution.frontend # CloudFrontディストリビューションが先にないとARNが確定しない
+  ]
 }
 
 # CloudFrontディストリビューション
 resource "aws_cloudfront_distribution" "frontend" {
-  enabled = true; is_ipv6_enabled = true; default_root_object = "index.html"; comment = "${var.project_name} distribution"
+  enabled             = true
+  is_ipv6_enabled     = true
+  default_root_object = "index.html"
+  comment             = "${var.project_name} distribution"
 
   origin {
-    domain_name = aws_s3_bucket.frontend.bucket_regional_domain_name
-    origin_id = aws_s3_bucket.frontend.id
+    domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
+    origin_id                = aws_s3_bucket.frontend.id
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
   }
 
@@ -231,42 +249,120 @@ resource "aws_cloudfront_distribution" "frontend" {
     custom_origin_config {
       http_port              = 3000 # NestJSポート
       https_port             = 443
-      origin_protocol_policy = "http-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
+      origin_protocol_policy = "http-only" # HTTPのみを許可
+      origin_ssl_protocols   = ["TLSv1.2"] # 必要に応じて調整
       origin_read_timeout    = 30
       origin_keepalive_timeout = 5
     }
   }
 
-  default_cache_behavior { # S3用
-    allowed_methods = ["GET", "HEAD", "OPTIONS"]; cached_methods = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id = aws_s3_bucket.frontend.id
-    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"; origin_request_policy_id = "88a5eaf4-2fd4-4709-b370-b4c650ea3fcf"
+  default_cache_behavior { # S3用 (デフォルト)
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD", "OPTIONS"]
+    target_origin_id       = aws_s3_bucket.frontend.id
+    cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
+    origin_request_policy_id = "88a5eaf4-2fd4-4709-b370-b4c650ea3fcf" # Cors-S3Origin
     viewer_protocol_policy = "redirect-to-https"
+    compress               = true
   }
 
   ordered_cache_behavior { # API用 (/api/*)
-    path_pattern = "/api/*"; allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]; cached_methods = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id = "${var.project_name}-ec2-backend"
-    cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"; origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    path_pattern           = "/api/*"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods         = ["GET", "HEAD", "OPTIONS"] # APIなのでキャッシュは最小限に
+    target_origin_id       = "${var.project_name}-ec2-backend"
+    cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
+    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AllViewerExceptHostHeader (ヘッダー、クッキー、クエリ文字列を転送)
     viewer_protocol_policy = "redirect-to-https"
+    compress               = true
   }
 
-  custom_error_response { error_code = 403; response_code = 200; response_page_path = "/index.html"; error_caching_min_ttl = 10 }
-  custom_error_response { error_code = 404; response_code = 200; response_page_path = "/index.html"; error_caching_min_ttl = 10 }
+  # SPA対応: 403/404エラーをindex.htmlにルーティング
+  custom_error_response {
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 10 # 必要に応じて調整
+  }
+  custom_error_response {
+    error_code            = 404
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 10 # 必要に応じて調整
+  }
 
-  # --- restrictions ブロックを修正 ---
-  # インライン記述をやめ、複数行で記述
   restrictions {
     geo_restriction {
-      restriction_type = "none"
+      restriction_type = "none" # 必要に応じて変更 (whitelist/blacklist)
+      # locations        = []
     }
   }
-  # --- 修正ここまで ---
 
-  viewer_certificate { cloudfront_default_certificate = true }
-  tags = { Name = "${var.project_name}-cloudfront" }
+  viewer_certificate {
+    cloudfront_default_certificate = true # カスタムドメインを使用しない場合
+    # acm_certificate_arn = var.acm_certificate_arn # カスタムドメインを使用する場合
+    # ssl_support_method = "sni-only"              # カスタムドメインを使用する場合
+  }
 
+  # aliases = [var.custom_domain_name] # カスタムドメインを使用する場合
+
+  tags = {
+    Name = "${var.project_name}-cloudfront"
+  }
+
+  # EC2のEIPが確定してからCloudFrontを作成
   depends_on = [aws_eip_association.backend_eip_assoc]
 }
 
+# --- variables.tf ファイルの内容（参考） ---
+# 以下の変数は variables.tf などで定義されている必要があります
+/*
+variable "project_name" {
+  description = "Name of the project"
+  type        = string
+  default     = "nestjs-hannibal-3" # プロジェクト名に合わせて変更
+}
+
+variable "your_ip_address" {
+  description = "Your public IP address for SSH access (CIDR format)"
+  type        = string
+  # 例: default = "123.45.67.89/32" # 自身のIPアドレス/32に置き換えてください
+}
+
+variable "ec2_ami_id" {
+  description = "AMI ID for the EC2 instance (Amazon Linux 2023)"
+  type        = string
+  default     = "ami-0b7546e839d7ace12" # 東京リージョンの Amazon Linux 2023 (x86_64) の例。最新を確認してください。
+}
+
+variable "ec2_instance_type" {
+  description = "Instance type for the EC2 instance"
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "ec2_key_name" {
+  description = "Name of the EC2 key pair"
+  type        = string
+  # 例: default = "my-key-pair" # 自身のキーペア名に置き換えてください
+}
+
+variable "ec2_iam_role_name" {
+  description = "Name for the EC2 IAM role"
+  type        = string
+  default     = "nestjs-hannibal-3-ec2-role"
+}
+
+# カスタムドメインを使用する場合に設定
+# variable "acm_certificate_arn" {
+#   description = "ARN of the ACM certificate for CloudFront"
+#   type        = string
+#   default     = "" # 例: "arn:aws:acm:us-east-1:123456789012:certificate/your-cert-id" (us-east-1リージョンで発行)
+# }
+
+# variable "custom_domain_name" {
+#   description = "Custom domain name (CNAME) for CloudFront distribution"
+#   type        = string
+#   default     = "" # 例: "app.example.com"
+# }
+*/
