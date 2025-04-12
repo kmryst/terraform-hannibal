@@ -45,6 +45,11 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/ec2s3cf' # デプロイ対象ブランチを ec2s3cf に設定
     runs-on: ubuntu-latest
+    # ジョブの outputs を定義 (必須ではないが後で参照しやすい)
+    outputs:
+      s3_bucket_name: ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}
+      cloudfront_distribution_id: ${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}
+      ec2_instance_id: ${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}
 
     steps:
       - uses: actions/checkout@v3
@@ -57,26 +62,54 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
 
-      # Terraformをセットアップ
+      # --- ここから修正 ---
+      # Terraformをセットアップ (terraform_wrapper: false を追加)
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.0.0 # Terraformのバージョン指定 (必要に応じて変更)
+          terraform_wrapper: false # これを追加
+      # --- 修正ここまで ---
 
       # Terraformを初期化
       - name: Terraform Init
+        id: init # ステップIDを追加
         run: terraform init
         working-directory: ./terraform # terraformディレクトリで実行
 
       # Terraformプランを表示 (オプション)
       - name: Terraform Plan
+        id: plan # ステップIDを追加
         run: terraform plan
         working-directory: ./terraform # terraformディレクトリで実行
 
       # Terraformを適用（インフラをデプロイ）
       - name: Terraform Apply
+        id: apply # ステップIDを追加
         run: terraform apply -auto-approve
         working-directory: ./terraform # terraformディレクトリで実行
+
+      # --- ここから修正 ---
+      # Terraform Outputs を取得してステップの Output に設定 (GITHUB_ENV の代わりに ::set-output を使用)
+      - name: Get Terraform Outputs
+        id: get_terraform_outputs # このステップのID
+        run: |
+          # terraform output の結果を整形してステップの outputs に設定
+          # -raw オプションで値のみ取得、念のため head と tr で整形
+          S3_BUCKET=$(terraform output -raw s3_bucket_name | head -n 1 | tr -d '\n' | tr -d '\r')
+          CF_DIST_ID=$(terraform output -raw cloudfront_distribution_id | head -n 1 | tr -d '\n' | tr -d '\r')
+          EC2_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=nestjs-hannibal-backend" --query "Reservations[].Instances[?State.Name=='running'].InstanceId" --output text | tr -d '\n' | tr -d '\r')
+
+          echo "::set-output name=s3_bucket_name::$S3_BUCKET"
+          echo "::set-output name=cloudfront_distribution_id::$CF_DIST_ID"
+          echo "::set-output name=ec2_instance_id::$EC2_ID"
+
+          # デバッグ用に取得した値を出力
+          echo "S3 Bucket Name: $S3_BUCKET"
+          echo "CloudFront Distribution ID: $CF_DIST_ID"
+          echo "EC2 Instance ID: $EC2_ID"
+        working-directory: ./terraform # terraformディレクトリで実行
+      # --- 修正ここまで ---
 
       # フロントエンドのビルド
       - name: Setup Node.js for Frontend
@@ -95,62 +128,41 @@ jobs:
         working-directory: ./client # client ディレクトリで実行
 
       # --- ここから修正 ---
-      # TerraformアウトプットからS3バケット名を取得し、最初の行のみを使用
-      - name: Get S3 bucket name
-        id: get_bucket_name
-        run: |
-          # terraform output の結果から最初の行だけを取得する
-          bucket_name=$(terraform output -raw s3_bucket_name | head -n 1)
-          echo "Extracted bucket name: ${bucket_name}" # デバッグ用ログ
-          # 改行コードが含まれている可能性を考慮して削除
-          bucket_name_cleaned=$(echo $bucket_name | tr -d '\n' | tr -d '\r')
-          echo "Cleaned bucket name: ${bucket_name_cleaned}" # デバッグ用ログ
-          echo "S3_BUCKET_NAME=${bucket_name_cleaned}" >> $GITHUB_ENV
-        working-directory: ./terraform # terraformディレクトリで実行
-
-      # S3へのデプロイ（フロントエンド）
+      # S3へのデプロイ（ステップのOutputを使用）
       - name: Deploy to S3
+        # GITHUB_ENV の代わりに steps コンテキストを使用
         run: |
-          echo "Deploying to bucket: ${{ env.S3_BUCKET_NAME }}"
-          aws s3 sync ./client/dist s3://${{ env.S3_BUCKET_NAME }} --delete
-
-      # TerraformアウトプットからCloudFront Distribution IDを取得し、最初の行のみを使用
-      - name: Get CloudFront Distribution ID
-        id: get_distribution_id
-        run: |
-          # terraform output の結果から最初の行だけを取得する
-          distribution_id=$(terraform output -raw cloudfront_distribution_id | head -n 1)
-          echo "Extracted distribution ID: ${distribution_id}" # デバッグ用ログ
-          # 改行コードが含まれている可能性を考慮して削除
-          distribution_id_cleaned=$(echo $distribution_id | tr -d '\n' | tr -d '\r')
-          echo "Cleaned distribution ID: ${distribution_id_cleaned}" # デバッグ用ログ
-          echo "CLOUDFRONT_DISTRIBUTION_ID=${distribution_id_cleaned}" >> $GITHUB_ENV
-        working-directory: ./terraform # terraformディレクトリで実行
-
-      # CloudFrontキャッシュの無効化
-      - name: Invalidate CloudFront Cache
-        run: |
-          echo "Invalidating CloudFront cache for distribution: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}"
-          aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+          echo "Deploying to bucket: ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}"
+          # S3 URI をダブルクォートで囲む
+          aws s3 sync ./client/dist "s3://${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}" --delete
       # --- 修正ここまで ---
 
-      # バックエンドのデプロイ（EC2）
-      - name: Deploy Backend to EC2 via SSM
+      # --- ここから修正 ---
+      # CloudFrontキャッシュの無効化（ステップのOutputを使用）
+      - name: Invalidate CloudFront Cache
+        # GITHUB_ENV の代わりに steps コンテキストを使用
         run: |
-          # EC2インスタンスIDを取得
-          # タグの名前が Terraform ファイルと一致していることを確認してください
-          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=nestjs-hannibal-backend" --query "Reservations[].Instances[?State.Name=='running'].InstanceId" --output text)
+          echo "Invalidating CloudFront cache for distribution: ${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}"
+          # Distribution ID をダブルクォートで囲む
+          aws cloudfront create-invalidation --distribution-id "${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}" --paths "/*"
+      # --- 修正ここまで ---
+
+      # --- ここから修正 ---
+      # バックエンドのデプロイ（EC2）（ステップのOutputを使用）
+      - name: Deploy Backend to EC2 via SSM
+        # GITHUB_ENV の代わりに steps コンテキストを使用
+        run: |
+          INSTANCE_ID="${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}"
 
           if [ -z "$INSTANCE_ID" ]; then
-            echo "EC2 instance not found or not running."
+            echo "EC2 instance ID not found in Terraform outputs or instance not running."
             exit 1
           fi
 
           echo "Deploying to EC2 instance: $INSTANCE_ID"
 
           # SSMを使用してコマンドを実行
-          # リポジトリURLを実際のURLに置き換えてください
-          # git clone コマンドにブランチを指定 (-b ec2s3cf)
+          # リポジトリURLとブランチ名を実際の値に置き換えてください
           aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
@@ -168,4 +180,4 @@ jobs:
               "sudo pm2 save"
             ]' \
             --timeout-seconds 600 # タイムアウトを延長 (必要に応じて調整)
-
+      # --- 修正ここまで ---
