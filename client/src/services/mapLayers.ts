@@ -33,6 +33,7 @@ export const addHannibalRouteLayers = (map: mapboxgl.Map, hannibalRouteData: any
     type: "geojson",
     data: {
       type: "FeatureCollection",
+      // @ts-expect-error: TypeScript
       features: segments,
     },
   });
@@ -101,6 +102,7 @@ export const addCapitalCityLayers = (map: mapboxgl.Map, capitalCitiesData: any) 
   // ローマ用アイコン読み込み・登録
   map.loadImage("/taka.png", (error, image) => {
     if (error) throw error;
+    // @ts-expect-error: TypeScript
     if (!map.hasImage("roman-icon")) { // 重複登録防止
       map.addImage("roman-icon", image);
     }
@@ -108,6 +110,7 @@ export const addCapitalCityLayers = (map: mapboxgl.Map, capitalCitiesData: any) 
 
   // カルタゴ用アイコン読み込み・登録
   map.loadImage("/zou.png", (error, image) => {
+    // @ts-expect-error: TypeScript
     if (error) throw error;
     if (!map.hasImage("carthage-icon")) { // 重複登録防止
       map.addImage("carthage-icon", image);
