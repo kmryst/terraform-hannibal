@@ -1,0 +1,120 @@
+name: Deploy NestJS Hannibal App
+
+on:
+  pull_request:
+    branches: [ec2s3cf]
+  push:
+    branches: [ec2s3cf]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      # バックエンドのテスト
+      - name: Setup Node.js for Backend
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'npm'
+      
+      - name: Install Backend Dependencies
+        run: npm ci
+      
+      - name: Run Backend Tests
+        run: npm test
+      
+      # フロントエンドのテスト
+      - name: Setup Node.js for Frontend
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+      
+      - name: Install Frontend Dependencies
+        run: cd client && npm ci
+      
+      - name: Run Frontend Tests
+        run: cd client && npm test
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      # AWSの認証情報を設定
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+      
+      # Terraformをセットアップ
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.0.0
+      
+      # Terraformを初期化
+      - name: Terraform Init
+        run: cd terraform && terraform init
+      
+      # Terraformプランを表示
+      - name: Terraform Plan
+        run: cd terraform && terraform plan
+      
+      # Terraformを適用（インフラをデプロイ）
+      - name: Terraform Apply
+        run: cd terraform && terraform apply -auto-approve
+      
+      # フロントエンドのビルド
+      - name: Setup Node.js for Frontend
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+      
+      - name: Install Frontend Dependencies
+        run: cd client && npm ci
+      
+      - name: Build Frontend
+        run: cd client && npm run build
+      
+      # S3へのデプロイ（フロントエンド）
+      - name: Deploy to S3
+        run: |
+          aws s3 sync ./client/dist s3://$(cd terraform && terraform output -raw s3_bucket_name) --delete
+      
+      # CloudFrontキャッシュの無効化
+      - name: Invalidate CloudFront Cache
+        run: |
+          aws cloudfront create-invalidation --distribution-id $(cd terraform && terraform output -raw cloudfront_distribution_id) --paths "/*"
+      
+      # バックエンドのデプロイ（EC2）
+      - name: Deploy Backend to EC2 via SSM
+        run: |
+          # EC2インスタンスIDを取得
+          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=nestjs-hannibal-backend" --query "Reservations[].Instances[].InstanceId" --output text)
+          
+          # SSMを使用してコマンドを実行
+          aws ssm send-command \
+            --instance-ids $INSTANCE_ID \
+            --document-name "AWS-RunShellScript" \
+            --parameters commands=[
+              "cd /home/ec2-user",
+              "rm -rf nestjs-hannibal-3",
+              "git clone https://github.com/yourusername/nestjs-hannibal-3.git",
+              "cd nestjs-hannibal-3",
+              "npm ci",
+              "npm run build",
+              "pm2 stop all || true",
+              "pm2 start dist/main.js --name nestjs-api"
+            ]
