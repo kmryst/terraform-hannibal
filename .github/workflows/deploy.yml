@@ -62,14 +62,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
 
-      # --- ここから修正 ---
       # Terraformをセットアップ (terraform_wrapper: false を追加)
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.0.0 # Terraformのバージョン指定 (必要に応じて変更)
           terraform_wrapper: false # これを追加
-      # --- 修正ここまで ---
 
       # Terraformを初期化
       - name: Terraform Init
@@ -89,27 +87,25 @@ jobs:
         run: terraform apply -auto-approve
         working-directory: ./terraform # terraformディレクトリで実行
 
-      # --- ここから修正 ---
-      # Terraform Outputs を取得してステップの Output に設定 (GITHUB_ENV の代わりに ::set-output を使用)
+      # Terraform Outputs を取得してステップの Output に設定
       - name: Get Terraform Outputs
         id: get_terraform_outputs # このステップのID
         run: |
           # terraform output の結果を整形してステップの outputs に設定
-          # -raw オプションで値のみ取得、念のため head と tr で整形
           S3_BUCKET=$(terraform output -raw s3_bucket_name | head -n 1 | tr -d '\n' | tr -d '\r')
           CF_DIST_ID=$(terraform output -raw cloudfront_distribution_id | head -n 1 | tr -d '\n' | tr -d '\r')
           EC2_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=nestjs-hannibal-backend" --query "Reservations[].Instances[?State.Name=='running'].InstanceId" --output text | tr -d '\n' | tr -d '\r')
 
-          echo "::set-output name=s3_bucket_name::$S3_BUCKET"
-          echo "::set-output name=cloudfront_distribution_id::$CF_DIST_ID"
-          echo "::set-output name=ec2_instance_id::$EC2_ID"
+          # GitHub Actions の新しい構文を使用 (::set-output は非推奨)
+          echo "s3_bucket_name=$S3_BUCKET" >> $GITHUB_OUTPUT
+          echo "cloudfront_distribution_id=$CF_DIST_ID" >> $GITHUB_OUTPUT
+          echo "ec2_instance_id=$EC2_ID" >> $GITHUB_OUTPUT
 
           # デバッグ用に取得した値を出力
           echo "S3 Bucket Name: $S3_BUCKET"
           echo "CloudFront Distribution ID: $CF_DIST_ID"
           echo "EC2 Instance ID: $EC2_ID"
         working-directory: ./terraform # terraformディレクトリで実行
-      # --- 修正ここまで ---
 
       # フロントエンドのビルド
       - name: Setup Node.js for Frontend
@@ -127,30 +123,20 @@ jobs:
         run: npm run build
         working-directory: ./client # client ディレクトリで実行
 
-      # --- ここから修正 ---
-      # S3へのデプロイ（ステップのOutputを使用）
+      # S3へのデプロイ
       - name: Deploy to S3
-        # GITHUB_ENV の代わりに steps コンテキストを使用
         run: |
           echo "Deploying to bucket: ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}"
-          # S3 URI をダブルクォートで囲む
           aws s3 sync ./client/dist "s3://${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}" --delete
-      # --- 修正ここまで ---
 
-      # --- ここから修正 ---
-      # CloudFrontキャッシュの無効化（ステップのOutputを使用）
+      # CloudFrontキャッシュの無効化
       - name: Invalidate CloudFront Cache
-        # GITHUB_ENV の代わりに steps コンテキストを使用
         run: |
           echo "Invalidating CloudFront cache for distribution: ${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}"
-          # Distribution ID をダブルクォートで囲む
           aws cloudfront create-invalidation --distribution-id "${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}" --paths "/*"
-      # --- 修正ここまで ---
 
-      # --- ここから修正 ---
-      # バックエンドのデプロイ（EC2）（ステップのOutputを使用）
+      # バックエンドのデプロイ（EC2）- PM2のインストールと設定を追加
       - name: Deploy Backend to EC2 via SSM
-        # GITHUB_ENV の代わりに steps コンテキストを使用
         run: |
           INSTANCE_ID="${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}"
 
@@ -162,22 +148,95 @@ jobs:
           echo "Deploying to EC2 instance: $INSTANCE_ID"
 
           # SSMを使用してコマンドを実行
-          # リポジトリURLとブランチ名を実際の値に置き換えてください
-          aws ssm send-command \
+          COMMAND_ID=$(aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
             --parameters commands='[
+              "#!/bin/bash",
+              "set -e",
               "cd /home/ec2-user",
+              
+              "# Node.jsとnpmのバージョン確認",
+              "echo \"Node.js version: $(node -v)\"",
+              "echo \"npm version: $(npm -v)\"",
+              
+              "# PM2のインストール確認と必要に応じてインストール",
+              "if ! command -v pm2 &> /dev/null; then",
+              "  echo \"Installing PM2 globally...\"",
+              "  sudo npm install -g pm2",
+              "else",
+              "  echo \"PM2 is already installed: $(pm2 -v)\"",
+              "fi",
+              
+              "# アプリケーションのデプロイ",
+              "echo \"Cloning repository...\"",
               "rm -rf nestjs-hannibal-3",
               "git clone -b ec2s3cf https://github.com/yourusername/nestjs-hannibal-3.git",
               "cd nestjs-hannibal-3",
-              "sudo npm install -g npm@latest",
+              
+              "# 依存関係のインストールとビルド",
+              "echo \"Installing dependencies...\"",
               "npm ci --legacy-peer-deps",
+              "echo \"Building application...\"",
               "npm run build",
-              "sudo pm2 stop all || true",
-              "sudo pm2 delete all || true",
-              "sudo pm2 start dist/main.js --name nestjs-api",
-              "sudo pm2 save"
+              
+              "# NestJSアプリケーションの設定",
+              "echo \"Creating ecosystem.config.js file...\"",
+              "cat > ecosystem.config.js << \"EOF\"",
+              "module.exports = {",
+              "  apps: [{",
+              "    name: \"nestjs-api\",",
+              "    script: \"./dist/main.js\",",
+              "    instances: 1,",
+              "    exec_mode: \"fork\",",
+              "    env: {",
+              "      NODE_ENV: \"production\",",
+              "      PORT: 3000",
+              "    },",
+              "    autorestart: true,",
+              "    watch: false,",
+              "    max_memory_restart: \"200M\"",
+              "  }]",
+              "};",
+              "EOF",
+              
+              "# PM2でアプリケーションを起動/再起動",
+              "echo \"Starting/restarting application with PM2...\"",
+              "pm2 describe nestjs-api > /dev/null 2>&1",
+              "if [ $? -eq 0 ]; then",
+              "  echo \"Restarting existing PM2 process...\"",
+              "  pm2 restart ecosystem.config.js",
+              "else",
+              "  echo \"Starting new PM2 process...\"",
+              "  pm2 start ecosystem.config.js",
+              "fi",
+              
+              "# PM2の自動起動設定",
+              "echo \"Saving PM2 process list and setting up startup script...\"",
+              "pm2 save",
+              
+              "# PM2の起動スクリプトを設定（初回のみ）",
+              "if [ ! -f /etc/systemd/system/pm2-ec2-user.service ]; then",
+              "  echo \"Setting up PM2 startup script...\"",
+              "  sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ec2-user --hp /home/ec2-user",
+              "fi",
+              
+              "echo \"Deployment completed successfully!\"",
+              "pm2 status"
             ]' \
-            --timeout-seconds 600 # タイムアウトを延長 (必要に応じて調整)
-      # --- 修正ここまで ---
+            --timeout-seconds 900 \
+            --output text \
+            --query "Command.CommandId")
+
+          echo "SSM Command ID: $COMMAND_ID"
+          
+          # コマンドの実行状態を確認
+          echo "Waiting for command to complete..."
+          aws ssm wait command-executed --command-id $COMMAND_ID --instance-id $INSTANCE_ID
+          
+          # コマンドの結果を取得
+          echo "Command execution details:"
+          aws ssm get-command-invocation \
+            --command-id $COMMAND_ID \
+            --instance-id $INSTANCE_ID \
+            --query "{Status:Status,StatusDetails:StatusDetails,OutputS3BucketName:OutputS3BucketName,OutputS3KeyPrefix:OutputS3KeyPrefix}"
