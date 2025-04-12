@@ -7,7 +7,7 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
 
   tags = {
-    Name = "${var.project_name}-vpc"
+    Name = var.project_name != "" ? "${var.project_name}-vpc" : "default-vpc-name" # 変数を使う場合は var.project_name を参照
   }
 }
 
@@ -15,11 +15,11 @@ resource "aws_vpc" "main" {
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.1.0/24"
-  map_public_ip_on_launch = true # EIPを使う場合でも、一時的なIPは割り当てられる
-  availability_zone       = "ap-northeast-1a" # 必要に応じて変更
+  map_public_ip_on_launch = true
+  availability_zone       = "ap-northeast-1a"
 
   tags = {
-    Name = "${var.project_name}-public-subnet"
+    Name = var.project_name != "" ? "${var.project_name}-public-subnet" : "default-public-subnet-name"
   }
 }
 
@@ -28,7 +28,7 @@ resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = "${var.project_name}-igw"
+    Name = var.project_name != "" ? "${var.project_name}-igw" : "default-igw-name"
   }
 }
 
@@ -42,7 +42,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name = "${var.project_name}-public-rt"
+    Name = var.project_name != "" ? "${var.project_name}-public-rt" : "default-public-rt-name"
   }
 }
 
@@ -54,7 +54,7 @@ resource "aws_route_table_association" "public" {
 
 # EC2用セキュリティグループ
 resource "aws_security_group" "ec2" {
-  name        = "${var.project_name}-ec2-sg"
+  name        = var.project_name != "" ? "${var.project_name}-ec2-sg" : "default-ec2-sg-name"
   description = "Security group for NestJS backend EC2 instance"
   vpc_id      = aws_vpc.main.id
 
@@ -62,25 +62,25 @@ resource "aws_security_group" "ec2" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # CloudFrontからのアクセス
+    cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # CloudFrontからのアクセス
+    cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
     from_port   = 3000 # NestJSポート
     to_port     = 3000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # CloudFront または直接アクセス用
+    cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
     from_port   = 22 # SSH
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.your_ip_address] # 自分のIPアドレスに限定
+    cidr_blocks = [var.your_ip_address]
   }
   egress {
     from_port   = 0
@@ -90,7 +90,7 @@ resource "aws_security_group" "ec2" {
   }
 
   tags = {
-    Name = "${var.project_name}-ec2-sg"
+    Name = var.project_name != "" ? "${var.project_name}-ec2-sg" : "default-ec2-sg-name"
   }
 }
 
@@ -105,7 +105,7 @@ resource "aws_iam_role" "ec2_role" {
       Principal = { Service = "ec2.amazonaws.com" }
     }]
   })
-  tags = { Name = "${var.project_name}-ec2-role" }
+  tags = { Name = var.project_name != "" ? "${var.project_name}-ec2-role" : "default-ec2-role-name" }
 }
 
 # ロールにSSM管理ポリシーをアタッチ
@@ -116,20 +116,17 @@ resource "aws_iam_role_policy_attachment" "ec2_ssm_policy_attachment" {
 
 # EC2インスタンスプロファイル
 resource "aws_iam_instance_profile" "ec2_profile" {
-  name = "${var.project_name}-ec2-profile"
+  name = var.project_name != "" ? "${var.project_name}-ec2-profile" : "default-ec2-profile-name"
   role = aws_iam_role.ec2_role.name
 }
 
-# --- Elastic IP を修正 ---
+# Elastic IP (Provider v5.0.0 以上対応)
 resource "aws_eip" "backend_eip" {
-  # domain   = "vpc" # この行を削除またはコメントアウト
-  vpc      = true   # この行を追加
-
+  domain   = "vpc"
   tags = {
-    Name = "${var.project_name}-backend-eip"
+    Name = var.project_name != "" ? "${var.project_name}-backend-eip" : "default-backend-eip-name"
   }
 }
-# --- 修正ここまで ---
 
 # EC2インスタンス
 resource "aws_instance" "backend" {
@@ -140,31 +137,32 @@ resource "aws_instance" "backend" {
   vpc_security_group_ids = [aws_security_group.ec2.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
 
-  # user_data は前回の修正内容を維持 (Git, nvm, Node.js, PM2のインストール)
   user_data = <<-EOF
               #!/bin/bash
               exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
               echo "Starting user data script..."
-              yum update -y
+              # Amazon Linux 2023 uses dnf
+              dnf update -y
               echo "Installing Git..."
-              yum install -y git
+              dnf install -y git
               echo "Git version: $(git --version)"
               echo "Installing nvm, Node.js, and npm for ec2-user..."
               sudo -u ec2-user bash -i -c 'echo "Running as user: $(whoami)"; curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash; export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"; nvm install --lts; nvm use --lts; nvm alias default "lts/*"; echo "Node.js version: $(node -v)"; echo "npm version: $(npm -v)"'
               echo "Installing PM2 globally for ec2-user..."
               sudo -u ec2-user bash -i -c 'export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"; npm install -g pm2; echo "PM2 version: $(pm2 -v)"'
               echo "Creating symbolic links in /usr/local/bin..."
-              NVM_DIR="/home/ec2-user/.nvm"; NODE_VERSION=$(ls $NVM_DIR/versions/node/ | grep '^v' | sort -V | tail -n 1); NODE_PATH="$NVM_DIR/versions/node/$NODE_VERSION/bin/node"; NPM_PATH="$NVM_DIR/versions/node/$NODE_VERSION/bin/npm"; PM2_PATH=$(sudo -u ec2-user bash -i -c 'export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"; npm root -g')/pm2/bin/pm2
-              sudo ln -sf $NODE_PATH /usr/local/bin/node; sudo ln -sf $NPM_PATH /usr/local/bin/npm; sudo ln -sf $PM2_PATH /usr/local/bin/pm2
-              echo "Symbolic links created."; echo "node -> $(readlink -f /usr/local/bin/node)"; echo "npm -> $(readlink -f /usr/local/bin/npm)"; echo "pm2 -> $(readlink -f /usr/local/bin/pm2)"
+              NVM_DIR="/home/ec2-user/.nvm"; NODE_VERSION=$(sudo -u ec2-user bash -i -c 'export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"; ls $NVM_DIR/versions/node/ | grep "^v" | sort -V | tail -n 1'); NODE_PATH="$NVM_DIR/versions/node/$NODE_VERSION/bin/node"; NPM_PATH="$NVM_DIR/versions/node/$NODE_VERSION/bin/npm"; PM2_PATH=$(sudo -u ec2-user bash -i -c 'export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"; npm root -g')/pm2/bin/pm2
+              if [ -n "$NODE_PATH" ] && [ -e "$NODE_PATH" ]; then sudo ln -sf $NODE_PATH /usr/local/bin/node; echo "node symlink created."; else echo "Node path not found or empty: $NODE_PATH"; fi
+              if [ -n "$NPM_PATH" ] && [ -e "$NPM_PATH" ]; then sudo ln -sf $NPM_PATH /usr/local/bin/npm; echo "npm symlink created."; else echo "npm path not found or empty: $NPM_PATH"; fi
+              if [ -n "$PM2_PATH" ] && [ -e "$PM2_PATH" ]; then sudo ln -sf $PM2_PATH /usr/local/bin/pm2; echo "pm2 symlink created."; else echo "pm2 path not found or empty: $PM2_PATH"; fi
               echo "Setting up PM2 startup script..."; STARTUP_CMD=$(sudo -u ec2-user bash -i -c 'export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"; pm2 startup systemd -u ec2-user --hp /home/ec2-user' | grep 'sudo env')
               if [ -n "$STARTUP_CMD" ]; then sudo bash -c "$STARTUP_CMD"; echo "PM2 startup script configured."; else echo "Failed to generate PM2 startup command."; fi
-              echo "Ensuring SSM Agent is installed and running..."; if ! systemctl is-active --quiet amazon-ssm-agent; then dnf install -y amazon-ssm-agent; systemctl enable amazon-ssm-agent --now; else echo "SSM Agent is already active."; fi; systemctl status amazon-ssm-agent
+              echo "Ensuring SSM Agent is installed and running..."; sudo systemctl enable amazon-ssm-agent --now; sudo systemctl status amazon-ssm-agent || echo "SSM Agent status check failed."
               echo "User data script finished."
               EOF
 
   tags = {
-    Name = "${var.project_name}-backend"
+    Name = var.project_name != "" ? "${var.project_name}-backend" : "default-backend-name"
   }
   depends_on = [aws_internet_gateway.main]
 }
@@ -177,8 +175,8 @@ resource "aws_eip_association" "backend_eip_assoc" {
 
 # S3バケット（フロントエンド用）
 resource "aws_s3_bucket" "frontend" {
-  bucket = "${var.project_name}-frontend-bucket"
-  tags = { Name = "${var.project_name}-frontend" }
+  bucket = var.project_name != "" ? "${var.project_name}-frontend-bucket" : "default-frontend-bucket-name" # バケット名はグローバルに一意である必要あり
+  tags = { Name = var.project_name != "" ? "${var.project_name}-frontend" : "default-frontend-name" }
 }
 resource "aws_s3_bucket_ownership_controls" "frontend" {
   bucket = aws_s3_bucket.frontend.id
@@ -194,7 +192,7 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
 
 # CloudFront OAC
 resource "aws_cloudfront_origin_access_control" "frontend" {
-  name                              = "${var.project_name}-oac"
+  name                              = var.project_name != "" ? "${var.project_name}-oac" : "default-oac-name"
   description                       = "OAC for ${var.project_name} frontend"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
@@ -225,7 +223,7 @@ resource "aws_s3_bucket_policy" "frontend" {
   })
   depends_on = [
     aws_cloudfront_origin_access_control.frontend,
-    aws_cloudfront_distribution.frontend # CloudFrontディストリビューションが先にないとARNが確定しない
+    aws_cloudfront_distribution.frontend
   ]
 }
 
@@ -234,7 +232,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
-  comment             = "${var.project_name} distribution"
+  comment             = var.project_name != "" ? "${var.project_name} distribution" : "Default distribution comment"
 
   origin {
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
@@ -243,14 +241,14 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   origin { # EC2オリジン
-    domain_name = aws_eip.backend_eip.public_ip # Elastic IP を参照
-    origin_id   = "${var.project_name}-ec2-backend"
+    domain_name = aws_eip.backend_eip.public_ip
+    origin_id   = var.project_name != "" ? "${var.project_name}-ec2-backend" : "default-ec2-backend-origin-id"
 
     custom_origin_config {
-      http_port              = 3000 # NestJSポート
+      http_port              = 3000
       https_port             = 443
-      origin_protocol_policy = "http-only" # HTTPのみを許可
-      origin_ssl_protocols   = ["TLSv1.2"] # 必要に応じて調整
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
       origin_read_timeout    = 30
       origin_keepalive_timeout = 5
     }
@@ -269,100 +267,42 @@ resource "aws_cloudfront_distribution" "frontend" {
   ordered_cache_behavior { # API用 (/api/*)
     path_pattern           = "/api/*"
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods         = ["GET", "HEAD", "OPTIONS"] # APIなのでキャッシュは最小限に
-    target_origin_id       = "${var.project_name}-ec2-backend"
+    cached_methods         = ["GET", "HEAD", "OPTIONS"]
+    target_origin_id       = var.project_name != "" ? "${var.project_name}-ec2-backend" : "default-ec2-backend-origin-id"
     cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
-    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AllViewerExceptHostHeader (ヘッダー、クッキー、クエリ文字列を転送)
+    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AllViewerExceptHostHeader
     viewer_protocol_policy = "redirect-to-https"
     compress               = true
   }
 
-  # SPA対応: 403/404エラーをindex.htmlにルーティング
   custom_error_response {
     error_code            = 403
     response_code         = 200
     response_page_path    = "/index.html"
-    error_caching_min_ttl = 10 # 必要に応じて調整
+    error_caching_min_ttl = 10
   }
   custom_error_response {
     error_code            = 404
     response_code         = 200
     response_page_path    = "/index.html"
-    error_caching_min_ttl = 10 # 必要に応じて調整
+    error_caching_min_ttl = 10
   }
 
   restrictions {
     geo_restriction {
-      restriction_type = "none" # 必要に応じて変更 (whitelist/blacklist)
-      # locations        = []
+      restriction_type = "none"
     }
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true # カスタムドメインを使用しない場合
-    # acm_certificate_arn = var.acm_certificate_arn # カスタムドメインを使用する場合
-    # ssl_support_method = "sni-only"              # カスタムドメインを使用する場合
+    cloudfront_default_certificate = true
   }
-
-  # aliases = [var.custom_domain_name] # カスタムドメインを使用する場合
 
   tags = {
-    Name = "${var.project_name}-cloudfront"
+    Name = var.project_name != "" ? "${var.project_name}-cloudfront" : "default-cloudfront-name"
   }
 
-  # EC2のEIPが確定してからCloudFrontを作成
   depends_on = [aws_eip_association.backend_eip_assoc]
 }
 
-# --- variables.tf ファイルの内容（参考） ---
-# 以下の変数は variables.tf などで定義されている必要があります
-/*
-variable "project_name" {
-  description = "Name of the project"
-  type        = string
-  default     = "nestjs-hannibal-3" # プロジェクト名に合わせて変更
-}
-
-variable "your_ip_address" {
-  description = "Your public IP address for SSH access (CIDR format)"
-  type        = string
-  # 例: default = "123.45.67.89/32" # 自身のIPアドレス/32に置き換えてください
-}
-
-variable "ec2_ami_id" {
-  description = "AMI ID for the EC2 instance (Amazon Linux 2023)"
-  type        = string
-  default     = "ami-0b7546e839d7ace12" # 東京リージョンの Amazon Linux 2023 (x86_64) の例。最新を確認してください。
-}
-
-variable "ec2_instance_type" {
-  description = "Instance type for the EC2 instance"
-  type        = string
-  default     = "t3.micro"
-}
-
-variable "ec2_key_name" {
-  description = "Name of the EC2 key pair"
-  type        = string
-  # 例: default = "my-key-pair" # 自身のキーペア名に置き換えてください
-}
-
-variable "ec2_iam_role_name" {
-  description = "Name for the EC2 IAM role"
-  type        = string
-  default     = "nestjs-hannibal-3-ec2-role"
-}
-
-# カスタムドメインを使用する場合に設定
-# variable "acm_certificate_arn" {
-#   description = "ARN of the ACM certificate for CloudFront"
-#   type        = string
-#   default     = "" # 例: "arn:aws:acm:us-east-1:123456789012:certificate/your-cert-id" (us-east-1リージョンで発行)
-# }
-
-# variable "custom_domain_name" {
-#   description = "Custom domain name (CNAME) for CloudFront distribution"
-#   type        = string
-#   default     = "" # 例: "app.example.com"
-# }
-*/
+# --- ここより下は main.tf には不要 ---
