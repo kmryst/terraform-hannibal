@@ -120,9 +120,8 @@ resource "aws_iam_instance_profile" "ec2_profile" {
   role = aws_iam_role.ec2_role.name
 }
 
-# --- Elastic IP を追加 ---
+# Elastic IP
 resource "aws_eip" "backend_eip" {
-  # instance = aws_instance.backend.id # aws_eip_association を使うのでここでは不要
   domain   = "vpc" # VPC内での利用を指定
 
   tags = {
@@ -168,7 +167,7 @@ resource "aws_instance" "backend" {
   depends_on = [aws_internet_gateway.main]
 }
 
-# --- Elastic IP と EC2インスタンスの関連付けを追加 ---
+# Elastic IP と EC2インスタンスの関連付け
 resource "aws_eip_association" "backend_eip_assoc" {
   instance_id   = aws_instance.backend.id
   allocation_id = aws_eip.backend_eip.id
@@ -183,10 +182,17 @@ resource "aws_s3_bucket_ownership_controls" "frontend" {
   bucket = aws_s3_bucket.frontend.id
   rule { object_ownership = "BucketOwnerEnforced" }
 }
+
+# --- aws_s3_bucket_public_access_block を修正 ---
+# セミコロンを削除し、各引数を改行
 resource "aws_s3_bucket_public_access_block" "frontend" {
   bucket = aws_s3_bucket.frontend.id
-  block_public_acls = true; block_public_policy = true; ignore_public_acls = true; restrict_public_buckets = true
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
+# --- 修正ここまで ---
 
 # CloudFront OAC
 resource "aws_cloudfront_origin_access_control" "frontend" {
@@ -218,16 +224,14 @@ resource "aws_cloudfront_distribution" "frontend" {
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
   }
 
-  # --- EC2オリジン設定を修正 ---
-  origin {
-    # domain_name = aws_instance.backend.public_dns # public_dns の代わりに EIP を使用
-    domain_name = aws_eip.backend_eip.public_ip # Elastic IP のパブリックIPアドレスを参照
+  origin { # EC2オリジン
+    domain_name = aws_eip.backend_eip.public_ip # Elastic IP を参照
     origin_id   = "${var.project_name}-ec2-backend"
 
     custom_origin_config {
       http_port              = 3000 # NestJSポート
       https_port             = 443
-      origin_protocol_policy = "http-only" # バックエンドがHTTPでリッスンしているため
+      origin_protocol_policy = "http-only"
       origin_ssl_protocols   = ["TLSv1.2"]
       origin_read_timeout    = 30
       origin_keepalive_timeout = 5
@@ -243,7 +247,7 @@ resource "aws_cloudfront_distribution" "frontend" {
 
   ordered_cache_behavior { # API用 (/api/*)
     path_pattern = "/api/*"; allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]; cached_methods = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id = "${var.project_name}-ec2-backend" # EC2オリジンID
+    target_origin_id = "${var.project_name}-ec2-backend"
     cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"; origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
     viewer_protocol_policy = "redirect-to-https"
   }
@@ -251,10 +255,18 @@ resource "aws_cloudfront_distribution" "frontend" {
   custom_error_response { error_code = 403; response_code = 200; response_page_path = "/index.html"; error_caching_min_ttl = 10 }
   custom_error_response { error_code = 404; response_code = 200; response_page_path = "/index.html"; error_caching_min_ttl = 10 }
 
-  restrictions { geo_restriction { restriction_type = "none" } }
+  # --- restrictions ブロックを修正 ---
+  # インライン記述をやめ、複数行で記述
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+  # --- 修正ここまで ---
+
   viewer_certificate { cloudfront_default_certificate = true }
   tags = { Name = "${var.project_name}-cloudfront" }
 
-  # EIPが関連付けられてからCloudFrontが作成/更新されるように依存関係を設定
   depends_on = [aws_eip_association.backend_eip_assoc]
 }
+
