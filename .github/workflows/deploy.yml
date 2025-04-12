@@ -135,7 +135,7 @@ jobs:
           echo "Invalidating CloudFront cache for distribution: ${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}"
           aws cloudfront create-invalidation --distribution-id "${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}" --paths "/*"
 
-      # バックエンドのデプロイ（EC2）- コマンドを複数のステップに分割
+      # バックエンドのデプロイ（EC2）- PM2のインストールと設定を改善
       - name: Deploy Backend to EC2 via SSM
         run: |
           INSTANCE_ID="${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}"
@@ -147,20 +147,42 @@ jobs:
 
           echo "Deploying to EC2 instance: $INSTANCE_ID"
 
-          # SSMを使用して初期セットアップを実行（PM2のインストールなど）
-          echo "Running initial setup..."
+          # Node.jsとnpmの確認とPM2のインストール（絶対パスとシンボリックリンクの作成）
+          echo "Installing PM2 with proper path configuration..."
           SETUP_COMMAND_ID=$(aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
             --parameters commands='[
               "#!/bin/bash",
+              "# Node.jsとnpmのバージョン確認",
               "echo \"Node.js version: $(node -v || echo \"not installed\")\"",
               "echo \"npm version: $(npm -v || echo \"not installed\")\"",
-              "if ! command -v pm2 &> /dev/null; then",
-              "  echo \"Installing PM2 globally...\"",
-              "  sudo npm install -g pm2 || echo \"Failed to install PM2, but continuing...\"",
+              
+              "# PM2のグローバルインストール",
+              "echo \"Installing PM2 globally...\"",
+              "sudo npm install -g pm2",
+              
+              "# PM2のパスを取得",
+              "PM2_PATH=$(which pm2 || echo \"not found\")",
+              "echo \"PM2 path: $PM2_PATH\"",
+              
+              "# シンボリックリンクの作成",
+              "if [ \"$PM2_PATH\" != \"not found\" ]; then",
+              "  sudo ln -sf $PM2_PATH /usr/bin/pm2",
+              "  sudo ln -sf $(which node) /usr/bin/node",
+              "  echo \"Created symbolic links for PM2 and Node.js\"",
               "else",
-              "  echo \"PM2 is already installed: $(pm2 -v)\"",
+              "  echo \"Failed to find PM2 path\"",
+              "fi",
+              
+              "# PATHの確認",
+              "echo \"PATH: $PATH\"",
+              
+              "# PM2が正しくインストールされたか確認",
+              "if command -v pm2 &> /dev/null; then",
+              "  echo \"PM2 is correctly installed: $(pm2 -v)\"",
+              "else",
+              "  echo \"PM2 installation verification failed\"",
               "fi"
             ]' \
             --timeout-seconds 300 \
@@ -169,12 +191,23 @@ jobs:
           
           echo "Setup command ID: $SETUP_COMMAND_ID"
           echo "Waiting for setup command to complete..."
-          sleep 10
+          sleep 15
+          
+          # セットアップコマンドの結果を確認
           aws ssm get-command-invocation \
             --command-id $SETUP_COMMAND_ID \
             --instance-id $INSTANCE_ID \
             --query "{Status:Status,StatusDetails:StatusDetails}" \
             --output text
+          
+          # セットアップコマンドの詳細出力を確認
+          echo "Setup command output:"
+          aws ssm list-command-invocations \
+            --command-id $SETUP_COMMAND_ID \
+            --instance-id $INSTANCE_ID \
+            --details \
+            --query "CommandInvocations[].CommandPlugins[].Output" \
+            --output text || echo "Failed to get setup command output"
           
           # アプリケーションのデプロイ
           echo "Deploying application..."
@@ -201,13 +234,24 @@ jobs:
           echo "Deploy command ID: $DEPLOY_COMMAND_ID"
           echo "Waiting for deploy command to complete..."
           sleep 60
+          
+          # デプロイコマンドの結果を確認
           aws ssm get-command-invocation \
             --command-id $DEPLOY_COMMAND_ID \
             --instance-id $INSTANCE_ID \
             --query "{Status:Status,StatusDetails:StatusDetails}" \
             --output text
           
-          # PM2でアプリケーションを起動
+          # デプロイコマンドの詳細出力を確認
+          echo "Deploy command output:"
+          aws ssm list-command-invocations \
+            --command-id $DEPLOY_COMMAND_ID \
+            --instance-id $INSTANCE_ID \
+            --details \
+            --query "CommandInvocations[].CommandPlugins[].Output" \
+            --output text || echo "Failed to get deploy command output"
+          
+          # PM2でアプリケーションを起動（絶対パスを使用）
           echo "Starting application with PM2..."
           START_COMMAND_ID=$(aws ssm send-command \
             --instance-ids $INSTANCE_ID \
@@ -215,18 +259,33 @@ jobs:
             --parameters commands='[
               "#!/bin/bash",
               "cd /home/ec2-user/nestjs-hannibal-3",
-              "if command -v pm2 &> /dev/null; then",
-              "  echo \"Stopping any existing PM2 processes...\"",
-              "  pm2 stop nestjs-api || true",
-              "  pm2 delete nestjs-api || true",
-              "  echo \"Starting new PM2 process...\"",
-              "  pm2 start dist/main.js --name nestjs-api",
-              "  pm2 save",
-              "  echo \"PM2 status:\"",
-              "  pm2 status",
-              "else",
-              "  echo \"PM2 is not installed. Starting application with node...\"",
+              
+              "# PM2のパスを取得",
+              "PM2_PATH=$(which pm2)",
+              "if [ -z \"$PM2_PATH\" ]; then",
+              "  PM2_PATH=/usr/bin/pm2",
+              "fi",
+              "echo \"Using PM2 at: $PM2_PATH\"",
+              
+              "# 既存のプロセスを停止",
+              "$PM2_PATH stop nestjs-api || true",
+              "$PM2_PATH delete nestjs-api || true",
+              
+              "# 新しいプロセスを開始",
+              "echo \"Starting application with PM2...\"",
+              "$PM2_PATH start dist/main.js --name nestjs-api",
+              "$PM2_PATH save",
+              
+              "# ステータス確認",
+              "echo \"PM2 status:\"",
+              "$PM2_PATH status",
+              
+              "# 代替方法: PM2が使えない場合はnodeで直接起動",
+              "if [ $? -ne 0 ]; then",
+              "  echo \"PM2 failed, starting with node directly...\"",
               "  nohup node dist/main.js > app.log 2>&1 &",
+              "  echo $! > app.pid",
+              "  echo \"Started node process with PID: $(cat app.pid)\"",
               "fi"
             ]' \
             --timeout-seconds 300 \
@@ -235,29 +294,17 @@ jobs:
           
           echo "Start command ID: $START_COMMAND_ID"
           echo "Waiting for start command to complete..."
-          sleep 10
+          sleep 15
+          
+          # 起動コマンドの結果を確認
           aws ssm get-command-invocation \
             --command-id $START_COMMAND_ID \
             --instance-id $INSTANCE_ID \
             --query "{Status:Status,StatusDetails:StatusDetails}" \
             --output text
           
-          # コマンドの結果を取得して表示
-          echo "Checking command execution results..."
-          aws ssm list-command-invocations \
-            --command-id $SETUP_COMMAND_ID \
-            --instance-id $INSTANCE_ID \
-            --details \
-            --query "CommandInvocations[].CommandPlugins[].Output" \
-            --output text || echo "Failed to get setup command output"
-          
-          aws ssm list-command-invocations \
-            --command-id $DEPLOY_COMMAND_ID \
-            --instance-id $INSTANCE_ID \
-            --details \
-            --query "CommandInvocations[].CommandPlugins[].Output" \
-            --output text || echo "Failed to get deploy command output"
-          
+          # 起動コマンドの詳細出力を確認
+          echo "Start command output:"
           aws ssm list-command-invocations \
             --command-id $START_COMMAND_ID \
             --instance-id $INSTANCE_ID \
