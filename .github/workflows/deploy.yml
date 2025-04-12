@@ -75,20 +75,22 @@ jobs:
         run: terraform init
         working-directory: ./terraform # terraformディレクトリで実行
 
-      # Terraformプランを表示 (オプション)
+      # --- ここから修正 ---
+      # Terraformプランを表示 (オプション) - -var-file を削除
       - name: Terraform Plan
         id: plan # ステップIDを追加
-        run: terraform plan -var-file=terraform.tfvars # tfvars を使用している場合
+        run: terraform plan
         working-directory: ./terraform # terraformディレクトリで実行
+      # --- 修正ここまで ---
 
-      # Terraformを適用（インフラをデプロイ）
+      # --- ここから修正 ---
+      # Terraformを適用（インフラをデプロイ） - -var-file を削除
       # 注意: user_data を変更した場合、インスタンスの再作成が必要です。
-      # terraform apply を実行する前に、EC2インスタンスを破棄するか、
-      # Terraformがインスタンスを置き換えることを確認してください。
       - name: Terraform Apply
         id: apply # ステップIDを追加
-        run: terraform apply -auto-approve -var-file=terraform.tfvars # tfvars を使用している場合
+        run: terraform apply -auto-approve
         working-directory: ./terraform # terraformディレクトリで実行
+      # --- 修正ここまで ---
 
       # Terraform Outputs を取得してステップの Output に設定
       - name: Get Terraform Outputs
@@ -98,8 +100,7 @@ jobs:
           S3_BUCKET=$(terraform output -raw s3_bucket_name | head -n 1 | tr -d '\n' | tr -d '\r')
           CF_DIST_ID=$(terraform output -raw cloudfront_distribution_id | head -n 1 | tr -d '\n' | tr -d '\r')
           # インスタンスが再作成される可能性を考慮し、タグで最新の実行中インスタンスIDを取得
-          # Terraform の project_name 変数を環境変数経由で取得 (デフォルト値も設定)
-          PROJECT_NAME=${TF_VAR_project_name:-nestjs-hannibal}
+          PROJECT_NAME=${TF_VAR_project_name:-nestjs-hannibal} # 環境変数から project_name を取得 (デフォルト値付き)
           EC2_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=$PROJECT_NAME-backend" "Name=instance-state-name,Values=running" --query "Reservations[].Instances[].InstanceId" --output text | tr -d '\n' | tr -d '\r')
 
           # GitHub Actions の新しい構文を使用
@@ -113,8 +114,8 @@ jobs:
           echo "EC2 Instance ID: $EC2_ID"
         working-directory: ./terraform # terraformディレクトリで実行
         env:
-          # Terraform Plan/Apply で tfvars を使っている場合、ここでも同じ変数を渡す必要があるかも
-          TF_VAR_project_name: ${{ vars.TF_VAR_project_name || 'nestjs-hannibal' }} # リポジトリ変数などで設定
+          # TF_VAR_project_name を環境変数として設定 (GitHub Actions Variables推奨)
+          TF_VAR_project_name: ${{ vars.TF_VAR_project_name || 'nestjs-hannibal' }}
 
       # フロントエンドのビルド
       - name: Setup Node.js for Frontend
@@ -168,7 +169,7 @@ jobs:
               "echo \"Running deployment script as user: $(whoami)\"",
 
               "# ec2-user としてアプリケーションを操作",
-              "sudo -i -u ec2-user bash << EOF",
+              "sudo -i -u ec2-user bash << EOF", # -i オプションでログインシェルをシミュレート
               "  set -eo pipefail", # サブシェルでもエラーチェックを有効に
               "  export NVM_DIR=\"$HOME/.nvm\"", # NVM_DIRをエクスポート
               "  [ -s \"$NVM_DIR/nvm.sh\" ] && \. \"$NVM_DIR/nvm.sh\"", # nvmをロード
@@ -192,7 +193,7 @@ jobs:
               "  pm2 delete nestjs-api || true",
               "  echo \"Starting new PM2 process...\"",
               "  pm2 start dist/main.js --name nestjs-api",
-              "  pm2 save",
+              "  pm2 save", # 現在のプロセスリストを保存
               "  echo \"PM2 status:\"",
               "  pm2 status",
               "EOF"
@@ -228,4 +229,3 @@ jobs:
           fi
 
           echo "Deployment to EC2 completed successfully."
-
