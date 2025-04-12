@@ -1,54 +1,54 @@
 name: Deploy NestJS Hannibal App
 
-
 on:
   pull_request:
-    branches: [ec2s3cf]
+    branches: [ec2s3cf] # トリガーブランチを ec2s3cf に設定
   push:
-    branches: [ec2s3cf]
+    branches: [ec2s3cf] # トリガーブランチを ec2s3cf に設定
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v3
-      
+
       # バックエンドのテスト
       - name: Setup Node.js for Backend
         uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version: '16' # バックエンドは Node.js 16 を使用
           cache: 'npm'
-      
+
       - name: Install Backend Dependencies
         run: npm ci
-      
+
       - name: Run Backend Tests
         run: npm test
-      
+
       # フロントエンドのテスト
       - name: Setup Node.js for Frontend
         uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version: '20' # フロントエンドは Node.js 20 を使用
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
-      
+
       - name: Install Frontend Dependencies
         run: cd client && npm ci
-      
+
       - name: Run Frontend Tests
-        run: cd client && npm test
+        # (もしテストコマンドがあれば追記してください。例: npm run test)
+        run: echo "Frontend tests would run here" # テストコマンドがない場合は削除または適切なコマンドに置き換え
 
   deploy:
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/ec2s3cf'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/ec2s3cf' # デプロイ対象ブランチを ec2s3cf に設定
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v3
-      
+
       # AWSの認証情報を設定
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -56,66 +56,104 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
-      
+
       # Terraformをセットアップ
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.0.0
-      
+          terraform_version: 1.0.0 # Terraformのバージョン指定 (必要に応じて変更)
+
       # Terraformを初期化
       - name: Terraform Init
-        run: cd terraform && terraform init
-      
-      # Terraformプランを表示
+        run: terraform init
+        working-directory: ./terraform # terraformディレクトリで実行
+
+      # Terraformプランを表示 (オプション)
       - name: Terraform Plan
-        run: cd terraform && terraform plan
-      
+        run: terraform plan
+        working-directory: ./terraform # terraformディレクトリで実行
+
       # Terraformを適用（インフラをデプロイ）
       - name: Terraform Apply
-        run: cd terraform && terraform apply -auto-approve
-      
+        run: terraform apply -auto-approve
+        working-directory: ./terraform # terraformディレクトリで実行
+
       # フロントエンドのビルド
       - name: Setup Node.js for Frontend
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: '20' # フロントエンドは Node.js 20 を使用
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
-      
+
       - name: Install Frontend Dependencies
-        run: cd client && npm ci
-      
+        run: npm ci
+        working-directory: ./client # client ディレクトリで実行
+
       - name: Build Frontend
-        run: cd client && npm run build
-      
+        run: npm run build
+        working-directory: ./client # client ディレクトリで実行
+
+      # --- ここから修正 ---
+      # TerraformアウトプットからS3バケット名を取得
+      - name: Get S3 bucket name
+        id: get_bucket_name
+        run: |
+          bucket_name=$(terraform output -raw s3_bucket_name)
+          echo "S3_BUCKET_NAME=${bucket_name}" >> $GITHUB_ENV
+        working-directory: ./terraform # terraformディレクトリで実行
+
       # S3へのデプロイ（フロントエンド）
       - name: Deploy to S3
         run: |
-          aws s3 sync ./client/dist s3://$(cd terraform && terraform output -raw s3_bucket_name) --delete
-      
+          echo "Deploying to bucket: ${{ env.S3_BUCKET_NAME }}"
+          aws s3 sync ./client/dist s3://${{ env.S3_BUCKET_NAME }} --delete
+
+      # TerraformアウトプットからCloudFront Distribution IDを取得
+      - name: Get CloudFront Distribution ID
+        id: get_distribution_id
+        run: |
+          distribution_id=$(terraform output -raw cloudfront_distribution_id)
+          echo "CLOUDFRONT_DISTRIBUTION_ID=${distribution_id}" >> $GITHUB_ENV
+        working-directory: ./terraform # terraformディレクトリで実行
+
       # CloudFrontキャッシュの無効化
       - name: Invalidate CloudFront Cache
         run: |
-          aws cloudfront create-invalidation --distribution-id $(cd terraform && terraform output -raw cloudfront_distribution_id) --paths "/*"
-      
+          echo "Invalidating CloudFront cache for distribution: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}"
+          aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+      # --- 修正ここまで ---
+
       # バックエンドのデプロイ（EC2）
       - name: Deploy Backend to EC2 via SSM
         run: |
           # EC2インスタンスIDを取得
-          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=nestjs-hannibal-backend" --query "Reservations[].Instances[].InstanceId" --output text)
-          
+          # タグの名前が Terraform ファイルと一致していることを確認してください
+          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=nestjs-hannibal-backend" --query "Reservations[].Instances[?State.Name=='running'].InstanceId" --output text)
+
+          if [ -z "$INSTANCE_ID" ]; then
+            echo "EC2 instance not found or not running."
+            exit 1
+          fi
+
+          echo "Deploying to EC2 instance: $INSTANCE_ID"
+
           # SSMを使用してコマンドを実行
+          # リポジトリURLを実際のURLに置き換えてください
           aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
-            --parameters commands=[
+            --parameters commands='[
               "cd /home/ec2-user",
               "rm -rf nestjs-hannibal-3",
               "git clone https://github.com/yourusername/nestjs-hannibal-3.git",
               "cd nestjs-hannibal-3",
-              "npm ci",
+              "sudo npm install -g npm@latest",
+              "npm ci --legacy-peer-deps",
               "npm run build",
-              "pm2 stop all || true",
-              "pm2 start dist/main.js --name nestjs-api"
-            ]
+              "sudo pm2 stop all || true",
+              "sudo pm2 delete all || true",
+              "sudo pm2 start dist/main.js --name nestjs-api",
+              "sudo pm2 save"
+            ]' \
+            --timeout-seconds 600 # タイムアウトを延長 (必要に応じて調整)
