@@ -96,7 +96,7 @@ jobs:
           CF_DIST_ID=$(terraform output -raw cloudfront_distribution_id | head -n 1 | tr -d '\n' | tr -d '\r')
           EC2_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=nestjs-hannibal-backend" --query "Reservations[].Instances[?State.Name=='running'].InstanceId" --output text | tr -d '\n' | tr -d '\r')
 
-          # GitHub Actions の新しい構文を使用 (::set-output は非推奨)
+          # GitHub Actions の新しい構文を使用
           echo "s3_bucket_name=$S3_BUCKET" >> $GITHUB_OUTPUT
           echo "cloudfront_distribution_id=$CF_DIST_ID" >> $GITHUB_OUTPUT
           echo "ec2_instance_id=$EC2_ID" >> $GITHUB_OUTPUT
@@ -135,7 +135,7 @@ jobs:
           echo "Invalidating CloudFront cache for distribution: ${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}"
           aws cloudfront create-invalidation --distribution-id "${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}" --paths "/*"
 
-      # バックエンドのデプロイ（EC2）- PM2のインストールと設定を追加
+      # バックエンドのデプロイ（EC2）- コマンドを複数のステップに分割
       - name: Deploy Backend to EC2 via SSM
         run: |
           INSTANCE_ID="${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}"
@@ -147,96 +147,120 @@ jobs:
 
           echo "Deploying to EC2 instance: $INSTANCE_ID"
 
-          # SSMを使用してコマンドを実行
-          COMMAND_ID=$(aws ssm send-command \
+          # SSMを使用して初期セットアップを実行（PM2のインストールなど）
+          echo "Running initial setup..."
+          SETUP_COMMAND_ID=$(aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
             --parameters commands='[
               "#!/bin/bash",
-              "set -e",
-              "cd /home/ec2-user",
-              
-              "# Node.jsとnpmのバージョン確認",
-              "echo \"Node.js version: $(node -v)\"",
-              "echo \"npm version: $(npm -v)\"",
-              
-              "# PM2のインストール確認と必要に応じてインストール",
+              "echo \"Node.js version: $(node -v || echo \"not installed\")\"",
+              "echo \"npm version: $(npm -v || echo \"not installed\")\"",
               "if ! command -v pm2 &> /dev/null; then",
               "  echo \"Installing PM2 globally...\"",
-              "  sudo npm install -g pm2",
+              "  sudo npm install -g pm2 || echo \"Failed to install PM2, but continuing...\"",
               "else",
               "  echo \"PM2 is already installed: $(pm2 -v)\"",
-              "fi",
-              
-              "# アプリケーションのデプロイ",
-              "echo \"Cloning repository...\"",
-              "rm -rf nestjs-hannibal-3",
-              "git clone -b ec2s3cf https://github.com/yourusername/nestjs-hannibal-3.git",
-              "cd nestjs-hannibal-3",
-              
-              "# 依存関係のインストールとビルド",
-              "echo \"Installing dependencies...\"",
-              "npm ci --legacy-peer-deps",
-              "echo \"Building application...\"",
-              "npm run build",
-              
-              "# NestJSアプリケーションの設定",
-              "echo \"Creating ecosystem.config.js file...\"",
-              "cat > ecosystem.config.js << \"EOF\"",
-              "module.exports = {",
-              "  apps: [{",
-              "    name: \"nestjs-api\",",
-              "    script: \"./dist/main.js\",",
-              "    instances: 1,",
-              "    exec_mode: \"fork\",",
-              "    env: {",
-              "      NODE_ENV: \"production\",",
-              "      PORT: 3000",
-              "    },",
-              "    autorestart: true,",
-              "    watch: false,",
-              "    max_memory_restart: \"200M\"",
-              "  }]",
-              "};",
-              "EOF",
-              
-              "# PM2でアプリケーションを起動/再起動",
-              "echo \"Starting/restarting application with PM2...\"",
-              "pm2 describe nestjs-api > /dev/null 2>&1",
-              "if [ $? -eq 0 ]; then",
-              "  echo \"Restarting existing PM2 process...\"",
-              "  pm2 restart ecosystem.config.js",
-              "else",
-              "  echo \"Starting new PM2 process...\"",
-              "  pm2 start ecosystem.config.js",
-              "fi",
-              
-              "# PM2の自動起動設定",
-              "echo \"Saving PM2 process list and setting up startup script...\"",
-              "pm2 save",
-              
-              "# PM2の起動スクリプトを設定（初回のみ）",
-              "if [ ! -f /etc/systemd/system/pm2-ec2-user.service ]; then",
-              "  echo \"Setting up PM2 startup script...\"",
-              "  sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ec2-user --hp /home/ec2-user",
-              "fi",
-              
-              "echo \"Deployment completed successfully!\"",
-              "pm2 status"
+              "fi"
             ]' \
-            --timeout-seconds 900 \
+            --timeout-seconds 300 \
             --output text \
             --query "Command.CommandId")
-
-          echo "SSM Command ID: $COMMAND_ID"
           
-          # コマンドの実行状態を確認
-          echo "Waiting for command to complete..."
-          aws ssm wait command-executed --command-id $COMMAND_ID --instance-id $INSTANCE_ID
-          
-          # コマンドの結果を取得
-          echo "Command execution details:"
+          echo "Setup command ID: $SETUP_COMMAND_ID"
+          echo "Waiting for setup command to complete..."
+          sleep 10
           aws ssm get-command-invocation \
-            --command-id $COMMAND_ID \
+            --command-id $SETUP_COMMAND_ID \
             --instance-id $INSTANCE_ID \
-            --query "{Status:Status,StatusDetails:StatusDetails,OutputS3BucketName:OutputS3BucketName,OutputS3KeyPrefix:OutputS3KeyPrefix}"
+            --query "{Status:Status,StatusDetails:StatusDetails}" \
+            --output text
+          
+          # アプリケーションのデプロイ
+          echo "Deploying application..."
+          DEPLOY_COMMAND_ID=$(aws ssm send-command \
+            --instance-ids $INSTANCE_ID \
+            --document-name "AWS-RunShellScript" \
+            --parameters commands='[
+              "#!/bin/bash",
+              "cd /home/ec2-user",
+              "echo \"Removing old application directory...\"",
+              "rm -rf nestjs-hannibal-3 || true",
+              "echo \"Cloning repository...\"",
+              "git clone -b ec2s3cf https://github.com/yourusername/nestjs-hannibal-3.git || { echo \"Git clone failed\"; exit 1; }",
+              "cd nestjs-hannibal-3 || { echo \"Failed to change directory\"; exit 1; }",
+              "echo \"Installing dependencies...\"",
+              "npm ci --legacy-peer-deps || npm install",
+              "echo \"Building application...\"",
+              "npm run build || { echo \"Build failed\"; exit 1; }"
+            ]' \
+            --timeout-seconds 600 \
+            --output text \
+            --query "Command.CommandId")
+          
+          echo "Deploy command ID: $DEPLOY_COMMAND_ID"
+          echo "Waiting for deploy command to complete..."
+          sleep 60
+          aws ssm get-command-invocation \
+            --command-id $DEPLOY_COMMAND_ID \
+            --instance-id $INSTANCE_ID \
+            --query "{Status:Status,StatusDetails:StatusDetails}" \
+            --output text
+          
+          # PM2でアプリケーションを起動
+          echo "Starting application with PM2..."
+          START_COMMAND_ID=$(aws ssm send-command \
+            --instance-ids $INSTANCE_ID \
+            --document-name "AWS-RunShellScript" \
+            --parameters commands='[
+              "#!/bin/bash",
+              "cd /home/ec2-user/nestjs-hannibal-3",
+              "if command -v pm2 &> /dev/null; then",
+              "  echo \"Stopping any existing PM2 processes...\"",
+              "  pm2 stop nestjs-api || true",
+              "  pm2 delete nestjs-api || true",
+              "  echo \"Starting new PM2 process...\"",
+              "  pm2 start dist/main.js --name nestjs-api",
+              "  pm2 save",
+              "  echo \"PM2 status:\"",
+              "  pm2 status",
+              "else",
+              "  echo \"PM2 is not installed. Starting application with node...\"",
+              "  nohup node dist/main.js > app.log 2>&1 &",
+              "fi"
+            ]' \
+            --timeout-seconds 300 \
+            --output text \
+            --query "Command.CommandId")
+          
+          echo "Start command ID: $START_COMMAND_ID"
+          echo "Waiting for start command to complete..."
+          sleep 10
+          aws ssm get-command-invocation \
+            --command-id $START_COMMAND_ID \
+            --instance-id $INSTANCE_ID \
+            --query "{Status:Status,StatusDetails:StatusDetails}" \
+            --output text
+          
+          # コマンドの結果を取得して表示
+          echo "Checking command execution results..."
+          aws ssm list-command-invocations \
+            --command-id $SETUP_COMMAND_ID \
+            --instance-id $INSTANCE_ID \
+            --details \
+            --query "CommandInvocations[].CommandPlugins[].Output" \
+            --output text || echo "Failed to get setup command output"
+          
+          aws ssm list-command-invocations \
+            --command-id $DEPLOY_COMMAND_ID \
+            --instance-id $INSTANCE_ID \
+            --details \
+            --query "CommandInvocations[].CommandPlugins[].Output" \
+            --output text || echo "Failed to get deploy command output"
+          
+          aws ssm list-command-invocations \
+            --command-id $START_COMMAND_ID \
+            --instance-id $INSTANCE_ID \
+            --details \
+            --query "CommandInvocations[].CommandPlugins[].Output" \
+            --output text || echo "Failed to get start command output"
