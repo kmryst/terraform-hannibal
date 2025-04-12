@@ -95,12 +95,17 @@ jobs:
         working-directory: ./client # client ディレクトリで実行
 
       # --- ここから修正 ---
-      # TerraformアウトプットからS3バケット名を取得
+      # TerraformアウトプットからS3バケット名を取得し、最初の行のみを使用
       - name: Get S3 bucket name
         id: get_bucket_name
         run: |
-          bucket_name=$(terraform output -raw s3_bucket_name)
-          echo "S3_BUCKET_NAME=${bucket_name}" >> $GITHUB_ENV
+          # terraform output の結果から最初の行だけを取得する
+          bucket_name=$(terraform output -raw s3_bucket_name | head -n 1)
+          echo "Extracted bucket name: ${bucket_name}" # デバッグ用ログ
+          # 改行コードが含まれている可能性を考慮して削除
+          bucket_name_cleaned=$(echo $bucket_name | tr -d '\n' | tr -d '\r')
+          echo "Cleaned bucket name: ${bucket_name_cleaned}" # デバッグ用ログ
+          echo "S3_BUCKET_NAME=${bucket_name_cleaned}" >> $GITHUB_ENV
         working-directory: ./terraform # terraformディレクトリで実行
 
       # S3へのデプロイ（フロントエンド）
@@ -109,12 +114,17 @@ jobs:
           echo "Deploying to bucket: ${{ env.S3_BUCKET_NAME }}"
           aws s3 sync ./client/dist s3://${{ env.S3_BUCKET_NAME }} --delete
 
-      # TerraformアウトプットからCloudFront Distribution IDを取得
+      # TerraformアウトプットからCloudFront Distribution IDを取得し、最初の行のみを使用
       - name: Get CloudFront Distribution ID
         id: get_distribution_id
         run: |
-          distribution_id=$(terraform output -raw cloudfront_distribution_id)
-          echo "CLOUDFRONT_DISTRIBUTION_ID=${distribution_id}" >> $GITHUB_ENV
+          # terraform output の結果から最初の行だけを取得する
+          distribution_id=$(terraform output -raw cloudfront_distribution_id | head -n 1)
+          echo "Extracted distribution ID: ${distribution_id}" # デバッグ用ログ
+          # 改行コードが含まれている可能性を考慮して削除
+          distribution_id_cleaned=$(echo $distribution_id | tr -d '\n' | tr -d '\r')
+          echo "Cleaned distribution ID: ${distribution_id_cleaned}" # デバッグ用ログ
+          echo "CLOUDFRONT_DISTRIBUTION_ID=${distribution_id_cleaned}" >> $GITHUB_ENV
         working-directory: ./terraform # terraformディレクトリで実行
 
       # CloudFrontキャッシュの無効化
@@ -140,13 +150,14 @@ jobs:
 
           # SSMを使用してコマンドを実行
           # リポジトリURLを実際のURLに置き換えてください
+          # git clone コマンドにブランチを指定 (-b ec2s3cf)
           aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
             --parameters commands='[
               "cd /home/ec2-user",
               "rm -rf nestjs-hannibal-3",
-              "git clone https://github.com/yourusername/nestjs-hannibal-3.git",
+              "git clone -b ec2s3cf https://github.com/yourusername/nestjs-hannibal-3.git",
               "cd nestjs-hannibal-3",
               "sudo npm install -g npm@latest",
               "npm ci --legacy-peer-deps",
@@ -157,3 +168,4 @@ jobs:
               "sudo pm2 save"
             ]' \
             --timeout-seconds 600 # タイムアウトを延長 (必要に応じて調整)
+
