@@ -1,5 +1,3 @@
-# C:\code\javascript\nestjs-hannibal-3\terraform\main.tf
-
 # VPC
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
@@ -7,7 +5,7 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
 
   tags = {
-    Name = var.project_name != "" ? "${var.project_name}-vpc" : "default-vpc-name" # 変数を使う場合は var.project_name を参照
+    Name = var.project_name != "" ? "${var.project_name}-vpc" : "default-vpc-name"
   }
 }
 
@@ -122,7 +120,7 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 
 # Elastic IP (Provider v5.0.0 以上対応)
 resource "aws_eip" "backend_eip" {
-  domain   = "vpc"
+  domain = "vpc"
   tags = {
     Name = var.project_name != "" ? "${var.project_name}-backend-eip" : "default-backend-eip-name"
   }
@@ -136,7 +134,6 @@ resource "aws_instance" "backend" {
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.ec2.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
-
   user_data = <<-EOF
               #!/bin/bash
               exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
@@ -178,10 +175,12 @@ resource "aws_s3_bucket" "frontend" {
   bucket = var.project_name != "" ? "${var.project_name}-frontend-bucket" : "default-frontend-bucket-name" # バケット名はグローバルに一意である必要あり
   tags = { Name = var.project_name != "" ? "${var.project_name}-frontend" : "default-frontend-name" }
 }
+
 resource "aws_s3_bucket_ownership_controls" "frontend" {
   bucket = aws_s3_bucket.frontend.id
   rule { object_ownership = "BucketOwnerEnforced" }
 }
+
 resource "aws_s3_bucket_public_access_block" "frontend" {
   bucket = aws_s3_bucket.frontend.id
   block_public_acls       = true
@@ -227,21 +226,22 @@ resource "aws_s3_bucket_policy" "frontend" {
   ]
 }
 
-# CloudFrontディストリビューション
+# --- CloudFrontディストリビューション (修正済み) ---
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
   comment             = var.project_name != "" ? "${var.project_name} distribution" : "Default distribution comment"
 
-  origin {
+  origin { # S3オリジン
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
     origin_id                = aws_s3_bucket.frontend.id
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
   }
 
   origin { # EC2オリジン
-    domain_name = aws_eip.backend_eip.public_ip
+    # 修正箇所: Elastic IPのパブリックDNS名を使用する
+    domain_name = aws_eip.backend_eip.public_dns
     origin_id   = var.project_name != "" ? "${var.project_name}-ec2-backend" : "default-ec2-backend-origin-id"
 
     custom_origin_config {
@@ -281,6 +281,7 @@ resource "aws_cloudfront_distribution" "frontend" {
     response_page_path    = "/index.html"
     error_caching_min_ttl = 10
   }
+
   custom_error_response {
     error_code            = 404
     response_code         = 200
@@ -302,7 +303,6 @@ resource "aws_cloudfront_distribution" "frontend" {
     Name = var.project_name != "" ? "${var.project_name}-cloudfront" : "default-cloudfront-name"
   }
 
+  # EIP の関連付け (association) が完了してから CloudFront を作成/更新
   depends_on = [aws_eip_association.backend_eip_assoc]
 }
-
-# --- ここより下は main.tf には不要 ---
