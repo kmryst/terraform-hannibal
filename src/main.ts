@@ -9,7 +9,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap'); // Loggerインスタンスを作成
 
-  const port = configService.get<number>('PORT', 4000);
+  const port = configService.get<number>('PORT', 3000);
   const host = configService.get<string>('HOST', '0.0.0.0');
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
 
