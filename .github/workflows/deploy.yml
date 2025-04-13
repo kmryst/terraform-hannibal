@@ -277,6 +277,7 @@ jobs:
           # --- JSON変換終了 ---
 
           echo "Sending SSM command to instance $INSTANCE_ID..."
+          set -x
           # --- --parameters にJSON形式で渡す ---
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
@@ -285,6 +286,7 @@ jobs:
             --timeout-seconds 600 \
             --output text \
             --query "Command.CommandId")
+          set +X
           # --- SSMコマンド送信終了 ---
 
           if [ -z "$COMMAND_ID" ]; then
