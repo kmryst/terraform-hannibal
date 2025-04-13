@@ -1,24 +1,29 @@
+
+# .github/workflows/deploy.yml (修正版)
+
 name: Deploy NestJS Hannibal App
 
 on:
   pull_request:
-    branches: [ec2s3cf] # トリガーブランチを ec2s3cf に設定
+    branches: [ec2s3cf] # トリガーブランチ
   push:
-    branches: [ec2s3cf] # トリガーブランチを ec2s3cf に設定
+    branches: [ec2s3cf] # トリガーブランチ
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4 # バージョン更新
 
       # バックエンドのテスト
       - name: Setup Node.js for Backend
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v3 # Node v20 を使う場合は '20' に変更
         with:
-          node-version: '16' # バックエンドは Node.js 16 を使用
+          node-version: '16' # プロジェクトで使用するNode.jsバージョン
           cache: 'npm'
+          cache-dependency-path: package-lock.json # ルートのpackage-lock.json
 
       - name: Install Backend Dependencies
         run: npm ci
@@ -30,199 +35,318 @@ jobs:
       - name: Setup Node.js for Frontend
         uses: actions/setup-node@v3
         with:
-          node-version: '20' # フロントエンドは Node.js 20 を使用
+          node-version: '20' # フロントエンドで使用するNode.jsバージョン
           cache: 'npm'
-          cache-dependency-path: client/package-lock.json
+          cache-dependency-path: client/package-lock.json # client/ の package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd client && npm ci
+        run: npm ci
+        working-directory: ./client
 
       - name: Run Frontend Tests
-        # (もしテストコマンドがあれば追記してください。例: npm run test)
-        run: echo "Frontend tests would run here" # テストコマンドがない場合は削除または適切なコマンドに置き換え
+        run: echo "Frontend tests would run here (e.g., npm run test)"
+        working-directory: ./client
 
   deploy:
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/ec2s3cf' # デプロイ対象ブランチを ec2s3cf に設定
+    needs: test # testジョブが成功したら実行
+    if: github.event_name == 'push' && github.ref == 'refs/heads/ec2s3cf' # ec2s3cfブランチへのpush時のみ実行
     runs-on: ubuntu-latest
-    # ジョブの outputs を定義 (必須ではないが後で参照しやすい)
+    # ジョブの outputs を定義 (後続ジョブや外部から参照する場合に便利)
     outputs:
       s3_bucket_name: ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}
       cloudfront_distribution_id: ${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}
       ec2_instance_id: ${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}
-      backend_eip_address: ${{ steps.get_terraform_outputs.outputs.backend_eip_address }} # EIPアドレスを追加
+      backend_eip_address: ${{ steps.get_terraform_outputs.outputs.backend_eip_address }}
+      cloudfront_domain_name: ${{ steps.get_terraform_outputs.outputs.cloudfront_domain_name }}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # AWSの認証情報を設定
+      # AWS認証情報の設定 (OIDCを使用する方がより安全です)
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4 # バージョン更新
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-1
+          aws-region: ap-northeast-1 # リージョン指定
 
-      # Terraformをセットアップ (terraform_wrapper: false を追加)
+      # Terraformのセットアップ
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v3 # バージョン更新
         with:
-          terraform_version: 1.0.0 # Terraformのバージョン指定 (必要に応じて変更)
-          terraform_wrapper: false # これを追加
+          terraform_version: 1.0.0 # 必要に応じてTerraformのバージョンを指定
 
-      # Terraformを初期化
+      # jqのインストール (Terraform OutputとSSMコマンドで使用)
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      # Terraform Init
       - name: Terraform Init
-        id: init # ステップIDを追加
+        id: init
         run: terraform init
-        working-directory: ./terraform # terraformディレクトリで実行
+        working-directory: ./terraform # Terraformファイルがあるディレクトリ
 
-      # Terraformプランを表示 (オプション)
+      # Terraform Plan (変更内容の確認)
       - name: Terraform Plan
-        id: plan # ステップIDを追加
-        run: terraform plan # -var-file オプションを削除
-        working-directory: ./terraform # terraformディレクトリで実行
+        id: plan
+        run: terraform plan -no-color # -no-color でログを見やすく
+        working-directory: ./terraform
+        continue-on-error: true # Planでのエラーは許容 (差分なしの場合など)
 
-      # Terraformを適用（インフラをデプロイ）
-      # 注意: user_data やインスタンス設定変更を伴う場合、インスタンスの再作成や更新が発生します。
+      # Terraform Apply (インフラ構築・更新)
       - name: Terraform Apply
-        id: apply # ステップIDを追加
-        run: terraform apply -auto-approve # -var-file オプションを削除
-        working-directory: ./terraform # terraformディレクトリで実行
+        id: apply
+        run: terraform apply -auto-approve -no-color
+        working-directory: ./terraform
 
-      # Terraform Outputs を取得してステップの Output に設定
+      # Terraform Outputs の取得 (jqを使用)
       - name: Get Terraform Outputs
-        id: get_terraform_outputs # このステップのID
+        id: get_terraform_outputs
         run: |
-          # terraform output の結果を整形してステップの outputs に設定
-          S3_BUCKET=$(terraform output -raw s3_bucket_name | head -n 1 | tr -d '\n' | tr -d '\r')
-          CF_DIST_ID=$(terraform output -raw cloudfront_distribution_id | head -n 1 | tr -d '\n' | tr -d '\r')
-          EC2_ID=$(terraform output -raw ec2_instance_id | head -n 1 | tr -d '\n' | tr -d '\r') # Terraform Outputから取得
-          EIP_ADDR=$(terraform output -raw backend_eip_address | head -n 1 | tr -d '\n' | tr -d '\r') # EIPアドレスを取得
+          echo "Retrieving Terraform outputs..."
+          cd ./terraform
+          terraform output -json > tf_outputs.json
+          # 出力内容をデバッグ用に表示
+          echo "--- Terraform Outputs (JSON) ---"
+          cat tf_outputs.json
+          echo "--------------------------------"
+          cd ..
 
-          # GitHub Actions の新しい構文を使用
-          echo "s3_bucket_name=$S3_BUCKET" >> $GITHUB_OUTPUT
-          echo "cloudfront_distribution_id=$CF_DIST_ID" >> $GITHUB_OUTPUT
-          echo "ec2_instance_id=$EC2_ID" >> $GITHUB_OUTPUT
-          echo "backend_eip_address=$EIP_ADDR" >> $GITHUB_OUTPUT # EIPアドレスをOutputに追加
+          # 各出力を GITHUB_OUTPUT に設定
+          echo "s3_bucket_name=$(jq -r '.s3_bucket_name.value' ./terraform/tf_outputs.json)" >> $GITHUB_OUTPUT
+          echo "cloudfront_distribution_id=$(jq -r '.cloudfront_distribution_id.value' ./terraform/tf_outputs.json)" >> $GITHUB_OUTPUT
+          echo "ec2_instance_id=$(jq -r '.ec2_instance_id.value' ./terraform/tf_outputs.json)" >> $GITHUB_OUTPUT
+          echo "backend_eip_address=$(jq -r '.backend_eip_address.value' ./terraform/tf_outputs.json)" >> $GITHUB_OUTPUT
+          echo "cloudfront_domain_name=$(jq -r '.cloudfront_domain_name.value' ./terraform/tf_outputs.json)" >> $GITHUB_OUTPUT
 
-          # デバッグ用に取得した値を出力
-          echo "S3 Bucket Name: $S3_BUCKET"
-          echo "CloudFront Distribution ID: $CF_DIST_ID"
-          echo "EC2 Instance ID: $EC2_ID"
-          echo "Backend EIP Address: $EIP_ADDR"
-        working-directory: ./terraform # terraformディレクトリで実行
-        # env: # 環境変数が必要な場合
-        #   TF_VAR_project_name: ${{ vars.TF_VAR_project_name || 'nestjs-hannibal' }}
+          # 設定された値を確認 (デバッグ用)
+          echo "::set-output name=s3_bucket_name::$(jq -r '.s3_bucket_name.value' ./terraform/tf_outputs.json)"
+          echo "::set-output name=cloudfront_distribution_id::$(jq -r '.cloudfront_distribution_id.value' ./terraform/tf_outputs.json)"
+          echo "::set-output name=ec2_instance_id::$(jq -r '.ec2_instance_id.value' ./terraform/tf_outputs.json)"
+          echo "::set-output name=backend_eip_address::$(jq -r '.backend_eip_address.value' ./terraform/tf_outputs.json)"
+          echo "::set-output name=cloudfront_domain_name::$(jq -r '.cloudfront_domain_name.value' ./terraform/tf_outputs.json)"
+        working-directory: ./ # ルートディレクトリで実行
 
       # フロントエンドのビルド
-      - name: Setup Node.js for Frontend
+      - name: Setup Node.js for Frontend Build
         uses: actions/setup-node@v3
         with:
-          node-version: '20' # フロントエンドは Node.js 20 を使用
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
 
-      - name: Install Frontend Dependencies
+      - name: Install Frontend Dependencies for Build
         run: npm ci
-        working-directory: ./client # client ディレクトリで実行
+        working-directory: ./client
 
       - name: Build Frontend
         run: npm run build
-        working-directory: ./client # client ディレクトリで実行
+        working-directory: ./client
 
-      # S3へのデプロイ
-      - name: Deploy to S3
+      # S3へのフロントエンドデプロイ
+      - name: Deploy Frontend to S3
         run: |
-          echo "Deploying to bucket: ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}"
-          aws s3 sync ./client/dist "s3://${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}" --delete
+          S3_BUCKET="${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}"
+          if [ -z "$S3_BUCKET" ]; then
+            echo "::error::S3 bucket name not found in Terraform outputs."
+            exit 1
+          fi
+          echo "Deploying frontend to bucket: $S3_BUCKET"
+          aws s3 sync ./client/dist "s3://$S3_BUCKET" --delete
 
       # CloudFrontキャッシュの無効化
       - name: Invalidate CloudFront Cache
         run: |
-          echo "Invalidating CloudFront cache for distribution: ${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}"
-          aws cloudfront create-invalidation --distribution-id "${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}" --paths "/*"
+          CF_DIST_ID="${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}"
+          if [ -z "$CF_DIST_ID" ]; then
+            echo "::error::CloudFront distribution ID not found in Terraform outputs."
+            exit 1
+          fi
+          echo "Invalidating CloudFront cache for distribution: $CF_DIST_ID"
+          aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"
 
-      # バックエンドのデプロイ（EC2）
-      # user_dataでツールがインストールされている前提でコマンドを実行
+      # EC2へのバックエンドデプロイ (SSM経由、修正済み)
       - name: Deploy Backend to EC2 via SSM
         run: |
           INSTANCE_ID="${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}"
 
           if [ -z "$INSTANCE_ID" ]; then
-            echo "EC2 instance ID not found or not running."
+            echo "::error::EC2 instance ID not found in Terraform outputs."
             exit 1
           fi
 
-          echo "Deploying to EC2 instance: $INSTANCE_ID"
+          echo "Deploying backend to EC2 instance: $INSTANCE_ID"
 
-          # アプリケーションのデプロイと起動コマンド
-          # ec2-user として実行し、シンボリックリンクを通じてコマンドを使用
+          # --- SSMコマンド用スクリプトをヒアドキュメントで定義 ---
+          read -r -d '' SCRIPT_CONTENT << 'EOF'
+          #!/bin/bash
+          set -eo pipefail # エラー発生時にスクリプトを終了
+          echo "--- Starting deployment script on EC2 as user: $(whoami) ---"
+
+          # ec2-user としてアプリケーションを操作
+          sudo -i -u ec2-user bash << 'INNER_EOF'
+            set -eo pipefail # サブシェルでもエラーチェックを有効に
+            echo "--- Running commands as user: $(whoami) in directory: $(pwd) ---"
+
+            # NVM環境変数を設定し、nvmをロード (user_dataでインストール済み前提)
+            export NVM_DIR="$HOME/.nvm"
+            if [ -s "$NVM_DIR/nvm.sh" ]; then
+              source "$NVM_DIR/nvm.sh" # source または . で読み込む
+              echo "NVM loaded successfully using source."
+            else
+              echo "::error::NVM script not found at $NVM_DIR/nvm.sh. Please ensure NVM is installed correctly for ec2-user."
+              exit 1
+            fi
+
+            # Node, npm, pm2 のバージョンとパスを確認
+            echo "Node version: $(node -v) (Path: $(command -v node))"
+            echo "npm version: $(npm -v) (Path: $(command -v npm))"
+            echo "pm2 version: $(pm2 -v) (Path: $(command -v pm2))"
+            # pm2 が見つからない場合はフルパス指定を試す (例: /home/ec2-user/.nvm/versions/node/vXX.Y.Z/bin/pm2)
+
+            # 作業ディレクトリに移動
+            cd /home/ec2-user || { echo "::error::Failed to change directory to /home/ec2-user"; exit 1; }
+
+            # 古いアプリケーションディレクトリを削除
+            APP_DIR="nestjs-hannibal-3"
+            echo "Removing old application directory '$APP_DIR'..."
+            rm -rf "$APP_DIR"
+            echo "Old directory removed."
+
+            # リポジトリをクローン
+            echo "Cloning repository '$APP_DIR'..."
+            # !!! 重要: YOUR_GITHUB_USERNAME_OR_ORG を実際の値に置き換えてください !!!
+            # 例: git clone -b ec2s3cf https://github.com/my-org/nestjs-hannibal-3.git "$APP_DIR"
+            GIT_REPO_URL="https://github.com/YOUR_GITHUB_USERNAME_OR_ORG/nestjs-hannibal-3.git"
+            git clone -b ec2s3cf "$GIT_REPO_URL" "$APP_DIR" || { echo "::error::Failed to clone repository from $GIT_REPO_URL"; exit 1; }
+            echo "Repository cloned into '$APP_DIR'."
+
+            # アプリケーションディレクトリに移動
+            cd "$APP_DIR" || { echo "::error::Failed to change directory to '$APP_DIR'"; exit 1; }
+            echo "Changed directory to $(pwd)"
+
+            # 依存関係をインストール (package-lock.json を使用)
+            echo "Installing dependencies using npm ci..."
+            # --legacy-peer-deps は必要に応じて追加・削除
+            npm ci --legacy-peer-deps || { echo "::error::npm ci failed"; exit 1; }
+            echo "Dependencies installed."
+
+            # アプリケーションをビルド
+            echo "Building application using npm run build..."
+            npm run build || { echo "::error::npm run build failed"; exit 1; }
+            echo "Application built successfully."
+
+            # 既存のPM2プロセスを停止/削除 (存在しない場合のエラーは無視)
+            PM2_APP_NAME="nestjs-api"
+            echo "Stopping/Deleting old PM2 process '$PM2_APP_NAME'..."
+            pm2 stop "$PM2_APP_NAME" || echo "PM2 process '$PM2_APP_NAME' not found or already stopped."
+            pm2 delete "$PM2_APP_NAME" || echo "PM2 process '$PM2_APP_NAME' not found."
+            echo "Old PM2 process handled."
+
+            # 新しいPM2プロセスを開始
+            echo "Starting new PM2 process '$PM2_APP_NAME'..."
+            # dist/main.js はビルド後のNestJSアプリのエントリーポイント (プロジェクト構成に合わせて確認)
+            pm2 start dist/main.js --name "$PM2_APP_NAME" || { echo "::error::Failed to start PM2 process '$PM2_APP_NAME'"; exit 1; }
+            echo "New PM2 process '$PM2_APP_NAME' started."
+
+            # PM2プロセスリストを保存 (インスタンス再起動時のリストア用)
+            echo "Saving PM2 process list..."
+            pm2 save || { echo "::warning::Failed to save PM2 process list. Instance restart might not restore processes."; }
+            echo "PM2 process list saved."
+
+            # PM2ステータスを表示
+            echo "--- PM2 status ---"
+            pm2 list
+            echo "------------------"
+          INNER_EOF
+
+          echo "--- Deployment script on EC2 finished successfully ---"
+          EOF
+          # --- ヒアドキュメント終了 ---
+
+          # --- コマンドリストをJSON配列形式に変換 (jqを使用) ---
+          COMMANDS_JSON=$(echo "$SCRIPT_CONTENT" | jq -Rs '. | split("\n") | map(select(length > 0))')
+
+          if [ -z "$COMMANDS_JSON" ] || [ "$COMMANDS_JSON" == "[]" ]; then
+            echo "::error::Failed to create JSON commands using jq or script content is empty."
+            echo "Script content was:"
+            echo "$SCRIPT_CONTENT"
+            exit 1
+          fi
+          # --- JSON変換終了 ---
+
+          echo "Sending SSM command to instance $INSTANCE_ID..."
+          # --- --parameters にJSON形式で渡す ---
           COMMAND_ID=$(aws ssm send-command \
-            --instance-ids $INSTANCE_ID \
+            --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
-            --parameters commands='[
-              "#!/bin/bash",
-              "set -eo pipefail", # エラー発生時、パイプラインの途中でも終了
-              "echo \"Running deployment script as user: $(whoami)\"",
-
-              "# ec2-user としてアプリケーションを操作",
-              "sudo -i -u ec2-user bash << EOF", # -i オプションでログインシェルをシミュレート
-              "  set -eo pipefail", # サブシェルでもエラーチェックを有効に
-              "  export NVM_DIR=\"$HOME/.nvm\"", # NVM_DIRをエクスポート
-              "  [ -s \"$NVM_DIR/nvm.sh\" ] && \. \"$NVM_DIR/nvm.sh\"", # nvmをロード
-              "  echo \"Running commands as user: $(whoami)\"",
-              "  echo \"Using Node version: $(node -v)\"",
-              "  echo \"Using npm version: $(npm -v)\"",
-              "  echo \"Using pm2 version: $(pm2 -v)\"",
-
-              "  cd /home/ec2-user",
-              "  echo \"Removing old application directory...\"",
-              "  rm -rf nestjs-hannibal-3",
-              "  echo \"Cloning repository...\"",
-              "  git clone -b ec2s3cf https://github.com/yourusername/nestjs-hannibal-3.git", # !!! 要修正: yourusername !!!
-              "  cd nestjs-hannibal-3",
-              "  echo \"Installing dependencies...\"",
-              "  npm ci --legacy-peer-deps", # 必要に応じて --legacy-peer-deps
-              "  echo \"Building application...\"",
-              "  npm run build",
-              "  echo \"Stopping/Deleting old PM2 process...\"",
-              "  pm2 stop nestjs-api || true",
-              "  pm2 delete nestjs-api || true",
-              "  echo \"Starting new PM2 process...\"",
-              "  pm2 start dist/main.js --name nestjs-api",
-              "  pm2 save", # 現在のプロセスリストを保存
-              "  echo \"PM2 status:\"",
-              "  pm2 status",
-              "EOF"
-            ]' \
+            --parameters "{\"commands\": $COMMANDS_JSON}" \
             --timeout-seconds 600 \
             --output text \
             --query "Command.CommandId")
+          # --- SSMコマンド送信終了 ---
 
-          echo "SSM Command ID: $COMMAND_ID"
-
-          # コマンドの実行完了を待機 (タイムアウト付き)
-          echo "Waiting for command to complete..."
-          aws ssm wait command-executed --command-id $COMMAND_ID --instance-id $INSTANCE_ID || echo "SSM command execution failed or timed out."
-
-          # コマンドの結果を取得して表示
-          echo "Checking command execution results..."
-          OUTPUT=$(aws ssm list-command-invocations \
-            --command-id $COMMAND_ID \
-            --instance-id $INSTANCE_ID \
-            --details \
-            --query "CommandInvocations[].CommandPlugins[].{Output:Output, Status:Status}" \
-            --output json)
-
-          echo "SSM Command Output:"
-          # jq が runner にインストールされている前提
-          echo "$OUTPUT" | jq .
-
-          # エラーがあれば終了コードをセット
-          STATUS=$(echo $OUTPUT | jq -r '.[0].Status')
-          if [ "$STATUS" != "Success" ]; then
-            echo "SSM command failed with status: $STATUS"
+          if [ -z "$COMMAND_ID" ]; then
+            echo "::error::Failed to send SSM command or retrieve Command ID."
             exit 1
           fi
 
-          echo "Deployment to EC2 completed successfully."
+          echo "SSM Command ID: $COMMAND_ID. Waiting for completion..."
+
+          # コマンドの実行完了を待機 (タイムアウト付き、失敗しても続行)
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" || echo "::warning::SSM command wait timed out or failed for command $COMMAND_ID on instance $INSTANCE_ID. Proceeding to check status."
+
+          # 結果取得のために少し待機
+          echo "Waiting a few seconds before fetching results..."
+          sleep 15
+
+          # コマンドの結果を取得 (標準出力・標準エラーを含む)
+          echo "Checking command execution results for $COMMAND_ID..."
+          OUTPUT=$(aws ssm list-command-invocations \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --details \
+            --query "CommandInvocations[].CommandPlugins[?Name=='aws:runShellScript'].{Output:StandardOutputContent, Error:StandardErrorContent, Status:Status}" \
+            --output json)
+
+          # 結果JSONをログに出力 (デバッグ用)
+          echo "--- SSM Command Invocation Output (JSON) ---"
+          echo "$OUTPUT" | jq .
+          echo "---------------------------------------------"
+
+          # ステータスとログを抽出
+          STATUS=$(echo "$OUTPUT" | jq -r '.[0].Status // "Unknown"') # jq 1.6+
+          OUTPUT_LOG=$(echo "$OUTPUT" | jq -r '.[0].Output // ""')
+          ERROR_LOG=$(echo "$OUTPUT" | jq -r '.[0].Error // ""')
+
+          # 標準出力を表示
+          if [ -n "$OUTPUT_LOG" ]; then
+             echo "--- SSM Standard Output ---"
+             echo "$OUTPUT_LOG"
+             echo "--------------------------"
+          else
+             echo "SSM Standard Output is empty."
+          fi
+
+          # 標準エラーを表示 (エラーがある場合)
+          if [ -n "$ERROR_LOG" ]; then
+             echo "::warning::SSM Standard Error is not empty:" # 警告として表示
+             echo "--- SSM Standard Error ---"
+             echo "$ERROR_LOG"
+             echo "-------------------------"
+          fi
+
+          # 最終ステータスを確認
+          if [ "$STATUS" != "Success" ]; then
+            echo "::error::SSM command failed with status: $STATUS for command $COMMAND_ID on instance $INSTANCE_ID."
+            # エラーログが空でもStatusがFailならエラーとする
+            if [ -z "$ERROR_LOG" ]; then
+               echo "Standard Error log was empty, check Standard Output for potential script errors."
+            fi
+            exit 1
+          else
+             echo "SSM command $COMMAND_ID completed successfully on instance $INSTANCE_ID."
+          fi
+
+          echo "Backend deployment to EC2 completed successfully."
