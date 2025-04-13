@@ -310,36 +310,3 @@ resource "aws_cloudfront_distribution" "frontend" {
   depends_on = [aws_eip_association.backend_eip_assoc]
 }
 
-
-# terraform/main.tf の末尾に追加
-
-output "s3_bucket_name" {
-  description = "Name (ID) of the S3 bucket for the frontend"
-  value       = aws_s3_bucket.frontend.id
-}
-
-output "cloudfront_distribution_id" {
-  description = "ID of the CloudFront distribution"
-  value       = aws_cloudfront_distribution.frontend.id
-}
-
-output "ec2_instance_id" {
-  description = "ID of the EC2 instance for the backend"
-  value       = aws_instance.backend.id
-}
-
-output "backend_eip_address" {
-  description = "Public IP address of the backend EC2 instance EIP"
-  value       = aws_eip.backend_eip.public_ip
-}
-
-output "cloudfront_domain_name" {
-  description = "Domain name of the CloudFront distribution"
-  value       = aws_cloudfront_distribution.frontend.domain_name
-}
-
-# (オプション) バックエンドのパブリックDNSも出力しておくと便利
-output "backend_eip_public_dns" {
-  description = "Public DNS name of the backend EC2 instance EIP"
-  value       = aws_eip.backend_eip.public_dns
-}

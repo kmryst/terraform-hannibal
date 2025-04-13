@@ -1,24 +1,24 @@
-# C:\code\javascript\nestjs-hannibal-3\terraform\outputs.tf
+# terraform/outputs.tf (修正版)
 
 output "ec2_instance_id" {
   value       = aws_instance.backend.id
   description = "NestJSバックエンドが稼働するEC2インスタンスのID"
 }
 
-output "ec2_public_ip" {
-  # value       = aws_instance.backend.public_ip # EIPを使用するためコメントアウトまたは削除
-  value       = aws_eip.backend_eip.public_ip # Elastic IP のアドレスを出力
-  description = "NestJSバックエンドが稼働するEC2インスタンスのElastic IPアドレス"
+# backend_eip_address に統一するため、ec2_public_ip は削除しました。
+
+output "backend_eip_address" {
+  value       = aws_eip.backend_eip.public_ip
+  description = "NestJSバックエンドEC2インスタンスに割り当てられたElastic IPアドレス"
 }
 
 output "ec2_public_dns" {
-  # value       = aws_instance.backend.public_dns # EIPを使用するためコメントアウトまたは削除
-  value       = aws_eip.backend_eip.public_dns # Elastic IP のDNS名を出力
-  description = "NestJSバックエンドが稼働するEC2インスタンスのElastic IPのDNS名"
+  value       = aws_eip.backend_eip.public_dns
+  description = "NestJSバックエンドEC2インスタンスに割り当てられたElastic IPのパブリックDNS名"
 }
 
 output "s3_bucket_name" {
-  value       = aws_s3_bucket.frontend.bucket
+  value       = aws_s3_bucket.frontend.bucket # .id ではなく .bucket を使う方が一般的（どちらでも動作はする）
   description = "Reactフロントエンドの静的ファイルを保存するS3バケット名"
 }
 
@@ -32,8 +32,9 @@ output "cloudfront_distribution_id" {
   description = "CloudFrontディストリビューションのID"
 }
 
-# --- Elastic IP の情報を追加 ---
-output "backend_eip_address" {
-  value       = aws_eip.backend_eip.public_ip
-  description = "割り当てられたElastic IPアドレス"
-}
+# backend_eip_public_dns は ec2_public_dns で出力しているため不要
+# もし backend_eip_public_dns という名前で出力したい場合は、ec2_public_dns をリネームしてください。
+# output "backend_eip_public_dns" {
+#   value       = aws_eip.backend_eip.public_dns
+#   description = "Public DNS name of the backend EC2 instance EIP"
+# }
