@@ -1,4 +1,4 @@
-# .github/workflows/deploy.yml (デバッグ強化版)
+# .github/workflows/deploy.yml (jqエラー特定版デバッグコード適用済み)
 
 name: Deploy NestJS Hannibal App
 
@@ -147,25 +147,19 @@ jobs:
           echo "Invalidating CloudFront cache for distribution: $CF_DIST_ID"
           aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"
 
-      # --- ★★★ EC2へのバックエンドデプロイ (SSM経由、デバッグ強化版) ★★★ ---
+      # --- ★★★ EC2へのバックエンドデプロイ (jqエラー特定版) ★★★ ---
       - name: Deploy Backend to EC2 via SSM
+        id: deploy_backend # ステップIDを追加
         run: |
+          # --- 初期設定と認証確認 (変更なし) ---
           INSTANCE_ID="${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}"
-
-          if [ -z "$INSTANCE_ID" ]; then
-            echo "::error::EC2 instance ID not found in Terraform outputs."
-            exit 1
-          fi
-
+          if [ -z "$INSTANCE_ID" ]; then echo "::error::EC2 instance ID not found."; exit 1; fi
           echo "Deploying backend to EC2 instance: $INSTANCE_ID"
-
-          # --- 追加: AWS認証情報を確認 ---
           echo "Checking AWS Caller Identity..."
-          aws sts get-caller-identity || { echo "::error::Failed to verify AWS caller identity. Check credentials."; exit 1; }
+          aws sts get-caller-identity || { echo "::error::Failed to verify AWS caller identity."; exit 1; }
           echo "AWS Caller Identity verified."
-          # --- 確認終了 ---
 
-          # --- SSMコマンド用スクリプト定義 (変更なし、ただしGit URLのプレースホルダーに注意) ---
+          # --- SSMコマンド用スクリプト定義 (変更なし) ---
           read -r -d '' SCRIPT_CONTENT << 'EOF'
           #!/bin/bash
           set -eo pipefail
@@ -180,7 +174,7 @@ jobs:
             APP_DIR="nestjs-hannibal-3"
             echo "Removing old $APP_DIR..."; rm -rf "$APP_DIR"; echo "Old dir removed."
             echo "Cloning $APP_DIR..."
-            # !!! 重要: YOUR_GITHUB_USERNAME_OR_ORG を実際のGitHubユーザー名または組織名に置き換えてください !!!
+            # !!! 重要: YOUR_GITHUB_USERNAME_OR_ORG を置き換えてください !!!
             GIT_REPO_URL="https://github.com/YOUR_GITHUB_USERNAME_OR_ORG/nestjs-hannibal-3.git"
             git clone -b ec2s3cf "$GIT_REPO_URL" "$APP_DIR" || { echo "::error::git clone failed"; exit 1; }
             echo "Cloned."
@@ -196,69 +190,50 @@ jobs:
           EOF
           # --- スクリプト定義終了 ---
 
-          # --- JSON変換 (変更なし) ---
-          COMMANDS_JSON=$(echo "$SCRIPT_CONTENT" | jq -Rs '. | split("\n") | map(select(length > 0))')
-          if [ -z "$COMMANDS_JSON" ] || [ "$COMMANDS_JSON" == "[]" ]; then
-            echo "::error::Failed to create JSON commands using jq or script content is empty."
+          # --- jq コマンド実行とエラーチェックを分離 ---
+          echo "--- Raw SCRIPT_CONTENT to be processed by jq ---"
+          echo "$SCRIPT_CONTENT"
+          echo "------------------------------------------------"
+
+          echo "Attempting to generate JSON array using jq..."
+          # jqコマンドを実行し、エラー出力も変数にキャプチャ (2>&1)
+          JQ_OUTPUT=$(echo "$SCRIPT_CONTENT" | jq -Rs '. | split("\n") | map(select(length > 0))' 2>&1)
+          JQ_EXIT_CODE=$?
+
+          if [ $JQ_EXIT_CODE -ne 0 ]; then
+            echo "::error::jq command failed with exit code $JQ_EXIT_CODE."
+            echo "--- jq Output/Error ---"
+            echo "$JQ_OUTPUT" # jq の標準出力または標準エラー出力を表示
+            echo "-----------------------"
             exit 1
+          else
+            COMMANDS_JSON="$JQ_OUTPUT"
+            echo "jq command successful. Generated JSON:"
+            echo "$COMMANDS_JSON" | head -c 500
+            echo "..."
           fi
-          # --- JSON変換終了 ---
+          # --- jq 処理終了 ---
 
+          # --- send-command 実行 (前回と同じ) ---
           echo "Attempting to send SSM command to instance $INSTANCE_ID..."
-
-          # --- 変更: send-command を直接実行し、終了コードをチェック ---
           aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --parameters "{\"commands\": $COMMANDS_JSON}" \
             --timeout-seconds 600 \
-            --output json # エラー時に詳細なJSONが出力されるように変更
-
-          # 直前のコマンドの終了コードを確認
+            --output json
           EXIT_CODE=$?
-
           if [ $EXIT_CODE -ne 0 ]; then
-            # エラーメッセージの直前に失敗したコマンドが出力されるはず
             echo "::error::'aws ssm send-command' failed with exit code $EXIT_CODE. See AWS CLI output above for details."
             exit 1
           else
-            # 成功した場合、コマンドIDは取得していないが、実行自体は成功したことを示す
-            echo "'aws ssm send-command' request was sent successfully (Command ID not captured in this debug version)."
-            # このデバッグバージョンでは、send-commandが成功した時点でステップを正常終了させる
-            # 実際にEC2上でスクリプトが成功したかは、この後の手動確認や別の方法で確認が必要
-            echo "Skipping command execution status check (wait, list-invocations) in this debug version."
-            # ※注意: ここで exit 0 しないと、後続の処理がなければスクリプトは最後まで実行され、
-            # 最後に echo "Backend deployment step finished..." が表示される
+            echo "'aws ssm send-command' request was sent successfully (Command ID not captured)."
+            echo "Skipping command execution status check."
           fi
-
-          # --- 以下の処理は send-command のエラー特定中は不要なためコメントアウト ---
-          # if [ -z "$COMMAND_ID" ]; then
-          #   echo "::error::Failed to send SSM command or retrieve Command ID."
-          #   exit 1
-          # fi
-          # echo "SSM Command ID: $COMMAND_ID. Waiting for completion..."
-          # aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" || echo "::warning::SSM command wait timed out or failed for command $COMMAND_ID on instance $INSTANCE_ID. Proceeding to check status."
-          # echo "Waiting a few seconds before fetching results..."
-          # sleep 15
-          # echo "Checking command execution results for $COMMAND_ID..."
-          # OUTPUT=$(aws ssm list-command-invocations ...)
-          # echo "--- SSM Command Invocation Output (JSON) ---"
-          # echo "$OUTPUT" | jq .
-          # echo "---------------------------------------------"
-          # STATUS=$(echo "$OUTPUT" | jq -r '.[0].Status // "Unknown"')
-          # OUTPUT_LOG=$(echo "$OUTPUT" | jq -r '.[0].Output // ""')
-          # ERROR_LOG=$(echo "$OUTPUT" | jq -r '.[0].Error // ""')
-          # if [ -n "$OUTPUT_LOG" ]; then ... fi
-          # if [ -n "$ERROR_LOG" ]; then ... fi
-          # if [ "$STATUS" != "Success" ]; then ... exit 1; fi
-          # echo "Backend deployment to EC2 completed successfully."
-          # --- コメントアウトここまで ---
-
-          echo "Backend deployment step finished (debug version focused on send-command)."
+          echo "Backend deployment step finished (debug version focused on jq)."
         env:
           AWS_DEFAULT_REGION: ap-northeast-1
           AWS_REGION: ap-northeast-1
           # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           # AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         shell: bash
-
