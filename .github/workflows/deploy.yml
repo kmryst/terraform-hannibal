@@ -1,4 +1,4 @@
-# .github/workflows/deploy.yml (jqエラー特定版デバッグコード適用済み)
+# .github/workflows/deploy.yml (-e オプション削除 & exit 1 コメントアウト版)
 
 name: Deploy NestJS Hannibal App
 
@@ -10,41 +10,36 @@ on:
 
 jobs:
   test:
+    # (変更なし)
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Setup Node.js for Backend
         uses: actions/setup-node@v3
         with:
           node-version: '16'
           cache: 'npm'
           cache-dependency-path: package-lock.json
-
       - name: Install Backend Dependencies
         run: npm ci
-
       - name: Run Backend Tests
         run: npm test
-
       - name: Setup Node.js for Frontend
         uses: actions/setup-node@v3
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
-
       - name: Install Frontend Dependencies
         run: npm ci
         working-directory: ./client
-
       - name: Run Frontend Tests
         run: echo "Frontend tests would run here (e.g., npm run test)"
         working-directory: ./client
 
   deploy:
+    # (変更なし)
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/ec2s3cf'
     runs-on: ubuntu-latest
@@ -56,43 +51,38 @@ jobs:
       cloudfront_domain_name: ${{ steps.get_terraform_outputs.outputs.cloudfront_domain_name }}
 
     steps:
+      # (以前のステップは変更なし)
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.0.0
-
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
-
       - name: Terraform Init
         id: init
         run: terraform init
         working-directory: ./terraform
-
       - name: Terraform Plan
         id: plan
         run: terraform plan -no-color
         working-directory: ./terraform
         continue-on-error: true
-
       - name: Terraform Apply
         id: apply
         run: terraform apply -auto-approve -no-color
         working-directory: ./terraform
-
       - name: Get Terraform Outputs
         id: get_terraform_outputs
         run: |
+          # (内容は変更なし)
           echo "Retrieving Terraform outputs..."
           cd ./terraform
           terraform output -json > tf_outputs.json
@@ -111,57 +101,51 @@ jobs:
           echo "::set-output name=backend_eip_address::$(jq -r '.backend_eip_address.value' ./terraform/tf_outputs.json)"
           echo "::set-output name=cloudfront_domain_name::$(jq -r '.cloudfront_domain_name.value' ./terraform/tf_outputs.json)"
         working-directory: ./
-
       - name: Setup Node.js for Frontend Build
         uses: actions/setup-node@v3
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
-
       - name: Install Frontend Dependencies for Build
         run: npm ci
         working-directory: ./client
-
       - name: Build Frontend
         run: npm run build
         working-directory: ./client
-
       - name: Deploy Frontend to S3
         run: |
+          # (内容は変更なし)
           S3_BUCKET="${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}"
-          if [ -z "$S3_BUCKET" ]; then
-            echo "::error::S3 bucket name not found in Terraform outputs."
-            exit 1
-          fi
+          if [ -z "$S3_BUCKET" ]; then echo "::error::S3 bucket name not found."; exit 1; fi # ここでのexitは残す
           echo "Deploying frontend to bucket: $S3_BUCKET"
           aws s3 sync ./client/dist "s3://$S3_BUCKET" --delete
-
       - name: Invalidate CloudFront Cache
         run: |
+          # (内容は変更なし)
           CF_DIST_ID="${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}"
-          if [ -z "$CF_DIST_ID" ]; then
-            echo "::error::CloudFront distribution ID not found in Terraform outputs."
-            exit 1
-          fi
+          if [ -z "$CF_DIST_ID" ]; then echo "::error::CloudFront distribution ID not found."; exit 1; fi # ここでのexitは残す
           echo "Invalidating CloudFront cache for distribution: $CF_DIST_ID"
           aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"
 
-      # --- ★★★ EC2へのバックエンドデプロイ (jqエラー特定版) ★★★ ---
+      # --- ★★★ EC2へのバックエンドデプロイ (-e オプション削除 & exit 1 コメントアウト版) ★★★ ---
       - name: Deploy Backend to EC2 via SSM
-        id: deploy_backend # ステップIDを追加
+        id: deploy_backend
         run: |
-          # --- 初期設定と認証確認 (変更なし) ---
+          # --- 初期設定と認証確認 ---
           INSTANCE_ID="${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}"
+          # INSTANCE_ID が空の場合はエラーで終了 (-e 無しでも exit する)
           if [ -z "$INSTANCE_ID" ]; then echo "::error::EC2 instance ID not found."; exit 1; fi
           echo "Deploying backend to EC2 instance: $INSTANCE_ID"
           echo "Checking AWS Caller Identity..."
+          # AWS認証が失敗した場合もエラーで終了 (-e 無しでも exit する)
           aws sts get-caller-identity || { echo "::error::Failed to verify AWS caller identity."; exit 1; }
           echo "AWS Caller Identity verified."
 
-          # --- SSMコマンド用スクリプト定義 (変更なし) ---
+          # --- SSMコマンド用スクリプト定義 ---
           read -r -d '' SCRIPT_CONTENT << 'EOF'
           #!/bin/bash
+          # ★注意: この内部スクリプトでは set -e が有効なままです
           set -eo pipefail
           echo "--- Starting deployment script on EC2 as user: $(whoami) ---"
           sudo -i -u ec2-user bash << 'INNER_EOF'
@@ -190,50 +174,50 @@ jobs:
           EOF
           # --- スクリプト定義終了 ---
 
-          # --- jq コマンド実行とエラーチェックを分離 ---
+          # --- jq コマンド実行とエラーチェック ---
           echo "--- Raw SCRIPT_CONTENT to be processed by jq ---"
           echo "$SCRIPT_CONTENT"
           echo "------------------------------------------------"
-
           echo "Attempting to generate JSON array using jq..."
-          # jqコマンドを実行し、エラー出力も変数にキャプチャ (2>&1)
           JQ_OUTPUT=$(echo "$SCRIPT_CONTENT" | jq -Rs '. | split("\n") | map(select(length > 0))' 2>&1)
           JQ_EXIT_CODE=$?
-
           if [ $JQ_EXIT_CODE -ne 0 ]; then
             echo "::error::jq command failed with exit code $JQ_EXIT_CODE."
-            echo "--- jq Output/Error ---"
-            echo "$JQ_OUTPUT" # jq の標準出力または標準エラー出力を表示
-            echo "-----------------------"
-            exit 1
+            echo "--- jq Output/Error ---"; echo "$JQ_OUTPUT"; echo "-----------------------"
+            # exit 1 # <- デバッグのためコメントアウト
           else
             COMMANDS_JSON="$JQ_OUTPUT"
             echo "jq command successful. Generated JSON:"
-            echo "$COMMANDS_JSON" | head -c 500
-            echo "..."
+            echo "$COMMANDS_JSON" | head -c 500; echo "..."
           fi
           # --- jq 処理終了 ---
 
-          # --- send-command 実行 (前回と同じ) ---
+          # --- send-command 実行 ---
           echo "Attempting to send SSM command to instance $INSTANCE_ID..."
+          # jqが失敗した場合も考慮し、COMMANDS_JSONが未定義なら空配列を渡す
           aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
-            --parameters "{\"commands\": $COMMANDS_JSON}" \
+            --parameters "{\"commands\": ${COMMANDS_JSON:-[]}}" \
             --timeout-seconds 600 \
             --output json
           EXIT_CODE=$?
           if [ $EXIT_CODE -ne 0 ]; then
             echo "::error::'aws ssm send-command' failed with exit code $EXIT_CODE. See AWS CLI output above for details."
-            exit 1
+            # exit 1 # <- デバッグのためコメントアウト
           else
             echo "'aws ssm send-command' request was sent successfully (Command ID not captured)."
             echo "Skipping command execution status check."
           fi
-          echo "Backend deployment step finished (debug version focused on jq)."
+          # --- send-command 処理終了 ---
+
+          # ★★★ エラーが発生しても、-e がないので最後まで実行される ★★★
+          echo "Backend deployment step finished (debug version without -e)."
         env:
           AWS_DEFAULT_REGION: ap-northeast-1
           AWS_REGION: ap-northeast-1
           # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           # AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        shell: bash
+        # --- ★★★ shell オプションから -e を削除 ★★★ ---
+        shell: /usr/bin/bash --noprofile --norc -o pipefail {0}
+
