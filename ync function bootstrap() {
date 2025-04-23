@@ -1,0 +1,38 @@
+[33m46f8bec[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/ec2docker[m[33m, [m[1;31morigin2/main[m[33m)[m feature/ec2docker start!
+[33m88a5cca[m[33m ([m[1;31morigin2/feature/ec2docker[m[33m, [m[1;32mec2docker[m[33m)[m 特に書くことがない
+[33m23d060d[m ec2docker start!
+[33md3cf335[m[33m ([m[1;31morigin/ec2s3cf[m[33m, [m[1;32mec2s3cf[m[33m)[m 修正4
+[33mb9446fb[m 修3
+[33m457ead1[m CI/CD4
+[33m7e45e96[m 修正6
+[33mf2bf3a9[m 修正5
+[33m5b03458[m 修正4
+[33m8dc59e3[m 修正3
+[33m88e3f1a[m 修正2
+[33m8b3e987[m main.tf修正1
+[33m1705e83[m deploy.yml修正14
+[33m1d241f4[m CI/CDできるかな3
+[33me6d8fad[m deploy.yml修正13
+[33m04377c9[m deploy.yml修正12
+[33m169b782[m deploy.yml修正11
+[33mcdded24[m deploy.yml修正10
+[33m5f7ae56[m deploy.yml修正9
+[33mdc7255b[m deploy.yml修正8
+[33mad45b17[m deploy.yml修正7
+[33mbea5162[m deploy.yml修正6
+[33m0668731[m CI/CDできるかな2
+[33m87cf8b6[m CI/CDできるかな
+[33md406b60[m deploy.yml修正5
+[33m8d208f9[m deploy.yml修正4
+[33mcc9bafd[m deploy.yml修正3
+[33me065928[m deploy.yml修正2
+[33md50426b[m mapLayers.ts修正2
+[33m196a2a4[m mapLayers.ts修正
+[33mdf98c51[m deploy.yml修正
+[33m23a57ed[m testスキップ
+[33m8447846[m GitHub Actions2
+[33ma55536c[m GitHub Actions
+[33m534ff0e[m terraform apply完了
+[33m97bcf4d[m 開発環境を維持したまま、デプロイ準備完了、多分。
+[33mfd53f59[m ects3cf start!
+[33m1824721[m[33m ([m[1;32mmain[m[33m)[m first commit

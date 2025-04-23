@@ -1,11 +1,11 @@
 
-// C:\code\javascript\nestjs-hannibal-1\src\modules\map\map.module.ts
+// C:\code\javascript\nestjs-hannibal-3\src\modules\map\map.module.ts
 
-import { Module } from '@nestjs/common';
+import { Module } from '@nestjs/common'; // NestJSの「モジュール」を定義するためのModuleデコレータを読み込んでいる
 import { MapResolver } from './map.resolver';
 import { MapService } from './map.service';
 
 @Module({
-  providers: [MapResolver, MapService],
+  providers: [MapResolver, MapService], // プロバイダーとは、NestJSが自動的にインスタンス化してくれるクラス（サービスやリゾルバーなど）です
 })
 export class MapModule {}
