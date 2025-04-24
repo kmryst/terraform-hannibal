@@ -1,5 +1,6 @@
 
-// C:\code\javascript\nestjs-hannibal-1\src\common\interfaces\geo.interface.ts
+// C:\code\javascript\nestjs-hannibal-3\src\common\interfaces\geo.interface.ts
+// この geo.interface.ts ファイルは、GeoJSON形式の地理情報データをTypeScriptの型（インターフェース）としてNestJSプロジェクト内で扱うためのものです
 
 export interface Point {
   type: string;
