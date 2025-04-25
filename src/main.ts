@@ -37,20 +37,34 @@ async function bootstrap() {
     // .joinで配列の要素をすべて結合して、間にカンマを入れる
   }
 
+  // origin: リクエスト発信元の情報（スキーム・ホスト名・ポート番号）を示すHTTPヘッダー 例: "https://example.com:8080" のような形式
+  // ブラウザがクロスオリジン通信（CORS）時に自動で付与し、サーバー側はこの値をもとにアクセス許可するオリジンかどうかを判定する
   app.enableCors({ // CORSの設定をまとめて渡す
-    origin: (origin, callback) => { // origin: アクセス元 callbak: 判定結果
-      // originがないリクエスト (サーバー間通信やツール) や、許可リストに含まれるオリジンを許可
+    origin: (origin, callback) => { // origin: リクエスト元 callbak: 判定結果
+      // !origin: Originヘッダーが無いリクエスト（サーバー間通信やツール等）はCORSチェックをスキップして許可
+      // 許可リストに含まれるオリジンか判定、許可
       if (!origin || allowedOrigins.some(allowed => origin.startsWith(allowed))) {
-        // allowed: allowedOrigins配列の中の各要素（1つ1つのURL）が順番に入る ループ処理
-        // .some: 配列の中に条件を満たす要素が1つでもあればtrueを返す
-        // .startsWith: origin が、allowed ではじまっているか
-        // allowedOrigins配列の中に、originがその値で始まるものが1つでもあればtrueを返す
-        callback(null, true);
-        // 許可する場合はcallbackの第1引数にnull（エラーなし）、第2引数にtrueを渡す
+        callback(null, true); // ← ここで「このoriginは許可！」とCORSミドルウェアに通知
+      
+        // ↓↓ ここから先はCORSミドルウェア（サーバー側）が自動的に実行する処理 ↓↓
+        // サーバーはレスポンスヘッダーに下記を付与する
+        //   Access-Control-Allow-Origin: <リクエスト元のorigin>
+        //   Access-Control-Allow-Credentials: true
+        //   Access-Control-Allow-Methods: GET,POST,OPTIONS
+        //   Access-Control-Allow-Headers: Content-Type,Authorization 
+        // ブラウザはこれらのヘッダーを受け取り
+        // 「このリクエストは許可された！」と判断し、API通信を継続する
+        // （もしプリフライトリクエスト（OPTIONS）の場合も、同様にヘッダーを付与してレスポンス）
+      
       } else {
         logger.error(`CORS Error: Origin ${origin} not allowed.`);
-        callback(new Error('Not allowed by CORS'));
+        callback(new Error('Not allowed by CORS')); // ← ここで「このoriginは拒否！」とCORSミドルウェアに通知
+      
+        // ↓↓ ここから先はCORSミドルウェア（サーバー側）が自動的に実行する処理 ↓↓
+        // サーバーはCORSエラーとしてレスポンスを返す
+        // ブラウザは「CORS policyによりブロックされました」というエラーを表示し、API通信は中断される
       }
+      
     },
     methods: ['GET', 'POST', 'OPTIONS'], // サーバーが許可するHTTPメソッド（リクエストの種類）を指定
     allowedHeaders: ['Content-Type', 'Authorization'], // 許可するHTTPヘッダーを指定
