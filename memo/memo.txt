@@ -7,7 +7,6 @@ C:\code\javascript\nestjs-hannibal-3\dist
 C:\code\javascript\nestjs-hannibal-3\memo
 C:\code\javascript\nestjs-hannibal-3\node_modules
 C:\code\javascript\nestjs-hannibal-3\src
-C:\code\javascript\nestjs-hannibal-3\terraform
 C:\code\javascript\nestjs-hannibal-3\test
 C:\code\javascript\nestjs-hannibal-3\.env
 C:\code\javascript\nestjs-hannibal-3\.eslintrc.js
@@ -20,7 +19,7 @@ C:\code\javascript\nestjs-hannibal-3\README.md
 C:\code\javascript\nestjs-hannibal-3\SessionManagerPluginSetup.exe
 C:\code\javascript\nestjs-hannibal-3\tsconfig.build.json
 C:\code\javascript\nestjs-hannibal-3\tsconfig.json
-C:\code\javascript\nestjs-hannibal-3\ync function bootstrap() {
+C:\code\javascript\nestjs-hannibal-3\ync function bootstrap() 
 C:\code\javascript\nestjs-hannibal-3\.github\workflows
 C:\code\javascript\nestjs-hannibal-3\.github\workflows\deploy.yml
 C:\code\javascript\nestjs-hannibal-3\src\common
