@@ -7,12 +7,6 @@ Parameters:
     Default: t3.micro
     Description: t3.microは、低コストでバースト可能な性能を持つ、AWS EC2の汎用インスタンスタイプのひとつです。主に小規模なシステムや開発用途で使われます
 
-  # 最新のAmazon Linux 2023 AMIを自動取得
-  LatestAmiId:
-    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
-    Description: Amazon Linux 2023の最新AMI ID
-
 Resources:
   HannibalEC2Role: # IAMロールの論理名です、自分で名前つける
     Type: AWS::IAM::Role
@@ -52,65 +46,42 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref InstanceType # Parametersで指定したInstanceType
-      ImageId: !Ref LatestAmiId # Amazon Linux 2023の最新AMI IDを自動取得
+      ImageId: ami-05206bf8aecfc7ae6 # Amazon Linux 2023の最新AMI IDに置換
       IamInstanceProfile: !Ref HannibalEC2InstanceProfile
       SecurityGroupIds: [!Ref HannibalSecurityGroup]
       KeyName: hannibal-key  # SSH接続用 wslにある鍵を確認する
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          set -eux
-
-          # システムパッケージを最新化
-          dnf update -y
-
-          # 依存パッケージをインストール
-          # yum-utils: 便利ツール集 device-mapper-persistent-data: データ管理用のパッケージ lvm2: Logical Volume Manager
-          dnf install -y yum-utils device-mapper-persistent-data lvm2
-
-          # Docker公式リポジトリを追加
-          # 常に最新のDockerをインストールするため
-          dnf config-manager --add-repo https://download.docker.com/linux/amazonlinux/docker-ce.repo
-
-          # Docker CEとComposeプラグインをインストール
-          # containerd.io: コンテナ実行エンジン docker-compose-plugin: 複数のコンテナを管理できる
-          dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-          # Dockerサービスを有効化・起動
-          # enable: 自動起動 --now: 今すぐサービスを起動
-          systemctl enable --now docker
-
-          # ec2-userをdockerグループに追加（sudo不要でdockerコマンド実行可能に） dockerグループとは、LinuxでDockerを使うときに作られる特別なグループです
-          # usermod: user modify
-          # -aG: append Group
+          yum update -y
+          amazon-linux-extras install docker -y
+          systemctl enable docker
+          systemctl start docker
           usermod -aG docker ec2-user
 
-          # SSM Agent（Amazon Linux 2023はデフォルトでインストール済み）
-          # SSM Agentを有効にすることで、AWSの管理画面やCLIからリモート操作や自動化ができるようになります
-          # SSM: Amazon Simple Systems Manager
-          systemctl enable --now amazon-ssm-agent
+          # Docker Compose
+          curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
 
-          # ECRにDockerでログイン
-          # stdin: 標準入力
-          aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
+          # SSM Agent（Amazon Linux 2023はデフォルトでインストール済み）
+          systemctl enable amazon-ssm-agent
+          systemctl start amazon-ssm-agent
+
+          # ECRログイン
+          aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com
 
           # Parameter Storeから環境変数取得
-          # get-parameters-by-path: 指定したパス（階層）以下にあるすべてのパラメータを一括で取得します
-          # export: 環境変数として設定する
-          # >> .envファイルの末尾に書き込む
-          # while read name value: 1行ずつname valueに入れて読み込んで、ループ
           aws ssm get-parameters-by-path --path "/nestjs-hannibal-3/" --region ap-northeast-1 --query "Parameters[*].[Name,Value]" --output text | while read name value; do
             export $(basename $name)="$value"
             echo "$(basename $name)=$value" >> /home/ec2-user/.env
           done
 
           # Docker Composeファイル作成
-          # ヒアドキュメントで複数行テキストをファイルに書き込む
           cat <<EOF > /home/ec2-user/docker-compose.yml
           version: "3"
           services:
             app:
-              image: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:latest
+              image: <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:latest
               env_file:
                 - /home/ec2-user/.env
               ports:
@@ -119,12 +90,9 @@ Resources:
           EOF
 
           # アプリ起動
-          cd /home/ec2-user
-          docker compose up -d
-          # -d: detached mode コンテナをバックグラウンド（裏側）で起動し、コマンド実行後すぐにターミナルが使える状態に戻ります
+          docker-compose -f /home/ec2-user/docker-compose.yml up -d
 
 Outputs:
   EC2PublicIP:
     Description: "EC2 Public IP"
     Value: !GetAtt HannibalEC2Instance.PublicIp
-    # GetAtt: Get Attribute

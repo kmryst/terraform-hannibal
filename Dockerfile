@@ -1,4 +1,5 @@
-FROM node:20-alpine
+FROM node:23.11.0-alpine3.21
+# FROM node:20-alpine
 # 「node:20-alpine」という名前の公式Node.jsイメージを使ってDockerコンテナを作り始める、という意味です
 # Node.jsのバージョン20が入っていて、Alpine Linuxという軽量なLinuxをベースにしたイメージです
 
