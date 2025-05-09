@@ -72,50 +72,64 @@ Resources:
           #!/bin/bash
 
           set -eux
-      
+
           echo "--- Installing Docker ---"
           dnf update -y
           dnf install -y docker
           systemctl enable --now docker
           usermod -aG docker ec2-user
           echo "Docker installed and started."
-      
+          
           echo "--- Installing Amazon ECR Credential Helper ---"
           dnf install -y amazon-ecr-credential-helper
           echo "ECR Credential Helper installed."
-      
+
           echo "--- Installing Docker Compose ---"
           curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
           chmod +x /usr/local/bin/docker-compose
           ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
           echo "Docker Compose installed."
-      
+
           echo "--- Configuring ECR Credential Helper for ec2-user ---"
           DEST_DIR="/home/ec2-user"
           DOCKER_CONFIG_DIR="$DEST_DIR/.docker"
           DOCKER_CONFIG_FILE="$DOCKER_CONFIG_DIR/config.json"
-      
+
           mkdir -p "$DOCKER_CONFIG_DIR"
           chown ec2-user:ec2-user "$DOCKER_CONFIG_DIR"
-      
+
           sudo -u ec2-user cat <<EOF_DOCKER_CONFIG > "$DOCKER_CONFIG_FILE"
           {
               "credHelpers": {
-                  "public.ecr.aws": "ecr-login",
-                  "258632448142.dkr.ecr.ap-northeast-1.amazonaws.com": "ecr-login"
+                  "public.ecr.aws": "ecr-credential-helper",
+                  "258632448142.dkr.ecr.ap-northeast-1.amazonaws.com": "ecr-credential-helper"
               },
               "auths": {}
           }
           EOF_DOCKER_CONFIG
-      
+
           chown ec2-user:ec2-user "$DOCKER_CONFIG_FILE"
           echo "ECR Credential Helper configured for ec2-user."
-      
-          # シンボリックリンク作成処理を削除しました
-      
+
+          echo "--- Creating symlink for ECR Credential Helper ---"
+          AWS_CLI_PATH=$(which aws)
+          if [ -z "$AWS_CLI_PATH" ]; then
+              echo "Error: AWS CLI not found. Cannot create symlink for credential helper."
+              exit 1
+          fi
+
+          CRED_HELPER_EXEC_PATH=$(dirname "$AWS_CLI_PATH")/docker-credential-ecr-credential-helper
+
+          if [ -x "$CRED_HELPER_EXEC_PATH" ]; then
+              sudo ln -sf "$CRED_HELPER_EXEC_PATH" /usr/local/bin/docker-credential-ecr-credential-helper
+              echo "Symlink created for docker-credential-ecr-credential-helper."
+          else
+              echo "Warning: ECR Credential Helper executable not found at $CRED_HELPER_EXEC_PATH. Check AWS CLI installation."
+          fi
+
           echo "--- Creating docker-compose.yml file ---"
           COMPOSE_FILE="$DEST_DIR/docker-compose.yml"
-      
+
           sudo -u ec2-user cat <<EOF_COMPOSE > "$COMPOSE_FILE"
           services:
             nestjs-app:
@@ -126,32 +140,23 @@ Resources:
                 NODE_ENV: production
               restart: always
           EOF_COMPOSE
-      
+
           chown ec2-user:ec2-user "$COMPOSE_FILE"
           echo "docker-compose.yml created."
-      
+
           echo "--- Starting application with Docker Compose ---"
           cd "$DEST_DIR"
-          
-          echo "Waiting for IAM role propagation..."
-          sleep 20
-          
-          sudo -u ec2-user docker-compose pull
-          sudo -u ec2-user docker-compose up -d --force-recreate
-          
+          sudo -u ec2-user docker-compose up -d
           if [ $? -eq 0 ]; then
               echo "Docker Compose application started successfully."
           else
               echo "Error: Failed to start Docker Compose application."
               exit 1
           fi
-      
-          echo "Cloud-init script finished successfully."
-      
 
+          echo "Cloud-init script finished successfully."
 
 Outputs:
   EC2PublicIP:
     Description: "EC2 Public IP"
     Value: !GetAtt HannibalEC2Instance.PublicIp
-

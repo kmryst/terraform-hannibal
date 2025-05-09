@@ -18,6 +18,7 @@ RUN npm ci --omit=dev
 
 COPY dist ./dist
 # ローカル（ホスト）の「dist」フォルダを、コンテナ内の「/app/dist」フォルダにコピーします
+COPY src ./src
 
 # 必要に応じてnode_modules/@nestjs/config等も含める
 CMD ["npm", "run", "start:prod"]

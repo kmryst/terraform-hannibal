@@ -1,0 +1,113 @@
+
+# C:\code\javascript\nestjs-hannibal-3\cloudformation\nestjs-hannibal-3-cfn.yml
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: nestjs-hannibal-3本番環境（EC2/Docker/SSM/ECR）
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: t3.microは、低コストでバースト可能な性能を持つ、AWS EC2の汎用インスタンスタイプのひとつです。主に小規模なシステムや開発用途で使われます
+
+  # 最新のAmazon Linux 2023 AMIを自動取得
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
+    Description: Amazon Linux 2023の最新AMI ID
+  
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2インスタンスに割り当てるキーペア名
+
+Resources:
+  HannibalEC2Role: # IAMロールの論理名です、自分で名前つける
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: # このロールを誰が引き受けて(assume)よいか
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: # 主体を決める
+              Service: [ec2.amazonaws.com] # EC2がこのロールを引き受けることを許可している
+            Action: ['sts:AssumeRole'] # sts: AWS Security Token Service 略称です
+      Path: /
+      ManagedPolicyArns: # ARN: Amazon Resource Name
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly  # ECRイメージ取得権限
+        - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess # パラメータストア参照権限
+
+  HannibalEC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile # EC2インスタンスにロールを紐付けるために必要。プロファイルなしではインスタンスがロールを使用できません
+    Properties:
+      Roles: [!Ref HannibalEC2Role]
+      # !RefはCloudFormationテンプレート内での論理名（リソース名）から、実際のリソース名やID（物理ID）を取得するための関数です
+
+  HannibalSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP 4000 from anywhere
+      SecurityGroupIngress:
+      # 「インバウンドルール」（外部からの接続を許可するルール）を定義するセクションです。この行がないと、一切の外部通信がブロックされます（デフォルトですべて拒否）
+        - IpProtocol: tcp
+        # TCPはWebサーバー（HTTP/HTTPS）やデータベース接続など、信頼性の高い通信に使われる。「udp」にすると動画ストリーミングなどに使われる
+          FromPort: 4000 # 許可するポートの開始範囲
+          ToPort: 4000 # 許可するポートの終了範囲
+          CidrIp: 0.0.0.0/0
+          # CIDR(サイダー): 「Classless Inter-Domain Routing」 IPaddressの範囲の表現法
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0   # セキュリティ上は自分のグローバルIPに限定するのが推奨
+
+  HannibalEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType # Parametersで指定したInstanceType
+      ImageId: !Ref LatestAmiId # Amazon Linux 2023の最新AMI IDを自動取得する
+      IamInstanceProfile: !Ref HannibalEC2InstanceProfile
+      SecurityGroupIds: [!Ref HannibalSecurityGroup]
+      KeyName: hannibal-key  # SSH接続用 wslにある鍵を確認する
+
+
+
+
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -eux
+
+          dnf update -y
+          dnf install -y docker
+
+          systemctl enable --now docker
+          usermod -aG docker ec2-user
+
+          # --- ↓↓↓ Docker Compose (ハイフン) を追加インストール ↓↓↓ ---
+          # COMPOSE_VERSION の定義を削除し、URLに直接バージョンを記述
+          curl -L "https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+          # シンボリックリンクを作成
+          ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+          # --- ↑↑↑ ここまで修正 ↑↑↑ ---
+
+          # ECRログイン
+          aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
+
+          # ...(以下略)...
+
+          # アプリ起動 (ハイフン区切りで)
+          cd /home/ec2-user
+          docker-compose up -d
+
+
+
+
+
+
+
+Outputs:
+  EC2PublicIP:
+    Description: "EC2 Public IP"
+    Value: !GetAtt HannibalEC2Instance.PublicIp
+    # GetAtt: Get Attribute
+

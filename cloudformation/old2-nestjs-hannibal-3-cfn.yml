@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: nestjs-hannibal-3本番環境（EC2/Docker/SSM/ECR）
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: t3.microは、低コストでバースト可能な性能を持つ、AWS EC2の汎用インスタンスタイプのひとつです。主に小規模なシステムや開発用途で使われます
+
+  # 最新のAmazon Linux 2023 AMIを自動取得
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
+    Description: Amazon Linux 2023の最新AMI ID
+  
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2インスタンスに割り当てるキーペア名
+
+Resources:
+  HannibalEC2Role: # IAMロールの論理名です、自分で名前つける
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: # このロールを誰が引き受けて(assume)よいか
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: # 主体を決める
+              Service: [ec2.amazonaws.com] # EC2がこのロールを引き受けることを許可している
+            Action: ['sts:AssumeRole'] # sts: AWS Security Token Service 略称です
+      Path: /
+      ManagedPolicyArns: # ARN: Amazon Resource Name
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly  # ECRイメージ取得権限
+        - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess # パラメータストア参照権限
+
+  HannibalEC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile # EC2インスタンスにロールを紐付けるために必要。プロファイルなしではインスタンスがロールを使用できません
+    Properties:
+      Roles: [!Ref HannibalEC2Role]
+      # !RefはCloudFormationテンプレート内での論理名（リソース名）から、実際のリソース名やID（物理ID）を取得するための関数です
+
+  HannibalSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP 4000 from anywhere
+      SecurityGroupIngress:
+      # 「インバウンドルール」（外部からの接続を許可するルール）を定義するセクションです。この行がないと、一切の外部通信がブロックされます（デフォルトですべて拒否）
+        - IpProtocol: tcp
+        # TCPはWebサーバー（HTTP/HTTPS）やデータベース接続など、信頼性の高い通信に使われる。「udp」にすると動画ストリーミングなどに使われる
+          FromPort: 4000 # 許可するポートの開始範囲
+          ToPort: 4000 # 許可するポートの終了範囲
+          CidrIp: 0.0.0.0/0
+          # CIDR(サイダー): 「Classless Inter-Domain Routing」 IPaddressの範囲の表現法
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0   # セキュリティ上は自分のグローバルIPに限定するのが推奨
+
+  HannibalEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType # Parametersで指定したInstanceType
+      ImageId: !Ref LatestAmiId # Amazon Linux 2023の最新AMI IDを自動取得
+      IamInstanceProfile: !Ref HannibalEC2InstanceProfile
+      SecurityGroupIds: [!Ref HannibalSecurityGroup]
+      KeyName: hannibal-key  # SSH接続用 wslにある鍵を確認する
+      UserData:
+        # Fn:: CloudFormationテンプレートの組み込み関数
+        # Base64 文字列をエンコードする
+        # !Sub 「Fn::Sub」の省略形 substitute: 代わりに 置換する
+        # | 以降の文字列を、改行を保持したまま取得する
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -eux
+
+          # システムパッケージを最新化
+          dnf update -y
+
+          # 依存パッケージをインストール
+          # yum-utils: 便利ツール集 device-mapper-persistent-data: データ管理用のパッケージ lvm2: Logical Volume Manager
+          dnf install -y yum-utils device-mapper-persistent-data lvm2
+
+          # Docker公式リポジトリを追加
+          # 常に最新のDockerをインストールするため
+          dnf config-manager --add-repo https://download.docker.com/linux/amazonlinux/docker-ce.repo
+
+          # Docker CEとComposeプラグインをインストール
+          # containerd.io: コンテナ実行エンジン docker-compose-plugin: 複数のコンテナを管理できる
+          dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+          # Dockerサービスを有効化・起動
+          # enable: 自動起動 --now: 今すぐサービスを起動
+          systemctl enable --now docker
+
+          # ec2-userをdockerグループに追加（sudo不要でdockerコマンド実行可能に） dockerグループとは、LinuxでDockerを使うときに作られる特別なグループです
+          # usermod: user modify
+          # -aG: append Group
+          usermod -aG docker ec2-user
+
+          # SSM Agent（Amazon Linux 2023はデフォルトでインストール済み）
+          # SSM Agentを有効にすることで、AWSの管理画面やCLIからリモート操作や自動化ができるようになります
+          # SSM: Amazon Simple Systems Manager
+          systemctl enable --now amazon-ssm-agent
+
+          # ECRにDockerでログイン
+          # stdin: 標準入力
+          aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
+
+          # Parameter Storeから環境変数取得
+          # get-parameters-by-path: 指定したパス（階層）以下にあるすべてのパラメータを一括で取得します
+          # export: 環境変数として設定する
+          # >> .envファイルの末尾に書き込む
+          # while read name value: 1行ずつname valueに入れて読み込んで、ループ
+          aws ssm get-parameters-by-path --path "/nestjs-hannibal-3/" --region ap-northeast-1 --query "Parameters[*].[Name,Value]" --output text | while read name value; do
+            export $(basename $name)="$value"
+            echo "$(basename $name)=$value" >> /home/ec2-user/.env
+          done
+
+          # Docker Composeファイル作成
+          # ヒアドキュメントで複数行テキストをファイルに書き込む
+          cat <<EOF > /home/ec2-user/docker-compose.yml
+          version: "3"
+          services:
+            app:
+              image: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:latest
+              env_file:
+                - /home/ec2-user/.env
+              ports:
+                - "4000:4000"
+              restart: always
+          EOF
+
+          # アプリ起動
+          cd /home/ec2-user
+          docker compose up -d
+          # -d: detached mode コンテナをバックグラウンド（裏側）で起動し、コマンド実行後すぐにターミナルが使える状態に戻ります
+
+Outputs:
+  EC2PublicIP:
+    Description: "EC2 Public IP"
+    Value: !GetAtt HannibalEC2Instance.PublicIp
+    # GetAtt: Get Attribute

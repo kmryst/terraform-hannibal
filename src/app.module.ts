@@ -27,6 +27,9 @@ import { RouteModule } from './modules/route/route.module';
       },
       context: ({ req }) => ({ req }),
       // 「GraphQLのリクエストごとに、どんな情報をコンテキストとして渡すか」を指定しています
+      csrfPrevention: false, // テスト時のみ
+      playground: true, // テスト時のみ
+      introspection: true, // テスト時のみ
     }),
     MapModule,
     RouteModule,
