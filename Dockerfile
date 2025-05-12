@@ -16,12 +16,19 @@ RUN npm ci --omit=dev
 # package.json と package-lock.json の内容が一致しない場合はエラーになります
 # package.jsonには「どのパッケージが必要か」と、その「バージョンの範囲」が書かれています。一方、package-lock.jsonには「実際にインストールされたバージョン」が正確に記録されます
 
+RUN npm install -g pm2
+
+
+
 COPY dist ./dist
 # ローカル（ホスト）の「dist」フォルダを、コンテナ内の「/app/dist」フォルダにコピーします
 COPY src ./src
 
+
+CMD ["pm2-runtime", "dist/main.js"]
+
 # 必要に応じてnode_modules/@nestjs/config等も含める
-CMD ["npm", "run", "start:prod"]
+# CMD ["npm", "run", "start:prod"]
 # コンテナを起動したときに実行するコマンドを指定しています
 # ここでは「npm run start:prod」を実行し、アプリを本番モードで起動します
 # CMDはコンテナの「スタートボタン」のようなものです
