@@ -1,4 +1,5 @@
 // C:\code\javascript\nestjs-hannibal-3\src\modules\map\map.resolver.ts
+// GraphQLのリクエスト処理担当（APIの窓口）
 
 import { Resolver, Query } from '@nestjs/graphql';
 import { MapService } from './map.service';
