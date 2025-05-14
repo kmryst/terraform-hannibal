@@ -1,3 +1,4 @@
+
 // C:\code\javascript\nestjs-hannibal-3\client\src\components\MapContainer.tsx
 
 import { useEffect, useRef, useState } from "react";
@@ -67,15 +68,16 @@ const MapContainer: React.FC = () => {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [progress, setProgress] = useState(0); // setProgess関数でprogressを更新する
   const { loading, error, data } = useQuery(GET_MAP_DATA);
+  // loading: クエリが実行中の場合はtrueになり、完了するとfalseになります
+  // error: クエリ実行中に発生したエラー情報が格納されます。エラーが発生していない場合はnullになります
+
 
   // デバッグ用: データ取得確認
   useEffect(() => {
     if (data) {
-      // DEBUG: 一時的デバッグ表示（本番確認用）
       console.log("Capital Cities Data:", data.capitalCities);
       console.log("Hannibal Route Data:", data.hannibalRoute);
       console.log("Point Route Data:", data.pointRoute);
-      // DEBUG: ここまで
     }
   }, [data]);
 
@@ -124,21 +126,8 @@ const MapContainer: React.FC = () => {
   return (
     <>
       <div ref={mapContainerRef} style={{ width: "100vw", height: "100vh" }} />
-
-      {/* DEBUG: 一時的デバッグ表示（本番確認用） */}
-      {loading && (
-        <div style={{ position: "fixed", top: 0, left: 0, color: "blue", background: "white", zIndex: 10000, padding: "4px 8px" }}>
-          Loading...
-        </div>
-      )}
-      {error && (
-        <div style={{ position: "fixed", top: 30, left: 0, color: "red", background: "white", zIndex: 10000, padding: "4px 8px" }}>
-          Error: {error.message}
-        </div>
-      )}
-      {/* DEBUG: ここまで */}
-
-      {/* エラーログ表示（既存） */}
+      
+      {/* エラーログ表示 */}
       <div
         id="error-log"
         style={{

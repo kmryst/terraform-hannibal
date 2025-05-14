@@ -119,30 +119,12 @@ Resources:
               listen 80;
               server_name _;
 
-              location /api/ {
-                proxy_pass http://nestjs-app:3000/;
+              location / {
+                proxy_pass http://nestjs-app:3000;
                 proxy_set_header Host \$host;
                 proxy_set_header X-Real-IP \$remote_addr;
                 proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto \$scheme;
-
-                # CORS headers for CloudFront frontend only
-                add_header 'Access-Control-Allow-Origin' 'https://d375qvy687fllt.cloudfront.net' always;
-                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
-                add_header 'Access-Control-Allow-Headers' 'Origin, Content-Type, Accept, Authorization' always;
-                add_header 'Access-Control-Allow-Credentials' 'true' always;
-
-                # Preflight CORS (OPTIONS method)
-                if (\$request_method = 'OPTIONS') {
-                  add_header 'Access-Control-Allow-Origin' 'https://d375qvy687fllt.cloudfront.net' always;
-                  add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
-                  add_header 'Access-Control-Allow-Headers' 'Origin, Content-Type, Accept, Authorization' always;
-                  add_header 'Access-Control-Allow-Credentials' 'true' always;
-                  add_header 'Access-Control-Max-Age' 1728000 always;
-                  add_header 'Content-Type' 'text/plain; charset=UTF-8' always;
-                  add_header 'Content-Length' 0 always;
-                  return 204;
-                }
               }
             }
           }
@@ -160,8 +142,7 @@ Resources:
               expose:
                 - "3000"
               environment:
-                - NODE_ENV=production
-                - CLIENT_URL=https://d375qvy687fllt.cloudfront.net
+                NODE_ENV: production
               restart: always
 
             nginx:
