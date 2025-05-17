@@ -1,0 +1,24 @@
+
+node_modules
+npm-debug.log
+Dockerfile*
+.dockerignore
+.git
+.gitignore
+README.md
+LICENSE
+.vscode
+# ビルド済みdistはDockerfile内で生成するので、ローカルのdistは含めない
+dist 
+test
+# srcはビルドステージで使うが、最終イメージにはdistのみコピー
+# src 
+client/
+cloudformation/
+terraform/
+memo/
+current_template.yml
+SessionManagerPluginSetup.exe
+ync function bootstrap() {
+# Mac特有のファイル
+.DS_Store
