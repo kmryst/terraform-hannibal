@@ -1,4 +1,5 @@
 # 1. ビルド用ステージ
+# dockerfile-utils: ignore
 FROM node:20-alpine AS builder
 
 WORKDIR /usr/src/app
