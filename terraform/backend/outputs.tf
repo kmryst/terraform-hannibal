@@ -1,4 +1,10 @@
+
 # terraform/backend/outputs.tf
+
+# Terraform apply後に「どのリソースがどんな値になったか」をすぐ確認できる
+# 他のTerraformプロジェクトや手作業で必要な値（例：ALBのDNS名、ECSクラスタ名など）をコピペしやすい
+# フロントエンドや他システムの設定で「APIのエンドポイント」などを指定する際に便利
+
 output "alb_dns_name" {
   description = "DNS name of the Application Load Balancer"
   value       = aws_lb.main.dns_name

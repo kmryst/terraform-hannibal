@@ -11,19 +11,19 @@ variable "project_name" {
   default     = "nestjs-hannibal-3"
 }
 
+# Virtual Private Cloud
 variable "vpc_id" {
   description = "ID of the VPC for deploying resources. Create a default VPC or use an existing one."
   type        = string
-  # 例: "vpc-xxxxxxxxxxxxxxxxx" (実際のVPC IDに置き換えるか、データソースで取得)
   # default     = "vpc-xxxxxxxxxxxxxxxxx" # デフォルトVPCがない場合は指定必須
 }
 
-variable "public_subnet_ids" {
-  description = "List of public subnet IDs for ALB and Fargate tasks (at least 2 in different AZs)"
-  type        = list(string)
-  # 例: ["subnet-xxxxxxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyyyyyy"]
-  # default     = ["subnet-xxxxxxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyyyyyy"] # 指定必須
-}
+# variable "public_subnet_ids" {
+#   description = "List of public subnet IDs for ALB and Fargate tasks (at least 2 in different AZs)"
+#   type        = list(string)
+#   # 例: ["subnet-xxxxxxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyyyyyy"]
+#   # default     = ["subnet-xxxxxxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyyyyyy"] # 指定必須
+# }
 
 variable "private_subnet_ids" {
   description = "List of private subnet IDs for Fargate tasks if using private subnets"
@@ -34,8 +34,7 @@ variable "private_subnet_ids" {
 variable "container_image_uri" {
   description = "ECR URI of the Docker image for the NestJS API"
   type        = string
-  # 例: "YOUR_ACCOUNT_ID.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:latest"
-  # default     = "YOUR_ACCOUNT_ID.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:latest" # 事前にECRにpushしたイメージURI
+  default     = "258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:latest" # 事前にECRにpushしたイメージURI
 }
 
 variable "container_port" {

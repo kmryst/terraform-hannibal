@@ -1,4 +1,10 @@
+
 # terraform/backend/provider.tf
+
+# AWSやGCP、Azureなど、どのクラウドサービスとやり取りするかを定義します
+# 認証情報（リージョン、プロファイルなど）やバージョン指定、エイリアス（複数プロバイダー利用時）などもここに書きます
+
+
 terraform {
   required_providers {
     aws = {

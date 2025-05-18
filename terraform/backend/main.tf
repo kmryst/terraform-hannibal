@@ -1,11 +1,14 @@
 # terraform/backend/main.tf
 
 # --- VPC Data Sources (既存のVPCとサブネットを使用する場合) ---
-data "aws_vpc" "selected" {
+# dataソースは、「AWS上にすでに存在するVPCの情報を自動で取得する」ためのものです
+data "aws_vpc" "selected" { # AWSのVPC情報を取得して、selectedという名前でTerraform内から参照できるようにした
   # id = var.vpc_id # vpc_id を直接指定する場合
-  default = true # デフォルトVPCを使用する場合 (なければエラー)
+  default = true # デフォルトVPCを自動で探して、その情報（IDなど）を取得(なければエラー)
 }
 
+# これは「AWSにすでに存在するサブネットの情報のリストを、publicという名前で取得する」という宣言です
+# ALBやECSなどは、そのリスト全部を指定して「複数AZ分散」を自動的にやってくれる
 data "aws_subnets" "public" {
   filter {
     name   = "vpc-id"
@@ -101,7 +104,7 @@ resource "aws_lb" "main" {
   internal           = false # public facing
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = var.public_subnet_ids # public_subnet_ids を使用
+  subnets            = data.aws_subnets.public.ids # public_subnet_ids を使用
 
   enable_deletion_protection = false # 開発中はfalse推奨
 }
@@ -121,8 +124,8 @@ resource "aws_lb_target_group" "api" {
     port                = "traffic-port"
     healthy_threshold   = 3
     unhealthy_threshold = 3
-    timeout_seconds     = 5
-    interval_seconds    = 30
+    timeout             = 5
+    interval            = 30
     matcher             = "200-399" # GraphQLのエンドポイントなら200または400番台が返る場合も考慮
   }
 }
@@ -202,7 +205,7 @@ resource "aws_ecs_service" "api" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = var.public_subnet_ids # Fargateタスクを配置するサブネット (ALBからのアクセスがあるためパブリックサブネットに置くか、プライベートサブネット＋NAT Gateway)
+    subnets          = data.aws_subnets.public.ids # Fargateタスクを配置するサブネット (ALBからのアクセスがあるためパブリックサブネットに置くか、プライベートサブネット＋NAT Gateway)
     security_groups  = [aws_security_group.ecs_service_sg.id]
     assign_public_ip = true # パブリックサブネットに配置し、ECRからイメージをpullするためにtrue (プライベートサブネット＋NAT Gatewayの場合はfalse)
   }
