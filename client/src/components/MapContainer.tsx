@@ -1,8 +1,6 @@
 // C:\code\javascript\nestjs-hannibal-3\client\src\components\MapContainer.tsx
 
 import { useEffect, useRef, useState } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
 import { useQuery, gql } from "@apollo/client";
 import {
   initializeMap,
@@ -64,46 +62,62 @@ const GET_MAP_DATA = gql`
 
 const MapContainer: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const [progress, setProgress] = useState(0); // setProgess関数でprogressを更新する
+  const mapRef = useRef<any>(null);
+  const [progress, setProgress] = useState(0);
+  const [isMapboxLoading, setIsMapboxLoading] = useState(true);
   const { loading, error, data } = useQuery(GET_MAP_DATA);
+
+  // Mapboxの動的インポート
+  // 初期バンドルサイズを削減するため、Mapboxを動的に読み込む
+  useEffect(() => {
+    const loadMapbox = async () => {
+      try {
+        // MapboxのライブラリとCSSを動的にインポート
+        const mapboxgl = await import('mapbox-gl');
+        await import('mapbox-gl/dist/mapbox-gl.css');
+        mapRef.current = mapboxgl.default ?? mapboxgl;
+        setIsMapboxLoading(false);
+      } catch (error) {
+        console.error('Error loading Mapbox:', error);
+      }
+    };
+
+    loadMapbox();
+  }, []);
 
   // デバッグ用: データ取得確認
   useEffect(() => {
     if (data) {
-      // DEBUG: 一時的デバッグ表示（本番確認用）
       console.log("Capital Cities Data:", data.capitalCities);
       console.log("Hannibal Route Data:", data.hannibalRoute);
       console.log("Point Route Data:", data.pointRoute);
-      // DEBUG: ここまで
     }
   }, [data]);
 
   // エラーハンドリング関数
   const handleError = (message: string, details?: Record<string, unknown>) => {
-    // ... (既存のコード)
+    console.error(message, details);
   };
 
   // マップ初期化処理
   useEffect(() => {
-    if (!data || !mapContainerRef.current) return;
+    if (!data || !mapContainerRef.current || isMapboxLoading || !mapRef.current) return;
 
     try {
-      mapRef.current = initializeMap(mapContainerRef.current);
+      const map = initializeMap(mapContainerRef.current, mapRef.current);
 
-      mapRef.current.on("style.load", () => {
-        if (!mapRef.current) return;
+      map.on("style.load", () => {
+        if (!map) return;
 
-        setTerrain(mapRef.current);
-        setSnowEffect(mapRef.current);
+        setTerrain(map);
+        setSnowEffect(map);
 
         try {
-          // GraphQLデータからレイヤーを追加
-          addHannibalRouteLayers(mapRef.current, data.hannibalRoute, data.pointRoute);
-          addCapitalCityLayers(mapRef.current, data.capitalCities);
+          addHannibalRouteLayers(map, data.hannibalRoute, data.pointRoute);
+          addCapitalCityLayers(map, data.capitalCities);
 
-          setupClickHandlers(mapRef.current);
-          setupCursorHandlers(mapRef.current);
+          setupClickHandlers(map);
+          setupCursorHandlers(map);
 
           console.log("Map layers added successfully.");
         } catch (e) {
@@ -113,19 +127,22 @@ const MapContainer: React.FC = () => {
       });
 
       return () => {
-        mapRef.current?.remove();
+        map?.remove();
       };
     } catch (e) {
       console.error("Map Initialization Failed:", e);
       handleError(`Map Initialization Failed: ${e}`);
     }
-  }, [data]);
+  }, [data, isMapboxLoading]);
+
+  if (isMapboxLoading) {
+    return <div>Loading Mapbox...</div>;
+  }
 
   return (
     <>
       <div ref={mapContainerRef} style={{ width: "100vw", height: "100vh" }} />
 
-      {/* DEBUG: 一時的デバッグ表示（本番確認用） */}
       {loading && (
         <div style={{ position: "fixed", top: 0, left: 0, color: "blue", background: "white", zIndex: 10000, padding: "4px 8px" }}>
           Loading...
@@ -136,9 +153,7 @@ const MapContainer: React.FC = () => {
           Error: {error.message}
         </div>
       )}
-      {/* DEBUG: ここまで */}
 
-      {/* エラーログ表示（既存） */}
       <div
         id="error-log"
         style={{

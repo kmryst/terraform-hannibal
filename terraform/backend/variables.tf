@@ -12,10 +12,13 @@ variable "project_name" {
 }
 
 # Virtual Private Cloud
+# main.tfの data.aws_vpc.selected で default = true を指定しているため、
+# デフォルトVPCを自動的に取得します。
+# デフォルトVPCが存在しない場合は、この変数にVPC IDを指定する必要があります。
 variable "vpc_id" {
-  description = "ID of the VPC for deploying resources. Create a default VPC or use an existing one."
+  description = "ID of the VPC for deploying resources. If not specified, the default VPC will be used."
   type        = string
-  # default     = "vpc-xxxxxxxxxxxxxxxxx" # デフォルトVPCがない場合は指定必須
+  default     = ""  # 空文字列をデフォルト値として設定し、オプショナルにする
 }
 
 # variable "public_subnet_ids" {

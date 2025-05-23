@@ -123,9 +123,12 @@ resource "aws_cloudfront_distribution" "main" {
     default_ttl            = 3600  # 1 hour
     max_ttl                = 86400 # 24 hours
 
-    # (オプション) Cache PolicyやOrigin Request Policyを指定
-    # cache_policy_id          = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
-    # origin_request_policy_id = "..."
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
   }
 
   ordered_cache_behavior { # APIリクエストのルーティング
@@ -192,6 +195,10 @@ resource "aws_cloudfront_distribution" "main" {
   #     # logging_config # ログ設定変更を無視する場合
   #   ]
   # }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
 }
 
 # (オプション) Route 53で独自ドメインを設定する場合

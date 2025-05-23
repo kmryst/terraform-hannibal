@@ -14,7 +14,7 @@ variable "project_name" {
 variable "s3_bucket_name" {
   description = "Unique S3 bucket name for frontend static files"
   type        = string
-  # default     = "your-unique-bucket-name-nestjs-hannibal-3" # グローバルにユニークな名前を設定
+  default     = "nestjs-hannibal-3-frontend" # グローバルにユニークな名前を設定
 }
 
 variable "frontend_build_path" {

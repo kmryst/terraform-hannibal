@@ -5,7 +5,7 @@ import mapboxgl, { StyleImageInterface } from "mapbox-gl";
 import * as GeoJSON from 'geojson'; // GeoJSON 型をインポート
 
 // Hannibal ルート関連のレイヤーを追加する関数
-export const addHannibalRouteLayers = (map: mapboxgl.Map, hannibalRouteData: GeoJSON.FeatureCollection<GeoJSON.LineString>, pointRouteData: GeoJSON.FeatureCollection<GeoJSON.Point>) => {
+export const addHannibalRouteLayers = (map: any, hannibalRouteData: GeoJSON.FeatureCollection<GeoJSON.LineString>, pointRouteData: GeoJSON.FeatureCollection<GeoJSON.Point>) => {
   // データソースが既に追加されていないか確認（重複追加防止）
   if (!map.getSource("route")) {
     map.addSource("route", {
@@ -106,7 +106,7 @@ export const addHannibalRouteLayers = (map: mapboxgl.Map, hannibalRouteData: Geo
 
 
 // 首都関連のレイヤーを追加する関数
-export const addCapitalCityLayers = (map: mapboxgl.Map, capitalCitiesData: GeoJSON.FeatureCollection<GeoJSON.Point, { empire: string; name: string }>) => {
+export const addCapitalCityLayers = (map: any, capitalCitiesData: GeoJSON.FeatureCollection<GeoJSON.Point, { empire: string; name: string }>) => {
 
   // 首都データソースを追加（重複追加防止）
   if (!map.getSource("capitals")) {
@@ -117,71 +117,62 @@ export const addCapitalCityLayers = (map: mapboxgl.Map, capitalCitiesData: GeoJS
   }
 
   // アイコン画像を非同期で読み込む Promise を返す関数
-  // ★ 修正点: Promise の型定義に ImageData を追加
   const loadImagePromise = (imagePath: string): Promise<HTMLImageElement | ImageBitmap | ImageData> => {
-      return new Promise((resolve, reject) => {
-          map.loadImage(imagePath, (error, image) => {
-              if (error) {
-                  reject(error);
-              // ★ 修正点: image が null/undefined でないことを確認してから resolve
-              } else if (image) {
-                  // resolve に渡される image は HTMLImageElement | ImageBitmap | ImageData のいずれか
-                  resolve(image);
-              } else {
-                  // image が null/undefined の場合 (通常は error が発生するはずだが念のため)
-                  reject(new Error(`Failed to load image ${imagePath} without specific error.`));
-              }
-          });
+    return new Promise((resolve, reject) => {
+      map.loadImage(imagePath, (error: Error | null, image: HTMLImageElement | ImageBitmap | ImageData | null) => {
+        if (error) {
+          reject(error);
+        } else if (image) {
+          resolve(image);
+        } else {
+          reject(new Error(`Failed to load image ${imagePath} without specific error.`));
+        }
       });
+    });
   };
 
   Promise.all([
-      loadImagePromise("/taka.png"), // ローマアイコン
-      loadImagePromise("/zou.png")   // カルタゴアイコン
+    loadImagePromise("/taka.png"),
+    loadImagePromise("/zou.png")
   ]).then(([romanImage, carthageImage]) => {
-      // 画像の登録（重複登録防止）
-      // romanImage, carthageImage の型は HTMLImageElement | ImageBitmap | ImageData
-      if (!map.hasImage("roman-icon")) {
-          // map.addImage の型定義は ImageData も受け付けるので、そのまま渡せる
-          // 型アサーションは念のため維持
-          map.addImage("roman-icon", romanImage as ImageBitmap | HTMLImageElement | ImageData | StyleImageInterface | { width: number; height: number; data: Uint8Array | Uint8ClampedArray });
-      }
-      if (!map.hasImage("carthage-icon")) {
-          map.addImage("carthage-icon", carthageImage as ImageBitmap | HTMLImageElement | ImageData | StyleImageInterface | { width: number; height: number; data: Uint8Array | Uint8ClampedArray });
-      }
+    if (!map.hasImage("roman-icon")) {
+      map.addImage("roman-icon", romanImage);
+    }
+    if (!map.hasImage("carthage-icon")) {
+      map.addImage("carthage-icon", carthageImage);
+    }
 
-      // アイコンレイヤー追加（重複追加防止）
-      if (!map.getLayer("capital-icons")) {
-          map.addLayer({
-              id: "capital-icons",
-              type: "symbol",
-              source: "capitals",
-              layout: {
-                  "icon-image": [
-                      "match",
-                      ["get", "empire"],
-                      "Roman",       "roman-icon",
-                      "Carthaginian","carthage-icon",
-                      /* default */   ""
-                  ],
-                  "icon-size": 0.12,
-                  "icon-allow-overlap": true,
-                  "icon-ignore-placement": true,
-                  "text-field": ["get", "name"],
-                  "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-                  "text-offset": [0, 1],
-                  "text-anchor": "top",
-                  "text-allow-overlap": false,
-                  "text-ignore-placement": false,
-              },
-              paint: {
-                  'text-color': '#000000',
-                  'text-halo-color': '#FFFFFF',
-                  'text-halo-width': 1
-              }
-          });
-      }
+    if (!map.getLayer("capital-icons")) {
+      map.addLayer({
+        id: "capital-icons",
+        type: "symbol",
+        source: "capitals",
+        layout: {
+          "icon-image": [
+            "match",
+            ["get", "empire"],
+            "Roman", "roman-icon",
+            "Carthaginian", "carthage-icon",
+            ""
+          ],
+          "icon-size": 0.12,
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "text-field": ["get", "name"],
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-offset": [0, 1],
+          "text-anchor": "top",
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+        },
+        paint: {
+          'text-color': '#000000',
+          'text-halo-color': '#FFFFFF',
+          'text-halo-width': 1
+        }
+      });
+    }
   }).catch(error => {
-      console.error("Error loading capital city icons:", error);
+    console.error("Error loading capital city icons:", error);
   });
 };

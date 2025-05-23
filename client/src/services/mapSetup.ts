@@ -1,5 +1,3 @@
-
-
 // C:\code\javascript\nestjs-hannibal-3\client\src\services\mapSetup.ts
 
 import mapboxgl, { PropertyValueSpecification } from "mapbox-gl";
@@ -36,7 +34,7 @@ const zoomBasedReveal = (maxValue: number): PropertyValueSpecification<number> =
 
 
 // マップの初期化
-export const initializeMap = (container: HTMLDivElement) => {
+export const initializeMap = (container: HTMLDivElement, mapboxgl: any) => {
 	mapboxgl.accessToken =
 		"pk.eyJ1IjoiZ2F0c2J5a2VuamkiLCJhIjoiY202azF4Y2trMDcxcDJqcXFlZXh0a212NSJ9.vxT12MITCjAxQloXvl8L_g";
 

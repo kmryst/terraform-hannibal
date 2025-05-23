@@ -18,6 +18,7 @@ import { RouteModule } from './modules/route/route.module';
       driver: ApolloDriver,
       typePaths: ['./**/*.graphql'],
       // ./**/*.graphql は、プロジェクト内のすべてのサブディレクトリから .graphql 拡張子のファイル（スキーマやクエリ定義）を探す指定です
+      path: '/api/graphql',
       definitions: {
         path: join(process.cwd(), 'src/graphql/graphql.schema.ts'),
         // path.join(): 結合する current working directory
