@@ -11,8 +11,8 @@ on:
 jobs:
   test:
     # (変更なし)
-    runs-on: ubuntu-latest
-    steps:
+    runs-on: ubuntu-latest # このジョブを実行する仮想マシン
+    steps: # step: 手順
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Setup Node.js for Backend
@@ -190,7 +190,7 @@ jobs:
             memory,
             tags,
             runtimePlatform
-          }' > new-task-def.json
+          } | with_entries(select(.value != null))' > new-task-def.json
           # 新しいタスク定義を登録
           TASK_DEF_ARN_NEW=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
           # サービスを新タスク定義で更新
