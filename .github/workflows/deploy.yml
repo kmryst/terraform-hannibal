@@ -66,18 +66,44 @@ jobs:
           terraform_version: 1.0.0
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Terraform Init (Backend)
+        id: init-backend
+        run: terraform init
+        working-directory: ./terraform/backend
+      - name: Terraform Plan (Backend)
+        id: plan-backend
+        run: terraform plan -no-color
+        working-directory: ./terraform/backend
+        continue-on-error: true
+      - name: Terraform Apply (Backend)
+        id: apply-backend
+        run: terraform apply -auto-approve -no-color
+        working-directory: ./terraform/backend
+      - name: Get Terraform Outputs (Backend)
+        id: get_terraform_outputs_backend
+        run: |
+          echo "Retrieving Terraform outputs (backend)..."
+          cd ./terraform/backend
+          terraform output -json > tf_outputs_backend.json
+          echo "--- Terraform Outputs (Backend, JSON) ---"
+          cat tf_outputs_backend.json
+          echo "--------------------------------"
+          cd ../..
+          echo "alb_dns_name=$(jq -r '.alb_dns_name.value' ./terraform/backend/tf_outputs_backend.json)" >> $GITHUB_OUTPUT
+          echo "::set-output name=alb_dns_name::$(jq -r '.alb_dns_name.value' ./terraform/backend/tf_outputs_backend.json)"
+        working-directory: ./
       - name: Terraform Init (Frontend)
         id: init-frontend
         run: terraform init
         working-directory: ./terraform/frontend
       - name: Terraform Plan (Frontend)
         id: plan-frontend
-        run: terraform plan -no-color
+        run: terraform plan -no-color -var="api_alb_dns_name=${{ steps.get_terraform_outputs_backend.outputs.alb_dns_name }}"
         working-directory: ./terraform/frontend
         continue-on-error: true
       - name: Terraform Apply (Frontend)
         id: apply-frontend
-        run: terraform apply -auto-approve -no-color
+        run: terraform apply -auto-approve -no-color -var="api_alb_dns_name=${{ steps.get_terraform_outputs_backend.outputs.alb_dns_name }}"
         working-directory: ./terraform/frontend
       - name: Get Terraform Outputs (Frontend)
         id: get_terraform_outputs
