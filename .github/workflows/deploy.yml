@@ -41,7 +41,7 @@ jobs:
   deploy:
     # (変更なし)
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/ec2s3cf'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/github-actions'
     runs-on: ubuntu-latest
     outputs:
       s3_bucket_name: ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}
@@ -57,8 +57,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AKIATYN5R7CHACL7LA5X }}
-          aws-secret-access-key: ${{ secrets.8kP893MoIF5nOSEvin0NBOlt5ijm1OGxvm4WlKYT }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
