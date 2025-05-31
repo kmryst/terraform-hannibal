@@ -66,40 +66,39 @@ jobs:
           terraform_version: 1.0.0
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
-      - name: Terraform Init
-        id: init
+      - name: Terraform Init (Backend)
+        id: init-backend
         run: terraform init
-        working-directory: ./terraform
-      - name: Terraform Plan
-        id: plan
+        working-directory: ./terraform/backend
+      - name: Terraform Plan (Backend)
+        id: plan-backend
         run: terraform plan -no-color
-        working-directory: ./terraform
+        working-directory: ./terraform/backend
         continue-on-error: true
-      - name: Terraform Apply
-        id: apply
+      - name: Terraform Apply (Backend)
+        id: apply-backend
         run: terraform apply -auto-approve -no-color
-        working-directory: ./terraform
-      - name: Get Terraform Outputs
-        id: get_terraform_outputs
+        working-directory: ./terraform/backend
+      - name: Get Terraform Outputs (Backend)
+        id: get_terraform_outputs_backend
         run: |
-          # (内容は変更なし)
-          echo "Retrieving Terraform outputs..."
-          cd ./terraform
+          echo "Retrieving Terraform outputs (backend)..."
+          cd ./terraform/backend
           terraform output -json > tf_outputs.json
           echo "--- Terraform Outputs (JSON) ---"
           cat tf_outputs.json
           echo "--------------------------------"
-          cd ..
-          echo "s3_bucket_name=$(jq -r '.s3_bucket_name.value' ./terraform/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "cloudfront_distribution_id=$(jq -r '.cloudfront_distribution_id.value' ./terraform/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "ec2_instance_id=$(jq -r '.ec2_instance_id.value' ./terraform/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "backend_eip_address=$(jq -r '.backend_eip_address.value' ./terraform/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "cloudfront_domain_name=$(jq -r '.cloudfront_domain_name.value' ./terraform/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "::set-output name=s3_bucket_name::$(jq -r '.s3_bucket_name.value' ./terraform/tf_outputs.json)"
-          echo "::set-output name=cloudfront_distribution_id::$(jq -r '.cloudfront_distribution_id.value' ./terraform/tf_outputs.json)"
-          echo "::set-output name=ec2_instance_id::$(jq -r '.ec2_instance_id.value' ./terraform/tf_outputs.json)"
-          echo "::set-output name=backend_eip_address::$(jq -r '.backend_eip_address.value' ./terraform/tf_outputs.json)"
-          echo "::set-output name=cloudfront_domain_name::$(jq -r '.cloudfront_domain_name.value' ./terraform/tf_outputs.json)"
+          cd ../..
+          echo "s3_bucket_name=$(jq -r '.s3_bucket_name.value' ./terraform/backend/tf_outputs.json)" >> $GITHUB_OUTPUT
+          echo "cloudfront_distribution_id=$(jq -r '.cloudfront_distribution_id.value' ./terraform/backend/tf_outputs.json)" >> $GITHUB_OUTPUT
+          echo "ec2_instance_id=$(jq -r '.ec2_instance_id.value' ./terraform/backend/tf_outputs.json)" >> $GITHUB_OUTPUT
+          echo "backend_eip_address=$(jq -r '.backend_eip_address.value' ./terraform/backend/tf_outputs.json)" >> $GITHUB_OUTPUT
+          echo "cloudfront_domain_name=$(jq -r '.cloudfront_domain_name.value' ./terraform/backend/tf_outputs.json)" >> $GITHUB_OUTPUT
+          echo "::set-output name=s3_bucket_name::$(jq -r '.s3_bucket_name.value' ./terraform/backend/tf_outputs.json)"
+          echo "::set-output name=cloudfront_distribution_id::$(jq -r '.cloudfront_distribution_id.value' ./terraform/backend/tf_outputs.json)"
+          echo "::set-output name=ec2_instance_id::$(jq -r '.ec2_instance_id.value' ./terraform/backend/tf_outputs.json)"
+          echo "::set-output name=backend_eip_address::$(jq -r '.backend_eip_address.value' ./terraform/backend/tf_outputs.json)"
+          echo "::set-output name=cloudfront_domain_name::$(jq -r '.cloudfront_domain_name.value' ./terraform/backend/tf_outputs.json)"
         working-directory: ./
       - name: Setup Node.js for Frontend Build
         uses: actions/setup-node@v3
