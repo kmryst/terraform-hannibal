@@ -177,10 +177,21 @@ jobs:
           aws ecs describe-task-definition --task-definition $TASK_DEF_ARN > task-def.json
           # イメージURIを書き換え
           NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" --arg NAME "$CONTAINER_NAME" '(.taskDefinition.containerDefinitions[] | select(.name == $NAME) | .image) |= $IMAGE | .taskDefinition' > container-updated.json
+          cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" --arg NAME "$CONTAINER_NAME" '(.taskDefinition.containerDefinitions[] | select(.name == $NAME) | .image) |= $IMAGE | .taskDefinition | {
+            family,
+            taskRoleArn,
+            executionRoleArn,
+            networkMode,
+            containerDefinitions,
+            volumes,
+            placementConstraints,
+            requiresCompatibilities,
+            cpu,
+            memory,
+            tags,
+            runtimePlatform
+          }' > new-task-def.json
           # 新しいタスク定義を登録
-          NEW_TASK_DEF=$(cat container-updated.json)
-          echo "$NEW_TASK_DEF" > new-task-def.json
           TASK_DEF_ARN_NEW=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
           # サービスを新タスク定義で更新
           aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $TASK_DEF_ARN_NEW
