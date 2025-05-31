@@ -1,4 +1,5 @@
 # .github/workflows/deploy.yml (-e オプション削除 & exit 1 コメントアウト版)
+# 修正1
 
 name: Deploy NestJS Hannibal App
 
