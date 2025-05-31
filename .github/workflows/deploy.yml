@@ -117,8 +117,10 @@ jobs:
           cd ../..
           echo "s3_bucket_name=$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
           echo "cloudfront_domain_name=$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
+          echo "cloudfront_distribution_id=$(jq -r '.cloudfront_distribution_id.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
           echo "::set-output name=s3_bucket_name::$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)"
           echo "::set-output name=cloudfront_domain_name::$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)"
+          echo "::set-output name=cloudfront_distribution_id::$(jq -r '.cloudfront_distribution_id.value' ./terraform/frontend/tf_outputs.json)"
         working-directory: ./
       - name: Setup Node.js for Frontend Build
         uses: actions/setup-node@v3
