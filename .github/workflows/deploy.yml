@@ -4,9 +4,9 @@ name: Deploy NestJS Hannibal App
 
 on:
   pull_request:
-    branches: [ec2s3cf] # トリガーブランチ
+    branches: [feature/github-actions] # トリガーブランチ
   push:
-    branches: [ec2s3cf] # トリガーブランチ
+    branches: [feature/github-actions] # トリガーブランチ
 
 jobs:
   test:
@@ -57,8 +57,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.AKIATYN5R7CHACL7LA5X }}
+          aws-secret-access-key: ${{ secrets.8kP893MoIF5nOSEvin0NBOlt5ijm1OGxvm4WlKYT }}
           aws-region: ap-northeast-1
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -128,96 +128,39 @@ jobs:
           echo "Invalidating CloudFront cache for distribution: $CF_DIST_ID"
           aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"
 
-      # --- ★★★ EC2へのバックエンドデプロイ (-e オプション削除 & exit 1 コメントアウト版) ★★★ ---
-      - name: Deploy Backend to EC2 via SSM
-        id: deploy_backend
-        run: |
-          # --- 初期設定と認証確認 ---
-          INSTANCE_ID="${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}"
-          # INSTANCE_ID が空の場合はエラーで終了 (-e 無しでも exit する)
-          if [ -z "$INSTANCE_ID" ]; then echo "::error::EC2 instance ID not found."; exit 1; fi
-          echo "Deploying backend to EC2 instance: $INSTANCE_ID"
-          echo "Checking AWS Caller Identity..."
-          # AWS認証が失敗した場合もエラーで終了 (-e 無しでも exit する)
-          aws sts get-caller-identity || { echo "::error::Failed to verify AWS caller identity."; exit 1; }
-          echo "AWS Caller Identity verified."
-
-          # --- SSMコマンド用スクリプト定義 ---
-          read -r -d '' SCRIPT_CONTENT << 'EOF'
-          #!/bin/bash
-          # ★注意: この内部スクリプトでは set -e が有効なままです
-          set -eo pipefail
-          echo "--- Starting deployment script on EC2 as user: $(whoami) ---"
-          sudo -i -u ec2-user bash << 'INNER_EOF'
-            set -eo pipefail
-            echo "--- Running commands as user: $(whoami) in directory: $(pwd) ---"
-            export NVM_DIR="$HOME/.nvm"
-            if [ -s "$NVM_DIR/nvm.sh" ]; then source "$NVM_DIR/nvm.sh"; echo "NVM loaded."; else echo "::error::NVM script not found."; exit 1; fi
-            echo "Node: $(node -v), npm: $(npm -v), pm2: $(pm2 -v)"
-            cd /home/ec2-user || { echo "::error::cd /home/ec2-user failed"; exit 1; }
-            APP_DIR="nestjs-hannibal-3"
-            echo "Removing old $APP_DIR..."; rm -rf "$APP_DIR"; echo "Old dir removed."
-            echo "Cloning $APP_DIR..."
-            # !!! 重要: YOUR_GITHUB_USERNAME_OR_ORG を置き換えてください !!!
-            GIT_REPO_URL="https://github.com/YOUR_GITHUB_USERNAME_OR_ORG/nestjs-hannibal-3.git"
-            git clone -b ec2s3cf "$GIT_REPO_URL" "$APP_DIR" || { echo "::error::git clone failed"; exit 1; }
-            echo "Cloned."
-            cd "$APP_DIR" || { echo "::error::cd $APP_DIR failed"; exit 1; }; echo "Changed to $(pwd)"
-            echo "Installing dependencies..."; npm ci --legacy-peer-deps || { echo "::error::npm ci failed"; exit 1; }; echo "Deps installed."
-            echo "Building app..."; npm run build || { echo "::error::npm run build failed"; exit 1; }; echo "Build complete."
-            PM2_APP_NAME="nestjs-api"; echo "Handling PM2 process $PM2_APP_NAME..."; pm2 stop "$PM2_APP_NAME" || true; pm2 delete "$PM2_APP_NAME" || true; echo "Old PM2 process handled."
-            echo "Starting PM2 process $PM2_APP_NAME..."; pm2 start dist/main.js --name "$PM2_APP_NAME" || { echo "::error::pm2 start failed"; exit 1; }; echo "PM2 started."
-            echo "Saving PM2 list..."; pm2 save || echo "::warning::pm2 save failed."; echo "PM2 list saved."
-            echo "--- PM2 status ---"; pm2 list; echo "------------------"
-          INNER_EOF
-          echo "--- Deployment script on EC2 finished successfully ---"
-          EOF
-          # --- スクリプト定義終了 ---
-
-          # --- jq コマンド実行とエラーチェック ---
-          echo "--- Raw SCRIPT_CONTENT to be processed by jq ---"
-          echo "$SCRIPT_CONTENT"
-          echo "------------------------------------------------"
-          echo "Attempting to generate JSON array using jq..."
-          JQ_OUTPUT=$(echo "$SCRIPT_CONTENT" | jq -Rs '. | split("\n") | map(select(length > 0))' 2>&1)
-          JQ_EXIT_CODE=$?
-          if [ $JQ_EXIT_CODE -ne 0 ]; then
-            echo "::error::jq command failed with exit code $JQ_EXIT_CODE."
-            echo "--- jq Output/Error ---"; echo "$JQ_OUTPUT"; echo "-----------------------"
-            # exit 1 # <- デバッグのためコメントアウト
-          else
-            COMMANDS_JSON="$JQ_OUTPUT"
-            echo "jq command successful. Generated JSON:"
-            echo "$COMMANDS_JSON" | head -c 500; echo "..."
-          fi
-          # --- jq 処理終了 ---
-
-          # --- send-command 実行 ---
-          echo "Attempting to send SSM command to instance $INSTANCE_ID..."
-          # jqが失敗した場合も考慮し、COMMANDS_JSONが未定義なら空配列を渡す
-          aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --parameters "{\"commands\": ${COMMANDS_JSON:-[]}}" \
-            --timeout-seconds 600 \
-            --output json
-          EXIT_CODE=$?
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "::error::'aws ssm send-command' failed with exit code $EXIT_CODE. See AWS CLI output above for details."
-            # exit 1 # <- デバッグのためコメントアウト
-          else
-            echo "'aws ssm send-command' request was sent successfully (Command ID not captured)."
-            echo "Skipping command execution status check."
-          fi
-          # --- send-command 処理終了 ---
-
-          # ★★★ エラーが発生しても、-e がないので最後まで実行される ★★★
-          echo "Backend deployment step finished (debug version without -e)."
+      # --- ★★★ ECS Fargate/ECRへのバックエンドデプロイ ★★★ ---
+      - name: Login to Amazon ECR
+        id: login_ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build, Tag, and Push Docker image to ECR
         env:
-          AWS_DEFAULT_REGION: ap-northeast-1
+          ECR_REGISTRY: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
+          ECR_REPOSITORY: nestjs-hannibal-3
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      - name: Update ECS Service to use new image
+        env:
           AWS_REGION: ap-northeast-1
-          # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          # AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        # --- ★★★ shell オプションから -e を削除 ★★★ ---
-        shell: /usr/bin/bash --noprofile --norc -o pipefail {0}
+          CLUSTER_NAME: nestjs-hannibal-3-cluster
+          SERVICE_NAME: nestjs-hannibal-3-api-service
+          TASK_FAMILY: nestjs-hannibal-3-api-task
+          CONTAINER_NAME: nestjs-hannibal-3-container
+          IMAGE_TAG: ${{ github.sha }}
+          ECR_REGISTRY: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
+          ECR_REPOSITORY: nestjs-hannibal-3
+        run: |
+          # 最新のタスク定義を取得
+          TASK_DEF_ARN=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query "services[0].taskDefinition" --output text)
+          aws ecs describe-task-definition --task-definition $TASK_DEF_ARN > task-def.json
+          # イメージURIを書き換え
+          NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" --arg NAME "$CONTAINER_NAME" '(.taskDefinition.containerDefinitions[] | select(.name == $NAME) | .image) |= $IMAGE' > container-updated.json
+          # 新しいタスク定義を登録
+          NEW_TASK_DEF=$(jq '{family: .taskDefinition.family, networkMode: .taskDefinition.networkMode, executionRoleArn: .taskDefinition.executionRoleArn, containerDefinitions: .taskDefinition.containerDefinitions, requiresCompatibilities: .taskDefinition.requiresCompatibilities, cpu: .taskDefinition.cpu, memory: .taskDefinition.memory, taskRoleArn: .taskDefinition.taskRoleArn}', container-updated.json)
+          echo "$NEW_TASK_DEF" > new-task-def.json
+          TASK_DEF_ARN_NEW=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
+          # サービスを新タスク定義で更新
+          aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $TASK_DEF_ARN_NEW
 
