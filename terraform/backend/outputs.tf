@@ -18,8 +18,3 @@ output "ecs_cluster_name" {
   description = "Name of the ECS cluster"
   value       = aws_ecs_cluster.main.name
 }
-
-output "s3_bucket_name" {
-  description = "Name of the S3 bucket for frontend hosting"
-  value       = aws_s3_bucket.frontend_bucket.bucket
-}

@@ -66,39 +66,33 @@ jobs:
           terraform_version: 1.0.0
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
-      - name: Terraform Init (Backend)
-        id: init-backend
+      - name: Terraform Init (Frontend)
+        id: init-frontend
         run: terraform init
-        working-directory: ./terraform/backend
-      - name: Terraform Plan (Backend)
-        id: plan-backend
+        working-directory: ./terraform/frontend
+      - name: Terraform Plan (Frontend)
+        id: plan-frontend
         run: terraform plan -no-color
-        working-directory: ./terraform/backend
+        working-directory: ./terraform/frontend
         continue-on-error: true
-      - name: Terraform Apply (Backend)
-        id: apply-backend
+      - name: Terraform Apply (Frontend)
+        id: apply-frontend
         run: terraform apply -auto-approve -no-color
-        working-directory: ./terraform/backend
-      - name: Get Terraform Outputs (Backend)
-        id: get_terraform_outputs_backend
+        working-directory: ./terraform/frontend
+      - name: Get Terraform Outputs (Frontend)
+        id: get_terraform_outputs
         run: |
-          echo "Retrieving Terraform outputs (backend)..."
-          cd ./terraform/backend
+          echo "Retrieving Terraform outputs (frontend)..."
+          cd ./terraform/frontend
           terraform output -json > tf_outputs.json
           echo "--- Terraform Outputs (JSON) ---"
           cat tf_outputs.json
           echo "--------------------------------"
           cd ../..
-          echo "s3_bucket_name=$(jq -r '.s3_bucket_name.value' ./terraform/backend/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "cloudfront_distribution_id=$(jq -r '.cloudfront_distribution_id.value' ./terraform/backend/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "ec2_instance_id=$(jq -r '.ec2_instance_id.value' ./terraform/backend/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "backend_eip_address=$(jq -r '.backend_eip_address.value' ./terraform/backend/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "cloudfront_domain_name=$(jq -r '.cloudfront_domain_name.value' ./terraform/backend/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "::set-output name=s3_bucket_name::$(jq -r '.s3_bucket_name.value' ./terraform/backend/tf_outputs.json)"
-          echo "::set-output name=cloudfront_distribution_id::$(jq -r '.cloudfront_distribution_id.value' ./terraform/backend/tf_outputs.json)"
-          echo "::set-output name=ec2_instance_id::$(jq -r '.ec2_instance_id.value' ./terraform/backend/tf_outputs.json)"
-          echo "::set-output name=backend_eip_address::$(jq -r '.backend_eip_address.value' ./terraform/backend/tf_outputs.json)"
-          echo "::set-output name=cloudfront_domain_name::$(jq -r '.cloudfront_domain_name.value' ./terraform/backend/tf_outputs.json)"
+          echo "s3_bucket_name=$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
+          echo "cloudfront_domain_name=$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
+          echo "::set-output name=s3_bucket_name::$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)"
+          echo "::set-output name=cloudfront_domain_name::$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)"
         working-directory: ./
       - name: Setup Node.js for Frontend Build
         uses: actions/setup-node@v3
