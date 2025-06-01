@@ -3,11 +3,11 @@
 
 name: Deploy NestJS Hannibal App
 
-on:
+on: # ワークフローのトリガーを定義
   pull_request:
-    branches: [feature/github-actions] # トリガーブランチ
+    branches: [feature/github-actions]
   push:
-    branches: [feature/github-actions] # トリガーブランチ
+    branches: [feature/github-actions]
 
 jobs:
   test:
@@ -41,15 +41,17 @@ jobs:
 
   deploy:
     # (変更なし)
-    needs: test
+    needs: test # testが成功した場合のみ実行される
     if: github.event_name == 'push' && github.ref == 'refs/heads/feature/github-actions'
+    # github はワークフロー実行の状況（コンテキスト）を表すオブジェクトで、イベントやブランチなどの情報を提供します
+    # ブランチの参照は refs/heads/<ブランチ名> という形式で表現されます
     runs-on: ubuntu-latest
-    outputs:
+    outputs: # このジョブで生成した値を他のジョブで利用できるようにする
       s3_bucket_name: ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}
       cloudfront_distribution_id: ${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}
-      ec2_instance_id: ${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}
-      backend_eip_address: ${{ steps.get_terraform_outputs.outputs.backend_eip_address }}
       cloudfront_domain_name: ${{ steps.get_terraform_outputs.outputs.cloudfront_domain_name }}
+      #⭐️ ec2_instance_id: ${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}
+      #⭐️ backend_eip_address: ${{ steps.get_terraform_outputs.outputs.backend_eip_address }}
 
     steps:
       # (以前のステップは変更なし)
