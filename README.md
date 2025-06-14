@@ -21,3 +21,45 @@ graph TD
 
 
 ```
+
+
+```mermaid
+
+graph TB
+    User[ユーザー] --> CF[CloudFront Distribution]
+    
+    CF --> S3[S3 Bucket<br/>Frontend Static Files]
+    CF --> ALB[Application Load Balancer]
+    
+    ALB --> ECS[ECS Fargate Service<br/>API Backend]
+    ECS --> ECR[ECR<br/>Container Images]
+    
+    subgraph "VPC"
+        subgraph "Public Subnets"
+            ALB
+            ECS
+        end
+    end
+    
+    subgraph "Security Groups"
+        ALB_SG[ALB Security Group<br/>Port 80 from 0.0.0.0/0]
+        ECS_SG[ECS Security Group<br/>Port 3000 from ALB only]
+    end
+    
+    subgraph "IAM"
+        ECS_Role[ECS Task Execution Role<br/>ECR Pull Permissions]
+    end
+    
+    subgraph "Monitoring"
+        CW[CloudWatch Logs<br/>ECS Task Logs]
+    end
+    
+    ALB -.-> ALB_SG
+    ECS -.-> ECS_SG
+    ECS -.-> ECS_Role
+    ECS --> CW
+    
+    CF --> |/api/*| ALB
+    CF --> |Static Files| S3
+
+```
