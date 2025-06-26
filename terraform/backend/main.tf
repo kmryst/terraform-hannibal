@@ -3,11 +3,14 @@
 # --- VPC Data Sources (既存のVPCとサブネットを使用する場合) ---
 # dataソースは、「AWS上にすでに存在するVPCの情報を自動で取得する」ためのものです
 # これにより、手動でVPC IDを指定する代わりに、Terraformが自動的にVPC情報を取得できます
+# provider.tf でリージョン指定している
 data "aws_vpc" "selected" { # AWSのVPC情報を取得して、selectedという名前でTerraform内から参照できるようにした
   # id = var.vpc_id # vpc_id を直接指定する場合
   default = true # デフォルトVPCを自動で探して、その情報（IDなど）を取得(なければエラー)
   # デフォルトVPCは、AWSアカウント作成時に自動的に作成されるVPCです
   # 通常、パブリックサブネットが含まれており、開発環境での使用に適しています
+  # 各リージョンにはデフォルトVPCが1つ自動で用意されています（削除も可能）
+  # それとは別に、1つのリージョン内で複数のVPCを自分で作成することも可能です
 }
 
 # これは「AWSにすでに存在するサブネットの情報のリストを、publicという名前で取得する」という宣言です
@@ -15,7 +18,7 @@ data "aws_vpc" "selected" { # AWSのVPC情報を取得して、selectedという
 # 複数のAZにまたがることで、高可用性を確保できます
 data "aws_subnets" "public" {
   filter {
-    name   = "vpc-id"
+    name   = "vpc-id"                   # 任意の文字列ではなく、AWSが認識できる属性名のみが有効です
     values = [data.aws_vpc.selected.id] # 先ほど取得したVPCのIDを使用
   }
   # 必要に応じてタグなどで絞り込み
@@ -23,22 +26,24 @@ data "aws_subnets" "public" {
   #   Tier = "Public" # パブリックサブネットのみを取得する場合
   # }
 }
+# data.aws_subnets.public.ids で[ "subnet-xxxx", "subnet-yyyy", ... ] のようなリストが取得できます
 
 # --- IAM Role for ECS Task ---
-# ECSタスクがAWSのサービス（例：CloudWatch Logs）にアクセスするためのIAMロールを作成
+# ECSタスクがAWSのサービス（例：ECRからイメージのpullなど）にアクセスするためのIAMロールを作成
 # このロールは、ECSタスクがAWSのサービスを利用する際の認証に使用されます
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "${var.project_name}-ecs-task-execution-role" # プロジェクト名をプレフィックスとして使用
 
   # このロールをECSタスクが引き受けることができるようにするポリシー
   # assume_role_policyは、どのAWSサービスがこのロールを引き受けることができるかを定義します
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17", # IAMポリシーのバージョン
+  assume_role_policy = jsonencode({ # assume 引き受ける ロールにポリシーをアタッチしている
+    Version = "2012-10-17",         # IAMポリシーのバージョン
     Statement = [
       {
-        Action = "sts:AssumeRole", # ロールを引き受けるためのアクション
-        Effect = "Allow",          # 許可する
-        Principal = {
+        Action = "sts:AssumeRole",
+        # ECSタスクがIAMロールを使うとき、裏側でAWS STS（Security Token Service）が「一時的な認証情報」を発行し、そのロールの権限でAWSサービスにアクセスできるようにします
+        Effect = "Allow",                     # 許可する
+        Principal = {                         # このロールを引き受けることができる「主体」
           Service = "ecs-tasks.amazonaws.com" # ECSタスクサービスがこのロールを引き受けられる
         }
       }
@@ -46,30 +51,34 @@ resource "aws_iam_role" "ecs_task_execution_role" {
   })
 }
 
-# ECSタスク実行ロールに、CloudWatch Logsへの書き込み権限などを付与
-# このポリシーにより、ECSタスクはCloudWatch Logsにログを書き込むことができます
+# aws_iam_role_policy_attachment IAMロールにポリシーをアタッチする
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
-  role       = aws_iam_role.ecs_task_execution_role.name # 先ほど作成したロール
+  role       = aws_iam_role.ecs_task_execution_role.name                               # 先ほど作成したロールの.name 属性
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy" # AWSが提供するマネージドポリシー
 }
 
 # --- ECS Cluster ---
 # ECSクラスタを作成（Fargateタスクを実行するための論理的なグループ）
 # クラスタは、タスクやサービスを論理的にグループ化するためのコンテナです
-resource "aws_ecs_cluster" "main" {
-  name = "${var.project_name}-cluster" # プロジェクト名をプレフィックスとして使用
+resource "aws_ecs_cluster" "main" {    # main は Terraformリソースのローカル名
+  name = "${var.project_name}-cluster" # AWS上で作成される実際のクラスタの名前
 }
 
 # --- ECS Task Definition ---
 # ECSタスクの定義（コンテナの設定、CPU、メモリ、環境変数など）
 # タスク定義は、コンテナの実行に必要な設定を定義します
-resource "aws_ecs_task_definition" "api" {
-  family                   = "${var.project_name}-api-task" # タスク定義のファミリー名
-  requires_compatibilities = ["FARGATE"] # Fargateで実行することを指定（サーバーレスコンピューティング）
-  network_mode             = "awsvpc"    # Fargateではawsvpcモードが必須（AWS VPC CNIプラグインを使用）
-  cpu                      = var.cpu     # タスクに割り当てるCPUユニット（例：256 = 0.25 vCPU）
-  memory                   = var.memory  # タスクに割り当てるメモリ（MiB）
+# タスク（Task）は、そのタスク定義をもとに実際に起動された「インスタンス」です
+resource "aws_ecs_task_definition" "api" {                            # APIサーバ用のコンテナなので
+  family                   = "${var.project_name}-api-task"           # タスク定義のファミリー名
+  requires_compatibilities = ["FARGATE"]                              # Fargateで実行することを指定（サーバーレスコンピューティング）
+  network_mode             = "awsvpc"                                 # Fargateではawsvpcモードが必須（AWS VPC CNIプラグインを使用）
+  cpu                      = var.cpu                                  # タスクに割り当てるCPUユニット 1024ユニット = 1vCPU = 1スレッド（論理コア）相当
+  memory                   = var.memory                               # タスクに割り当てるメモリ（MiB）
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn # タスク実行用のIAMロール
+  # IAMロールが付与されるのは、タスク定義から起動された「ECSタスク（コンテナ）」
+  # ECSタスク　タスク定義（設計図）から実際に起動された「コンテナ群（1つ以上）」の実体 ＝ 実際に動いているアプリケーションのプロセス
+  # ECS上で管理される　"arn:aws:ecs:ap-northeast-1:258632448142:task-definition/nestjs-hannibal-3-api-task:7"
+
   # (オプション) タスクロール (アプリケーションがAWSサービスにアクセスする場合)
   # task_role_arn            = aws_iam_role.ecs_task_role.arn # 別途作成
 
@@ -84,22 +93,27 @@ resource "aws_ecs_task_definition" "api" {
       essential = true                            # このコンテナが必須かどうか
       portMappings = [
         {
-          containerPort = var.container_port # コンテナがリッスンするポート
-          hostPort      = var.container_port # ホストがリッスンするポート（awsvpcモードでは同じ）
-          protocol      = "tcp"              # プロトコル
-        }
+          containerPort = var.container_port # コンテナ内部でリッスンしているアプリのポート番号と揃える
+          hostPort      = var.container_port # ここでの「ホスト」は、Fargateタスクごとに割り当てられるENI（Elastic Network Interface）を指すと考えてください 
+          protocol      = "tcp"
+        } # 外部からの通信は、ENIのIPアドレス＋hostPortに届き、そこからcontainerPortにマッピングされてコンテナ内のアプリに届きます
       ]
-      environment = [
+      environment = [                                            # コンテナ内部のアプリに渡す環境変数
         { name = "PORT", value = tostring(var.container_port) }, # アプリケーションがリッスンするポート
-        { name = "HOST", value = "0.0.0.0" },                    # すべてのインターフェースでリッスン
+        # tostring 値を文字列型に変換する関数 多くのアプリケーションや設定ファイルでは、環境変数の値は文字列として扱われるため
+
+        { name = "HOST", value = "0.0.0.0" },
+        # 0.0.0.0 アプリケーションは「そのコンテナに割り当てられているすべてのネットワークインターフェース（IPアドレス）」でリッスン（待ち受け）するという意味になります
+        # 127.0.0.1 コンテナの中からしかアクセスできなくなります
+
         { name = "NODE_ENV", value = "production" },             # 本番環境
         { name = "CLIENT_URL", value = var.client_url_for_cors } # CORS設定用のフロントエンドURL
         # 他に必要な環境変数があれば追加
       ]
-      logConfiguration = { # CloudWatch Logs設定
+      logConfiguration = {    # CloudWatch Logs設定
         logDriver = "awslogs" # AWS CloudWatch Logsドライバーを使用
         options = {
-          "awslogs-group"         = "/ecs/${var.project_name}-api-task" # ロググループ名
+          "awslogs-group"         = "/ecs/${var.project_name}-api-task" # ここでログストリームも自動で作られる
           "awslogs-region"        = var.aws_region                      # AWSリージョン
           "awslogs-stream-prefix" = "ecs"                               # ログストリームのプレフィックス
         }
@@ -113,8 +127,7 @@ resource "aws_ecs_task_definition" "api" {
 # ロググループは、ログストリームをグループ化するためのコンテナです
 resource "aws_cloudwatch_log_group" "ecs_api_task_logs" {
   name              = "/ecs/${var.project_name}-api-task" # ロググループ名
-  retention_in_days = 7 # ログ保持期間 (適宜変更)
-  # ログの保持期間を設定することで、ストレージコストを最適化できます
+  retention_in_days = 7                                   # retention: 保持
 }
 
 # --- Application Load Balancer (ALB) ---
@@ -122,36 +135,39 @@ resource "aws_cloudwatch_log_group" "ecs_api_task_logs" {
 # ALBは、トラフィックを複数のターゲットに分散するためのロードバランサーです
 resource "aws_lb" "main" {
   name               = "${var.project_name}-alb" # ALBの名前
-  internal           = false # public facing（インターネットからアクセス可能）
-  load_balancer_type = "application" # アプリケーションロードバランサー
-  security_groups    = [aws_security_group.alb_sg.id] # セキュリティグループ
-  subnets            = data.aws_subnets.public.ids # パブリックサブネットに配置
+  internal           = false                     # public facing（インターネットからアクセス可能） internal: 内部の
+  load_balancer_type = "application"             # アプリケーションロードバランサー "network" "gateway"
 
-  enable_deletion_protection = false # 開発中はfalse推奨（本番環境ではtrueに設定）
+  security_groups = [aws_security_group.alb_sg.id]
+  # Terraformで作成するセキュリティグループをここで設定しています
+  # 複数のセキュリティグループを設定できるように [] (リスト、配列)  でくくる
+
+  subnets = data.aws_subnets.public.ids # パブリックサブネットに配置
+
+  enable_deletion_protection = false # 削除保護 開発中はfalse推奨（本番環境ではtrueに設定）
 }
 
 # --- ALB Target Group ---
-# ALBがリクエストを転送する先のターゲットグループを作成
-# ターゲットグループは、リクエストの転送先を定義します
+# ターゲットグループは、ALB がリクエストを転送する先（ECSタスクやEC2インスタンスなど）をまとめて管理するためのものです
 resource "aws_lb_target_group" "api" {
   name        = "${var.project_name}-tg" # ターゲットグループ名
   port        = var.container_port       # ターゲットのポート
   protocol    = "HTTP"                   # プロトコル
   vpc_id      = data.aws_vpc.selected.id # VPC ID
-  target_type = "ip"                     # Fargateの場合はip（コンテナのIPアドレス）
+  target_type = "ip"
+  # Fargateの場合は、ECSタスクに割り当てられたENIのIPアドレスを自動で指定する
 
   # ヘルスチェックの設定（ECSタスクが正常に動作しているか確認）
-  # ヘルスチェックは、ターゲットの健全性を監視します
   health_check {
     enabled             = true
     path                = var.health_check_path # ヘルスチェックのパス
     protocol            = "HTTP"                # プロトコル
-    port                = "traffic-port"        # トラフィックポート
+    port                = "traffic-port"        # ターゲットのECSなどで実際に使われているポートを自動で取得してくれる
     healthy_threshold   = 3                     # 正常と判断するまでの成功回数
     unhealthy_threshold = 3                     # 異常と判断するまでの失敗回数
     timeout             = 5                     # タイムアウト（秒）
     interval            = 30                    # チェック間隔（秒）
-    matcher             = "200-399" # GraphQLのエンドポイントなら200または400番台が返る場合も考慮
+    matcher             = "200-399"             # チェックの判定基準となるHTTPステータスコードの範囲を指定する
   }
 }
 
@@ -159,9 +175,11 @@ resource "aws_lb_target_group" "api" {
 # ALBがリクエストを受け付けるポートとプロトコルを設定
 # リスナーは、特定のポートでリクエストを受け付けます
 resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.main.arn # ALBのARN
-  port              = var.alb_listener_port # リスナーのポート
-  protocol          = "HTTP" # プロトコル（HTTPSの場合は "HTTPS" と certificate_arn が必要）
+  load_balancer_arn = aws_lb.main.arn       # ALBのARN
+  port              = var.alb_listener_port # default = 80
+  protocol          = "HTTP"                # プロトコル（HTTPSの場合は "HTTPS" と certificate_arn が必要）
+  # アプリケーション層でHTTPプロトコルとしてリクエストを処理する
+
 
   # (オプション) HTTPS リスナーの場合
   # certificate_arn   = var.certificate_arn # ACM証明書のARN
@@ -170,8 +188,10 @@ resource "aws_lb_listener" "http" {
   # リクエストをターゲットグループに転送
   # デフォルトアクションは、リクエストの転送先を定義します
   default_action {
-    type             = "forward" # 転送アクション
-    target_group_arn = aws_lb_target_group.api.arn # ターゲットグループのARN
+    type = "forward"
+    # forward（転送） redirect（リダイレクト） fixed-response（固定レスポンス） authenticate-cognito（Cognito認証） authenticate-oidc（OIDC認証）
+
+    target_group_arn = aws_lb_target_group.api.arn # ALBはどのターゲットグループに転送するかだけを知っている
   }
 }
 
@@ -179,17 +199,21 @@ resource "aws_lb_listener" "http" {
 # ALBのセキュリティグループ（HTTP/HTTPSのインバウンドトラフィックを許可）
 # セキュリティグループは、インスタンスレベルでのファイアウォールとして機能します
 resource "aws_security_group" "alb_sg" {
-  name        = "${var.project_name}-alb-sg" # セキュリティグループ名
+  name        = "${var.project_name}-alb-sg"      # セキュリティグループ名
   description = "Allow HTTP/HTTPS traffic to ALB" # 説明
-  vpc_id      = data.aws_vpc.selected.id # VPC ID
+  vpc_id      = data.aws_vpc.selected.id
+  # セキュリティグループは VPC ごとに管理されるリソースだからここで設定されています
 
   # HTTPのインバウンドトラフィックを許可
-  # インバウンドルールは、インスタンスへの受信トラフィックを制御します
+  # インバウンドルールは、ALB への受信トラフィックを制御します
   ingress {
-    from_port   = var.alb_listener_port # 開始ポート
-    to_port     = var.alb_listener_port # 終了ポート
-    protocol    = "tcp"                 # プロトコル
-    cidr_blocks = ["0.0.0.0/0"] # 全開放 (HTTPSの場合は443も)
+    from_port = var.alb_listener_port # 開始ポート default = 80
+    to_port   = var.alb_listener_port # 終了ポート default = 80
+
+    protocol = "tcp"
+    # TCP(Transmission Control Protocol) はトランスポート層で、ソケット = IPアドレス + ポート番号を管理するプロトコルなのでポートが設定されています
+
+    cidr_blocks = ["0.0.0.0/0"] # 全世界からのアクセスを許可 (HTTPSの場合は443も)
   }
 
   # HTTPSの場合
@@ -205,34 +229,33 @@ resource "aws_security_group" "alb_sg" {
   egress {
     from_port   = 0
     to_port     = 0
-    protocol    = "-1" # すべてのプロトコル
+    protocol    = "-1"          # すべてのプロトコル
     cidr_blocks = ["0.0.0.0/0"] # すべてのIPアドレス
   }
 }
 
 # --- Security Group for ECS Fargate Service ---
-# ECSタスクのセキュリティグループ（ALBからのインバウンドトラフィックを許可）
-# このセキュリティグループは、ECSタスクのネットワークアクセスを制御します
 resource "aws_security_group" "ecs_service_sg" {
-  name        = "${var.project_name}-ecs-service-sg" # セキュリティグループ名
-  description = "Allow traffic from ALB to ECS tasks" # 説明
-  vpc_id      = data.aws_vpc.selected.id # VPC ID
+  name        = "${var.project_name}-ecs-service-sg"
+  description = "Allow traffic from ALB to ECS tasks"
+  vpc_id      = data.aws_vpc.selected.id
 
-  # ALBからのインバウンドトラフィックを許可
   # このルールにより、ALBからのリクエストのみがECSタスクに到達できます
   ingress {
-    from_port       = var.container_port # 開始ポート
-    to_port         = var.container_port # 終了ポート
-    protocol        = "tcp"              # プロトコル
-    security_groups = [aws_security_group.alb_sg.id] # ALBからの通信のみ許可
+    from_port = var.container_port # 開始ポート default = 3000
+    to_port   = var.container_port # 終了ポート default = 3000
+    protocol  = "tcp"
+
+    security_groups = [aws_security_group.alb_sg.id]
+    # alb_sg がアタッチされたリソース（この場合はALB）からの通信のみが許可される
   }
 
-  # アウトバウンドトラフィックを許可（ECRからイメージをpullするなど）
+  # ECSタスクがECRに「イメージをください」とリクエスト（アウトバウンド通信）を送る
   # このルールにより、ECSタスクはインターネットにアクセスできます
   egress {
     from_port   = 0
     to_port     = 0
-    protocol    = "-1" # すべてのプロトコル
+    protocol    = "-1"          # すべてのプロトコル
     cidr_blocks = ["0.0.0.0/0"] # すべてのIPアドレス
   }
 }
@@ -242,25 +265,26 @@ resource "aws_security_group" "ecs_service_sg" {
 # サービスは、タスクの実行を管理し、指定された数のタスクを維持します
 resource "aws_ecs_service" "api" {
   name            = "${var.project_name}-api-service" # サービス名
-  cluster         = aws_ecs_cluster.main.id           # ECSクラスタ
-  task_definition = aws_ecs_task_definition.api.arn   # タスク定義
-  desired_count   = var.desired_task_count            # 実行するタスクの数
-  launch_type     = "FARGATE"                         # 起動タイプ
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.api.arn
+  desired_count   = var.desired_task_count # 実行するタスクの数 default = 1 
+  launch_type     = "FARGATE"              # 起動タイプ
 
   # ネットワーク設定（サブネット、セキュリティグループ、パブリックIPの割り当て）
   # この設定により、ECSタスクのネットワーク環境を制御します
   network_configuration {
-    subnets          = data.aws_subnets.public.ids # Fargateタスクを配置するサブネット
+    subnets          = data.aws_subnets.public.ids            # Fargateタスクを配置するサブネット
     security_groups  = [aws_security_group.ecs_service_sg.id] # セキュリティグループ
-    assign_public_ip = true # パブリックIPの割り当て（ECRからイメージをpullするために必要）
+    assign_public_ip = true                                   # ECRからイメージをpullするために必要
   }
 
   # ALBとの連携設定
   # この設定により、ALBからのリクエストをECSタスクに転送します
+  # ECSサービスがタスク起動時に自動でIPアドレスをターゲットグループに登録します
   load_balancer {
-    target_group_arn = aws_lb_target_group.api.arn # ターゲットグループ
-    container_name   = "${var.project_name}-container" # コンテナ名
-    container_port   = var.container_port # コンテナポート
+    target_group_arn = aws_lb_target_group.api.arn
+    container_name   = "${var.project_name}-container"
+    container_port   = var.container_port # default = 3000
   }
 
   # (オプション) サービスディスカバリやデプロイ設定
@@ -271,4 +295,6 @@ resource "aws_ecs_service" "api" {
 
   depends_on = [aws_lb_listener.http] # ALBリスナー作成後にサービスを開始
   # この依存関係により、ALBが完全に設定された後にECSサービスが開始されます
+  # resource "aws_lb_listener" "http" {
+
 }

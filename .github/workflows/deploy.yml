@@ -1,5 +1,5 @@
 # .github/workflows/deploy.yml (-e オプション削除 & exit 1 コメントアウト版)
-# 修正1
+#
 
 name: Deploy NestJS Hannibal App
 
@@ -37,6 +37,7 @@ jobs:
         working-directory: ./client
       - name: Run Frontend Tests
         run: echo "Frontend tests would run here (e.g., npm run test)"
+        # e.g. ラテン語 "exempli gratia" 例えば
         working-directory: ./client
 
   deploy:
@@ -46,15 +47,13 @@ jobs:
     # github はワークフロー実行の状況（コンテキスト）を表すオブジェクトで、イベントやブランチなどの情報を提供します
     # ブランチの参照は refs/heads/<ブランチ名> という形式で表現されます
     runs-on: ubuntu-latest
-    outputs: # このジョブで生成した値を他のジョブで利用できるようにする
+    outputs: # このジョブで生成した値を他のジョブで利用できるようにする(今は使ってない)
       s3_bucket_name: ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}
       cloudfront_distribution_id: ${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}
       cloudfront_domain_name: ${{ steps.get_terraform_outputs.outputs.cloudfront_domain_name }}
-      #⭐️ ec2_instance_id: ${{ steps.get_terraform_outputs.outputs.ec2_instance_id }}
-      #⭐️ backend_eip_address: ${{ steps.get_terraform_outputs.outputs.backend_eip_address }}
 
     steps:
-      # (以前のステップは変更なし)
+      # - name: から始まる各ブロックが step です
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Configure AWS credentials
@@ -67,8 +66,9 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.0.0
-      - name: Install jq
+      - name: Install jq # JSONデータをquery(検索、加工)するためのコマンドラインツール
         run: sudo apt-get update && sudo apt-get install -y jq
+        # apt-get は「Advanced Package Tool」の略で、Debian系Linux（Ubuntuなど）で使われるパッケージ管理コマンドです
       - name: Terraform Init (Backend)
         id: init-backend
         run: terraform init
@@ -76,13 +76,16 @@ jobs:
       - name: Terraform Plan (Backend)
         id: plan-backend
         run: terraform plan -no-color -var="client_url_for_cors="
+        # -no-color は、Terraformの出力を「色なし（白黒）」にしてログを見やすくするオプションです
+        # -var="client_url_for_cors="  terraform/backend/main.ts の変数 client_url_for_cors に空文字列を渡している指定です。これにより、CORS設定用のクライアントURLが一時的に未設定の状態で terraform plan を実行できます
         working-directory: ./terraform/backend
         continue-on-error: true
       - name: Terraform Apply (Backend)
         id: apply-backend
-        run: |
+        run: | # パイプ記号を付けることで、その下にインデントして複数行のシェルコマンドを記述できます
           terraform apply -auto-approve -no-color -var="client_url_for_cors="
           terraform output -json > ../tf_outputs_backend.json
+        # ファイルに保存しておくことで「別ディレクトリのTerraform」や「jqコマンド」などでも値を使い回せる
         working-directory: ./terraform/backend
       - name: Terraform Init (Frontend)
         id: init-frontend
@@ -90,7 +93,13 @@ jobs:
         working-directory: ./terraform/frontend
       - name: Terraform Plan (Frontend)
         id: plan-frontend
+
         run: terraform plan -no-color -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)"
+        # $()　コマンド置換、コマンドの実行結果が埋め込まれる
+        # jq -r　--raw-output 抽出した値を「ダブルクォートなしの生の文字列（raw）」で出力します
+        # バックエンド（API）の ALB のDNS名をフロントエンドのTerraform設定に動的に反映させることができます
+        # ../tf_outputs_backend.json: GitHub サーバ上に作られる一時ファイル の中の .alb_dns_name キーの.value にアクセスする
+        
         working-directory: ./terraform/frontend
         continue-on-error: true
       - name: Terraform Apply (Frontend)
@@ -99,6 +108,7 @@ jobs:
         working-directory: ./terraform/frontend
       - name: Get Terraform Outputs (Frontend)
         id: get_terraform_outputs
+        # shell
         run: |
           echo "Retrieving Terraform outputs (frontend)..."
           cd ./terraform/frontend
@@ -106,14 +116,26 @@ jobs:
           echo "--- Terraform Outputs (JSON) ---"
           cat tf_outputs.json
           echo "--------------------------------"
+          
           cd ../..
+          # 2階層上に移動する
+
           echo "s3_bucket_name=$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
+          # echo で文字列を作り、>> で$GITHUB_OUTPUTに追記する
+          # $GITHUB_OUTPUT は「GitHub Actionsの同じジョブ内の他のステップで参照するためのファイル」です
+          # ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }} これが使えるようになる 
+          
           echo "cloudfront_domain_name=$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
           echo "cloudfront_distribution_id=$(jq -r '.cloudfront_distribution_id.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "::set-output name=s3_bucket_name::$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)"
-          echo "::set-output name=cloudfront_domain_name::$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)"
-          echo "::set-output name=cloudfront_distribution_id::$(jq -r '.cloudfront_distribution_id.value' ./terraform/frontend/tf_outputs.json)"
+          
+          # 古いやり方 不要
+          # echo "::set-output name=s3_bucket_name::$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)"
+          # echo "::set-output name=cloudfront_domain_name::$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)"
+          # echo "::set-output name=cloudfront_distribution_id::$(jq -r '.cloudfront_distribution_id.value' ./terraform/frontend/tf_outputs.json)"
+
         working-directory: ./
+        # この step の開始時点で、ルートディレクトリで開始する
+        
       # CloudFrontドメイン名をCORS用にbackendへ再適用
       - name: Terraform Apply (Backend, CORS Update)
         id: apply-backend-cors
@@ -135,16 +157,25 @@ jobs:
         run: |
           # (内容は変更なし)
           S3_BUCKET="${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}"
-          if [ -z "$S3_BUCKET" ]; then echo "::error::S3 bucket name not found."; exit 1; fi # ここでのexitは残す
+          
+          if [ -z "$S3_BUCKET" ]; then echo "::error::S3 bucket name not found."; exit 1; fi 
+          # -z zero length
+          # if が true なら then を実行する
+          # ::error:: ::warning:: ::notice:: GitHub Actions独自のログ注釈機能です
+          # exit 1 異常終了
+
           echo "Deploying frontend to bucket: $S3_BUCKET"
           aws s3 sync ./client/dist "s3://$S3_BUCKET" --delete
+          # --delete S3バケット側にあってローカルに存在しないファイルは自動的に削除されます
+
       - name: Invalidate CloudFront Cache
         run: |
-          # (内容は変更なし)
           CF_DIST_ID="${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}"
-          if [ -z "$CF_DIST_ID" ]; then echo "::error::CloudFront distribution ID not found."; exit 1; fi # ここでのexitは残す
+          if [ -z "$CF_DIST_ID" ]; then echo "::error::CloudFront distribution ID not found."; exit 1; fi 
           echo "Invalidating CloudFront cache for distribution: $CF_DIST_ID"
+          
           aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"
+          # --paths "/*" すべてのパス
 
       # --- ★★★ ECS Fargate/ECRへのバックエンドデプロイ ★★★ ---
       - name: Login to Amazon ECR
@@ -154,25 +185,43 @@ jobs:
         env:
           ECR_REGISTRY: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
           ECR_REPOSITORY: nestjs-hannibal-3
+
           IMAGE_TAG: ${{ github.sha }}
+          # Gitのコミットごとに自動生成される「SHA-1ハッシュ値」（40文字の英数字）です
+
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          # ローカルで Dockerイメージを作成する
+          # -t タグ
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
       - name: Update ECS Service to use new image
         env:
           AWS_REGION: ap-northeast-1
           CLUSTER_NAME: nestjs-hannibal-3-cluster
+          # Terraformで作成済みのリソース nestjs-hannibal-3-cluster を GitHub Actions の環境変数に格納する
           SERVICE_NAME: nestjs-hannibal-3-api-service
           TASK_FAMILY: nestjs-hannibal-3-api-task
           CONTAINER_NAME: nestjs-hannibal-3-container
           IMAGE_TAG: ${{ github.sha }}
           ECR_REGISTRY: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
+          # AWSアカウント×リージョンごとに1つ自動で割り当てられます
           ECR_REPOSITORY: nestjs-hannibal-3
         run: |
-          # 最新のタスク定義を取得
+          
           TASK_DEF_ARN=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query "services[0].taskDefinition" --output text)
+          # ECSにある現状のタスク定義を取得している
+          # タスク定義 どのイメージを使うか、リソース、環境変数などの設計図
+          # services[0] 返り値は必ず services という配列になるので、services[0]と指定する
+          # taskDefinition タスク定義のARN
+          # クラスタ名とサービス名を指定すれば、「そのサービスが使っているタスク定義（設計図）」は一意に特定できます
+
           aws ecs describe-task-definition --task-definition $TASK_DEF_ARN > task-def.json
-          # イメージURIを書き換え
+          # タスク定義の詳細情報を取得し、ファイルに保存する
+
+          # Dockerイメージの書き換え
+          # jqの | パイプは「部分的に値を更新し、全体の構造を維持する」動きをします
+          # クォートでくくってある範囲は「jqに渡すJSON加工用のスクリプト」です
+
           NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" --arg NAME "$CONTAINER_NAME" '(.taskDefinition.containerDefinitions[] | select(.name == $NAME) | .image) |= $IMAGE | .taskDefinition | {
             family,
@@ -188,8 +237,22 @@ jobs:
             tags,
             runtimePlatform
           } | with_entries(select(.value != null))' > new-task-def.json
-          # 新しいタスク定義を登録
+          # {} jqのオブジェクトリテラル 指定したフィールドだけを抜き出して新しいJSONオブジェクトを作る
+          # aws ecs register-task-definition では、受け付けるJSONのフィールドが厳密に決まっているため、主要な項目だけの新しいJSON ファイルを作る必要があります
+          # with_entries オブジェクトの各プロパティ(キーと値のペア)に処理を行う関数です
+          # select 条件に合う要素だけを残す  配列 → 各要素（オブジェクト）に対して select
+          # .taskDefinition.containerDefinitions[] jq で使う場合、[] をつけるとループ処理やフィルタができる
+          # |= は「部分的な値の更新」を意味するjqの演算子です
+
+          
+          # 新しいタスク定義を ECS に登録
           TASK_DEF_ARN_NEW=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
+          # aws ecs register-task-definition 新しいECSタスク定義を登録し、登録した内容を JSON 形式で返す
+          # --cli-input-json コマンドの入力パラメータをJSONでまとめて渡す
+          # -query 返ってきた JSON の一部を抽出する
+          # taskDefinitionArn はECSがタスク定義を登録したときに自動で付与する値です
+
           # サービスを新タスク定義で更新
           aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $TASK_DEF_ARN_NEW
+          # ECSが新しいイメージからコンテナを作成・起動する
 

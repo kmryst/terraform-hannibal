@@ -1,0 +1,83 @@
+name: 🗑️ Destroy AWS Infrastructure
+
+on:
+  workflow_dispatch:  # 手動実行のみ
+    inputs:
+      environment:
+        description: 'Which environment to destroy?'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - frontend
+        - backend  
+        - all
+      confirm_destroy:
+        description: 'Type "DESTROY" to confirm deletion'
+        required: true
+        type: string
+      double_confirm:
+        description: 'Type project name "nestjs-hannibal-3" to double confirm'
+        required: true
+        type: string
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    # 安全確認: 両方の確認が正しい場合のみ実行
+    if: >
+      github.event.inputs.confirm_destroy == 'DESTROY' && 
+      github.event.inputs.double_confirm == 'nestjs-hannibal-3'
+    
+    steps:
+      - name: 🛑 Destruction Warning
+        run: |
+          echo "⚠️  WARNING: This will PERMANENTLY DELETE AWS resources!"
+          echo "📋 Environment: ${{ github.event.inputs.environment }}"
+          echo "💰 This will stop AWS billing for this project"
+          echo "🔄 Resources can be recreated later with terraform apply"
+          
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.0.0
+
+      # フロントエンド削除
+      - name: 🎨 Destroy Frontend Infrastructure
+        if: github.event.inputs.environment == 'frontend' || github.event.inputs.environment == 'all'
+        run: |
+          echo "🗑️ Destroying frontend resources..."
+          terraform init
+          terraform destroy -auto-approve
+          echo "✅ Frontend infrastructure destroyed"
+        working-directory: ./terraform/frontend
+
+      # バックエンド削除  
+      - name: 🔧 Destroy Backend Infrastructure
+        if: github.event.inputs.environment == 'backend' || github.event.inputs.environment == 'all'
+        run: |
+          echo "🗑️ Destroying backend resources..."
+          terraform init
+          terraform destroy -auto-approve
+          echo "✅ Backend infrastructure destroyed"
+        working-directory: ./terraform/backend
+
+      - name: 🎉 Cleanup Complete
+        run: |
+          echo "🎉 Infrastructure cleanup completed!"
+          echo "💰 AWS billing should stop within 1-2 hours"
+          echo "📊 Check AWS Cost Explorer to confirm"
+          echo ""
+          echo "🔄 To redeploy later:"
+          echo "  1. Push to feature/github-actions branch"
+          echo "  2. Or run terraform apply manually"
