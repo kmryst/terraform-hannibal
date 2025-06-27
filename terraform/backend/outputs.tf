@@ -18,3 +18,7 @@ output "ecs_cluster_name" {
   description = "Name of the ECS cluster"
   value       = aws_ecs_cluster.main.name
 }
+
+output "ecr_repository_url" {
+  value = aws_ecr_repository.nestjs_hannibal_3.repository_url
+}

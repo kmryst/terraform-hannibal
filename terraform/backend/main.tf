@@ -28,6 +28,46 @@ data "aws_subnets" "public" {
 }
 # data.aws_subnets.public.ids で[ "subnet-xxxx", "subnet-yyyy", ... ] のようなリストが取得できます
 
+
+# ⭐️ --- ECR Repository --- ⭐️
+# ⭐️ Dockerイメージを保存するためのECRリポジトリを作成 ⭐️
+resource "aws_ecr_repository" "nestjs_hannibal_3" {
+  name = "nestjs-hannibal-3"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  image_tag_mutability = "MUTABLE"
+}
+
+# ⭐️ --- ECR Lifecycle Policy (オプション) --- ⭐️
+# ⭐️ 古いイメージを自動削除するためのライフサイクルポリシー ⭐️
+resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
+  repository = aws_ecr_repository.nestjs_hannibal_3.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 10 images"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 10
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
+
+
+
+
+
 # --- IAM Role for ECS Task ---
 # ECSタスクがAWSのサービス（例：ECRからイメージのpullなど）にアクセスするためのIAMロールを作成
 # このロールは、ECSタスクがAWSのサービスを利用する際の認証に使用されます

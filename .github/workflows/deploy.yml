@@ -87,6 +87,9 @@ jobs:
           terraform output -json > ../tf_outputs_backend.json
         # ファイルに保存しておくことで「別ディレクトリのTerraform」や「jqコマンド」などでも値を使い回せる
         working-directory: ./terraform/backend
+
+
+        
       - name: Terraform Init (Frontend)
         id: init-frontend
         run: terraform init
@@ -255,4 +258,3 @@ jobs:
           # サービスを新タスク定義で更新
           aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $TASK_DEF_ARN_NEW
           # ECSが新しいイメージからコンテナを作成・起動する
-
