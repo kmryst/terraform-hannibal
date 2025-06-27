@@ -20,5 +20,6 @@ output "ecs_cluster_name" {
 }
 
 output "ecr_repository_url" {
-  value = aws_ecr_repository.nestjs_hannibal_3.repository_url
+  description = "URL of the ECR repository"
+  value       = aws_ecr_repository.nestjs_hannibal_3.repository_url
 }

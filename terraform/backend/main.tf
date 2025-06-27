@@ -74,23 +74,21 @@ data "aws_iam_user" "hannibal" {
   user_name = "hannibal"
 }
 
-# ECRフルアクセス権限をアタッチ
-resource "aws_iam_user_policy_attachment" "hannibal_ecr_access" {
-  user       = data.aws_iam_user.hannibal.user_name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
-}
+# IAM権限は既に手動で設定済みのためコメントアウト
+# resource "aws_iam_user_policy_attachment" "hannibal_ecr_access" {
+#   user       = data.aws_iam_user.hannibal.user_name
+#   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
+# }
 
-# ECSフルアクセス権限もアタッチ
-resource "aws_iam_user_policy_attachment" "hannibal_ecs_access" {
-  user       = data.aws_iam_user.hannibal.user_name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
-}
+# resource "aws_iam_user_policy_attachment" "hannibal_ecs_access" {
+#   user       = data.aws_iam_user.hannibal.user_name
+#   policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
+# }
 
-# CloudWatchログ権限もアタッチ
-resource "aws_iam_user_policy_attachment" "hannibal_cloudwatch_access" {
-  user       = data.aws_iam_user.hannibal.user_name
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
-}
+# resource "aws_iam_user_policy_attachment" "hannibal_cloudwatch_access" {
+#   user       = data.aws_iam_user.hannibal.user_name
+#   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+# }
 
 # --- IAM Role for ECS Task ---
 # ECSタスクがAWSのサービス（例：ECRからイメージのpullなど）にアクセスするためのIAMロールを作成
