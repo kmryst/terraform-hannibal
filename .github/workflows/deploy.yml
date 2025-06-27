@@ -80,6 +80,7 @@ jobs:
           
           # ECSサービス削除
           aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --desired-count 0 --region ap-northeast-1 2>/dev/null || echo "ECS service not found"
+          sleep 10
           aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --force --region ap-northeast-1 2>/dev/null || echo "ECS service not found"
           
           # ECSクラスタ削除
@@ -90,7 +91,7 @@ jobs:
           if [ "$ALB_ARN" != "None" ] && [ "$ALB_ARN" != "null" ]; then
             aws elbv2 delete-load-balancer --load-balancer-arn "$ALB_ARN" --region ap-northeast-1
             echo "Waiting for ALB deletion..."
-            sleep 30
+            sleep 60
           fi
           
           # ターゲットグループ削除
@@ -99,15 +100,18 @@ jobs:
             aws elbv2 delete-target-group --target-group-arn "$TG_ARN" --region ap-northeast-1
           fi
           
-          # セキュリティグループ削除
-          SG_ALB_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-alb-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
-          if [ "$SG_ALB_ID" != "None" ] && [ "$SG_ALB_ID" != "null" ]; then
-            aws ec2 delete-security-group --group-id "$SG_ALB_ID" --region ap-northeast-1 2>/dev/null || echo "Security group deletion failed (dependencies may exist)"
-          fi
+          # セキュリティグループ削除（ALB削除後に実行）
+          echo "Waiting for security group dependencies to clear..."
+          sleep 30
           
           SG_ECS_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-ecs-service-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
           if [ "$SG_ECS_ID" != "None" ] && [ "$SG_ECS_ID" != "null" ]; then
             aws ec2 delete-security-group --group-id "$SG_ECS_ID" --region ap-northeast-1 2>/dev/null || echo "Security group deletion failed (dependencies may exist)"
+          fi
+          
+          SG_ALB_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-alb-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
+          if [ "$SG_ALB_ID" != "None" ] && [ "$SG_ALB_ID" != "null" ]; then
+            aws ec2 delete-security-group --group-id "$SG_ALB_ID" --region ap-northeast-1 2>/dev/null || echo "Security group deletion failed (dependencies may exist)"
           fi
           
           # IAMロール削除

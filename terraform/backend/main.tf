@@ -70,35 +70,35 @@ resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
 
 # --- IAM User Permissions for hannibal user ---
 # 既存のIAMユーザーをデータソースで取得
-data "aws_iam_user" "hannibal" {
-  user_name = "hannibal"
-}
+# data "aws_iam_user" "hannibal" {
+#   user_name = "hannibal"
+# }
 
-# IAM権限をTerraformで管理（再現性確保）
-resource "aws_iam_user_policy_attachment" "hannibal_ecr_access" {
-  user       = data.aws_iam_user.hannibal.user_name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
-}
+# IAM権限は手動で設定済みのためコメントアウト（ポリシー上限10個制限回避）
+# resource "aws_iam_user_policy_attachment" "hannibal_ecr_access" {
+#   user       = data.aws_iam_user.hannibal.user_name
+#   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
+# }
 
-resource "aws_iam_user_policy_attachment" "hannibal_ecs_access" {
-  user       = data.aws_iam_user.hannibal.user_name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
-}
+# resource "aws_iam_user_policy_attachment" "hannibal_ecs_access" {
+#   user       = data.aws_iam_user.hannibal.user_name
+#   policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
+# }
 
-resource "aws_iam_user_policy_attachment" "hannibal_cloudwatch_access" {
-  user       = data.aws_iam_user.hannibal.user_name
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
-}
+# resource "aws_iam_user_policy_attachment" "hannibal_cloudwatch_access" {
+#   user       = data.aws_iam_user.hannibal.user_name
+#   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+# }
 
-resource "aws_iam_user_policy_attachment" "hannibal_elb_access" {
-  user       = data.aws_iam_user.hannibal.user_name
-  policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"
-}
+# resource "aws_iam_user_policy_attachment" "hannibal_elb_access" {
+#   user       = data.aws_iam_user.hannibal.user_name
+#   policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"
+# }
 
-resource "aws_iam_user_policy_attachment" "hannibal_ec2_access" {
-  user       = data.aws_iam_user.hannibal.user_name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
-}
+# resource "aws_iam_user_policy_attachment" "hannibal_ec2_access" {
+#   user       = data.aws_iam_user.hannibal.user_name
+#   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+# }
 
 # --- IAM Role for ECS Task ---
 # ECSタスクがAWSのサービス（例：ECRからイメージのpullなど）にアクセスするためのIAMロールを作成
