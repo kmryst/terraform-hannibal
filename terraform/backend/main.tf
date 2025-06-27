@@ -170,6 +170,21 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "iam:ListAttachedUserPolicies"
         ]
         Resource = "*"
+      },
+      {
+        # AWSリソース情報取得系（Terraform管理用）
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeVpcs",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups",
+          "iam:GetUser",
+          "ecs:DescribeClusters",
+          "ecs:ListClusters",
+          "ecs:DescribeServices",
+          "ecs:ListServices"
+        ]
+        Resource = "*"
       }
     ]
   })
