@@ -1,3 +1,27 @@
+# NestJS Hannibal 3
+
+## 🚀 セットアップ手順
+
+### **⚠️ 重要: ECRリポジトリの事前作成**
+GitHub Actionsを実行する前に、ECRリポジトリを手動で作成してください。
+
+```bash
+# 一度だけ実行（プロジェクト初期セットアップ時）
+aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northeast-1
+
+# 作成確認
+aws ecr describe-repositories --repository-names nestjs-hannibal-3 --region ap-northeast-1
+```
+
+**理由**: CI/CDの安定性向上、権限エラー回避、実行時間短縮
+
+### **開発環境セットアップ**
+1. ✅ ECRリポジトリ作成（上記参照）
+2. `npm install`
+3. 環境変数設定
+4. GitHub Actionsの実行
+
+## 📦 アーキテクチャ
 
 ```mermaid
 

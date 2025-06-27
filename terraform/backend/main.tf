@@ -29,22 +29,17 @@ data "aws_subnets" "public" {
 # data.aws_subnets.public.ids で[ "subnet-xxxx", "subnet-yyyy", ... ] のようなリストが取得できます
 
 
-# ⭐️ --- ECR Repository --- ⭐️
-# ⭐️ Dockerイメージを保存するためのECRリポジトリを作成 ⭐️
-resource "aws_ecr_repository" "nestjs_hannibal_3" {
+# ⭐️ --- ECR Repository (既存を参照) --- ⭐️
+# ⭐️ 手動で作成済みのECRリポジトリを参照 ⭐️
+# 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
+data "aws_ecr_repository" "nestjs_hannibal_3" {
   name = "nestjs-hannibal-3"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  image_tag_mutability = "MUTABLE"
 }
 
 # ⭐️ --- ECR Lifecycle Policy (オプション) --- ⭐️
 # ⭐️ 古いイメージを自動削除するためのライフサイクルポリシー ⭐️
 resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
-  repository = aws_ecr_repository.nestjs_hannibal_3.name
+  repository = data.aws_ecr_repository.nestjs_hannibal_3.name
 
   policy = jsonencode({
     rules = [

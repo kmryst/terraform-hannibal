@@ -1,5 +1,6 @@
-# .github/workflows/deploy.yml (-e オプション削除 & exit 1 コメントアウト版)
-#
+# 🚨 重要: このワークフローを実行する前に ECRリポジトリを手動作成してください
+# コマンド: aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northeast-1
+# 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
 
 name: Deploy NestJS Hannibal App
 
@@ -71,28 +72,14 @@ jobs:
         # apt-get は「Advanced Package Tool」の略で、Debian系Linux（Ubuntuなど）で使われるパッケージ管理コマンドです
       
       # 既存リソースの削除（リソース競合エラー回避）
+      # 📝 注意: ECRリポジトリは手動作成済みのため削除しません
       - name: Clean up existing AWS resources
         run: |
           echo "Cleaning up existing AWS resources to avoid conflicts..."
           
-          # ECRリポジトリ削除（複数回試行）
-          echo "Deleting ECR repository..."
-          for i in {1..3}; do
-            if aws ecr delete-repository --repository-name nestjs-hannibal-3 --force --region ap-northeast-1 2>/dev/null; then
-              echo "ECR repository deleted successfully"
-              break
-            else
-              echo "ECR repository deletion attempt $i failed, retrying..."
-              sleep 5
-            fi
-          done
-          
-          # 削除確認
-          if aws ecr describe-repositories --repository-names nestjs-hannibal-3 --region ap-northeast-1 2>/dev/null; then
-            echo "Warning: ECR repository still exists after deletion attempts"
-          else
-            echo "ECR repository confirmed deleted"
-          fi
+          # 📝 ECRリポジトリは手動作成済みのため削除をスキップ
+          # 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
+          echo "Skipping ECR deletion - using pre-created repository"
           
           # ECSサービス削除
           aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --desired-count 0 --region ap-northeast-1 2>/dev/null || echo "ECS service not found"

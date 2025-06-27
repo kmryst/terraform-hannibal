@@ -6,6 +6,9 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "setup": "echo '🚨 ECRリポジトリを手動作成してください: aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northeast-1'",
+    "setup:ecr": "aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northeast-1",
+    "check:ecr": "aws ecr describe-repositories --repository-names nestjs-hannibal-3 --region ap-northeast-1",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
