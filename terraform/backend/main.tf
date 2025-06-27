@@ -68,6 +68,30 @@ resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
 
 
 
+# --- IAM User Permissions for hannibal user ---
+# 既存のIAMユーザーをデータソースで取得
+data "aws_iam_user" "hannibal" {
+  user_name = "hannibal"
+}
+
+# ECRフルアクセス権限をアタッチ
+resource "aws_iam_user_policy_attachment" "hannibal_ecr_access" {
+  user       = data.aws_iam_user.hannibal.user_name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
+}
+
+# ECSフルアクセス権限もアタッチ
+resource "aws_iam_user_policy_attachment" "hannibal_ecs_access" {
+  user       = data.aws_iam_user.hannibal.user_name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
+}
+
+# CloudWatchログ権限もアタッチ
+resource "aws_iam_user_policy_attachment" "hannibal_cloudwatch_access" {
+  user       = data.aws_iam_user.hannibal.user_name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+}
+
 # --- IAM Role for ECS Task ---
 # ECSタスクがAWSのサービス（例：ECRからイメージのpullなど）にアクセスするためのIAMロールを作成
 # このロールは、ECSタスクがAWSのサービスを利用する際の認証に使用されます
