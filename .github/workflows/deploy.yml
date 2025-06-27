@@ -69,6 +69,56 @@ jobs:
       - name: Install jq # JSONデータをquery(検索、加工)するためのコマンドラインツール
         run: sudo apt-get update && sudo apt-get install -y jq
         # apt-get は「Advanced Package Tool」の略で、Debian系Linux（Ubuntuなど）で使われるパッケージ管理コマンドです
+      
+      # 既存リソースの削除（リソース競合エラー回避）
+      - name: Clean up existing AWS resources
+        run: |
+          echo "Cleaning up existing AWS resources to avoid conflicts..."
+          
+          # ECRリポジトリ削除
+          aws ecr delete-repository --repository-name nestjs-hannibal-3 --force --region ap-northeast-1 2>/dev/null || echo "ECR repository not found or already deleted"
+          
+          # ECSサービス削除
+          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --desired-count 0 --region ap-northeast-1 2>/dev/null || echo "ECS service not found"
+          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --force --region ap-northeast-1 2>/dev/null || echo "ECS service not found"
+          
+          # ECSクラスタ削除
+          aws ecs delete-cluster --cluster nestjs-hannibal-3-cluster --region ap-northeast-1 2>/dev/null || echo "ECS cluster not found"
+          
+          # ALB削除
+          ALB_ARN=$(aws elbv2 describe-load-balancers --names nestjs-hannibal-3-alb --region ap-northeast-1 --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "None")
+          if [ "$ALB_ARN" != "None" ] && [ "$ALB_ARN" != "null" ]; then
+            aws elbv2 delete-load-balancer --load-balancer-arn "$ALB_ARN" --region ap-northeast-1
+            echo "Waiting for ALB deletion..."
+            sleep 30
+          fi
+          
+          # ターゲットグループ削除
+          TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
+          if [ "$TG_ARN" != "None" ] && [ "$TG_ARN" != "null" ]; then
+            aws elbv2 delete-target-group --target-group-arn "$TG_ARN" --region ap-northeast-1
+          fi
+          
+          # セキュリティグループ削除
+          SG_ALB_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-alb-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
+          if [ "$SG_ALB_ID" != "None" ] && [ "$SG_ALB_ID" != "null" ]; then
+            aws ec2 delete-security-group --group-id "$SG_ALB_ID" --region ap-northeast-1 2>/dev/null || echo "Security group deletion failed (dependencies may exist)"
+          fi
+          
+          SG_ECS_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-ecs-service-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
+          if [ "$SG_ECS_ID" != "None" ] && [ "$SG_ECS_ID" != "null" ]; then
+            aws ec2 delete-security-group --group-id "$SG_ECS_ID" --region ap-northeast-1 2>/dev/null || echo "Security group deletion failed (dependencies may exist)"
+          fi
+          
+          # IAMロール削除
+          aws iam detach-role-policy --role-name nestjs-hannibal-3-ecs-task-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy 2>/dev/null || echo "IAM role policy not found"
+          aws iam delete-role --role-name nestjs-hannibal-3-ecs-task-execution-role 2>/dev/null || echo "IAM role not found"
+          
+          # CloudWatchログループ削除
+          aws logs delete-log-group --log-group-name /ecs/nestjs-hannibal-3-api-task --region ap-northeast-1 2>/dev/null || echo "Log group not found"
+          
+          echo "Cleanup completed (errors are expected if resources don't exist)"
+        continue-on-error: true
       - name: Terraform Init (Backend)
         id: init-backend
         run: terraform init
