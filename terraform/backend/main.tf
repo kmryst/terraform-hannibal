@@ -29,17 +29,15 @@ data "aws_subnets" "public" {
 # data.aws_subnets.public.ids で[ "subnet-xxxx", "subnet-yyyy", ... ] のようなリストが取得できます
 
 
-# ⭐️ --- ECR Repository (既存を参照) --- ⭐️
-# ⭐️ 手動で作成済みのECRリポジトリを参照 ⭐️
+# ⭐️ --- ECR Repository (手動作成済み) --- ⭐️
+# ⭐️ 手動で作成済みのECRリポジトリを使用 ⭐️
 # 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
-data "aws_ecr_repository" "nestjs_hannibal_3" {
-  name = "nestjs-hannibal-3"
-}
+# ECR URI: variables.tfで定義済み
 
 # ⭐️ --- ECR Lifecycle Policy (オプション) --- ⭐️
 # ⭐️ 古いイメージを自動削除するためのライフサイクルポリシー ⭐️
 resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
-  repository = data.aws_ecr_repository.nestjs_hannibal_3.name
+  repository = "nestjs-hannibal-3" # 直接リポジトリ名を指定
 
   policy = jsonencode({
     rules = [

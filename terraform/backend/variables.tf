@@ -18,7 +18,7 @@ variable "project_name" {
 variable "vpc_id" {
   description = "ID of the VPC for deploying resources. If not specified, the default VPC will be used."
   type        = string
-  default     = ""  # 空文字列をデフォルト値として設定し、オプショナルにする
+  default     = "" # 空文字列をデフォルト値として設定し、オプショナルにする
 }
 
 # variable "public_subnet_ids" {
@@ -38,6 +38,12 @@ variable "container_image_uri" {
   description = "ECR URI of the Docker image for the NestJS API"
   type        = string
   default     = "258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:latest" # 事前にECRにpushしたイメージURI
+}
+
+variable "ecr_repository_url" {
+  description = "ECR repository URL (manually created)"
+  type        = string
+  default     = "258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3"
 }
 
 variable "container_port" {

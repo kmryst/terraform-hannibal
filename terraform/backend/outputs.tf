@@ -21,5 +21,5 @@ output "ecs_cluster_name" {
 
 output "ecr_repository_url" {
   description = "URL of the ECR repository"
-  value       = data.aws_ecr_repository.nestjs_hannibal_3.repository_url
+  value       = var.ecr_repository_url
 }
