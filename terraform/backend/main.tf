@@ -64,13 +64,31 @@ resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
 
 # --- IAM User Permissions for hannibal user ---
 # 既存のIAMユーザーをデータソースで取得
+# ※ 既存の手動アタッチ済みマネージドポリシーはAWSコンソールで一度detachし、Terraformで管理してください
+# ※ 10個制限を超えないよう、不要なものはアタッチしない・カスタムポリシーに統合する
+
 data "aws_iam_user" "hannibal" {
   user_name = "hannibal"
 }
 
-# --- IAM Custom Policy (プロの方法: 権限統合) ---
-# 複数のマネージドポリシーを1つのカスタムポリシーに統合
-# 10個制限回避 & 必要最小限の権限のみ付与
+# --- 必要なマネージドポリシーをTerraformでアタッチ（例: EC2, ECS） ---
+resource "aws_iam_user_policy_attachment" "hannibal_ec2_full" {
+  user       = data.aws_iam_user.hannibal.user_name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+}
+
+resource "aws_iam_user_policy_attachment" "hannibal_ecs_full" {
+  user       = data.aws_iam_user.hannibal.user_name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
+}
+
+# --- 必要に応じて他のマネージドポリシーも追加（10個制限を超えない範囲で） ---
+# resource "aws_iam_user_policy_attachment" "hannibal_xxx" {
+#   user       = data.aws_iam_user.hannibal.user_name
+#   policy_arn = "arn:aws:iam::aws:policy/XXX"
+# }
+
+# --- IAM Custom Policy (権限統合) ---
 resource "aws_iam_policy" "hannibal_terraform_policy" {
   name        = "TerraformECSDeploymentPolicy"
   description = "Custom policy for Terraform ECS deployment - ECR, CloudWatch, ELB permissions"
@@ -157,7 +175,6 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
   })
 }
 
-# カスタムポリシーをアタッチ
 resource "aws_iam_user_policy_attachment" "hannibal_terraform_policy" {
   user       = data.aws_iam_user.hannibal.user_name
   policy_arn = aws_iam_policy.hannibal_terraform_policy.arn
