@@ -34,8 +34,9 @@ data "aws_subnets" "public" {
 # 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
 # ECR URI: variables.tfで定義済み
 
-# ⭐️ --- ECR Lifecycle Policy (オプション) --- ⭐️
+# ⭐️ --- ECR Lifecycle Policy (Terraform管理) --- ⭐️
 # ⭐️ 古いイメージを自動削除するためのライフサイクルポリシー ⭐️
+# Infrastructure as Code原則に従いTerraformで管理
 resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
   repository = "nestjs-hannibal-3" # 直接リポジトリ名を指定
 
@@ -63,35 +64,109 @@ resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
 
 # --- IAM User Permissions for hannibal user ---
 # 既存のIAMユーザーをデータソースで取得
-# data "aws_iam_user" "hannibal" {
-#   user_name = "hannibal"
-# }
+data "aws_iam_user" "hannibal" {
+  user_name = "hannibal"
+}
 
-# IAM権限は手動で設定済みのためコメントアウト（ポリシー上限10個制限回避）
-# resource "aws_iam_user_policy_attachment" "hannibal_ecr_access" {
-#   user       = data.aws_iam_user.hannibal.user_name
-#   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
-# }
+# --- IAM Custom Policy (プロの方法: 権限統合) ---
+# 複数のマネージドポリシーを1つのカスタムポリシーに統合
+# 10個制限回避 & 必要最小限の権限のみ付与
+resource "aws_iam_policy" "hannibal_terraform_policy" {
+  name        = "TerraformECSDeploymentPolicy"
+  description = "Custom policy for Terraform ECS deployment - ECR, CloudWatch, ELB permissions"
 
-# resource "aws_iam_user_policy_attachment" "hannibal_ecs_access" {
-#   user       = data.aws_iam_user.hannibal.user_name
-#   policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
-# }
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        # ECR権限 (Container Registry管理)
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:DescribeRepositories",
+          "ecr:ListImages",
+          "ecr:DescribeImages",
+          "ecr:BatchDeleteImage",
+          "ecr:GetLifecyclePolicy",
+          "ecr:PutLifecyclePolicy",
+          "ecr:DeleteLifecyclePolicy",
+          "ecr:ListTagsForResource"
+        ]
+        Resource = "*"
+      },
+      {
+        # CloudWatch Logs権限 (ログ管理)
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:PutRetentionPolicy",
+          "logs:DeleteLogGroup"
+        ]
+        Resource = "*"
+      },
+      {
+        # ELB権限 (Load Balancer管理)
+        Effect = "Allow"
+        Action = [
+          "elasticloadbalancing:CreateLoadBalancer",
+          "elasticloadbalancing:CreateTargetGroup",
+          "elasticloadbalancing:CreateListener",
+          "elasticloadbalancing:DescribeLoadBalancers",
+          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeListeners",
+          "elasticloadbalancing:ModifyLoadBalancerAttributes",
+          "elasticloadbalancing:ModifyTargetGroupAttributes",
+          "elasticloadbalancing:DeleteLoadBalancer",
+          "elasticloadbalancing:DeleteTargetGroup",
+          "elasticloadbalancing:DeleteListener",
+          "elasticloadbalancing:AddTags",
+          "elasticloadbalancing:RemoveTags"
+        ]
+        Resource = "*"
+      },
+      {
+        # IAM権限 (Terraform用ロール・ポリシー管理)
+        Effect = "Allow"
+        Action = [
+          "iam:CreateRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:DeleteRole",
+          "iam:GetRole",
+          "iam:ListAttachedRolePolicies",
+          "iam:PassRole",
+          "iam:CreatePolicy",
+          "iam:DeletePolicy",
+          "iam:GetPolicy",
+          "iam:GetPolicyVersion",
+          "iam:AttachUserPolicy",
+          "iam:DetachUserPolicy",
+          "iam:ListUserPolicies",
+          "iam:ListAttachedUserPolicies"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
 
-# resource "aws_iam_user_policy_attachment" "hannibal_cloudwatch_access" {
-#   user       = data.aws_iam_user.hannibal.user_name
-#   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
-# }
+# カスタムポリシーをアタッチ
+resource "aws_iam_user_policy_attachment" "hannibal_terraform_policy" {
+  user       = data.aws_iam_user.hannibal.user_name
+  policy_arn = aws_iam_policy.hannibal_terraform_policy.arn
+}
 
-# resource "aws_iam_user_policy_attachment" "hannibal_elb_access" {
-#   user       = data.aws_iam_user.hannibal.user_name
-#   policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"
-# }
-
-# resource "aws_iam_user_policy_attachment" "hannibal_ec2_access" {
-#   user       = data.aws_iam_user.hannibal.user_name
-#   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
-# }
+# 既存の手動設定済み権限
+# - AmazonEC2FullAccess (VPC, Subnets, Security Groups)
+# - AmazonECS_FullAccess (ECS Cluster, Service, Task Definition)
+# - その他8個のマネージドポリシー
 
 # --- IAM Role for ECS Task ---
 # ECSタスクがAWSのサービス（例：ECRからイメージのpullなど）にアクセスするためのIAMロールを作成
