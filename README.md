@@ -2,9 +2,9 @@
 
 ## 🚀 セットアップ手順
 
-### **⚠️ 重要: ECRリポジトリの事前作成**
-GitHub Actionsを実行する前に、ECRリポジトリを手動で作成してください。
+### **⚠️ 重要: GitHub Actions実行前の準備**
 
+#### **1. ECRリポジトリの事前作成**
 ```bash
 # 一度だけ実行（プロジェクト初期セットアップ時）
 aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northeast-1
@@ -13,7 +13,33 @@ aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northe
 aws ecr describe-repositories --repository-names nestjs-hannibal-3 --region ap-northeast-1
 ```
 
-**理由**: CI/CDの安定性向上、権限エラー回避、実行時間短縮
+#### **2. IAMカスタムポリシーの事前適用** 🔐
+GitHub Actionsでエラーを防ぐため、hannibalユーザーに必要な権限を事前に適用してください。
+
+```bash
+# ディレクトリ移動
+cd C:\code\javascript\nestjs-hannibal-3\terraform\backend
+
+# Terraform初期化
+terraform init
+
+# IAMFullAccess一時付与（AWS Console or CLI）
+aws iam attach-user-policy --user-name hannibal --policy-arn arn:aws:iam::aws:policy/IAMFullAccess
+
+# カスタムポリシー作成・アタッチ（PowerShellは引用符必須）
+terraform apply -target="aws_iam_policy.hannibal_terraform_policy" -target="aws_iam_user_policy_attachment.hannibal_terraform_policy" -auto-approve
+
+# IAMFullAccessデタッチ（セキュリティ強化）
+aws iam detach-user-policy --user-name hannibal --policy-arn arn:aws:iam::aws:policy/IAMFullAccess
+```
+
+#### **作成されるカスタムポリシー内容**
+- **ポリシー名**: `HannibalInfraAdminPolicy`
+- **対象サービス**: ECR, CloudWatch, ELB, EC2, ECS, IAM, S3, CloudFront
+- **GitHub Actions対応**: リソース削除・作成権限を含む
+- **10個制限対応**: 8つのサービス権限を1つのポリシーに統合
+
+**理由**: CI/CDの権限エラー回避、Infrastructure as Code原則、最小権限の原則
 
 ## 🔐 Infrastructure as Code原則
 

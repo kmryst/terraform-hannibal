@@ -58,20 +58,15 @@ resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
   })
 }
 
-resource "time_static" "now" {}
-
 # --- IAM User Permissions for hannibal user ---
-# 既存のIAMユーザーをデータソースで取得
 # ※ 既存の手動アタッチ済みマネージドポリシーはAWSコンソールで一度detachし、Terraformで管理してください
 # ※ 10個制限を超えないよう、不要なものはアタッチしない・カスタムポリシーに統合する
 
-data "aws_iam_user" "hannibal" {
-  user_name = "hannibal"
-}
+# dataソースではなく直接ユーザー名を指定（iam:GetUser権限不要）
 
 # --- IAM Custom Policy (権限統合) ---
 resource "aws_iam_policy" "hannibal_terraform_policy" {
-  name        = "TerraformECSDeploymentPolicy-${time_static.now.unix}"
+  name        = "HannibalInfraAdminPolicy"
   description = "Custom policy for Terraform ECS deployment - ECR, CloudWatch, ELB, EC2, ECS, IAM, S3, CloudFront permissions"
 
   policy = jsonencode({
@@ -126,7 +121,12 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "elasticloadbalancing:DeleteTargetGroup",
           "elasticloadbalancing:DeleteListener",
           "elasticloadbalancing:AddTags",
-          "elasticloadbalancing:RemoveTags"
+          "elasticloadbalancing:RemoveTags",
+          # GitHub Actions用の追加権限
+          "elbv2:DescribeLoadBalancers",
+          "elbv2:DeleteLoadBalancer",
+          "elbv2:DescribeTargetGroups",
+          "elbv2:DeleteTargetGroup"
         ]
         Resource = "*"
       },
@@ -144,7 +144,15 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "ec2:DescribeInternetGateways",
           "ec2:DescribeAddresses",
           "ec2:AssociateAddress",
-          "ec2:DisassociateAddress"
+          "ec2:DisassociateAddress",
+          # GitHub Actions用の追加権限
+          "ec2:CreateSecurityGroup",
+          "ec2:DeleteSecurityGroup",
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupEgress",
+          "ec2:CreateTags"
         ]
         Resource = "*"
       },
@@ -166,7 +174,10 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "ecs:DescribeTasks",
           "ecs:ListTasks",
           "ecs:RunTask",
-          "ecs:StopTask"
+          "ecs:StopTask",
+          # GitHub Actions用の追加権限
+          "ecs:DeleteCluster",
+          "ecs:CreateCluster"
         ]
         Resource = "*"
       },
@@ -189,7 +200,11 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "iam:DetachUserPolicy",
           "iam:ListUserPolicies",
           "iam:ListAttachedUserPolicies",
-          "iam:GetUser"
+          "iam:GetUser",
+          # GitHub Actions用の追加権限
+          "iam:ListPolicyVersions",
+          "iam:CreatePolicyVersion",
+          "iam:DeletePolicyVersion"
         ]
         Resource = "*"
       },
@@ -232,7 +247,7 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
 }
 
 resource "aws_iam_user_policy_attachment" "hannibal_terraform_policy" {
-  user       = data.aws_iam_user.hannibal.user_name
+  user       = "hannibal" # 直接ユーザー名を指定
   policy_arn = aws_iam_policy.hannibal_terraform_policy.arn
 }
 
