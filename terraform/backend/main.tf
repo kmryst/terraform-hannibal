@@ -229,7 +229,9 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "s3:PutBucketPolicy",
           "s3:GetBucketPolicy",
           "s3:PutBucketPublicAccessBlock",
-          "s3:GetBucketPublicAccessBlock"
+          "s3:GetBucketPublicAccessBlock",
+          "s3:GetObjectTagging",
+          "s3:PutObjectTagging"
         ]
         Resource = [
           "arn:aws:s3:::*",
@@ -246,8 +248,10 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "cloudfront:CreateInvalidation",
           "cloudfront:GetInvalidation",
           "cloudfront:ListDistributions",
+          "cloudfront:ListOriginAccessControls",
           "cloudfront:CreateOriginAccessControl",
           "cloudfront:GetOriginAccessControl",
+          "cloudfront:UpdateOriginAccessControl",
           "cloudfront:DeleteOriginAccessControl"
         ]
         Resource = "*"

@@ -54,18 +54,8 @@ resource "aws_s3_object" "frontend_files" {
 # OACは「CloudFrontからS3バケットへの専用アクセス権限」を管理するAWSの機能です
 # Origin は、CloudFrontが配信するコンテンツの「取得元」のことです。S3, ALB/ELBなど
 # --- CloudFront Origin Access Control (OAC) ---
-resource "aws_cloudfront_origin_access_control" "s3_oac" {
-  name                              = "${var.project_name}-s3-oac" # AWS上での名前
-  description                       = "OAC for S3 bucket access from CloudFront"
-  origin_access_control_origin_type = "s3"
-
-  signing_behavior = "always"
-  # リクエストにデジタル署名をつけるタイミング
-  # "always" すべてのリクエストに常に署名をつける(もっともセキュアな設定)
-
-  signing_protocol = "sigv4"
-  # 使用する署名プロトコルの種類
-  # AWS Signature Version 4(AWSの最新の認証方式)
+data "aws_cloudfront_origin_access_control" "s3_oac" {
+  name = "${var.project_name}-s3-oac"
 }
 
 # # CloudFrontのみがS3にアクセスできるように設定するための、S3 bucket 側の設定 
@@ -115,7 +105,7 @@ resource "aws_cloudfront_distribution" "main" {
     # 実際にHTTPリクエストを送信するため、DNS name が必要
 
     origin_id                = "S3-${var.s3_bucket_name}" # CloudFrontに複数の origin がある場合の識別に使用する
-    origin_access_control_id = aws_cloudfront_origin_access_control.s3_oac.id
+    origin_access_control_id = data.aws_cloudfront_origin_access_control.s3_oac.id
   }
 
   origin { # API Backend Origin
