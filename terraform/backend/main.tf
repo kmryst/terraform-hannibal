@@ -58,9 +58,7 @@ resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
   })
 }
 
-
-
-
+resource "time_static" "now" {}
 
 # --- IAM User Permissions for hannibal user ---
 # 既存のIAMユーザーをデータソースで取得
@@ -71,27 +69,10 @@ data "aws_iam_user" "hannibal" {
   user_name = "hannibal"
 }
 
-# --- 必要なマネージドポリシーをTerraformでアタッチ（例: EC2, ECS） ---
-resource "aws_iam_user_policy_attachment" "hannibal_ec2_full" {
-  user       = data.aws_iam_user.hannibal.user_name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
-}
-
-resource "aws_iam_user_policy_attachment" "hannibal_ecs_full" {
-  user       = data.aws_iam_user.hannibal.user_name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
-}
-
-# --- 必要に応じて他のマネージドポリシーも追加（10個制限を超えない範囲で） ---
-# resource "aws_iam_user_policy_attachment" "hannibal_xxx" {
-#   user       = data.aws_iam_user.hannibal.user_name
-#   policy_arn = "arn:aws:iam::aws:policy/XXX"
-# }
-
 # --- IAM Custom Policy (権限統合) ---
 resource "aws_iam_policy" "hannibal_terraform_policy" {
-  name        = "TerraformECSDeploymentPolicy"
-  description = "Custom policy for Terraform ECS deployment - ECR, CloudWatch, ELB permissions"
+  name        = "TerraformECSDeploymentPolicy-${time_static.now.unix}"
+  description = "Custom policy for Terraform ECS deployment - ECR, CloudWatch, ELB, EC2, ECS, IAM, S3, CloudFront permissions"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -150,6 +131,46 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
         Resource = "*"
       },
       {
+        # EC2権限 (VPC, Subnet, SG, ENI)
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeVpcs",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:CreateNetworkInterface",
+          "ec2:DeleteNetworkInterface",
+          "ec2:DescribeRouteTables",
+          "ec2:DescribeInternetGateways",
+          "ec2:DescribeAddresses",
+          "ec2:AssociateAddress",
+          "ec2:DisassociateAddress"
+        ]
+        Resource = "*"
+      },
+      {
+        # ECS権限 (Cluster, Service, Task Definition)
+        Effect = "Allow"
+        Action = [
+          "ecs:DescribeClusters",
+          "ecs:ListClusters",
+          "ecs:DescribeServices",
+          "ecs:ListServices",
+          "ecs:RegisterTaskDefinition",
+          "ecs:DeregisterTaskDefinition",
+          "ecs:DescribeTaskDefinition",
+          "ecs:ListTaskDefinitions",
+          "ecs:CreateService",
+          "ecs:UpdateService",
+          "ecs:DeleteService",
+          "ecs:DescribeTasks",
+          "ecs:ListTasks",
+          "ecs:RunTask",
+          "ecs:StopTask"
+        ]
+        Resource = "*"
+      },
+      {
         # IAM権限 (Terraform用ロール・ポリシー管理)
         Effect = "Allow"
         Action = [
@@ -167,22 +188,42 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "iam:AttachUserPolicy",
           "iam:DetachUserPolicy",
           "iam:ListUserPolicies",
-          "iam:ListAttachedUserPolicies"
+          "iam:ListAttachedUserPolicies",
+          "iam:GetUser"
         ]
         Resource = "*"
       },
       {
-        # AWSリソース情報取得系（Terraform管理用）
+        # S3バケット・オブジェクト操作権限
         Effect = "Allow"
         Action = [
-          "ec2:DescribeVpcs",
-          "ec2:DescribeSubnets",
-          "ec2:DescribeSecurityGroups",
-          "iam:GetUser",
-          "ecs:DescribeClusters",
-          "ecs:ListClusters",
-          "ecs:DescribeServices",
-          "ecs:ListServices"
+          "s3:CreateBucket",
+          "s3:DeleteBucket",
+          "s3:ListBucket",
+          "s3:GetBucketLocation",
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:PutBucketPolicy",
+          "s3:GetBucketPolicy",
+          "s3:PutBucketPublicAccessBlock",
+          "s3:GetBucketPublicAccessBlock"
+        ]
+        Resource = [
+          "arn:aws:s3:::*",
+          "arn:aws:s3:::*/*"
+        ]
+      },
+      {
+        # CloudFrontディストリビューション・キャッシュ無効化権限
+        Effect = "Allow"
+        Action = [
+          "cloudfront:CreateDistribution",
+          "cloudfront:UpdateDistribution",
+          "cloudfront:GetDistribution",
+          "cloudfront:CreateInvalidation",
+          "cloudfront:GetInvalidation",
+          "cloudfront:ListDistributions"
         ]
         Resource = "*"
       }
@@ -195,10 +236,9 @@ resource "aws_iam_user_policy_attachment" "hannibal_terraform_policy" {
   policy_arn = aws_iam_policy.hannibal_terraform_policy.arn
 }
 
-# 既存の手動設定済み権限
-# - AmazonEC2FullAccess (VPC, Subnets, Security Groups)
-# - AmazonECS_FullAccess (ECS Cluster, Service, Task Definition)
-# - その他8個のマネージドポリシー
+# --- 既存のマネージドポリシーは不要になったため削除 ---
+# resource "aws_iam_user_policy_attachment" "hannibal_ec2_full" { ... }
+# resource "aws_iam_user_policy_attachment" "hannibal_ecs_full" { ... }
 
 # --- IAM Role for ECS Task ---
 # ECSタスクがAWSのサービス（例：ECRからイメージのpullなど）にアクセスするためのIAMロールを作成
@@ -302,7 +342,7 @@ resource "aws_cloudwatch_log_group" "ecs_api_task_logs" {
   retention_in_days = 7                                   # retention: 保持
 }
 
-# ⭐️ --- Application Load Balancer (ALB) --- ⭐️
+# --- ALB (Application Load Balancer) ---
 resource "aws_lb" "main" {
   name                       = "${var.project_name}-alb"
   internal                   = false
@@ -312,7 +352,7 @@ resource "aws_lb" "main" {
   enable_deletion_protection = false
 }
 
-# ⭐️ --- ALB Target Group --- ⭐️
+# --- ALB Target Group ---
 resource "aws_lb_target_group" "api" {
   name        = "${var.project_name}-tg"
   port        = var.container_port
@@ -332,7 +372,7 @@ resource "aws_lb_target_group" "api" {
   }
 }
 
-# ⭐️ --- ALB Listener --- ⭐️
+# --- ALB Listener ---
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = var.alb_listener_port
@@ -343,7 +383,7 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# ⭐️ --- Security Group for ALB --- ⭐️
+# --- Security Group for ALB ---
 resource "aws_security_group" "alb_sg" {
   name        = "${var.project_name}-alb-sg"
   description = "Allow HTTP/HTTPS traffic to ALB"
@@ -362,7 +402,7 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-# ⭐️ --- Security Group for ECS Fargate Service --- ⭐️
+# --- Security Group for ECS Service ---
 resource "aws_security_group" "ecs_service_sg" {
   name        = "${var.project_name}-ecs-service-sg"
   description = "Allow traffic from ALB to ECS tasks"
@@ -381,7 +421,7 @@ resource "aws_security_group" "ecs_service_sg" {
   }
 }
 
-# ⭐️ --- ECS Service --- ⭐️
+# --- ECS Service ---
 resource "aws_ecs_service" "api" {
   name            = "${var.project_name}-api-service"
   cluster         = aws_ecs_cluster.main.id
