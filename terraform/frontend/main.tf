@@ -1,18 +1,14 @@
 # terraform/frontend/main.tf
 
 # --- S3 Bucket for Frontend Static Files ---
-resource "aws_s3_bucket" "frontend_bucket" {
+data "aws_s3_bucket" "frontend_bucket" {
   bucket = var.s3_bucket_name
-  # (オプション) バージョニングを有効にする場合
-  # versioning {
-  #   enabled = true
-  # }
 }
 
 # --- Block Public Access for S3 Bucket ---
 # セキュリティ強化のため、S3バケットがインターネットから直接アクセスされるのを防ぐ
 resource "aws_s3_bucket_public_access_block" "frontend_bucket_public_access" {
-  bucket = aws_s3_bucket.frontend_bucket.id
+  bucket = data.aws_s3_bucket.frontend_bucket.id
 
   block_public_acls       = true # バケットやオブジェクトに対するパブリックなACL（アクセス制御リスト）をすべて拒否
   block_public_policy     = true # バケットポリシーによるパブリックアクセス許可もすべて拒否
@@ -28,7 +24,7 @@ resource "aws_s3_object" "frontend_files" {
   # fileset(path, pattern) path の中から pattern にマッチする path をリストにして返す
   # for_each 同じ種類のリソースを複数作成するための「メタ引数」です。ループ処理のように機能します。each.key, each_value が使えるようになります
 
-  bucket = aws_s3_bucket.frontend_bucket.id
+  bucket = data.aws_s3_bucket.frontend_bucket.id
   key    = each.value                                 # S3バケット内でのファイルパス
   source = "${var.frontend_build_path}/${each.value}" # アップロード元のローカルファイルパス
   content_type = lookup(tomap({
@@ -75,9 +71,9 @@ resource "aws_cloudfront_origin_access_control" "s3_oac" {
 # # CloudFrontのみがS3にアクセスできるように設定するための、S3 bucket 側の設定 
 # --- S3 Bucket Policy to Allow CloudFront OAC ---
 data "aws_iam_policy_document" "s3_bucket_policy_for_cloudfront" {
-  statement {                                              # IAMポリシーの「ルール」を定義する
-    actions   = ["s3:GetObject"]                           # S3バケットからオブジェクト（ファイル）を取得する操作
-    resources = ["${aws_s3_bucket.frontend_bucket.arn}/*"] # ${} Terraformの変数展開構文
+  statement {                                                   # IAMポリシーの「ルール」を定義する
+    actions   = ["s3:GetObject"]                                # S3バケットからオブジェクト（ファイル）を取得する操作
+    resources = ["${data.aws_s3_bucket.frontend_bucket.arn}/*"] # ${} Terraformの変数展開構文
 
     principals { # 主体
       type        = "Service"
@@ -93,7 +89,7 @@ data "aws_iam_policy_document" "s3_bucket_policy_for_cloudfront" {
 }
 
 resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
-  bucket = aws_s3_bucket.frontend_bucket.id
+  bucket = data.aws_s3_bucket.frontend_bucket.id
   policy = data.aws_iam_policy_document.s3_bucket_policy_for_cloudfront.json
 }
 
@@ -114,7 +110,7 @@ resource "aws_cloudfront_distribution" "main" {
   # }
 
   origin {
-    domain_name = aws_s3_bucket.frontend_bucket.bucket_regional_domain_name
+    domain_name = data.aws_s3_bucket.frontend_bucket.bucket_regional_domain_name
     # nestjs-hannibal-3-frontend.s3.ap-northeast-1.amazonaws.com
     # 実際にHTTPリクエストを送信するため、DNS name が必要
 

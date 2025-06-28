@@ -245,7 +245,10 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "cloudfront:GetDistribution",
           "cloudfront:CreateInvalidation",
           "cloudfront:GetInvalidation",
-          "cloudfront:ListDistributions"
+          "cloudfront:ListDistributions",
+          "cloudfront:CreateOriginAccessControl",
+          "cloudfront:GetOriginAccessControl",
+          "cloudfront:DeleteOriginAccessControl"
         ]
         Resource = "*"
       }
