@@ -101,7 +101,9 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "logs:DescribeLogGroups",
           "logs:DescribeLogStreams",
           "logs:PutRetentionPolicy",
-          "logs:DeleteLogGroup"
+          "logs:DeleteLogGroup",
+          # GitHub Actions用の追加権限
+          "logs:ListTagsForResource"
         ]
         Resource = "*"
       },
@@ -126,7 +128,9 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "elbv2:DescribeLoadBalancers",
           "elbv2:DeleteLoadBalancer",
           "elbv2:DescribeTargetGroups",
-          "elbv2:DeleteTargetGroup"
+          "elbv2:DeleteTargetGroup",
+          "elasticloadbalancing:DescribeLoadBalancerAttributes",
+          "elasticloadbalancing:DescribeTargetGroupAttributes"
         ]
         Resource = "*"
       },
