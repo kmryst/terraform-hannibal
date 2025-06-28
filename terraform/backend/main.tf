@@ -302,171 +302,101 @@ resource "aws_cloudwatch_log_group" "ecs_api_task_logs" {
   retention_in_days = 7                                   # retention: 保持
 }
 
-# --- Application Load Balancer (ALB) ---
-# フロントエンドからのリクエストを受け付けるALBを作成
-# ALBは、トラフィックを複数のターゲットに分散するためのロードバランサーです
+# ⭐️ --- Application Load Balancer (ALB) --- ⭐️
 resource "aws_lb" "main" {
-  name               = "${var.project_name}-alb" # ALBの名前
-  internal           = false                     # public facing（インターネットからアクセス可能） internal: 内部の
-  load_balancer_type = "application"             # アプリケーションロードバランサー "network" "gateway"
-
-  security_groups = [aws_security_group.alb_sg.id]
-  # Terraformで作成するセキュリティグループをここで設定しています
-  # 複数のセキュリティグループを設定できるように [] (リスト、配列)  でくくる
-
-  subnets = data.aws_subnets.public.ids # パブリックサブネットに配置
-
-  enable_deletion_protection = false # 削除保護 開発中はfalse推奨（本番環境ではtrueに設定）
+  name                       = "${var.project_name}-alb"
+  internal                   = false
+  load_balancer_type         = "application"
+  security_groups            = [aws_security_group.alb_sg.id]
+  subnets                    = data.aws_subnets.public.ids
+  enable_deletion_protection = false
 }
 
-# --- ALB Target Group ---
-# ターゲットグループは、ALB がリクエストを転送する先（ECSタスクやEC2インスタンスなど）をまとめて管理するためのものです
+# ⭐️ --- ALB Target Group --- ⭐️
 resource "aws_lb_target_group" "api" {
-  name        = "${var.project_name}-tg" # ターゲットグループ名
-  port        = var.container_port       # ターゲットのポート
-  protocol    = "HTTP"                   # プロトコル
-  vpc_id      = data.aws_vpc.selected.id # VPC ID
+  name        = "${var.project_name}-tg"
+  port        = var.container_port
+  protocol    = "HTTP"
+  vpc_id      = data.aws_vpc.selected.id
   target_type = "ip"
-  # Fargateの場合は、ECSタスクに割り当てられたENIのIPアドレスを自動で指定する
-
-  # ヘルスチェックの設定（ECSタスクが正常に動作しているか確認）
   health_check {
     enabled             = true
-    path                = var.health_check_path # ヘルスチェックのパス
-    protocol            = "HTTP"                # プロトコル
-    port                = "traffic-port"        # ターゲットのECSなどで実際に使われているポートを自動で取得してくれる
-    healthy_threshold   = 3                     # 正常と判断するまでの成功回数
-    unhealthy_threshold = 3                     # 異常と判断するまでの失敗回数
-    timeout             = 5                     # タイムアウト（秒）
-    interval            = 30                    # チェック間隔（秒）
-    matcher             = "200-399"             # チェックの判定基準となるHTTPステータスコードの範囲を指定する
+    path                = var.health_check_path
+    protocol            = "HTTP"
+    port                = "traffic-port"
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+    matcher             = "200-399"
   }
 }
 
-# --- ALB Listener ---
-# ALBがリクエストを受け付けるポートとプロトコルを設定
-# リスナーは、特定のポートでリクエストを受け付けます
+# ⭐️ --- ALB Listener --- ⭐️
 resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.main.arn       # ALBのARN
-  port              = var.alb_listener_port # default = 80
-  protocol          = "HTTP"                # プロトコル（HTTPSの場合は "HTTPS" と certificate_arn が必要）
-  # アプリケーション層でHTTPプロトコルとしてリクエストを処理する
-
-
-  # (オプション) HTTPS リスナーの場合
-  # certificate_arn   = var.certificate_arn # ACM証明書のARN
-  # ssl_policy        = "ELBSecurityPolicy-2016-08" # SSLポリシー
-
-  # リクエストをターゲットグループに転送
-  # デフォルトアクションは、リクエストの転送先を定義します
+  load_balancer_arn = aws_lb.main.arn
+  port              = var.alb_listener_port
+  protocol          = "HTTP"
   default_action {
-    type = "forward"
-    # forward（転送） redirect（リダイレクト） fixed-response（固定レスポンス） authenticate-cognito（Cognito認証） authenticate-oidc（OIDC認証）
-
-    target_group_arn = aws_lb_target_group.api.arn # ALBはどのターゲットグループに転送するかだけを知っている
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api.arn
   }
 }
 
-# --- Security Group for ALB ---
-# ALBのセキュリティグループ（HTTP/HTTPSのインバウンドトラフィックを許可）
-# セキュリティグループは、インスタンスレベルでのファイアウォールとして機能します
+# ⭐️ --- Security Group for ALB --- ⭐️
 resource "aws_security_group" "alb_sg" {
-  name        = "${var.project_name}-alb-sg"      # セキュリティグループ名
-  description = "Allow HTTP/HTTPS traffic to ALB" # 説明
+  name        = "${var.project_name}-alb-sg"
+  description = "Allow HTTP/HTTPS traffic to ALB"
   vpc_id      = data.aws_vpc.selected.id
-  # セキュリティグループは VPC ごとに管理されるリソースだからここで設定されています
-
-  # HTTPのインバウンドトラフィックを許可
-  # インバウンドルールは、ALB への受信トラフィックを制御します
   ingress {
-    from_port = var.alb_listener_port # 開始ポート default = 80
-    to_port   = var.alb_listener_port # 終了ポート default = 80
-
-    protocol = "tcp"
-    # TCP(Transmission Control Protocol) はトランスポート層で、ソケット = IPアドレス + ポート番号を管理するプロトコルなのでポートが設定されています
-
-    cidr_blocks = ["0.0.0.0/0"] # 全世界からのアクセスを許可 (HTTPSの場合は443も)
+    from_port   = var.alb_listener_port
+    to_port     = var.alb_listener_port
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
-
-  # HTTPSの場合
-  # ingress {
-  #   from_port   = 443
-  #   to_port     = 443
-  #   protocol    = "tcp"
-  #   cidr_blocks = ["0.0.0.0/0"]
-  # }
-
-  # アウトバウンドトラフィックを許可（ECSタスクへの通信など）
-  # アウトバウンドルールは、インスタンスからの送信トラフィックを制御します
   egress {
     from_port   = 0
     to_port     = 0
-    protocol    = "-1"          # すべてのプロトコル
-    cidr_blocks = ["0.0.0.0/0"] # すべてのIPアドレス
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
-# --- Security Group for ECS Fargate Service ---
+# ⭐️ --- Security Group for ECS Fargate Service --- ⭐️
 resource "aws_security_group" "ecs_service_sg" {
   name        = "${var.project_name}-ecs-service-sg"
   description = "Allow traffic from ALB to ECS tasks"
   vpc_id      = data.aws_vpc.selected.id
-
-  # このルールにより、ALBからのリクエストのみがECSタスクに到達できます
   ingress {
-    from_port = var.container_port # 開始ポート default = 3000
-    to_port   = var.container_port # 終了ポート default = 3000
-    protocol  = "tcp"
-
+    from_port       = var.container_port
+    to_port         = var.container_port
+    protocol        = "tcp"
     security_groups = [aws_security_group.alb_sg.id]
-    # alb_sg がアタッチされたリソース（この場合はALB）からの通信のみが許可される
   }
-
-  # ECSタスクがECRに「イメージをください」とリクエスト（アウトバウンド通信）を送る
-  # このルールにより、ECSタスクはインターネットにアクセスできます
   egress {
     from_port   = 0
     to_port     = 0
-    protocol    = "-1"          # すべてのプロトコル
-    cidr_blocks = ["0.0.0.0/0"] # すべてのIPアドレス
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
-# --- ECS Service ---
-# ECSサービスを作成（タスクの実行、スケーリング、ALBとの連携など）
-# サービスは、タスクの実行を管理し、指定された数のタスクを維持します
+# ⭐️ --- ECS Service --- ⭐️
 resource "aws_ecs_service" "api" {
-  name            = "${var.project_name}-api-service" # サービス名
+  name            = "${var.project_name}-api-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.api.arn
-  desired_count   = var.desired_task_count # 実行するタスクの数 default = 1 
-  launch_type     = "FARGATE"              # 起動タイプ
-
-  # ネットワーク設定（サブネット、セキュリティグループ、パブリックIPの割り当て）
-  # この設定により、ECSタスクのネットワーク環境を制御します
+  desired_count   = var.desired_task_count
+  launch_type     = "FARGATE"
   network_configuration {
-    subnets          = data.aws_subnets.public.ids            # Fargateタスクを配置するサブネット
-    security_groups  = [aws_security_group.ecs_service_sg.id] # セキュリティグループ
-    assign_public_ip = true                                   # ECRからイメージをpullするために必要
+    subnets          = data.aws_subnets.public.ids
+    security_groups  = [aws_security_group.ecs_service_sg.id]
+    assign_public_ip = true
   }
-
-  # ALBとの連携設定
-  # この設定により、ALBからのリクエストをECSタスクに転送します
-  # ECSサービスがタスク起動時に自動でIPアドレスをターゲットグループに登録します
   load_balancer {
     target_group_arn = aws_lb_target_group.api.arn
     container_name   = "${var.project_name}-container"
-    container_port   = var.container_port # default = 3000
+    container_port   = var.container_port
   }
-
-  # (オプション) サービスディスカバリやデプロイ設定
-  # health_check_grace_period_seconds = 60 # ヘルスチェックの猶予期間
-  # deployment_controller {
-  #   type = "ECS" # デプロイメントコントローラーのタイプ
-  # }
-
-  depends_on = [aws_lb_listener.http] # ALBリスナー作成後にサービスを開始
-  # この依存関係により、ALBが完全に設定された後にECSサービスが開始されます
-  # resource "aws_lb_listener" "http" {
-
+  depends_on = [aws_lb_listener.http]
 }
