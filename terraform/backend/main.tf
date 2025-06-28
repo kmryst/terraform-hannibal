@@ -145,6 +145,7 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "ec2:DescribeAddresses",
           "ec2:AssociateAddress",
           "ec2:DisassociateAddress",
+          "ec2:DescribeVpcAttribute",
           # GitHub Actions用の追加権限
           "ec2:CreateSecurityGroup",
           "ec2:DeleteSecurityGroup",
