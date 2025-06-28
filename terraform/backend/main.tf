@@ -130,7 +130,8 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "elbv2:DescribeTargetGroups",
           "elbv2:DeleteTargetGroup",
           "elasticloadbalancing:DescribeLoadBalancerAttributes",
-          "elasticloadbalancing:DescribeTargetGroupAttributes"
+          "elasticloadbalancing:DescribeTargetGroupAttributes",
+          "elasticloadbalancing:DescribeTags"
         ]
         Resource = "*"
       },
