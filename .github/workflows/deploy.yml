@@ -141,7 +141,7 @@ jobs:
         continue-on-error: true
       - name: Terraform Init (Backend)
         id: init-backend
-        run: terraform init
+        run: yes | terraform init
         working-directory: ./terraform/backend
       - name: Terraform Plan (Backend)
         id: plan-backend
@@ -162,7 +162,7 @@ jobs:
         
       - name: Terraform Init (Frontend)
         id: init-frontend
-        run: terraform init
+        run: yes | terraform init
         working-directory: ./terraform/frontend
       - name: Terraform Plan (Frontend)
         id: plan-frontend
