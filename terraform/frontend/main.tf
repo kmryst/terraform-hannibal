@@ -55,7 +55,7 @@ resource "aws_s3_object" "frontend_files" {
 # Origin は、CloudFrontが配信するコンテンツの「取得元」のことです。S3, ALB/ELBなど
 # --- CloudFront Origin Access Control (OAC) ---
 data "aws_cloudfront_origin_access_control" "s3_oac" {
-  name = "${var.project_name}-s3-oac"
+  id = "E1EA19Y8SLU52D" # 既存のOACのIDを直接指定
 }
 
 # # CloudFrontのみがS3にアクセスできるように設定するための、S3 bucket 側の設定 
