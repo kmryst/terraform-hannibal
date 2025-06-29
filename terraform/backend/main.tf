@@ -255,7 +255,10 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "cloudfront:CreateOriginAccessControl",
           "cloudfront:GetOriginAccessControl",
           "cloudfront:UpdateOriginAccessControl",
-          "cloudfront:DeleteOriginAccessControl"
+          "cloudfront:DeleteOriginAccessControl",
+          "cloudfront:TagResource",
+          "cloudfront:UntagResource",
+          "cloudfront:ListTagsForResource"
         ]
         Resource = "*"
       }
@@ -266,18 +269,6 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
 resource "aws_iam_user_policy_attachment" "hannibal_terraform_policy" {
   user       = "hannibal" # 直接ユーザー名を指定
   policy_arn = aws_iam_policy.hannibal_terraform_policy.arn
-}
-
-# --- 一時的な権限追加（権限エラー解決用）---
-# ※ このポリシーは問題解決後に削除予定
-resource "aws_iam_user_policy_attachment" "hannibal_ec2_read_only_temp" {
-  user       = "hannibal"
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
-}
-
-resource "aws_iam_user_policy_attachment" "hannibal_ecs_read_only_temp" {
-  user       = "hannibal"
-  policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
 }
 
 # --- 既存のマネージドポリシーは不要になったため削除 ---
