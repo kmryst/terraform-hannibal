@@ -4,17 +4,49 @@
 
 ### **⚠️ 重要: GitHub Actions実行前の準備**
 
+GitHub ActionsのCI/CDパイプラインを安定して実行するため、以下のリソースを事前に手動作成してください。
+
 #### **1. ECRリポジトリの事前作成**
 ```bash
-# 一度だけ実行（プロジェクト初期セットアップ時）
+# コンテナイメージを保存するECRリポジトリを作成
 aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northeast-1
 
 # 作成確認
 aws ecr describe-repositories --repository-names nestjs-hannibal-3 --region ap-northeast-1
 ```
 
-#### **2. IAMカスタムポリシーの事前適用** 🔐
-GitHub Actionsでエラーを防ぐため、hannibalユーザーに必要な権限を事前に適用してください。
+#### **2. S3バケットの事前作成**
+```bash
+# フロントエンドの静的ファイルを保存するS3バケットを作成
+aws s3 mb s3://nestjs-hannibal-3-frontend --region ap-northeast-1
+
+# 作成確認
+aws s3 ls s3://nestjs-hannibal-3-frontend
+```
+
+#### **3. CloudFront Origin Access Control (OAC) の事前作成**
+```bash
+# S3バケットへの安全なアクセスを制御するOACを作成
+aws cloudfront create-origin-access-control \
+  --name nestjs-hannibal-3-oac \
+  --origin-access-control-origin-type s3 \
+  --signing-behavior always \
+  --signing-protocol sigv4 \
+  --region us-east-1
+
+# 作成されたOACのIDを確認
+aws cloudfront list-origin-access-controls --region us-east-1
+```
+
+**重要**: OACのIDを取得後、`terraform/frontend/main.tf`の47行目を更新してください：
+```hcl
+data "aws_cloudfront_origin_access_control" "s3_oac" {
+  id = "取得したOACのID" # E1EA19Y8SLU52Dを実際のIDに置き換え
+}
+```
+
+#### **4. IAMカスタムポリシーの事前適用**
+GitHub Actionsで権限エラーを防ぐため、hannibalユーザーに必要な権限を事前に適用します。
 
 ```bash
 # ディレクトリ移動
@@ -33,13 +65,63 @@ terraform apply -target="aws_iam_policy.hannibal_terraform_policy" -target="aws_
 aws iam detach-user-policy --user-name hannibal --policy-arn arn:aws:iam::aws:policy/IAMFullAccess
 ```
 
-#### **作成されるカスタムポリシー内容**
+### **📋 手動作成リソース一覧**
+| リソース | 名前 | 目的 | 作成方法 |
+|---------|------|------|----------|
+| ECRリポジトリ | `nestjs-hannibal-3` | コンテナイメージ保存 | AWS CLI |
+| S3バケット | `nestjs-hannibal-3-frontend` | フロントエンド静的ファイル | AWS CLI |
+| CloudFront OAC | `nestjs-hannibal-3-oac` | S3バケットへの安全なアクセス | AWS CLI |
+
+**手動作成の理由**: 
+- ✅ **権限エラー回避**: GitHub Actions実行時の権限不足エラーを防ぐ
+- ✅ **CI/CD安定性**: デプロイパイプラインの安定性向上
+- ✅ **実行時間短縮**: リソース作成時間を短縮
+
+### **🔄 実行順序**
+AWSから全削除した後にGitHub Actionsを動かす場合、以下の順序で実行してください：
+
+1. **ECRリポジトリ作成**
+   ```bash
+   aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northeast-1
+   ```
+
+2. **S3バケット作成**
+   ```bash
+   aws s3 mb s3://nestjs-hannibal-3-frontend --region ap-northeast-1
+   ```
+
+3. **CloudFront OAC作成**
+   ```bash
+   aws cloudfront create-origin-access-control \
+     --name nestjs-hannibal-3-oac \
+     --origin-access-control-origin-type s3 \
+     --signing-behavior always \
+     --signing-protocol sigv4 \
+     --region us-east-1
+   ```
+
+4. **OACのIDをTerraform設定に反映**
+   ```bash
+   # OACのIDを確認
+   aws cloudfront list-origin-access-controls --region us-east-1
+   ```
+   取得したIDを`terraform/frontend/main.tf`の47行目に設定
+
+5. **IAMカスタムポリシー適用**
+   ```bash
+   cd terraform/backend
+   terraform init
+   terraform apply -target="aws_iam_policy.hannibal_terraform_policy" -target="aws_iam_user_policy_attachment.hannibal_terraform_policy" -auto-approve
+   ```
+
+6. **GitHub Actions実行**
+   - ブランチにプッシュしてGitHub Actionsを開始
+
+### **�� 作成されるカスタムポリシー詳細**
 - **ポリシー名**: `HannibalInfraAdminPolicy`
 - **対象サービス**: ECR, CloudWatch, ELB, EC2, ECS, IAM, S3, CloudFront
 - **GitHub Actions対応**: リソース削除・作成権限を含む
 - **10個制限対応**: 8つのサービス権限を1つのポリシーに統合
-
-**理由**: CI/CDの権限エラー回避、Infrastructure as Code原則、最小権限の原則
 
 ## 🔐 Infrastructure as Code原則
 
@@ -51,11 +133,12 @@ aws iam detach-user-policy --user-name hannibal --policy-arn arn:aws:iam::aws:po
 
 ## 🔐 IAM権限管理の複雑さについて
 
-### **なぜIAM権限管理は難しいのか？**
+### **IAM権限管理が難しい理由**
 
-#### 1. **権限の細分化** - 数千個の権限が存在
+#### 1. **権限の細分化**
+AWSには数千個の権限が存在し、ECRだけでも20以上の権限があります：
 ```bash
-# ECRだけでも20+の権限が存在
+# ECRの主要権限例
 ecr:BatchCheckLayerAvailability
 ecr:BatchDeleteImage
 ecr:BatchGetImage
@@ -69,13 +152,12 @@ ecr:GetDownloadUrlForLayer
 ecr:GetLifecyclePolicy
 ecr:InitiateLayerUpload
 ecr:ListImages
-ecr:ListTagsForResource  # ← これが今回のエラー原因
+ecr:ListTagsForResource
 ecr:PutImage
-ecr:PutLifecyclePolicy   # ← これもエラー原因
+ecr:PutLifecyclePolicy
 ecr:TagResource
 ecr:UntagResource
 ecr:UploadLayerPart
-# ...さらに多数
 ```
 
 #### 2. **IAMユーザーのポリシー上限制限**
@@ -94,7 +176,6 @@ ecr:BatchCheckLayerAvailability (イメージ確認)
 ecr:GetDownloadUrlForLayer (レイヤーダウンロード)
 ecr:BatchGetImage (イメージ取得)
 ecr:PutImage (イメージプッシュ)
-# ...必要な権限のみを個別設定
 ```
 
 ### **現実的な解決策**
@@ -117,13 +198,8 @@ ecr:PutImage (イメージプッシュ)
 ## 📦 アーキテクチャ
 
 ```mermaid
-
 graph TD
-%% top down
     User["User/Browser"]
-    %% ノード（箱）を1つ作ります
-    %% Userは、ノードのID（識別子、内部的な名前）です
-		%% ["User/Browser"]は、ノード内に表示されるラベル（見た目の名前）です
     CloudFront["CloudFront"]
     S3["S3 Bucket (Frontend Assets)"]
     ALB["ALB (HTTPS:443)"]
@@ -134,14 +210,9 @@ graph TD
     CloudFront -- "OAC" --> S3
     CloudFront -- "/api/*" --> ALB
     ALB -- "HTTP (Target Group)" --> ECS
-
-
-
 ```
 
-
 ```mermaid
-
 graph TB
     User[ユーザー] --> CF[CloudFront Distribution]
     
@@ -178,5 +249,5 @@ graph TB
     
     CF --> |/api/*| ALB
     CF --> |Static Files| S3
-
 ```
+
