@@ -89,7 +89,7 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "ecr:DeleteLifecyclePolicy",
           "ecr:ListTagsForResource"
         ]
-        Resource = "arn:aws:ecr:ap-northeast-1:258632448142:repository/nestjs-hannibal-3"
+        Resource = "*"
       },
       {
         # CloudWatch Logs権限 (ログ管理)
