@@ -2,6 +2,34 @@
 
 ## 🚀 セットアップ手順
 
+### 🗂️ Terraform stateの永続管理について
+
+このプロジェクトでは、**CloudFrontやS3などのリソース管理情報（stateファイル）をS3バケットで永続管理**しています。
+
+#### **理由**
+- CI/CDや複数環境で同じstateを共有し、リソースの重複作成や管理漏れを防ぐため
+- CloudFrontディストリビューションなどが「毎回新規作成」される問題を防ぐため
+
+#### **設定方法**
+1. S3バケット（例: `nestjs-hannibal-3-terraform-state`）を作成
+2. `terraform/frontend/backend.tf`に以下を記述
+
+   ```hcl
+   terraform {
+     backend "s3" {
+       bucket = "nestjs-hannibal-3-terraform-state"
+       key    = "frontend/terraform.tfstate"
+       region = "ap-northeast-1"
+     }
+   }
+   ```
+
+3. `terraform init`を`terraform/frontend`ディレクトリで実行
+
+#### **注意**
+- S3バケットは事前に手動で作成しておく必要があります
+- backend設定を変更した場合は、必ず`terraform init`を再実行してください
+
 ### **⚠️ 重要: GitHub Actions実行前の準備**
 
 GitHub ActionsのCI/CDパイプラインを安定して実行するため、以下のリソースを事前に手動作成してください。
@@ -117,7 +145,7 @@ AWSから全削除した後にGitHub Actionsを動かす場合、以下の順序
 6. **GitHub Actions実行**
    - ブランチにプッシュしてGitHub Actionsを開始
 
-### **�� 作成されるカスタムポリシー詳細**
+### **作成されるカスタムポリシー詳細**
 - **ポリシー名**: `HannibalInfraAdminPolicy`
 - **対象サービス**: ECR, CloudWatch, ELB, EC2, ECS, IAM, S3, CloudFront
 - **GitHub Actions対応**: リソース削除・作成権限を含む
