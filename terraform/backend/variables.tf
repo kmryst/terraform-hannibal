@@ -79,7 +79,8 @@ variable "alb_listener_port" {
 variable "health_check_path" {
   description = "Path for ALB health check"
   type        = string
-  default     = "/graphql" # NestJSのGraphQLエンドポイント (OPTIONSメソッドで200が返るか、または専用ヘルスチェックパス)
+  default     = "/" # GraphQLエンドポイントではなくルートパス
+
 }
 
 variable "client_url_for_cors" {
