@@ -87,7 +87,15 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "ecr:GetLifecyclePolicy",
           "ecr:PutLifecyclePolicy",
           "ecr:DeleteLifecyclePolicy",
-          "ecr:ListTagsForResource"
+          "ecr:ListTagsForResource",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:PutImage",
+          "ecr:CreateRepository",
+          "ecr:DeleteRepository",
+          "ecr:TagResource",
+          "ecr:UntagResource"
         ]
         Resource = "*"
       },
