@@ -1,4 +1,4 @@
-name: 🗑️ Destroy AWS Infrastructure
+name: 🗑️ Destroy AWS Infrastructure (Safe)
 
 on:
   workflow_dispatch:  # 手動実行のみ
@@ -24,19 +24,18 @@ on:
 jobs:
   destroy:
     runs-on: ubuntu-latest
-    # 安全確認: 両方の確認が正しい場合のみ実行
     if: >
       github.event.inputs.confirm_destroy == 'DESTROY' && 
       github.event.inputs.double_confirm == 'nestjs-hannibal-3'
-    
     steps:
       - name: 🛑 Destruction Warning
         run: |
           echo "⚠️  WARNING: This will PERMANENTLY DELETE AWS resources!"
           echo "📋 Environment: ${{ github.event.inputs.environment }}"
-          echo "💰 This will stop AWS billing for this project"
+          echo "💰 This will stop AWS billing for this project (except for ECR/S3 tfstate/OAC)"
           echo "🔄 Resources can be recreated later with terraform apply"
-          
+          echo "❗ ECRリポジトリ・tfstate用S3バケット・OACは絶対に消しません！"
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -52,13 +51,69 @@ jobs:
         with:
           terraform_version: 1.0.0
 
+      # ⚠️ 競合しやすいリソースを事前削除（Terraform destroyの成功率向上のため）
+      # 理由: ECSサービス、ALB、セキュリティグループなどは依存関係でTerraform destroyが失敗しやすい
+      # 順番: 依存関係の逆順（下流→上流）で削除
+      # エラー処理: 2>/dev/null || true でリソースが存在しない場合もエラーにしない
+      - name: Clean up existing AWS resources (ECS/ALB/SG)
+        run: |
+          # 1. ECSサービス削除（desired countを0にしてから削除）
+          echo "🗑️ Cleaning up ECS service..."
+          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --desired-count 0 --region ap-northeast-1 2>/dev/null || true
+          sleep 10  # ECSタスクの停止完了を待つ
+          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --force --region ap-northeast-1 2>/dev/null || true
+          
+          # 2. ECSクラスタ削除（サービス削除後に実行）
+          echo "🗑️ Cleaning up ECS cluster..."
+          aws ecs delete-cluster --cluster nestjs-hannibal-3-cluster --region ap-northeast-1 2>/dev/null || true
+          
+          # 3. ALB削除（ターゲットグループが残っていると失敗するため先に削除）
+          echo "🗑️ Cleaning up ALB..."
+          ALB_ARN=$(aws elbv2 describe-load-balancers --names nestjs-hannibal-3-alb --region ap-northeast-1 --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "None")
+          if [ "$ALB_ARN" != "None" ] && [ "$ALB_ARN" != "null" ]; then
+            aws elbv2 delete-load-balancer --load-balancer-arn "$ALB_ARN" --region ap-northeast-1
+            sleep 60  # ALB削除完了を待つ（時間がかかるため）
+          fi
+          
+          # 4. ターゲットグループ削除（ALB削除後に実行）
+          echo "🗑️ Cleaning up target group..."
+          TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
+          if [ "$TG_ARN" != "None" ] && [ "$TG_ARN" != "null" ]; then
+            aws elbv2 delete-target-group --target-group-arn "$TG_ARN" --region ap-northeast-1
+          fi
+          
+          sleep 30  # 依存関係のクリアを待つ
+          
+          # 5. セキュリティグループ削除（ECSタスクやALBが削除された後に実行）
+          echo "🗑️ Cleaning up security groups..."
+          SG_ECS_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-ecs-service-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
+          if [ "$SG_ECS_ID" != "None" ] && [ "$SG_ECS_ID" != "null" ]; then
+            aws ec2 delete-security-group --group-id "$SG_ECS_ID" --region ap-northeast-1 2>/dev/null || true
+          fi
+          
+          SG_ALB_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-alb-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
+          if [ "$SG_ALB_ID" != "None" ] && [ "$SG_ALB_ID" != "null" ]; then
+            aws ec2 delete-security-group --group-id "$SG_ALB_ID" --region ap-northeast-1 2>/dev/null || true
+          fi
+          
+          # 6. IAMロール削除（ポリシーをデタッチしてから削除）
+          echo "🗑️ Cleaning up IAM role..."
+          aws iam detach-role-policy --role-name nestjs-hannibal-3-ecs-task-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy 2>/dev/null || true
+          aws iam delete-role --role-name nestjs-hannibal-3-ecs-task-execution-role 2>/dev/null || true
+          
+          # 7. CloudWatchロググループ削除（ECSタスク削除後に実行）
+          echo "🗑️ Cleaning up CloudWatch log group..."
+          aws logs delete-log-group --log-group-name /ecs/nestjs-hannibal-3-api-task --region ap-northeast-1 2>/dev/null || true
+          
+          echo "✅ CLI cleanup completed - Terraform destroy can now proceed safely"
+
       # フロントエンド削除
       - name: 🎨 Destroy Frontend Infrastructure
         if: github.event.inputs.environment == 'frontend' || github.event.inputs.environment == 'all'
         run: |
           echo "🗑️ Destroying frontend resources..."
-          terraform init
-          terraform destroy -auto-approve
+          yes | terraform init
+          terraform destroy -auto-approve -var="api_alb_dns_name="
           echo "✅ Frontend infrastructure destroyed"
         working-directory: ./terraform/frontend
 
@@ -67,15 +122,15 @@ jobs:
         if: github.event.inputs.environment == 'backend' || github.event.inputs.environment == 'all'
         run: |
           echo "🗑️ Destroying backend resources..."
-          terraform init
-          terraform destroy -auto-approve
+          yes | terraform init
+          terraform destroy -auto-approve -var="client_url_for_cors="
           echo "✅ Backend infrastructure destroyed"
         working-directory: ./terraform/backend
 
       - name: 🎉 Cleanup Complete
         run: |
           echo "🎉 Infrastructure cleanup completed!"
-          echo "💰 AWS billing should stop within 1-2 hours"
+          echo "💰 AWS billing should stop within 1-2 hours (except for ECR/S3 tfstate/OAC)"
           echo "📊 Check AWS Cost Explorer to confirm"
           echo ""
           echo "🔄 To redeploy later:"
