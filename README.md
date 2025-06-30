@@ -105,6 +105,28 @@ aws iam detach-user-policy --user-name hannibal --policy-arn arn:aws:iam::aws:po
 - ✅ **CI/CD安定性**: デプロイパイプラインの安定性向上
 - ✅ **実行時間短縮**: リソース作成時間を短縮
 
+### 🛠️ 既存リソースがある場合の対応（terraform import）
+
+AWS上にすでに同名のリソース（例：セキュリティグループ）が存在していて
+`InvalidGroup.Duplicate` などのエラーが出る場合は、**terraform import**コマンドで既存リソースをTerraform管理下に取り込んでください。
+
+#### 例：セキュリティグループのインポート
+
+1. AWSコンソールやCLIで既存リソースのIDを調べる
+   ```sh
+   aws ec2 describe-security-groups --filters Name=group-name,Values=nestjs-hannibal-3-alb-sg Name=vpc-id,Values=<VPC_ID> --query 'SecurityGroups[0].GroupId' --output text
+   ```
+
+2. terraform importコマンドでインポート
+   ```sh
+   cd terraform/backend
+   terraform import aws_security_group.alb_sg <セキュリティグループID>
+   ```
+
+3. その後、terraform plan/applyを実行
+
+> これにより、既存リソースを削除せずにTerraformで一元管理できるようになります。
+
 ### **🔄 実行順序**
 AWSから全削除した後にGitHub Actionsを動かす場合、以下の順序で実行してください：
 
