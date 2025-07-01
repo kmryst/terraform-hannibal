@@ -62,7 +62,7 @@ jobs:
   deploy:
     # (変更なし)
     needs: test # testが成功した場合のみ実行される
-    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/github-actions'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     # github はワークフロー実行の状況（コンテキスト）を表すオブジェクトで、イベントやブランチなどの情報を提供します
     # ブランチの参照は refs/heads/<ブランチ名> という形式で表現されます
     runs-on: ubuntu-latest
