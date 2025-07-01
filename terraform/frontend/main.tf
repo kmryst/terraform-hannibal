@@ -85,6 +85,12 @@ resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
 
 
 # --- CloudFront Distribution ---
+# =============================
+# ⚠️ 重要: CloudFrontディストリビューションとS3バケットポリシーは循環参照になるため、
+# Terraform destroy時はCloudFrontディストリビューションを必ず手動で先に削除してください！
+# （AWSマネジメントコンソール→CloudFront→該当ディストリビューション→Disable→Delete）
+# その後terraform destroyを実行してください。
+# =============================
 resource "aws_cloudfront_distribution" "main" {
   enabled             = true
   is_ipv6_enabled     = true
@@ -242,11 +248,6 @@ resource "aws_cloudfront_distribution" "main" {
     cloudfront_default_certificate = true
     # 自分で用意した独自ドメインではなく、CloudFrontから提供されるドメイン名でHTTPS通信が有効になります
   }
-
-  depends_on = [
-    aws_s3_object.frontend_files,
-    aws_s3_bucket_policy.frontend_bucket_policy
-  ]
 }
 
 # (オプション) Route 53で独自ドメインを設定する場合
