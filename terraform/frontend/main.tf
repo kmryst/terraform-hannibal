@@ -242,6 +242,11 @@ resource "aws_cloudfront_distribution" "main" {
     cloudfront_default_certificate = true
     # 自分で用意した独自ドメインではなく、CloudFrontから提供されるドメイン名でHTTPS通信が有効になります
   }
+
+  depends_on = [
+    aws_s3_object.frontend_files,
+    aws_s3_bucket_policy.frontend_bucket_policy
+  ]
 }
 
 # (オプション) Route 53で独自ドメインを設定する場合
