@@ -6,7 +6,7 @@
 # 1. 「Re-run failed jobs」: 失敗したジョブのみ再実行（推奨・時短）
 # 2. 「Re-run all jobs」: 全ジョブを最初から実行（時間かかる）
 # 3. 特定のジョブのみ再実行: ジョブ名をクリック → ⟲ ボタン
-# 
+#
 # ⚠️ 注意: main.tfを修正してpushすると、途中再開できず最初から全実行される
 # 💡 コツ: 軽微な修正は後回しにして、まず「Re-run failed jobs」を試す
 
@@ -15,13 +15,17 @@
 # 2. 失敗したら「Re-run failed jobs」で再実行を試す
 # 3. 根本的な修正が必要な場合のみmain.tf修正→push
 
+# C:\code\javascript\nestjs-hannibal-3\.github\workflows\deploy.yml
+
 name: Deploy NestJS Hannibal App
 
-on: # ワークフローのトリガーを定義
-  pull_request:
-    branches: [feature/github-actions]
-  push:
-    branches: [feature/github-actions]
+# on: # ワークフローのトリガーを定義
+#   pull_request:
+#     branches: [feature/github-actions]
+#   push:
+#     branches: [feature/github-actions]
+
+on: workflow_dispatch
 
 jobs:
   test:
@@ -83,25 +87,25 @@ jobs:
       - name: Install jq # JSONデータをquery(検索、加工)するためのコマンドラインツール
         run: sudo apt-get update && sudo apt-get install -y jq
         # apt-get は「Advanced Package Tool」の略で、Debian系Linux（Ubuntuなど）で使われるパッケージ管理コマンドです
-      
+
       # 既存リソースの削除（リソース競合エラー回避）
       # 📝 注意: ECRリポジトリは手動作成済みのため削除しません
       - name: Clean up existing AWS resources
         run: |
           echo "Cleaning up existing AWS resources to avoid conflicts..."
-          
+
           # 📝 ECRリポジトリは手動作成済みのため削除をスキップ
           # 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
           echo "Skipping ECR deletion - using pre-created repository"
-          
+
           # ECSサービス削除
           aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --desired-count 0 --region ap-northeast-1 2>/dev/null || echo "ECS service not found"
           sleep 10
           aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --force --region ap-northeast-1 2>/dev/null || echo "ECS service not found"
-          
+
           # ECSクラスタ削除
           aws ecs delete-cluster --cluster nestjs-hannibal-3-cluster --region ap-northeast-1 2>/dev/null || echo "ECS cluster not found"
-          
+
           # ALB削除
           ALB_ARN=$(aws elbv2 describe-load-balancers --names nestjs-hannibal-3-alb --region ap-northeast-1 --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "None")
           if [ "$ALB_ARN" != "None" ] && [ "$ALB_ARN" != "null" ]; then
@@ -109,34 +113,34 @@ jobs:
             echo "Waiting for ALB deletion..."
             sleep 60
           fi
-          
+
           # ターゲットグループ削除
           TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
           if [ "$TG_ARN" != "None" ] && [ "$TG_ARN" != "null" ]; then
             aws elbv2 delete-target-group --target-group-arn "$TG_ARN" --region ap-northeast-1
           fi
-          
+
           # セキュリティグループ削除（ALB削除後に実行）
           echo "Waiting for security group dependencies to clear..."
           sleep 30
-          
+
           SG_ECS_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-ecs-service-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
           if [ "$SG_ECS_ID" != "None" ] && [ "$SG_ECS_ID" != "null" ]; then
             aws ec2 delete-security-group --group-id "$SG_ECS_ID" --region ap-northeast-1 2>/dev/null || echo "Security group deletion failed (dependencies may exist)"
           fi
-          
+
           SG_ALB_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-alb-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
           if [ "$SG_ALB_ID" != "None" ] && [ "$SG_ALB_ID" != "null" ]; then
             aws ec2 delete-security-group --group-id "$SG_ALB_ID" --region ap-northeast-1 2>/dev/null || echo "Security group deletion failed (dependencies may exist)"
           fi
-          
+
           # IAMロール削除
           aws iam detach-role-policy --role-name nestjs-hannibal-3-ecs-task-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy 2>/dev/null || echo "IAM role policy not found"
           aws iam delete-role --role-name nestjs-hannibal-3-ecs-task-execution-role 2>/dev/null || echo "IAM role not found"
-          
+
           # CloudWatchログループ削除
           aws logs delete-log-group --log-group-name /ecs/nestjs-hannibal-3-api-task --region ap-northeast-1 2>/dev/null || echo "Log group not found"
-          
+
           echo "Cleanup completed (errors are expected if resources don't exist)"
         continue-on-error: true
       - name: Terraform Init (Backend)
@@ -152,14 +156,13 @@ jobs:
         continue-on-error: true
       - name: Terraform Apply (Backend)
         id: apply-backend
-        run: | # パイプ記号を付けることで、その下にインデントして複数行のシェルコマンドを記述できます
+        run:
+          | # パイプ記号を付けることで、その下にインデントして複数行のシェルコマンドを記述できます
           terraform apply -auto-approve -no-color -var="client_url_for_cors="
           terraform output -json > ../tf_outputs_backend.json
         # ファイルに保存しておくことで「別ディレクトリのTerraform」や「jqコマンド」などでも値を使い回せる
         working-directory: ./terraform/backend
 
-
-        
       - name: Terraform Init (Frontend)
         id: init-frontend
         run: yes | terraform init
@@ -172,7 +175,7 @@ jobs:
         # jq -r　--raw-output 抽出した値を「ダブルクォートなしの生の文字列（raw）」で出力します
         # バックエンド（API）の ALB のDNS名をフロントエンドのTerraform設定に動的に反映させることができます
         # ../tf_outputs_backend.json: GitHub サーバ上に作られる一時ファイル の中の .alb_dns_name キーの.value にアクセスする
-        
+
         working-directory: ./terraform/frontend
         continue-on-error: true
       - name: Terraform Apply (Frontend)
@@ -189,7 +192,7 @@ jobs:
           echo "--- Terraform Outputs (JSON) ---"
           cat tf_outputs.json
           echo "--------------------------------"
-          
+
           cd ../..
           # 2階層上に移動する
 
@@ -197,10 +200,10 @@ jobs:
           # echo で文字列を作り、>> で$GITHUB_OUTPUTに追記する
           # $GITHUB_OUTPUT は「GitHub Actionsの同じジョブ内の他のステップで参照するためのファイル」です
           # ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }} これが使えるようになる 
-          
+
           echo "cloudfront_domain_name=$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
           echo "cloudfront_distribution_id=$(jq -r '.cloudfront_distribution_id.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
-          
+
           # 古いやり方 不要
           # echo "::set-output name=s3_bucket_name::$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)"
           # echo "::set-output name=cloudfront_domain_name::$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)"
@@ -208,7 +211,7 @@ jobs:
 
         working-directory: ./
         # この step の開始時点で、ルートディレクトリで開始する
-        
+
       # CloudFrontドメイン名をCORS用にbackendへ再適用
       - name: Terraform Apply (Backend, CORS Update)
         id: apply-backend-cors
@@ -230,7 +233,7 @@ jobs:
         run: |
           # (内容は変更なし)
           S3_BUCKET="${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}"
-          
+
           if [ -z "$S3_BUCKET" ]; then echo "::error::S3 bucket name not found."; exit 1; fi 
           # -z zero length
           # if が true なら then を実行する
@@ -246,7 +249,7 @@ jobs:
           CF_DIST_ID="${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}"
           if [ -z "$CF_DIST_ID" ]; then echo "::error::CloudFront distribution ID not found."; exit 1; fi 
           echo "Invalidating CloudFront cache for distribution: $CF_DIST_ID"
-          
+
           aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"
           # --paths "/*" すべてのパス
 
@@ -280,7 +283,7 @@ jobs:
           # AWSアカウント×リージョンごとに1つ自動で割り当てられます
           ECR_REPOSITORY: nestjs-hannibal-3
         run: |
-          
+
           TASK_DEF_ARN=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query "services[0].taskDefinition" --output text)
           # ECSにある現状のタスク定義を取得している
           # タスク定義 どのイメージを使うか、リソース、環境変数などの設計図
@@ -317,7 +320,7 @@ jobs:
           # .taskDefinition.containerDefinitions[] jq で使う場合、[] をつけるとループ処理やフィルタができる
           # |= は「部分的な値の更新」を意味するjqの演算子です
 
-          
+
           # 新しいタスク定義を ECS に登録
           TASK_DEF_ARN_NEW=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
           # aws ecs register-task-definition 新しいECSタスク定義を登録し、登録した内容を JSON 形式で返す
