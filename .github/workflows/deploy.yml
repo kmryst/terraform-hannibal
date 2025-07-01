@@ -2,7 +2,7 @@
 # コマンド: aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northeast-1
 # 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
 
-# 📝 GitHub Actions 再実行方法:
+# GitHub Actions 再実行方法:
 # 1. 「Re-run failed jobs」: 失敗したジョブのみ再実行（推奨・時短）
 # 2. 「Re-run all jobs」: 全ジョブを最初から実行（時間かかる）
 # 3. 特定のジョブのみ再実行: ジョブ名をクリック → ⟲ ボタン
