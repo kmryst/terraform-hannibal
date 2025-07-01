@@ -25,7 +25,8 @@ name: Deploy NestJS Hannibal App
 #   push:
 #     branches: [feature/github-actions]
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
 
 jobs:
   test:
