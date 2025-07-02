@@ -242,7 +242,8 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "s3:PutBucketPublicAccessBlock",
           "s3:GetBucketPublicAccessBlock",
           "s3:GetObjectTagging",
-          "s3:PutObjectTagging"
+          "s3:PutObjectTagging",
+          "s3:DeleteBucketPolicy"
         ]
         Resource = [
           "arn:aws:s3:::*",
