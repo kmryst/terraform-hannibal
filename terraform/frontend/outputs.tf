@@ -1,7 +1,7 @@
 # terraform/frontend/outputs.tf
 output "cloudfront_domain_name" {
-  description = "Domain name of the CloudFront distribution"
-  value       = aws_cloudfront_distribution.main.domain_name
+  value       = length(aws_cloudfront_distribution.main) > 0 ? aws_cloudfront_distribution.main[0].domain_name : null
+  description = "CloudFrontのドメイン名"
 }
 
 output "s3_bucket_name" {
@@ -10,6 +10,6 @@ output "s3_bucket_name" {
 }
 
 output "cloudfront_distribution_id" {
-  description = "ID of the CloudFront distribution"
-  value       = aws_cloudfront_distribution.main.id
+  value       = length(aws_cloudfront_distribution.main) > 0 ? aws_cloudfront_distribution.main[0].id : null
+  description = "CloudFrontディストリビューションID"
 }

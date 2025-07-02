@@ -75,10 +75,10 @@ data "aws_iam_policy_document" "s3_bucket_policy_for_cloudfront" {
       identifiers = ["cloudfront.amazonaws.com"]
     }
 
-    condition {                                         # 条件付きアクセス制御
-      test     = "StringEquals"                         # 文字列が完全に一致するかどうかテストする
-      variable = "AWS:SourceArn"                        # Source 送信元
-      values   = [aws_cloudfront_distribution.main.arn] #比較対象となる値のリスト
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = length(aws_cloudfront_distribution.main) > 0 ? [aws_cloudfront_distribution.main[0].arn] : []
     }
   }
 }
