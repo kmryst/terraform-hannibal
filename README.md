@@ -73,25 +73,48 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 }
 ```
 
-#### **4. IAMカスタムポリシーの事前適用**
-GitHub Actionsで権限エラーを防ぐため、hannibalユーザーに必要な権限を事前に適用します。
+#### **4. S3権限の事前適用**
+GitHub ActionsでS3へのファイルアップロードを可能にするため、最小限のS3権限のみを適用します。
 
 ```bash
-# ディレクトリ移動
-cd C:\code\javascript\nestjs-hannibal-3\terraform\backend
+# S3の最小権限のみを付与（セキュリティ重視）
+aws iam attach-user-policy --user-name hannibal --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
 
-# Terraform初期化
-terraform init
+# または、さらに最小限のカスタムポリシーを作成
+cat > s3-minimal-policy.json << EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:PutObjectAcl"
+      ],
+      "Resource": [
+        "arn:aws:s3:::nestjs-hannibal-3-frontend",
+        "arn:aws:s3:::nestjs-hannibal-3-frontend/*"
+      ]
+    }
+  ]
+}
+EOF
 
-# IAMFullAccess一時付与（AWS Console or CLI）
-aws iam attach-user-policy --user-name hannibal --policy-arn arn:aws:iam::aws:policy/IAMFullAccess
+# カスタムポリシーを作成・アタッチ
+aws iam create-policy --policy-name HannibalS3MinimalPolicy --policy-document file://s3-minimal-policy.json
+aws iam attach-user-policy --user-name hannibal --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/HannibalS3MinimalPolicy
 
-# カスタムポリシー作成・アタッチ（PowerShellは引用符必須）
-terraform apply -target="aws_iam_policy.hannibal_terraform_policy" -target="aws_iam_user_policy_attachment.hannibal_terraform_policy" -auto-approve
-
-# IAMFullAccessデタッチ（セキュリティ強化）
-aws iam detach-user-policy --user-name hannibal --policy-arn arn:aws:iam::aws:policy/IAMFullAccess
+# 一時ファイル削除
+rm s3-minimal-policy.json
 ```
+
+**理由**: 
+- ECR・CloudFront OACは手動作成済みのため権限不要
+- backend/main.tfのカスタムポリシーで他の権限は対応済み
+- GitHub Actionsで必要なのはS3へのファイルアップロードのみ
 
 ### **📋 手動作成リソース一覧**
 | リソース | 名前 | 目的 | 作成方法 |

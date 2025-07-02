@@ -97,7 +97,7 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "ecr:TagResource",
           "ecr:UntagResource"
         ]
-        Resource = "*"
+        Resource = "arn:aws:ecr:ap-northeast-1:258632448142:repository/nestjs-hannibal-3"
       },
       {
         # CloudWatch Logs権限 (ログ管理)
@@ -148,20 +148,11 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
         # EC2権限 (VPC, Subnet, SG, ENI)
         Effect = "Allow"
         Action = [
-          "ec2:DescribeVpcs",
-          "ec2:DescribeSubnets",
-          "ec2:DescribeSecurityGroups",
-          "ec2:DescribeNetworkInterfaces",
+          "ec2:Describe*",
           "ec2:CreateNetworkInterface",
           "ec2:DeleteNetworkInterface",
-          "ec2:DescribeRouteTables",
-          "ec2:DescribeInternetGateways",
-          "ec2:DescribeAddresses",
           "ec2:AssociateAddress",
           "ec2:DisassociateAddress",
-          "ec2:DescribeVpcAttribute",
-          "ec2:DescribeAvailabilityZones",
-          "ec2:DescribeInstances",
           # GitHub Actions用の追加権限
           "ec2:CreateSecurityGroup",
           "ec2:DeleteSecurityGroup",
