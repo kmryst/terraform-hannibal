@@ -119,7 +119,8 @@ jobs:
         run: |
           echo "🗑️ Destroying frontend resources..."
           yes | terraform init
-          terraform destroy -auto-approve -var="api_alb_dns_name="
+          # CloudFrontは手動削除済みなので、enable_cloudfront=falseでdestroy
+          terraform destroy -auto-approve -var="api_alb_dns_name=" -var="enable_cloudfront=false"
           echo "✅ Frontend infrastructure destroyed"
         working-directory: ./terraform/frontend
 

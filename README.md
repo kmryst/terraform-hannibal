@@ -105,6 +105,31 @@ aws iam detach-user-policy --user-name hannibal --policy-arn arn:aws:iam::aws:po
 - ✅ **CI/CD安定性**: デプロイパイプラインの安定性向上
 - ✅ **実行時間短縮**: リソース作成時間を短縮
 
+## ⚠️ インフラ削除（destroy）時の注意
+
+Terraform destroy（destroy.yml）を実行する前に、**必ずAWSマネジメントコンソールでCloudFrontディストリビューションを手動で「Disable→Delete」してください**。
+
+さらに、**tfstate（S3）からCloudFrontリソースを削除する必要があります**。
+
+### 手順
+1. AWSマネジメントコンソールにログインし、CloudFrontサービスを開く
+2. 対象のCloudFrontディストリビューションを選択
+3. 「Disable（無効化）」を実行し、ステータスがDisabledになるのを待つ
+4. 「Delete（削除）」を実行し、完全に削除されるのを確認
+5. `terraform/frontend`ディレクトリで以下を実行し、tfstateからCloudFrontリソースを削除
+   ```bash
+   terraform state rm aws_cloudfront_distribution.main
+   ```
+   ※「リソース名」はmain.tfで定義したものに置き換えてください
+6. **CloudFrontリソースがtfstateから削除されたことを確認**
+   ```bash
+   terraform state list
+   ```
+   何も表示されなければOKです。
+7. その後、GitHub Actionsのdestroy.ymlを実行
+
+> これを忘れると、循環参照エラーや「origin.0.domain_name must not be empty」などのエラーが発生します。
+
 ### 🛠️ 既存リソースがある場合の対応（terraform import）
 
 AWS上にすでに同名のリソース（例：セキュリティグループ）が存在していて

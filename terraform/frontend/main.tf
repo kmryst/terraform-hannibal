@@ -49,6 +49,11 @@ resource "aws_s3_object" "frontend_files" {
   # etag: Entity Tag
 }
 
+# CloudFrontの有効・無効を切り替えるための変数を追加
+variable "enable_cloudfront" {
+  type    = bool
+  default = true # デフォルトはtrue（通常はCloudFrontを作成）
+}
 
 # CloudFrontのみがS3にアクセスできるように設定するための、CloudFront distribution 側の設定
 # OACは「CloudFrontからS3バケットへの専用アクセス権限」を管理するAWSの機能です
@@ -92,6 +97,7 @@ resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
 # その後terraform destroyを実行してください。
 # =============================
 resource "aws_cloudfront_distribution" "main" {
+  count               = var.enable_cloudfront ? 1 : 0 # falseなら作成しない
   enabled             = true
   is_ipv6_enabled     = true
   comment             = "${var.project_name} CloudFront Distribution"
