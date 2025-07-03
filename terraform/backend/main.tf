@@ -213,7 +213,12 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           # GitHub Actions用の追加権限
           "iam:ListPolicyVersions",
           "iam:CreatePolicyVersion",
-          "iam:DeletePolicyVersion"
+          "iam:DeletePolicyVersion",
+          # 追加: インラインポリシー操作用
+          "iam:ListRolePolicies",
+          "iam:GetRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy"
         ]
         Resource = "*"
       },
