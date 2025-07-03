@@ -120,6 +120,8 @@ Terraform destroy（destroy.yml）を実行する前に、**必ずAWSマネジ�
 4. 「Delete（削除）」を実行し、完全に削除されるのを確認
 5. `terraform/frontend`ディレクトリで以下を実行し、tfstateからCloudFrontリソースを削除
    ```bash
+   cd C:\code\javascript\nestjs-hannibal-3\terraform\frontend
+
    terraform state rm aws_cloudfront_distribution.main
    ```
    ※「リソース名」はmain.tfで定義したものに置き換えてください
@@ -154,52 +156,6 @@ AWS上にすでに同名のリソース（例：セキュリティグループ�
 
 > これにより、既存リソースを削除せずにTerraformで一元管理できるようになります。
 
-### **🔄 実行順序**
-AWSから全削除した後にGitHub Actionsを動かす場合、以下の順序で実行してください：
-
-1. **ECRリポジトリ作成**
-   ```bash
-   aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northeast-1
-   ```
-
-2. **S3バケット作成**
-   ```bash
-   aws s3 mb s3://nestjs-hannibal-3-frontend --region ap-northeast-1
-   ```
-
-3. **CloudFront OAC作成**
-   ```bash
-   aws cloudfront create-origin-access-control \
-     --name nestjs-hannibal-3-oac \
-     --origin-access-control-origin-type s3 \
-     --signing-behavior always \
-     --signing-protocol sigv4 \
-     --region us-east-1
-   ```
-
-4. **OACのIDをTerraform設定に反映**
-   ```bash
-   # OACのIDを確認
-   aws cloudfront list-origin-access-controls --region us-east-1
-   ```
-   取得したIDを`terraform/frontend/main.tf`の47行目に設定
-
-5. **IAMカスタムポリシー適用**
-   ```bash
-   cd terraform/backend
-   terraform init
-   terraform apply -target="aws_iam_policy.hannibal_terraform_policy" -target="aws_iam_user_policy_attachment.hannibal_terraform_policy" -auto-approve
-   ```
-
-6. **GitHub Actions実行**
-   - ブランチにプッシュしてGitHub Actionsを開始
-
-### **作成されるカスタムポリシー詳細**
-- **ポリシー名**: `HannibalInfraAdminPolicy`
-- **対象サービス**: ECR, CloudWatch, ELB, EC2, ECS, IAM, S3, CloudFront
-- **GitHub Actions対応**: リソース削除・作成権限を含む
-- **10個制限対応**: 8つのサービス権限を1つのポリシーに統合
-
 ## 🔐 Infrastructure as Code原則
 
 ### **ECRライフサイクルポリシー**
@@ -208,69 +164,7 @@ AWSから全削除した後にGitHub Actionsを動かす場合、以下の順序
 - ✅ **環境再現性**: 同じ設定を他環境で再現可能
 - ✅ **チーム共有**: 設定内容をコードとして共有
 
-## 🔐 IAM権限管理の複雑さについて
 
-### **IAM権限管理が難しい理由**
-
-#### 1. **権限の細分化**
-AWSには数千個の権限が存在し、ECRだけでも20以上の権限があります：
-```bash
-# ECRの主要権限例
-ecr:BatchCheckLayerAvailability
-ecr:BatchDeleteImage
-ecr:BatchGetImage
-ecr:CreateRepository
-ecr:DeleteLifecyclePolicy
-ecr:DeleteRepository
-ecr:DescribeImages
-ecr:DescribeRepositories
-ecr:GetAuthorizationToken
-ecr:GetDownloadUrlForLayer
-ecr:GetLifecyclePolicy
-ecr:InitiateLayerUpload
-ecr:ListImages
-ecr:ListTagsForResource
-ecr:PutImage
-ecr:PutLifecyclePolicy
-ecr:TagResource
-ecr:UntagResource
-ecr:UploadLayerPart
-```
-
-#### 2. **IAMユーザーのポリシー上限制限**
-- **最大10個のマネージドポリシー**しかアタッチできない
-- **インラインポリシーは最大2048文字**まで
-- 複数サービス使用時に制限に引っかかりやすい
-
-#### 3. **最小権限の原則 vs 開発効率**
-```bash
-# ❌ 過剰権限（セキュリティリスク）
-"arn:aws:iam::aws:policy/PowerUserAccess"
-
-# ✅ 最小権限（管理が複雑）
-ecr:GetAuthorizationToken (ECRログイン)
-ecr:BatchCheckLayerAvailability (イメージ確認)
-ecr:GetDownloadUrlForLayer (レイヤーダウンロード)
-ecr:BatchGetImage (イメージ取得)
-ecr:PutImage (イメージプッシュ)
-```
-
-### **現実的な解決策**
-
-#### ✅ **開発環境**: 手動設定 + 最小構成
-- ECR: 手動作成 → Terraformで静的参照
-- ライフサイクルポリシー: AWS Consoleで手動設定
-- **理由**: 権限エラー回避、デプロイ安定性向上
-
-#### ✅ **本番環境**: Infrastructure as Code
-- 専用IAMロールで権限分離
-- CloudFormation/CDKでの権限管理
-- **理由**: セキュリティ強化、監査対応
-
-### **今回の判断理由**
-1. **開発効率優先**: 権限調査・設定より機能開発に集中
-2. **エラー回避**: CI/CD安定性確保
-3. **学習コスト削減**: IAM深堀りより全体理解優先
 
 ## 📦 アーキテクチャ
 
