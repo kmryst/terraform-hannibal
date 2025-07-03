@@ -73,10 +73,17 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        # ECR権限 (Container Registry管理)
+        # ECR認証トークン取得（アカウント単位で必要）
         Effect = "Allow"
         Action = [
-          "ecr:GetAuthorizationToken",
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      },
+      {
+        # ECRリポジトリ操作権限（リポジトリ単位）
+        Effect = "Allow"
+        Action = [
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
