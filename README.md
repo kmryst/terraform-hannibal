@@ -107,6 +107,8 @@ TerraformやGitHub ActionsのCI/CDを初めてセットアップする際、IAM�
 
 ## ⚠️ インフラ削除（destroy）時の注意
 
+> **補足:** CloudFrontディストリビューションは、循環参照や削除遅延の問題から「手動削除＋tfstateからstate rm」が現場のベストプラクティスです。Terraform destroyによる一括削除はエラーや不整合が起きやすいため、下記の手順を推奨します。
+
 Terraform destroy（destroy.yml）を実行する前に、**必ずAWSマネジメントコンソールでCloudFrontディストリビューションを手動で「Disable→Delete」してください**。
 
 さらに、**tfstate（S3）からCloudFrontリソースを削除する必要があります**。
