@@ -73,49 +73,6 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 }
 ```
 
-#### **4. S3権限の事前適用**
-GitHub ActionsでS3へのファイルアップロードを可能にするため、最小限のS3権限のみを適用します。
-
-```bash
-# S3の最小権限のみを付与（セキュリティ重視）
-aws iam attach-user-policy --user-name hannibal --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
-
-# または、さらに最小限のカスタムポリシーを作成
-cat > s3-minimal-policy.json << EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:ListBucket",
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:DeleteObject",
-        "s3:PutObjectAcl"
-      ],
-      "Resource": [
-        "arn:aws:s3:::nestjs-hannibal-3-frontend",
-        "arn:aws:s3:::nestjs-hannibal-3-frontend/*"
-      ]
-    }
-  ]
-}
-EOF
-
-# カスタムポリシーを作成・アタッチ
-aws iam create-policy --policy-name HannibalS3MinimalPolicy --policy-document file://s3-minimal-policy.json
-aws iam attach-user-policy --user-name hannibal --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/HannibalS3MinimalPolicy
-
-# 一時ファイル削除
-rm s3-minimal-policy.json
-```
-
-**理由**: 
-- ECR・CloudFront OACは手動作成済みのため権限不要
-- backend/main.tfのカスタムポリシーで他の権限は対応済み
-- GitHub Actionsで必要なのはS3へのファイルアップロードのみ
-
 ### **📋 手動作成リソース一覧**
 | リソース | 名前 | 目的 | 作成方法 |
 |---------|------|------|----------|
@@ -127,6 +84,26 @@ rm s3-minimal-policy.json
 - ✅ **権限エラー回避**: GitHub Actions実行時の権限不足エラーを防ぐ
 - ✅ **CI/CD安定性**: デプロイパイプラインの安定性向上
 - ✅ **実行時間短縮**: リソース作成時間を短縮
+
+### ⚠️ 初回セットアップ時のIAM権限について
+
+TerraformやGitHub ActionsのCI/CDを初めてセットアップする際、IAMユーザー（例: hannibal）には十分な権限が必要です。特に、S3バケットやIAMポリシーの作成・アタッチには追加の権限が必要となります。
+
+#### 手順
+1. **AWSコンソールで「AmazonS3FullAccess」と「IAMFullAccess」を一時的にhannibalユーザーにアタッチ**
+   - これにより、S3バケットやtfstateへのアクセス、IAMポリシーの作成・アタッチが可能になります。
+2. **ローカルでカスタムポリシー（HannibalInfraAdminPolicy）をTerraform apply**
+   - 例:
+     ```bash
+     cd terraform/backend
+     terraform init
+     terraform apply -target="aws_iam_policy.hannibal_terraform_policy" -target="aws_iam_user_policy_attachment.hannibal_terraform_policy" -auto-approve
+     ```
+3. **カスタムポリシーがアタッチできたら、S3FullAccessとIAMFullAccessはデタッチ**
+   - カスタムポリシーに必要な権限がすべて含まれているため、不要な権限は外してください。
+4. **その後、GitHub Actions（deploy.yml）を実行**
+
+> ※この手順を踏むことで、初回セットアップ時の権限エラーを防ぎ、安全にTerraform/IaC運用を開始できます。
 
 ## ⚠️ インフラ削除（destroy）時の注意
 
