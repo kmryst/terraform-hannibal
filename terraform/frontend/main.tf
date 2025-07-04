@@ -184,7 +184,7 @@ resource "aws_cloudfront_distribution" "main" {
 
 
 
-    # AWSが事前に作成したポリシーを使用
+    # AWSが事前に作成したマネージドポリシーを使用する場合は、UUID形式で指定します
     # cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"  # CachingDisabled
     # origin_request_policy_id = "88a5eaf4-2fd4-4709-b370-b4c650ea3fcf"  # Managed-AllViewer
 
