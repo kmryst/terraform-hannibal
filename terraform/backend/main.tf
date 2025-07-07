@@ -275,6 +275,32 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "cloudfront:ListTagsForResource"
         ]
         Resource = "*"
+      },
+      {
+        # ACM証明書管理権限（独自ドメイン用）
+        Effect = "Allow"
+        Action = [
+          "acm:RequestCertificate",
+          "acm:DescribeCertificate",
+          "acm:ListCertificates",
+          "acm:DeleteCertificate",
+          "acm:AddTagsToCertificate",
+          "acm:ListTagsForCertificate",
+          "acm:RemoveTagsFromCertificate"
+        ]
+        Resource = "*"
+      },
+      {
+        # Route53権限（DNS管理・証明書検証用）
+        Effect = "Allow"
+        Action = [
+          "route53:GetHostedZone",
+          "route53:ListHostedZones",
+          "route53:ChangeResourceRecordSets",
+          "route53:GetChange",
+          "route53:ListResourceRecordSets"
+        ]
+        Resource = "*"
       }
     ]
   })

@@ -103,13 +103,8 @@ resource "aws_cloudfront_distribution" "main" {
   comment             = "${var.project_name} CloudFront Distribution"
   default_root_object = "index.html"
 
-  # (オプション) 独自ドメインとACM証明書を使用する場合
-  # aliases = [var.domain_name]
-  # viewer_certificate {
-  #   acm_certificate_arn      = var.acm_certificate_arn_us_east_1 # us-east-1の証明書
-  #   ssl_support_method       = "sni-only"
-  #   minimum_protocol_version = "TLSv1.2_2021"
-  # }
+  # 独自ドメインとACM証明書を使用
+  aliases = [var.domain_name]
 
   origin {
     domain_name = data.aws_s3_bucket.frontend_bucket.bucket_regional_domain_name
@@ -250,22 +245,24 @@ resource "aws_cloudfront_distribution" "main" {
   #   ]
   # }
 
-  viewer_certificate { # 閲覧者（Viewer）向けの証明書設定
-    cloudfront_default_certificate = true
-    # 自分で用意した独自ドメインではなく、CloudFrontから提供されるドメイン名でHTTPS通信が有効になります
+  viewer_certificate {                                      # 閲覧者（Viewer）向けの証明書設定
+    acm_certificate_arn = var.acm_certificate_arn_us_east_1 # us-east-1の証明書
+    ssl_support_method  = "sni-only"
+    # SNI（Server Name Indication）: 1つのIPアドレスで複数のSSL証明書を使い分ける技術
+    minimum_protocol_version = "TLSv1.2_2021"
   }
 }
 
-# (オプション) Route 53で独自ドメインを設定する場合
-# resource "aws_route53_record" "www" {
-#   count   = var.domain_name != "" && var.hosted_zone_id != "" ? 1 : 0
-#   zone_id = var.hosted_zone_id
-#   name    = var.domain_name
-#   type    = "A"
+# Route 53で独自ドメインをCloudFrontに向ける
+resource "aws_route53_record" "www" {
+  count   = var.domain_name != "" && var.hosted_zone_id != "" ? 1 : 0
+  zone_id = var.hosted_zone_id
+  name    = var.domain_name
+  type    = "A"
 
-#   alias {
-#     name                   = aws_cloudfront_distribution.main.domain_name
-#     zone_id                = aws_cloudfront_distribution.main.hosted_zone_id
-#     evaluate_target_health = false
-#   }
-# }
+  alias {
+    name                   = aws_cloudfront_distribution.main[0].domain_name
+    zone_id                = aws_cloudfront_distribution.main[0].hosted_zone_id
+    evaluate_target_health = false
+  }
+}
