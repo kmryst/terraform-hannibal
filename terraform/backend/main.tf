@@ -117,8 +117,8 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "logs:DescribeLogStreams",
           "logs:PutRetentionPolicy",
           "logs:DeleteLogGroup",
-          "logs:GetLogEvents",
-          "logs:FilterLogEvents",
+          "logs:GetLogEvents",    # ローカル確認専用: ログ内容を読み取る
+          "logs:FilterLogEvents", # ローカル確認専用: ログをフィルタリング
           # GitHub Actions用の追加権限
           "logs:ListTagsForResource"
         ]
@@ -131,6 +131,7 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "elasticloadbalancing:CreateLoadBalancer",
           "elasticloadbalancing:CreateTargetGroup",
           "elasticloadbalancing:CreateListener",
+          "elasticloadbalancing:ModifyListener", # ALB Listener設定変更用（503エラー修正対応）
           "elasticloadbalancing:DescribeLoadBalancers",
           "elasticloadbalancing:DescribeTargetGroups",
           "elasticloadbalancing:DescribeListeners",
@@ -141,13 +142,13 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "elasticloadbalancing:DeleteListener",
           "elasticloadbalancing:AddTags",
           "elasticloadbalancing:RemoveTags",
-          "elasticloadbalancing:DescribeTargetHealth",
+          "elasticloadbalancing:DescribeTargetHealth", # ローカル確認専用: ALBターゲットヘルス確認
           # GitHub Actions用の追加権限
           "elbv2:DescribeLoadBalancers",
           "elbv2:DeleteLoadBalancer",
           "elbv2:DescribeTargetGroups",
           "elbv2:DeleteTargetGroup",
-          "elbv2:DescribeTargetHealth",
+          "elbv2:DescribeTargetHealth", # ローカル確認専用: ALBターゲットヘルス確認（v2 API）
           "elasticloadbalancing:DescribeLoadBalancerAttributes",
           "elasticloadbalancing:DescribeTargetGroupAttributes",
           "elasticloadbalancing:DescribeTags",
@@ -457,8 +458,12 @@ resource "aws_lb_listener" "http" {
   port              = var.alb_listener_port
   protocol          = "HTTP"
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.api.arn
+    type = "forward"
+    forward {
+      target_group {
+        arn = aws_lb_target_group.api.arn
+      }
+    }
   }
 }
 
@@ -502,11 +507,11 @@ resource "aws_security_group" "ecs_service_sg" {
 
 # --- ECS Service ---
 resource "aws_ecs_service" "api" {
-  name            = "${var.project_name}-api-service"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.api.arn
-  desired_count   = var.desired_task_count
-  launch_type     = "FARGATE"
+  name                              = "${var.project_name}-api-service"
+  cluster                           = aws_ecs_cluster.main.id
+  task_definition                   = aws_ecs_task_definition.api.arn
+  desired_count                     = var.desired_task_count
+  launch_type                       = "FARGATE"
   health_check_grace_period_seconds = 60
   network_configuration {
     subnets          = data.aws_subnets.public.ids
