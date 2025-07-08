@@ -219,16 +219,16 @@ jobs:
 
       - name: Update CLIENT_URL in .env
         run: |
-          sed -i "s|^CLIENT_URL=.*$|CLIENT_URL=https://${{ steps.get_terraform_outputs.outputs.cloudfront_domain_name }}|" .env
+          sed -i "s|^CLIENT_URL=.*$|CLIENT_URL=https://hamilcar-hannibal.click|" .env
 
       - name: Update VITE_GRAPHQL_ENDPOINT in client/.env.production
         run: |
-          sed -i "s|^VITE_GRAPHQL_ENDPOINT=.*$|VITE_GRAPHQL_ENDPOINT=https://${{ steps.get_terraform_outputs.outputs.cloudfront_domain_name }}/api/graphql|" client/.env.production
+          sed -i "s|^VITE_GRAPHQL_ENDPOINT=.*$|VITE_GRAPHQL_ENDPOINT=https://hamilcar-hannibal.click/api/graphql|" client/.env.production
 
       # CloudFrontドメイン名をCORS用にbackendへ再適用
       - name: Terraform Apply (Backend, CORS Update)
         id: apply-backend-cors
-        run: terraform apply -auto-approve -no-color -var="client_url_for_cors=https://${{ steps.get_terraform_outputs.outputs.cloudfront_domain_name }}"
+        run: terraform apply -auto-approve -no-color -var="client_url_for_cors=https://hamilcar-hannibal.click"
         working-directory: ./terraform/backend
       - name: Setup Node.js for Frontend Build
         uses: actions/setup-node@v3
