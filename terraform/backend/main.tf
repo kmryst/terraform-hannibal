@@ -117,6 +117,8 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "logs:DescribeLogStreams",
           "logs:PutRetentionPolicy",
           "logs:DeleteLogGroup",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents",
           # GitHub Actions用の追加権限
           "logs:ListTagsForResource"
         ]
@@ -139,11 +141,13 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "elasticloadbalancing:DeleteListener",
           "elasticloadbalancing:AddTags",
           "elasticloadbalancing:RemoveTags",
+          "elasticloadbalancing:DescribeTargetHealth",
           # GitHub Actions用の追加権限
           "elbv2:DescribeLoadBalancers",
           "elbv2:DeleteLoadBalancer",
           "elbv2:DescribeTargetGroups",
           "elbv2:DeleteTargetGroup",
+          "elbv2:DescribeTargetHealth",
           "elasticloadbalancing:DescribeLoadBalancerAttributes",
           "elasticloadbalancing:DescribeTargetGroupAttributes",
           "elasticloadbalancing:DescribeTags",
@@ -439,10 +443,10 @@ resource "aws_lb_target_group" "api" {
     path                = var.health_check_path
     protocol            = "HTTP"
     port                = "traffic-port"
-    healthy_threshold   = 3
-    unhealthy_threshold = 3
-    timeout             = 5
-    interval            = 30
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 10
+    interval            = 15
     matcher             = "200-399"
   }
 }
@@ -503,6 +507,7 @@ resource "aws_ecs_service" "api" {
   task_definition = aws_ecs_task_definition.api.arn
   desired_count   = var.desired_task_count
   launch_type     = "FARGATE"
+  health_check_grace_period_seconds = 60
   network_configuration {
     subnets          = data.aws_subnets.public.ids
     security_groups  = [aws_security_group.ecs_service_sg.id]
