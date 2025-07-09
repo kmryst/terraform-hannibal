@@ -255,7 +255,7 @@ resource "aws_cloudfront_distribution" "main" {
 
 # Route 53で独自ドメインをCloudFrontに向ける
 resource "aws_route53_record" "www" {
-  count   = var.domain_name != "" && var.hosted_zone_id != "" ? 1 : 0
+  count   = var.domain_name != "" && var.hosted_zone_id != "" && length(aws_cloudfront_distribution.main) > 0 ? 1 : 0
   zone_id = var.hosted_zone_id
   name    = var.domain_name
   type    = "A"
