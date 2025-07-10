@@ -107,7 +107,24 @@ jobs:
           aws iam detach-role-policy --role-name nestjs-hannibal-3-ecs-task-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy 2>/dev/null || true
           aws iam delete-role --role-name nestjs-hannibal-3-ecs-task-execution-role 2>/dev/null || true
 
-          # 7. CloudWatchロググループ削除（ECSタスク削除後に実行）
+          # 7. RDS削除（セキュリティグループ削除前に実行）
+          echo "🗑️ Cleaning up RDS instance..."
+          aws rds delete-db-instance --db-instance-identifier nestjs-hannibal-3-postgres --skip-final-snapshot --region ap-northeast-1 2>/dev/null || true
+          echo "⏳ Waiting for RDS deletion (this may take several minutes)..."
+          sleep 120  # RDS削除には時間がかかる
+
+          # 8. RDSサブネットグループ削除
+          echo "🗑️ Cleaning up RDS subnet group..."
+          aws rds delete-db-subnet-group --db-subnet-group-name nestjs-hannibal-3-db-subnet-group --region ap-northeast-1 2>/dev/null || true
+
+          # 9. RDSセキュリティグループ削除
+          echo "🗑️ Cleaning up RDS security group..."
+          SG_RDS_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-rds-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
+          if [ "$SG_RDS_ID" != "None" ] && [ "$SG_RDS_ID" != "null" ]; then
+            aws ec2 delete-security-group --group-id "$SG_RDS_ID" --region ap-northeast-1 2>/dev/null || true
+          fi
+
+          # 10. CloudWatchロググループ削除（ECSタスク削除後に実行）
           echo "🗑️ Cleaning up CloudWatch log group..."
           aws logs delete-log-group --log-group-name /ecs/nestjs-hannibal-3-api-task --region ap-northeast-1 2>/dev/null || true
 
