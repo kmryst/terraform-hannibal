@@ -306,6 +306,27 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "route53:ListResourceRecordSets"
         ]
         Resource = "*"
+      },
+      {
+        # RDS権限（PostgreSQL管理）
+        Effect = "Allow"
+        Action = [
+          "rds:CreateDBInstance",
+          "rds:DeleteDBInstance",
+          "rds:DescribeDBInstances",
+          "rds:ModifyDBInstance",
+          "rds:CreateDBSubnetGroup",
+          "rds:DeleteDBSubnetGroup",
+          "rds:DescribeDBSubnetGroups",
+          "rds:AddTagsToResource",
+          "rds:ListTagsForResource",
+          "rds:RemoveTagsFromResource",
+          "rds:CreateDBSnapshot",
+          "rds:DeleteDBSnapshot",
+          "rds:DescribeDBSnapshots",
+          "rds:RestoreDBInstanceFromDBSnapshot"
+        ]
+        Resource = "*"
       }
     ]
   })
