@@ -421,7 +421,7 @@ resource "aws_ecs_task_definition" "api" {                            # APIサ�
 
         { name = "NODE_ENV", value = "production" },             # 本番環境
         { name = "CLIENT_URL", value = var.client_url_for_cors }, # CORS設定用のフロントエンドURL
-        { name = "DATABASE_URL", value = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.postgres.endpoint}/${var.db_name}?sslmode=require" }
+        { name = "DATABASE_URL", value = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.postgres.endpoint}/${var.db_name}?sslmode=require&sslrootcert=/opt/rds-ca-2019-root.pem" }
         # 他に必要な環境変数があれば追加
       ]
       logConfiguration = {    # CloudWatch Logs設定

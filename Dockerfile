@@ -19,6 +19,11 @@ FROM node:20-alpine
 
 WORKDIR /usr/src/app
 
+# RDS CA証明書をダウンロード
+RUN apk add --no-cache wget && \
+    wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -O /opt/rds-ca-2019-root.pem && \
+    apk del wget
+
 # 本番依存のみインストール
 COPY package*.json ./
 RUN npm ci --omit=dev
