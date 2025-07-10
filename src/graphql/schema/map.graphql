@@ -6,6 +6,23 @@ type Query {
   capitalCities: CapitalCityCollection
   hannibalRoute: HannibalRouteCollection
   pointRoute: PointRouteCollection
+  routes: [Route!]!
+  route(id: Int!): Route # nullable
+}
+
+type Mutation {
+  createRoute(name: String!, description: String!, coordinates: [[Float!]!]!, color: String): Route!
+  seedRoutes: String!
+}
+
+type Route {
+  id: ID!
+  name: String!
+  description: String!
+  coordinates: [[Float!]!]!
+  color: String
+  createdAt: String!
+  updatedAt: String!
 }
 
 type CapitalCityCollection {

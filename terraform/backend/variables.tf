@@ -89,9 +89,54 @@ variable "client_url_for_cors" {
   default     = "" # フロントエンドデプロイ後に設定するか、固定ドメインを指定
 }
 
+variable "database_url" {
+  description = "Database connection URL for application"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # (オプション) ACM証明書ARN (HTTPS化する場合)
 # variable "certificate_arn" {
 #   description = "ARN of the ACM certificate for HTTPS listener"
 #   type        = string
 #   default     = ""
 # }
+
+# --- Database Variables ---
+variable "db_instance_class" {
+  description = "RDS instance class"
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "db_allocated_storage" {
+  description = "RDS allocated storage in GB"
+  type        = number
+  default     = 20
+}
+
+variable "db_engine_version" {
+  description = "PostgreSQL engine version"
+  type        = string
+  default     = "15.4"
+}
+
+variable "db_name" {
+  description = "Database name"
+  type        = string
+  default     = "nestjs_hannibal_db"
+}
+
+variable "db_username" {
+  description = "Database master username"
+  type        = string
+  default     = "postgres"
+}
+
+variable "db_password" {
+  description = "Database master password"
+  type        = string
+  default     = "hannibal123!" # 本番では AWS Secrets Manager 推奨
+  sensitive   = true
+}

@@ -38,7 +38,7 @@ jobs:
       - name: Setup Node.js for Backend
         uses: actions/setup-node@v3 # GitHubが提供する公式アクションで、指定したバージョンのNode.jsをインストールします
         with: # usesで指定したアクションに渡すパラメータ（設定値）を定義するキーワードです
-          node-version: '16'
+          node-version: '20'
           cache: 'npm' # npmのキャッシュを有効にすることで、依存関係のダウンロードを高速化します
           cache-dependency-path: package-lock.json
       - name: Install Backend Dependencies
@@ -141,6 +141,20 @@ jobs:
 
           # CloudWatchログループ削除
           aws logs delete-log-group --log-group-name /ecs/nestjs-hannibal-3-api-task --region ap-northeast-1 2>/dev/null || echo "Log group not found"
+
+          # RDS削除（セキュリティグループ削除前に実行）
+          aws rds delete-db-instance --db-instance-identifier nestjs-hannibal-3-postgres --skip-final-snapshot --region ap-northeast-1 2>/dev/null || echo "RDS instance not found"
+          echo "Waiting for RDS deletion..."
+          sleep 60
+
+          # RDSサブネットグループ削除
+          aws rds delete-db-subnet-group --db-subnet-group-name nestjs-hannibal-3-db-subnet-group --region ap-northeast-1 2>/dev/null || echo "DB subnet group not found"
+
+          # RDSセキュリティグループ削除
+          SG_RDS_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-rds-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
+          if [ "$SG_RDS_ID" != "None" ] && [ "$SG_RDS_ID" != "null" ]; then
+            aws ec2 delete-security-group --group-id "$SG_RDS_ID" --region ap-northeast-1 2>/dev/null || echo "RDS security group deletion failed"
+          fi
 
           echo "Cleanup completed (errors are expected if resources don't exist)"
         continue-on-error: true
@@ -344,3 +358,8 @@ jobs:
           # サービスを新タスク定義で更新
           aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $TASK_DEF_ARN_NEW
           # ECSが新しいイメージからコンテナを作成・起動する
+          
+          # ECSサービスの安定化を待つ
+          echo "Waiting for ECS service to stabilize..."
+          aws ecs wait services-stable --cluster $CLUSTER_NAME --services $SERVICE_NAME --region $AWS_REGION
+          echo "ECS service is now stable"

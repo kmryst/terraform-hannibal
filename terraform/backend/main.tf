@@ -399,7 +399,8 @@ resource "aws_ecs_task_definition" "api" {                            # APIサ�
         # 127.0.0.1 コンテナの中からしかアクセスできなくなります
 
         { name = "NODE_ENV", value = "production" },             # 本番環境
-        { name = "CLIENT_URL", value = var.client_url_for_cors } # CORS設定用のフロントエンドURL
+        { name = "CLIENT_URL", value = var.client_url_for_cors }, # CORS設定用のフロントエンドURL
+        { name = "DATABASE_URL", value = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.postgres.endpoint}/${var.db_name}" }
         # 他に必要な環境変数があれば追加
       ]
       logConfiguration = {    # CloudWatch Logs設定
@@ -523,5 +524,71 @@ resource "aws_ecs_service" "api" {
     container_name   = "${var.project_name}-container"
     container_port   = var.container_port
   }
-  depends_on = [aws_lb_listener.http]
+  depends_on = [aws_lb_listener.http, aws_db_instance.postgres]
+}
+
+# --- RDS Subnet Group ---
+resource "aws_db_subnet_group" "postgres" {
+  name       = "${var.project_name}-db-subnet-group"
+  subnet_ids = data.aws_subnets.public.ids
+  
+  tags = {
+    Name = "${var.project_name} DB subnet group"
+  }
+}
+
+# --- Security Group for RDS ---
+resource "aws_security_group" "rds_sg" {
+  name        = "${var.project_name}-rds-sg"
+  description = "Allow PostgreSQL traffic from ECS"
+  vpc_id      = data.aws_vpc.selected.id
+  
+  ingress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ecs_service_sg.id]
+  }
+  
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  tags = {
+    Name = "${var.project_name}-rds-sg"
+  }
+}
+
+# --- RDS PostgreSQL Instance ---
+resource "aws_db_instance" "postgres" {
+  identifier     = "${var.project_name}-postgres"
+  engine         = "postgres"
+  engine_version = var.db_engine_version
+  instance_class = var.db_instance_class
+  
+  allocated_storage     = var.db_allocated_storage
+  max_allocated_storage = 100
+  storage_type          = "gp2"
+  storage_encrypted     = true
+  
+  db_name  = var.db_name
+  username = var.db_username
+  password = var.db_password
+  
+  vpc_security_group_ids = [aws_security_group.rds_sg.id]
+  db_subnet_group_name   = aws_db_subnet_group.postgres.name
+  
+  backup_retention_period = 7
+  backup_window          = "03:00-04:00"
+  maintenance_window     = "sun:04:00-sun:05:00"
+  
+  skip_final_snapshot = true
+  deletion_protection = false
+  
+  tags = {
+    Name = "${var.project_name}-postgres"
+  }
 }
