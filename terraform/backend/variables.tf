@@ -140,3 +140,10 @@ variable "db_password" {
   default     = "hannibal123!" # 本番では AWS Secrets Manager 推奨
   sensitive   = true
 }
+
+# --- Monitoring Variables ---
+variable "alert_email" {
+  description = "Email address for CloudWatch alerts"
+  type        = string
+  default     = "gatsbykenji@gmail.com"
+}

@@ -124,7 +124,30 @@ jobs:
             aws ec2 delete-security-group --group-id "$SG_RDS_ID" --region ap-northeast-1 2>/dev/null || true
           fi
 
-          # 10. CloudWatchロググループ削除（ECSタスク削除後に実行）
+          # 10. 監視リソース削除（CloudWatch Alarms, SNS Topic, Dashboard）
+          echo "🗑️ Cleaning up monitoring resources..."
+          
+          # CloudWatch Alarms削除
+          aws cloudwatch delete-alarms --alarm-names \
+            "nestjs-hannibal-3-ecs-cpu-high" \
+            "nestjs-hannibal-3-ecs-memory-high" \
+            "nestjs-hannibal-3-ecs-task-stopped" \
+            "nestjs-hannibal-3-rds-cpu-high" \
+            "nestjs-hannibal-3-rds-connections-high" \
+            "nestjs-hannibal-3-alb-response-time-high" \
+            "nestjs-hannibal-3-alb-5xx-error-rate-high" \
+            --region ap-northeast-1 2>/dev/null || true
+          
+          # CloudWatch Dashboard削除
+          aws cloudwatch delete-dashboards --dashboard-names "hannibal-system-dashboard" --region ap-northeast-1 2>/dev/null || true
+          
+          # SNS Topic削除
+          SNS_TOPIC_ARN=$(aws sns list-topics --region ap-northeast-1 --query 'Topics[?contains(TopicArn, `nestjs-hannibal-3-alerts`)].TopicArn' --output text 2>/dev/null || echo "None")
+          if [ "$SNS_TOPIC_ARN" != "None" ] && [ "$SNS_TOPIC_ARN" != "" ]; then
+            aws sns delete-topic --topic-arn "$SNS_TOPIC_ARN" --region ap-northeast-1 2>/dev/null || true
+          fi
+
+          # 11. CloudWatchロググループ削除（ECSタスク削除後に実行）
           echo "🗑️ Cleaning up CloudWatch log group..."
           aws logs delete-log-group --log-group-name /ecs/nestjs-hannibal-3-api-task --region ap-northeast-1 2>/dev/null || true
 

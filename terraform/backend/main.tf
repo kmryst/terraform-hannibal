@@ -327,6 +327,45 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "rds:RestoreDBInstanceFromDBSnapshot"
         ]
         Resource = "*"
+      },
+      {
+        # CloudWatch Alarms権限（監視・アラート）
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricAlarm",
+          "cloudwatch:DeleteAlarms",
+          "cloudwatch:DescribeAlarms",
+          "cloudwatch:ListMetrics",
+          "cloudwatch:GetMetricStatistics"
+        ]
+        Resource = "*"
+      },
+      {
+        # SNS権限（アラート通知）
+        Effect = "Allow"
+        Action = [
+          "sns:CreateTopic",
+          "sns:DeleteTopic",
+          "sns:Subscribe",
+          "sns:Unsubscribe",
+          "sns:ListTopics",
+          "sns:ListSubscriptions",
+          "sns:GetTopicAttributes",
+          "sns:SetTopicAttributes",
+          "sns:Publish"
+        ]
+        Resource = "*"
+      },
+      {
+        # CloudWatch Dashboard権限（監視ダッシュボード）
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutDashboard",
+          "cloudwatch:DeleteDashboards",
+          "cloudwatch:ListDashboards",
+          "cloudwatch:GetDashboard"
+        ]
+        Resource = "*"
       }
     ]
   })
