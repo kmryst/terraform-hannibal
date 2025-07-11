@@ -354,7 +354,8 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "sns:SetTopicAttributes",
           "sns:Publish",
           "sns:TagResource",
-          "sns:UntagResource"
+          "sns:UntagResource",
+          "sns:ListTagsForResource"
         ]
         Resource = "*"
       },
