@@ -352,7 +352,9 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "sns:ListSubscriptions",
           "sns:GetTopicAttributes",
           "sns:SetTopicAttributes",
-          "sns:Publish"
+          "sns:Publish",
+          "sns:TagResource",
+          "sns:UntagResource"
         ]
         Resource = "*"
       },
