@@ -1,19 +1,20 @@
-# 🚨 重要: このワークフローを実行する前に ECRリポジトリを手動作成してください
-# コマンド: aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northeast-1
+# 🚨 重要: このワークフローを実行する前に以下のリソースを手動作成してください
+#
+# 1. ECRリポジトリ
+# aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northeast-1
+#
+# 2. S3バケット（フロントエンド用）
+# aws s3 mb s3://nestjs-hannibal-3-frontend --region ap-northeast-1
+#
+# 3. CloudFront OAC
+# aws cloudfront create-origin-access-control --name nestjs-hannibal-3-oac --origin-access-control-origin-type s3 --signing-behavior always --signing-protocol sigv4 --region us-east-1
+#
+# 4. カスタムIAMポリシー適用
+# cd terraform/backend && terraform apply -target="aws_iam_policy.hannibal_terraform_policy" -target="aws_iam_user_policy_attachment.hannibal_terraform_policy" -auto-approve
+#
 # 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
 
-# GitHub Actions 再実行方法:
-# 1. 「Re-run failed jobs」: 失敗したジョブのみ再実行（推奨・時短）
-# 2. 「Re-run all jobs」: 全ジョブを最初から実行（時間かかる）
-# 3. 特定のジョブのみ再実行: ジョブ名をクリック → ⟲ ボタン
-#
-# ⚠️ 注意: main.tfを修正してpushすると、途中再開できず最初から全実行される
-# 💡 コツ: 軽微な修正は後回しにして、まず「Re-run failed jobs」を試す
 
-# 📋 効率的な開発フロー:
-# 1. pushでワークフロー実行
-# 2. 失敗したら「Re-run failed jobs」で再実行を試す
-# 3. 根本的な修正が必要な場合のみmain.tf修正→push
 
 # C:\code\javascript\nestjs-hannibal-3\.github\workflows\deploy.yml
 
