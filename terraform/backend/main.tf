@@ -161,6 +161,7 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
         Effect = "Allow"
         Action = [
           "ec2:Describe*",
+          "ec2:DescribeVpcs",
           "ec2:CreateNetworkInterface",
           "ec2:DeleteNetworkInterface",
           "ec2:AssociateAddress",
