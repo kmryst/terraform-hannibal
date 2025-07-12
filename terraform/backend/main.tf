@@ -341,21 +341,10 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
         Resource = "*"
       },
       {
-        # SNS権限（アラート通知）
+        # SNS権限（アラート通知） - 一時的に全権限
         Effect = "Allow"
         Action = [
-          "sns:CreateTopic",
-          "sns:DeleteTopic",
-          "sns:Subscribe",
-          "sns:Unsubscribe",
-          "sns:ListTopics",
-          "sns:ListSubscriptions",
-          "sns:GetTopicAttributes",
-          "sns:SetTopicAttributes",
-          "sns:Publish",
-          "sns:TagResource",
-          "sns:UntagResource",
-          "sns:ListTagsForResource"
+          "sns:*"
         ]
         Resource = "*"
       },
