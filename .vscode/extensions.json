@@ -1,0 +1,35 @@
+{
+  "recommendations": [
+    "ms-vscode.vscode-typescript-next",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "hashicorp.terraform",
+    "ms-vscode.vscode-docker",
+    "graphql.vscode-graphql",
+    "ms-vscode.vscode-json",
+    "ms-vscode.vscode-yaml",
+    "github.vscode-github-actions",
+    "ms-vscode.vscode-jest",
+    "bradlc.vscode-tailwindcss",
+    "vitejs.vscode-vite"
+  ],
+  "unwantedRecommendations": [
+    "ms-python.python",
+    "ms-python.pylint",
+    "ms-python.flake8",
+    "redhat.java",
+    "vscjava.vscode-java-pack",
+    "ms-vscode.powershell",
+    "ms-vscode.cpptools",
+    "ms-dotnettools.csharp",
+    "golang.go",
+    "rust-lang.rust-analyzer",
+    "ms-vscode.vscode-php-pack",
+    "bradlc.vscode-ruby",
+    "ritwickdey.liveserver",
+    "ms-vscode.vscode-sqlite",
+    "ms-vscode.vscode-mongodb",
+    "redhat.vscode-xml",
+    "ms-kubernetes-tools.vscode-kubernetes-tools"
+  ]
+}
