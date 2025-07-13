@@ -73,18 +73,18 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 }
 ```
 
-### **🔧 手動作成リソース一覧（CI/CD用・Terraform管理）**
+### **🔧 手動作成リソース一覧（CI/CD用・Terraform参照）**
 | リソース | 名前 | 目的 | 作成方法 | 管理方法 |
 |---------|------|------|----------|----------|
-| ECRリポジトリ | `nestjs-hannibal-3` | コンテナイメージ保存 | AWS CLI | **Terraform管理** |
-| S3バケット | `nestjs-hannibal-3-frontend` | フロントエンド静的ファイル | AWS CLI | **Terraform管理** |
-| CloudFront OAC | `nestjs-hannibal-3-oac` | S3バケットへの安全なアクセス | AWS CLI | **Terraform管理** |
+| ECRリポジトリ | `nestjs-hannibal-3` | コンテナイメージ保存 | AWS CLI | **手動管理（Terraform参照）** |
+| S3バケット | `nestjs-hannibal-3-frontend` | フロントエンド静的ファイル | AWS CLI | **手動管理（Terraform参照）** |
+| CloudFront OAC | `nestjs-hannibal-3-oac` | S3バケットへの安全なアクセス | AWS CLI | **手動管理（Terraform参照）** |
 
 **手動作成の理由**: 
 - ✅ **権限エラー回避**: GitHub Actions実行時の権限不足エラーを防ぐ
 - ✅ **CI/CD安定性**: デプロイパイプラインの安定性向上
 - ✅ **実行時間短縮**: リソース作成時間を短縮
-- 📝 **注意**: 手動作成後はTerraformで管理され、destroy時に削除されます
+- 📝 **注意**: リソース本体は手動管理、Terraformはdataリソースで参照のみ
 
 ### **🔒 永続保持リソース（監査・基盤用・Terraform管理外）**
 以下のリソースは**destroy時も削除されず、永続的に保持**されます：
