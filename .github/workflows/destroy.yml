@@ -151,7 +151,16 @@ jobs:
           echo "🗑️ Cleaning up CloudWatch log group..."
           aws logs delete-log-group --log-group-name /ecs/nestjs-hannibal-3-api-task --region ap-northeast-1 2>/dev/null || true
 
+          # 12. CloudTrail削除（S3ログは保持）
+          echo "🗑️ Cleaning up CloudTrail (keeping S3 logs for audit)..."
+          aws cloudtrail delete-trail --name nestjs-hannibal-3-terraform-trail --region ap-northeast-1 2>/dev/null || true
+
+          # 13. Access Analyzer削除
+          echo "🗑️ Cleaning up Access Analyzer..."
+          aws accessanalyzer delete-analyzer --analyzer-name nestjs-hannibal-3-analyzer --region ap-northeast-1 2>/dev/null || true
+
           echo "✅ CLI cleanup completed - Terraform destroy can now proceed safely"
+          echo "📋 CloudTrail logs preserved in S3 for security audit purposes"
 
       # フロントエンド削除
       - name: 🎨 Destroy Frontend Infrastructure

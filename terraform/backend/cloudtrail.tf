@@ -3,7 +3,8 @@
 
 # S3 Bucket for CloudTrail logs
 resource "aws_s3_bucket" "cloudtrail_logs" {
-  bucket = "${var.project_name}-cloudtrail-logs"
+  bucket        = "${var.project_name}-cloudtrail-logs"
+  force_destroy = false  # 削除保護
 
   tags = {
     Name        = "${var.project_name} CloudTrail Logs"
