@@ -38,9 +38,9 @@ jobs:
         run: |
           echo "⚠️  WARNING: This will PERMANENTLY DELETE AWS resources!"
           echo "📋 Environment: ${{ github.event.inputs.environment }}"
-          echo "💰 This will stop AWS billing for this project (except for ECR/S3 tfstate/OAC)"
+          echo "💰 This will stop AWS billing for this project (except for ECR/S3 tfstate/CloudTrail logs/OAC)"
           echo "🔄 Resources can be recreated later with terraform apply"
-          echo "❗ ECRリポジトリ・tfstate用S3バケット・OACは絶対に消しません！"
+          echo "❗ ECRリポジトリ・S3バケット（tfstate・CloudTrailログ）・OACは絶対に消しません！"
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -186,7 +186,7 @@ jobs:
       - name: 🎉 Cleanup Complete
         run: |
           echo "🎉 Infrastructure cleanup completed!"
-          echo "💰 AWS billing should stop within 1-2 hours (except for ECR/S3 tfstate/OAC)"
+          echo "💰 AWS billing should stop within 1-2 hours (except for ECR/S3 tfstate/CloudTrail logs/OAC)"
           echo "📊 Check AWS Cost Explorer to confirm"
           echo ""
           echo "🔄 To redeploy later:"

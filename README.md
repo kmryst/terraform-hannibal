@@ -52,7 +52,16 @@ aws s3 mb s3://nestjs-hannibal-3-frontend --region ap-northeast-1
 aws s3 ls s3://nestjs-hannibal-3-frontend
 ```
 
-#### **3. CloudFront Origin Access Control (OAC) の事前作成**
+#### **3. CloudTrail用S3バケットの事前作成**
+```bash
+# CloudTrail監査ログを保存するS3バケットを作成
+aws s3 mb s3://nestjs-hannibal-3-cloudtrail-logs --region ap-northeast-1
+
+# 作成確認
+aws s3 ls s3://nestjs-hannibal-3-cloudtrail-logs
+```
+
+#### **4. CloudFront Origin Access Control (OAC) の事前作成**
 ```bash
 # S3バケットへの安全なアクセスを制御するOACを作成
 aws cloudfront create-origin-access-control \
@@ -78,6 +87,7 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 |---------|------|------|----------|
 | ECRリポジトリ | `nestjs-hannibal-3` | コンテナイメージ保存 | AWS CLI |
 | S3バケット | `nestjs-hannibal-3-frontend` | フロントエンド静的ファイル | AWS CLI |
+| S3バケット | `nestjs-hannibal-3-cloudtrail-logs` | CloudTrail監査ログ保存 | AWS CLI |
 | CloudFront OAC | `nestjs-hannibal-3-oac` | S3バケットへの安全なアクセス | AWS CLI |
 
 **手動作成の理由**: 

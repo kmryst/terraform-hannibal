@@ -1,30 +1,9 @@
 # terraform/backend/cloudtrail.tf
 # CloudTrail for IAM Policy Analysis
 
-# S3 Bucket for CloudTrail logs
-resource "aws_s3_bucket" "cloudtrail_logs" {
-  bucket        = "${var.project_name}-cloudtrail-logs"
-  force_destroy = false  # 削除保護
-
-  tags = {
-    Name        = "${var.project_name} CloudTrail Logs"
-    Environment = "production"
-    Purpose     = "IAM Policy Analysis"
-  }
-}
-
-# S3 Bucket versioning
-resource "aws_s3_bucket_versioning" "cloudtrail_logs" {
-  bucket = aws_s3_bucket.cloudtrail_logs.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-# S3 Bucket policy for CloudTrail
-resource "aws_s3_bucket_policy" "cloudtrail_logs" {
-  bucket = aws_s3_bucket.cloudtrail_logs.id
-  policy = data.aws_iam_policy_document.cloudtrail_logs.json
+# S3 Bucket for CloudTrail logs (永続保持のためTerraform管理外)
+data "aws_s3_bucket" "cloudtrail_logs" {
+  bucket = "${var.project_name}-cloudtrail-logs"
 }
 
 data "aws_iam_policy_document" "cloudtrail_logs" {
@@ -36,7 +15,7 @@ data "aws_iam_policy_document" "cloudtrail_logs" {
       identifiers = ["cloudtrail.amazonaws.com"]
     }
     actions   = ["s3:GetBucketAcl"]
-    resources = [aws_s3_bucket.cloudtrail_logs.arn]
+    resources = [data.aws_s3_bucket.cloudtrail_logs.arn]
   }
 
   statement {
@@ -47,7 +26,7 @@ data "aws_iam_policy_document" "cloudtrail_logs" {
       identifiers = ["cloudtrail.amazonaws.com"]
     }
     actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.cloudtrail_logs.arn}/*"]
+    resources = ["${data.aws_s3_bucket.cloudtrail_logs.arn}/*"]
     condition {
       test     = "StringEquals"
       variable = "s3:x-amz-acl"
@@ -63,14 +42,14 @@ data "aws_iam_policy_document" "cloudtrail_logs" {
       identifiers = ["cloudtrail.amazonaws.com"]
     }
     actions   = ["s3:ListBucket"]
-    resources = [aws_s3_bucket.cloudtrail_logs.arn]
+    resources = [data.aws_s3_bucket.cloudtrail_logs.arn]
   }
 }
 
 # CloudTrail
 resource "aws_cloudtrail" "main" {
   name           = "${var.project_name}-terraform-trail"
-  s3_bucket_name = aws_s3_bucket.cloudtrail_logs.bucket
+  s3_bucket_name = data.aws_s3_bucket.cloudtrail_logs.bucket
 
   include_global_service_events = true
   is_multi_region_trail        = true
