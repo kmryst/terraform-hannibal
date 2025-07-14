@@ -46,8 +46,15 @@ data "aws_iam_policy_document" "cloudtrail_logs" {
   }
 }
 
+# S3 Bucket Policy for CloudTrail
+resource "aws_s3_bucket_policy" "cloudtrail_logs" {
+  bucket = data.aws_s3_bucket.cloudtrail_logs.id
+  policy = data.aws_iam_policy_document.cloudtrail_logs.json
+}
+
 # CloudTrail
 resource "aws_cloudtrail" "main" {
+  depends_on = [aws_s3_bucket_policy.cloudtrail_logs]
   name           = "${var.project_name}-terraform-trail"
   s3_bucket_name = data.aws_s3_bucket.cloudtrail_logs.bucket
 
