@@ -116,7 +116,7 @@ TerraformやGitHub ActionsのCI/CDを初めてセットアップする際、IAM�
      ```
 3. **カスタムポリシーがアタッチできたら、S3FullAccessとIAMFullAccessはデタッチ**
    - カスタムポリシーに必要な権限がすべて含まれているため、不要な権限は外してください。
-4. **その後、GitHub Actions（deploy.yml）を実行**
+4. **GitHub Actions（deploy.yml）を実行**
 
 > ※この手順を踏むことで、初回セットアップ時の権限エラーを防ぎ、安全にTerraform/IaC運用を開始できます。
 

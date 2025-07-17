@@ -202,6 +202,13 @@ jobs:
         # ファイルに保存しておくことで「別ディレクトリのTerraform」や「jqコマンド」などでも値を使い回せる
         working-directory: ./terraform/backend
 
+      - name: Create Access Analyzer (IAM Policy Analysis)
+        run: |
+          echo "🔍 Creating Access Analyzer for continuous IAM policy monitoring..."
+          terraform apply -target="aws_accessanalyzer_analyzer.main" -auto-approve -var="client_url_for_cors="
+          echo "✅ Access Analyzer created - IAM usage monitoring active"
+        working-directory: ./terraform/backend
+
       - name: Terraform Init (Frontend)
         id: init-frontend
         run: yes | terraform init
