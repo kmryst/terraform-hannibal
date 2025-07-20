@@ -222,8 +222,21 @@ resource "aws_iam_policy" "hannibal_core_policy" {
         ]
         Resource = [
           "arn:aws:s3:::nestjs-hannibal-3-terraform-state",
-          "arn:aws:s3:::nestjs-hannibal-3-terraform-state/*"
+          "arn:aws:s3:::nestjs-hannibal-3-terraform-state/*",
+          "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs",
+          "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs/*"
         ]
+      },
+      {
+        # EC2権限（VPC情報取得用）
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeVpcs",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeNetworkInterfaces"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -410,15 +423,19 @@ resource "aws_iam_policy" "hannibal_infrastructure_policy" {
         Resource = "*"
       },
       {
-        # 他のロールへのAssumeRole権限（GitHub Actions用）
+        # S3 Terraform Stateファイルアクセス権限
         Effect = "Allow"
         Action = [
-          "sts:AssumeRole"
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
         ]
         Resource = [
-          "arn:aws:iam::258632448142:role/HannibalCoreRole",
-          "arn:aws:iam::258632448142:role/HannibalMonitoringRole",
-          "arn:aws:iam::258632448142:role/HannibalSecurityRole"
+          "arn:aws:s3:::nestjs-hannibal-3-terraform-state",
+          "arn:aws:s3:::nestjs-hannibal-3-terraform-state/*",
+          "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs",
+          "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs/*"
         ]
       }
     ]
@@ -514,6 +531,22 @@ resource "aws_iam_policy" "hannibal_monitoring_policy" {
           "ses:ListIdentities"
         ]
         Resource = "*"
+      },
+      {
+        # S3 Terraform Stateファイルアクセス権限
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::nestjs-hannibal-3-terraform-state",
+          "arn:aws:s3:::nestjs-hannibal-3-terraform-state/*",
+          "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs",
+          "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs/*"
+        ]
       }
     ]
   })
@@ -586,6 +619,22 @@ resource "aws_iam_policy" "hannibal_security_policy" {
           "access-analyzer:GetFinding"
         ]
         Resource = "*"
+      },
+      {
+        # S3 Terraform Stateファイルアクセス権限
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::nestjs-hannibal-3-terraform-state",
+          "arn:aws:s3:::nestjs-hannibal-3-terraform-state/*",
+          "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs",
+          "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs/*"
+        ]
       }
     ]
   })
