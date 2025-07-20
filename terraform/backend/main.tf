@@ -64,10 +64,27 @@ resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
 
 # dataソースではなく直接ユーザー名を指定（iam:GetUser権限不要）
 
-# --- IAM Custom Policy (権限統合) ---
-resource "aws_iam_policy" "hannibal_terraform_policy" {
-  name        = "HannibalInfraAdminPolicy"
-  description = "Custom policy for Terraform ECS deployment - ECR, CloudWatch, ELB, EC2, ECS, IAM, S3, CloudFront permissions"
+# --- A. Core Policy（コア権限）---
+resource "aws_iam_role" "hannibal_core_role" {
+  name = "HannibalCoreRole"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::258632448142:user/hannibal"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "hannibal_core_policy" {
+  name        = "HannibalCorePolicy"
+  description = "Core permissions - ECS/ECR operations, CloudWatch Logs, IAM basic operations"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -121,58 +138,6 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "logs:FilterLogEvents", # ローカル確認専用: ログをフィルタリング
           # GitHub Actions用の追加権限
           "logs:ListTagsForResource"
-        ]
-        Resource = "*"
-      },
-      {
-        # ELB権限 (Load Balancer管理)
-        Effect = "Allow"
-        Action = [
-          "elasticloadbalancing:CreateLoadBalancer",
-          "elasticloadbalancing:CreateTargetGroup",
-          "elasticloadbalancing:CreateListener",
-          "elasticloadbalancing:ModifyListener", # ALB Listener設定変更用（503エラー修正対応）
-          "elasticloadbalancing:DescribeLoadBalancers",
-          "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeListeners",
-          "elasticloadbalancing:ModifyLoadBalancerAttributes",
-          "elasticloadbalancing:ModifyTargetGroupAttributes",
-          "elasticloadbalancing:DeleteLoadBalancer",
-          "elasticloadbalancing:DeleteTargetGroup",
-          "elasticloadbalancing:DeleteListener",
-          "elasticloadbalancing:AddTags",
-          "elasticloadbalancing:RemoveTags",
-          "elasticloadbalancing:DescribeTargetHealth", # ローカル確認専用: ALBターゲットヘルス確認
-          # GitHub Actions用の追加権限
-          "elbv2:DescribeLoadBalancers",
-          "elbv2:DeleteLoadBalancer",
-          "elbv2:DescribeTargetGroups",
-          "elbv2:DeleteTargetGroup",
-          "elbv2:DescribeTargetHealth", # ローカル確認専用: ALBターゲットヘルス確認（v2 API）
-          "elasticloadbalancing:DescribeLoadBalancerAttributes",
-          "elasticloadbalancing:DescribeTargetGroupAttributes",
-          "elasticloadbalancing:DescribeTags",
-          "elasticloadbalancing:DescribeListenerAttributes"
-        ]
-        Resource = "*"
-      },
-      {
-        # EC2権限 (VPC, Subnet, SG, ENI)
-        Effect = "Allow"
-        Action = [
-          "ec2:Describe*",
-          "ec2:CreateNetworkInterface",
-          "ec2:DeleteNetworkInterface",
-          "ec2:AssociateAddress",
-          "ec2:DisassociateAddress",
-          # GitHub Actions用の追加権限
-          "ec2:CreateSecurityGroup",
-          "ec2:DeleteSecurityGroup",
-          "ec2:AuthorizeSecurityGroupIngress",
-          "ec2:AuthorizeSecurityGroupEgress",
-          "ec2:RevokeSecurityGroupIngress",
-          "ec2:RevokeSecurityGroupEgress",
-          "ec2:CreateTags"
         ]
         Resource = "*"
       },
@@ -233,6 +198,93 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "iam:DeleteRolePolicy"
         ]
         Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "hannibal_core_policy_attachment" {
+  role       = aws_iam_role.hannibal_core_role.name
+  policy_arn = aws_iam_policy.hannibal_core_policy.arn
+}
+
+# --- B. Infrastructure Policy（インフラ権限）---
+resource "aws_iam_role" "hannibal_infrastructure_role" {
+  name = "HannibalInfrastructureRole"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::258632448142:user/hannibal"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "hannibal_infrastructure_policy" {
+  name        = "HannibalInfrastructurePolicy"
+  description = "Infrastructure permissions - VPC/EC2/ELB/Route53, S3 bucket management, RDS management"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        # ELB権限 (Load Balancer管理)
+        Effect = "Allow"
+        Action = [
+          "elasticloadbalancing:CreateLoadBalancer",
+          "elasticloadbalancing:CreateTargetGroup",
+          "elasticloadbalancing:CreateListener",
+          "elasticloadbalancing:ModifyListener", # ALB Listener設定変更用（503エラー修正対応）
+          "elasticloadbalancing:DescribeLoadBalancers",
+          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeListeners",
+          "elasticloadbalancing:ModifyLoadBalancerAttributes",
+          "elasticloadbalancing:ModifyTargetGroupAttributes",
+          "elasticloadbalancing:DeleteLoadBalancer",
+          "elasticloadbalancing:DeleteTargetGroup",
+          "elasticloadbalancing:DeleteListener",
+          "elasticloadbalancing:AddTags",
+          "elasticloadbalancing:RemoveTags",
+          "elasticloadbalancing:DescribeTargetHealth", # ローカル確認専用: ALBターゲットヘルス確認
+          # GitHub Actions用の追加権限
+          "elbv2:DescribeLoadBalancers",
+          "elbv2:DeleteLoadBalancer",
+          "elbv2:DescribeTargetGroups",
+          "elbv2:DeleteTargetGroup",
+          "elbv2:DescribeTargetHealth", # ローカル確認専用: ALBターゲットヘルス確認（v2 API）
+          "elasticloadbalancing:DescribeLoadBalancerAttributes",
+          "elasticloadbalancing:DescribeTargetGroupAttributes",
+          "elasticloadbalancing:DescribeTags",
+          "elasticloadbalancing:DescribeListenerAttributes",
+          "elasticloadbalancing:DescribeLoadBalancerAttributes"
+        ]
+        Resource = "*"
+      },
+      {
+        # EC2権限 (VPC, Subnet, SG, ENI)
+        Effect = "Allow"
+        Action = [
+          "ec2:Describe*",
+          "ec2:CreateNetworkInterface",
+          "ec2:DeleteNetworkInterface",
+          "ec2:AssociateAddress",
+          "ec2:DisassociateAddress",
+          # GitHub Actions用の追加権限
+          "ec2:CreateSecurityGroup",
+          "ec2:DeleteSecurityGroup",
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupEgress",
+          "ec2:CreateTags"
+        ]
+        Resource = "*"
       },
       {
         # S3バケット・オブジェクト操作権限
@@ -251,7 +303,21 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "s3:GetBucketPublicAccessBlock",
           "s3:GetObjectTagging",
           "s3:PutObjectTagging",
-          "s3:DeleteBucketPolicy"
+          "s3:DeleteBucketPolicy",
+          "s3:GetAccelerateConfiguration",
+          "s3:GetBucketAcl",
+          "s3:GetBucketCors",
+          "s3:GetBucketEncryption",
+          "s3:GetBucketLifecycle",
+          "s3:GetBucketLogging",
+          "s3:GetBucketObjectLockConfiguration",
+          "s3:GetBucketReplication",
+          "s3:GetBucketRequestPayment",
+          "s3:GetBucketTagging",
+          "s3:GetBucketVersioning",
+          "s3:GetBucketWebsite",
+          "s3:PutBucketTagging",
+          "s3:PutBucketVersioning"
         ]
         Resource = [
           "arn:aws:s3:::*",
@@ -278,20 +344,6 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "cloudfront:TagResource",
           "cloudfront:UntagResource",
           "cloudfront:ListTagsForResource"
-        ]
-        Resource = "*"
-      },
-      {
-        # ACM証明書管理権限（独自ドメイン用）
-        Effect = "Allow"
-        Action = [
-          "acm:RequestCertificate",
-          "acm:DescribeCertificate",
-          "acm:ListCertificates",
-          "acm:DeleteCertificate",
-          "acm:AddTagsToCertificate",
-          "acm:ListTagsForCertificate",
-          "acm:RemoveTagsFromCertificate"
         ]
         Resource = "*"
       },
@@ -327,7 +379,41 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "rds:RestoreDBInstanceFromDBSnapshot"
         ]
         Resource = "*"
-      },
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "hannibal_infrastructure_policy_attachment" {
+  role       = aws_iam_role.hannibal_infrastructure_role.name
+  policy_arn = aws_iam_policy.hannibal_infrastructure_policy.arn
+}
+
+# --- C. Monitoring Policy（監視権限）---
+resource "aws_iam_role" "hannibal_monitoring_role" {
+  name = "HannibalMonitoringRole"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::258632448142:user/hannibal"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "hannibal_monitoring_policy" {
+  name        = "HannibalMonitoringPolicy"
+  description = "Monitoring permissions - CloudWatch Metrics/Alarms/Dashboard, SNS notifications, CloudTrail"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
       {
         # CloudWatch Alarms権限（監視・アラート）
         Effect = "Allow"
@@ -355,7 +441,33 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
           "cloudwatch:PutDashboard",
           "cloudwatch:DeleteDashboards",
           "cloudwatch:ListDashboards",
-          "cloudwatch:GetDashboard"
+          "cloudwatch:GetDashboard",
+          "cloudwatch:ListTagsForResource"
+        ]
+        Resource = "*"
+      },
+      {
+        # CloudTrail権限（監査ログ）
+        Effect = "Allow"
+        Action = [
+          "cloudtrail:CreateTrail",
+          "cloudtrail:DeleteTrail",
+          "cloudtrail:DescribeTrails",
+          "cloudtrail:GetEventSelectors",
+          "cloudtrail:GetTrailStatus",
+          "cloudtrail:ListTags",
+          "cloudtrail:LookupEvents",
+          "cloudtrail:PutEventSelectors",
+          "cloudtrail:StartLogging"
+        ]
+        Resource = "*"
+      },
+      {
+        # SES権限（メール送信）
+        Effect = "Allow"
+        Action = [
+          "ses:GetSendQuota",
+          "ses:ListIdentities"
         ]
         Resource = "*"
       }
@@ -363,9 +475,105 @@ resource "aws_iam_policy" "hannibal_terraform_policy" {
   })
 }
 
-resource "aws_iam_user_policy_attachment" "hannibal_terraform_policy" {
+resource "aws_iam_role_policy_attachment" "hannibal_monitoring_policy_attachment" {
+  role       = aws_iam_role.hannibal_monitoring_role.name
+  policy_arn = aws_iam_policy.hannibal_monitoring_policy.arn
+}
+
+# --- D. Security Policy（セキュリティ権限）---
+resource "aws_iam_role" "hannibal_security_role" {
+  name = "HannibalSecurityRole"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::258632448142:user/hannibal"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "hannibal_security_policy" {
+  name        = "HannibalSecurityPolicy"
+  description = "Security permissions - ACM certificate management, KMS encryption, Access Analyzer"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        # ACM証明書管理権限（独自ドメイン用）
+        Effect = "Allow"
+        Action = [
+          "acm:RequestCertificate",
+          "acm:DescribeCertificate",
+          "acm:ListCertificates",
+          "acm:DeleteCertificate",
+          "acm:AddTagsToCertificate",
+          "acm:ListTagsForCertificate",
+          "acm:RemoveTagsFromCertificate"
+        ]
+        Resource = "*"
+      },
+      {
+        # KMS権限（暗号化）
+        Effect = "Allow"
+        Action = [
+          "kms:CreateGrant",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      },
+      {
+        # Access Analyzer権限（権限分析）
+        Effect = "Allow"
+        Action = [
+          "access-analyzer:CreateAnalyzer",
+          "access-analyzer:DeleteAnalyzer",
+          "access-analyzer:GetAnalyzer",
+          "access-analyzer:ListFindings",
+          "access-analyzer:GetFinding"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "hannibal_security_policy_attachment" {
+  role       = aws_iam_role.hannibal_security_role.name
+  policy_arn = aws_iam_policy.hannibal_security_policy.arn
+}
+
+# --- hannibalユーザーにAssumeRole権限のみをアタッチ ---
+resource "aws_iam_policy" "hannibal_assume_role_policy" {
+  name        = "HannibalAssumeRolePolicy"
+  description = "Allow hannibal user to assume specific roles"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "sts:AssumeRole"
+        Resource = [
+          aws_iam_role.hannibal_core_role.arn,
+          aws_iam_role.hannibal_infrastructure_role.arn,
+          aws_iam_role.hannibal_monitoring_role.arn,
+          aws_iam_role.hannibal_security_role.arn
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_user_policy_attachment" "hannibal_assume_role_policy_attachment" {
   user       = "hannibal" # 直接ユーザー名を指定
-  policy_arn = aws_iam_policy.hannibal_terraform_policy.arn
+  policy_arn = aws_iam_policy.hannibal_assume_role_policy.arn
 }
 
 # --- 既存のマネージドポリシーは不要になったため削除 ---

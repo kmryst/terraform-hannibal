@@ -9,8 +9,11 @@
 # 3. CloudFront OAC
 # aws cloudfront create-origin-access-control --name nestjs-hannibal-3-oac --origin-access-control-origin-type s3 --signing-behavior always --signing-protocol sigv4 --region us-east-1
 #
-# 4. カスタムIAMポリシー適用
-# cd terraform/backend && terraform apply -target="aws_iam_policy.hannibal_terraform_policy" -target="aws_iam_user_policy_attachment.hannibal_terraform_policy" -auto-approve
+# 4. 一時的権限でIAMロール・ポリシー作成のみ
+# AWSコンソールでhannibalにS3FullAccess・IAMFullAccessを一時アタッチ
+# 4つのロール・ポリシー・アタッチメント + hannibalユーザーのAssumeRole権限のみ作成
+# cd terraform/backend && terraform apply -target="aws_iam_role.hannibal_core_role" -target="aws_iam_policy.hannibal_core_policy" -target="aws_iam_role_policy_attachment.hannibal_core_policy_attachment" -target="aws_iam_role.hannibal_infrastructure_role" -target="aws_iam_policy.hannibal_infrastructure_policy" -target="aws_iam_role_policy_attachment.hannibal_infrastructure_policy_attachment" -target="aws_iam_role.hannibal_monitoring_role" -target="aws_iam_policy.hannibal_monitoring_policy" -target="aws_iam_role_policy_attachment.hannibal_monitoring_policy_attachment" -target="aws_iam_role.hannibal_security_role" -target="aws_iam_policy.hannibal_security_policy" -target="aws_iam_role_policy_attachment.hannibal_security_policy_attachment" -target="aws_iam_policy.hannibal_assume_role_policy" -target="aws_iam_user_policy_attachment.hannibal_assume_role_policy_attachment" -auto-approve
+# AWSコンソールで一時権限を削除（AssumeRoleポリシーのみ残る）
 #
 # 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
 
@@ -82,6 +85,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
+      - name: Assume Core Role
+        run: |
+          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole --role-session-name github-actions-core)
+          echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $CORE_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $CORE_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -90,6 +99,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
         # apt-get は「Advanced Package Tool」の略で、Debian系Linux（Ubuntuなど）で使われるパッケージ管理コマンドです
 
+      - name: Assume Infrastructure Role for Cleanup
+        run: |
+          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole --role-session-name github-actions-infra)
+          echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
       # 既存リソースの削除（リソース競合エラー回避）
       # 📝 注意: ECRリポジトリは手動作成済みのため削除しません
       - name: Clean up existing AWS resources
@@ -182,6 +197,12 @@ jobs:
 
           echo "Cleanup completed (errors are expected if resources don't exist)"
         continue-on-error: true
+      - name: Assume Core Role for Backend
+        run: |
+          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole --role-session-name github-actions-backend)
+          echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $CORE_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $CORE_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
       - name: Terraform Init (Backend)
         id: init-backend
         run: yes | terraform init
@@ -202,6 +223,12 @@ jobs:
         # ファイルに保存しておくことで「別ディレクトリのTerraform」や「jqコマンド」などでも値を使い回せる
         working-directory: ./terraform/backend
 
+      - name: Assume Security Role for Access Analyzer
+        run: |
+          SECURITY_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalSecurityRole --role-session-name github-actions-security)
+          echo "AWS_ACCESS_KEY_ID=$(echo $SECURITY_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $SECURITY_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $SECURITY_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
       - name: Create Access Analyzer (IAM Policy Analysis)
         run: |
           echo "🔍 Creating Access Analyzer for continuous IAM policy monitoring..."
@@ -209,6 +236,12 @@ jobs:
           echo "✅ Access Analyzer created - IAM usage monitoring active"
         working-directory: ./terraform/backend
 
+      - name: Assume Infrastructure Role for Frontend
+        run: |
+          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole --role-session-name github-actions-frontend)
+          echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
       - name: Terraform Init (Frontend)
         id: init-frontend
         run: yes | terraform init
@@ -270,6 +303,12 @@ jobs:
         run: |
           sed -i "s|^VITE_GRAPHQL_ENDPOINT=.*$|VITE_GRAPHQL_ENDPOINT=https://hamilcar-hannibal.click/api/graphql|" client/.env.production
 
+      - name: Assume Core Role for CORS Update
+        run: |
+          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole --role-session-name github-actions-cors)
+          echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $CORE_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $CORE_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
       # CloudFrontドメイン名をCORS用にbackendへ再適用
       - name: Terraform Apply (Backend, CORS Update)
         id: apply-backend-cors
