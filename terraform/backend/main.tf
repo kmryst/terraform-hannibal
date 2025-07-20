@@ -239,18 +239,7 @@ resource "aws_iam_policy" "hannibal_core_policy" {
         ]
         Resource = "*"
       },
-      {
-        # ECS Service作成時に必要な他リソース参照権限
-        Effect = "Allow"
-        Action = [
-          "elasticloadbalancing:DescribeLoadBalancers",
-          "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeListeners",
-          "rds:DescribeDBInstances",
-          "rds:DescribeDBSubnetGroups"
-        ]
-        Resource = "*"
-      }
+
     ]
   })
 }
