@@ -94,14 +94,14 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
         # apt-get は「Advanced Package Tool」の略で、Debian系Linux（Ubuntuなど）で使われるパッケージ管理コマンドです
 
+      # 既存リソースの削除（リソース競合エラー回避）
+      # 📝 注意: ECRリポジトリは手動作成済みのため削除しません
       - name: Assume Infrastructure Role for Cleanup
         run: |
           INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole --role-session-name github-actions-infra)
           echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
-      # 既存リソースの削除（リソース競合エラー回避）
-      # 📝 注意: ECRリポジトリは手動作成済みのため削除しません
       - name: Clean up existing AWS resources
         run: |
           echo "Cleaning up existing AWS resources to avoid conflicts..."
@@ -193,6 +193,10 @@ jobs:
           echo "Cleanup completed (errors are expected if resources don't exist)"
         continue-on-error: true
       - name: Assume Core Role for Backend
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ""
         run: |
           CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole --role-session-name github-actions-backend)
           echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
@@ -219,6 +223,10 @@ jobs:
         working-directory: ./terraform/backend
 
       - name: Assume Security Role for Access Analyzer
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ""
         run: |
           SECURITY_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalSecurityRole --role-session-name github-actions-security)
           echo "AWS_ACCESS_KEY_ID=$(echo $SECURITY_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
@@ -232,6 +240,10 @@ jobs:
         working-directory: ./terraform/backend
 
       - name: Assume Infrastructure Role for Frontend
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ""
         run: |
           INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole --role-session-name github-actions-frontend)
           echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
@@ -299,6 +311,10 @@ jobs:
           sed -i "s|^VITE_GRAPHQL_ENDPOINT=.*$|VITE_GRAPHQL_ENDPOINT=https://hamilcar-hannibal.click/api/graphql|" client/.env.production
 
       - name: Assume Core Role for CORS Update
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ""
         run: |
           CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole --role-session-name github-actions-cors)
           echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV

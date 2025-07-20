@@ -394,6 +394,18 @@ resource "aws_iam_policy" "hannibal_infrastructure_policy" {
           "rds:RestoreDBInstanceFromDBSnapshot"
         ]
         Resource = "*"
+      },
+      {
+        # 他のロールへのAssumeRole権限（GitHub Actions用）
+        Effect = "Allow"
+        Action = [
+          "sts:AssumeRole"
+        ]
+        Resource = [
+          "arn:aws:iam::258632448142:role/HannibalCoreRole",
+          "arn:aws:iam::258632448142:role/HannibalMonitoringRole",
+          "arn:aws:iam::258632448142:role/HannibalSecurityRole"
+        ]
       }
     ]
   })
