@@ -239,6 +239,22 @@ resource "aws_iam_policy" "hannibal_core_policy" {
         ]
         Resource = "*"
       },
+      {
+        # Terraform State Refresh用参照権限
+        Effect = "Allow"
+        Action = [
+          "elasticloadbalancing:DescribeLoadBalancers",
+          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeListeners",
+          "rds:DescribeDBInstances",
+          "rds:DescribeDBSubnetGroups",
+          "cloudwatch:DescribeAlarms",
+          "sns:ListTopics",
+          "sns:GetTopicAttributes",
+          "cloudtrail:DescribeTrails"
+        ]
+        Resource = "*"
+      },
 
     ]
   })
