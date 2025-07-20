@@ -192,68 +192,75 @@ jobs:
 
           echo "Cleanup completed (errors are expected if resources don't exist)"
         continue-on-error: true
-      - name: Assume Core Role for Backend
+      # === STAGE 1: Core Resources (ECS/ECR/IAM/Logs) ===
+      - name: Assume Core Role
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ""
         run: |
-          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole --role-session-name github-actions-backend)
+          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole --role-session-name github-actions-core)
           echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CORE_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CORE_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
       - name: Terraform Init (Backend)
-        id: init-backend
         run: yes | terraform init
         working-directory: ./terraform/backend
-      - name: Terraform Plan (Backend)
-        id: plan-backend
-        run: terraform plan -no-color -var="client_url_for_cors="
-        # -no-color は、Terraformの出力を「色なし（白黒）」にしてログを見やすくするオプションです
-        # -var="client_url_for_cors="  terraform/backend/main.ts の変数 client_url_for_cors に空文字列を渡している指定です。これにより、CORS設定用のクライアントURLが一時的に未設定の状態で terraform plan を実行できます
-        working-directory: ./terraform/backend
-        continue-on-error: true
-      - name: Terraform Apply (Backend Core Resources)
-        id: apply-backend-core
+      - name: Deploy Core Resources
         run: |
-          # Core resources only (ECS, ECR, IAM, Logs)
           terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
             -target="aws_ecr_lifecycle_policy.nestjs_hannibal_3_policy" \
             -target="aws_iam_role.ecs_task_execution_role" \
             -target="aws_iam_role_policy_attachment.ecs_task_execution_role_policy" \
             -target="aws_ecs_cluster.main" \
-            -target="aws_cloudwatch_log_group.ecs_api_task_logs" \
-            -target="aws_ecs_task_definition.api" \
-            -target="aws_ecs_service.api"
+            -target="aws_cloudwatch_log_group.ecs_api_task_logs"
         working-directory: ./terraform/backend
       
-      - name: Assume Infrastructure Role for Infrastructure Resources
+      # === STAGE 2: Infrastructure Resources (ALB/RDS/SecurityGroups) ===
+      - name: Assume Infrastructure Role
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ""
         run: |
-          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole --role-session-name github-actions-infra-backend)
+          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole --role-session-name github-actions-infra)
           echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
-      
-      - name: Terraform Apply (Infrastructure Resources)
+      - name: Deploy Infrastructure Resources
         run: |
-          # Infrastructure resources (ALB, RDS, Security Groups, S3 Bucket Policy)
           terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
-            -target="aws_lb.main" \
-            -target="aws_lb_target_group.api" \
-            -target="aws_lb_listener.http" \
             -target="aws_security_group.alb_sg" \
             -target="aws_security_group.ecs_service_sg" \
             -target="aws_security_group.rds_sg" \
+            -target="aws_lb_target_group.api" \
+            -target="aws_lb.main" \
+            -target="aws_lb_listener.http" \
             -target="aws_db_subnet_group.postgres" \
             -target="aws_db_instance.postgres" \
             -target="aws_s3_bucket_policy.cloudtrail_logs"
         working-directory: ./terraform/backend
       
-      - name: Assume Monitoring Role for Monitoring Resources
+      # === STAGE 3: ECS Service (requires ALB) ===
+      - name: Assume Core Role for ECS Service
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ""
+        run: |
+          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole --role-session-name github-actions-core-ecs)
+          echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $CORE_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $CORE_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+      - name: Deploy ECS Service
+        run: |
+          terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
+            -target="aws_ecs_task_definition.api" \
+            -target="aws_ecs_service.api"
+        working-directory: ./terraform/backend
+      
+      # === STAGE 4: Monitoring Resources ===
+      - name: Assume Monitoring Role
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -263,10 +270,8 @@ jobs:
           echo "AWS_ACCESS_KEY_ID=$(echo $MONITORING_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $MONITORING_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $MONITORING_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
-      
-      - name: Terraform Apply (Monitoring Resources)
+      - name: Deploy Monitoring Resources
         run: |
-          # Monitoring resources (CloudWatch, SNS, CloudTrail)
           terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
             -target="aws_sns_topic.alerts" \
             -target="aws_sns_topic_subscription.email_alerts" \
@@ -281,6 +286,7 @@ jobs:
             -target="aws_cloudtrail.main"
           terraform output -json > ../tf_outputs_backend.json
         working-directory: ./terraform/backend
+
 
       - name: Assume Security Role for Access Analyzer
         env:
