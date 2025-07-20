@@ -232,6 +232,7 @@ resource "aws_iam_policy" "hannibal_core_policy" {
         Effect = "Allow"
         Action = [
           "ec2:DescribeVpcs",
+          "ec2:DescribeVpcAttribute",
           "ec2:DescribeSubnets",
           "ec2:DescribeSecurityGroups",
           "ec2:DescribeNetworkInterfaces"
@@ -317,6 +318,7 @@ resource "aws_iam_policy" "hannibal_infrastructure_policy" {
           "ec2:DeleteNetworkInterface",
           "ec2:AssociateAddress",
           "ec2:DisassociateAddress",
+          "ec2:DescribeRouteTables",
           # GitHub Actions用の追加権限
           "ec2:CreateSecurityGroup",
           "ec2:DeleteSecurityGroup",
