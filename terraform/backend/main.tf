@@ -210,6 +210,20 @@ resource "aws_iam_policy" "hannibal_core_policy" {
           "arn:aws:iam::258632448142:role/HannibalMonitoringRole",
           "arn:aws:iam::258632448142:role/HannibalSecurityRole"
         ]
+      },
+      {
+        # S3 Terraform Stateファイルアクセス権限
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::nestjs-hannibal-3-terraform-state",
+          "arn:aws:s3:::nestjs-hannibal-3-terraform-state/*"
+        ]
       }
     ]
   })
