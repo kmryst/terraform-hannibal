@@ -440,6 +440,24 @@ resource "aws_iam_policy" "hannibal_infrastructure_policy" {
           "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs",
           "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs/*"
         ]
+      },
+      {
+        # Cross-Role Dependencies: Core領域の参照権限
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole",
+          "iam:ListAttachedRolePolicies",
+          "ecs:DescribeClusters",
+          "ecs:DescribeServices",
+          "ecs:DescribeTaskDefinition",
+          "logs:DescribeLogGroups"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:RequestedRegion" = "ap-northeast-1"
+          }
+        }
       }
     ]
   })
