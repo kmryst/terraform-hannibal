@@ -198,6 +198,18 @@ resource "aws_iam_policy" "hannibal_core_policy" {
           "iam:DeleteRolePolicy"
         ]
         Resource = "*"
+      },
+      {
+        # 他のロールへのAssumeRole権限（GitHub Actions用）
+        Effect = "Allow"
+        Action = [
+          "sts:AssumeRole"
+        ]
+        Resource = [
+          "arn:aws:iam::258632448142:role/HannibalInfrastructureRole",
+          "arn:aws:iam::258632448142:role/HannibalMonitoringRole",
+          "arn:aws:iam::258632448142:role/HannibalSecurityRole"
+        ]
       }
     ]
   })
@@ -219,7 +231,10 @@ resource "aws_iam_role" "hannibal_infrastructure_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::258632448142:user/hannibal"
+          AWS = [
+            "arn:aws:iam::258632448142:user/hannibal",
+            "arn:aws:iam::258632448142:role/HannibalCoreRole"
+          ]
         }
       }
     ]
@@ -400,7 +415,10 @@ resource "aws_iam_role" "hannibal_monitoring_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::258632448142:user/hannibal"
+          AWS = [
+            "arn:aws:iam::258632448142:user/hannibal",
+            "arn:aws:iam::258632448142:role/HannibalCoreRole"
+          ]
         }
       }
     ]
@@ -491,7 +509,10 @@ resource "aws_iam_role" "hannibal_security_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::258632448142:user/hannibal"
+          AWS = [
+            "arn:aws:iam::258632448142:user/hannibal",
+            "arn:aws:iam::258632448142:role/HannibalCoreRole"
+          ]
         }
       }
     ]
