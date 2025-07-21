@@ -199,18 +199,7 @@ resource "aws_iam_policy" "hannibal_core_policy" {
         ]
         Resource = "*"
       },
-      {
-        # 他のロールへのAssumeRole権限（GitHub Actions用）
-        Effect = "Allow"
-        Action = [
-          "sts:AssumeRole"
-        ]
-        Resource = [
-          "arn:aws:iam::258632448142:role/HannibalInfrastructureRole",
-          "arn:aws:iam::258632448142:role/HannibalMonitoringRole",
-          "arn:aws:iam::258632448142:role/HannibalSecurityRole"
-        ]
-      },
+
       {
         # S3 Terraform Stateファイルアクセス権限
         Effect = "Allow"
@@ -228,18 +217,30 @@ resource "aws_iam_policy" "hannibal_core_policy" {
         ]
       },
       {
-        # EC2権限（VPC情報取得用）
+        # EC2権限（開発環境用・広めの権限）
         Effect = "Allow"
         Action = [
-          "ec2:DescribeVpcs",
-          "ec2:DescribeVpcAttribute",
-          "ec2:DescribeSubnets",
-          "ec2:DescribeSecurityGroups",
-          "ec2:DescribeNetworkInterfaces"
+          "ec2:*"
         ]
         Resource = "*"
       },
-
+      {
+        # ELB権限（開発環境用・広めの権限）
+        Effect = "Allow"
+        Action = [
+          "elasticloadbalancing:*",
+          "elbv2:*"
+        ]
+        Resource = "*"
+      },
+      {
+        # S3権限（開発環境用・広めの権限）
+        Effect = "Allow"
+        Action = [
+          "s3:*"
+        ]
+        Resource = "*"
+      }
     ]
   })
 }
@@ -260,10 +261,7 @@ resource "aws_iam_role" "hannibal_infrastructure_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          AWS = [
-            "arn:aws:iam::258632448142:user/hannibal",
-            "arn:aws:iam::258632448142:role/HannibalCoreRole"
-          ]
+          AWS = "arn:aws:iam::258632448142:user/hannibal"
         }
       }
     ]
@@ -442,22 +440,26 @@ resource "aws_iam_policy" "hannibal_infrastructure_policy" {
         ]
       },
       {
-        # Cross-Role Dependencies: Core領域の参照権限
+        # IAM権限（開発環境用・広めの権限）
         Effect = "Allow"
         Action = [
           "iam:GetRole",
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
           "iam:ListAttachedRolePolicies",
-          "ecs:DescribeClusters",
-          "ecs:DescribeServices",
-          "ecs:DescribeTaskDefinition",
-          "logs:DescribeLogGroups"
+          "iam:PassRole",
+          "iam:GetPolicy",
+          "iam:CreatePolicy",
+          "iam:DeletePolicy",
+          "iam:GetPolicyVersion",
+          "iam:ListRolePolicies",
+          "iam:GetRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy"
         ]
         Resource = "*"
-        Condition = {
-          StringEquals = {
-            "aws:RequestedRegion" = "ap-northeast-1"
-          }
-        }
       }
     ]
   })
@@ -479,10 +481,7 @@ resource "aws_iam_role" "hannibal_monitoring_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          AWS = [
-            "arn:aws:iam::258632448142:user/hannibal",
-            "arn:aws:iam::258632448142:role/HannibalCoreRole"
-          ]
+          AWS = "arn:aws:iam::258632448142:user/hannibal"
         }
       }
     ]
@@ -496,20 +495,9 @@ resource "aws_iam_policy" "hannibal_monitoring_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+
       {
-        # CloudWatch Alarms権限（監視・アラート）
-        Effect = "Allow"
-        Action = [
-          "cloudwatch:PutMetricAlarm",
-          "cloudwatch:DeleteAlarms",
-          "cloudwatch:DescribeAlarms",
-          "cloudwatch:ListMetrics",
-          "cloudwatch:GetMetricStatistics"
-        ]
-        Resource = "*"
-      },
-      {
-        # SNS権限（アラート通知） - 一時的に全権限
+        # SNS権限（開発環境用・広めの権限）
         Effect = "Allow"
         Action = [
           "sns:*"
@@ -517,33 +505,24 @@ resource "aws_iam_policy" "hannibal_monitoring_policy" {
         Resource = "*"
       },
       {
-        # CloudWatch Dashboard権限（監視ダッシュボード）
+        # CloudWatch権限（開発環境用・広めの権限）
         Effect = "Allow"
         Action = [
-          "cloudwatch:PutDashboard",
-          "cloudwatch:DeleteDashboards",
-          "cloudwatch:ListDashboards",
-          "cloudwatch:GetDashboard",
-          "cloudwatch:ListTagsForResource"
+          "cloudwatch:*",
+          "logs:*"
         ]
         Resource = "*"
       },
       {
-        # CloudTrail権限（監査ログ）
+        # CloudTrail権限（開発環境用・広めの権限）
         Effect = "Allow"
         Action = [
-          "cloudtrail:CreateTrail",
-          "cloudtrail:DeleteTrail",
-          "cloudtrail:DescribeTrails",
-          "cloudtrail:GetEventSelectors",
-          "cloudtrail:GetTrailStatus",
-          "cloudtrail:ListTags",
-          "cloudtrail:LookupEvents",
-          "cloudtrail:PutEventSelectors",
-          "cloudtrail:StartLogging"
+          "cloudtrail:*"
         ]
         Resource = "*"
       },
+
+
       {
         # SES権限（メール送信）
         Effect = "Allow"
@@ -589,10 +568,7 @@ resource "aws_iam_role" "hannibal_security_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          AWS = [
-            "arn:aws:iam::258632448142:user/hannibal",
-            "arn:aws:iam::258632448142:role/HannibalCoreRole"
-          ]
+          AWS = "arn:aws:iam::258632448142:user/hannibal"
         }
       }
     ]
@@ -607,37 +583,13 @@ resource "aws_iam_policy" "hannibal_security_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        # ACM証明書管理権限（独自ドメイン用）
+        # セキュリティ権限（開発環境用・広めの権限）
         Effect = "Allow"
         Action = [
-          "acm:RequestCertificate",
-          "acm:DescribeCertificate",
-          "acm:ListCertificates",
-          "acm:DeleteCertificate",
-          "acm:AddTagsToCertificate",
-          "acm:ListTagsForCertificate",
-          "acm:RemoveTagsFromCertificate"
-        ]
-        Resource = "*"
-      },
-      {
-        # KMS権限（暗号化）
-        Effect = "Allow"
-        Action = [
-          "kms:CreateGrant",
-          "kms:DescribeKey"
-        ]
-        Resource = "*"
-      },
-      {
-        # Access Analyzer権限（権限分析）
-        Effect = "Allow"
-        Action = [
-          "access-analyzer:CreateAnalyzer",
-          "access-analyzer:DeleteAnalyzer",
-          "access-analyzer:GetAnalyzer",
-          "access-analyzer:ListFindings",
-          "access-analyzer:GetFinding"
+          "acm:*",
+          "kms:*",
+          "access-analyzer:*",
+          "iam:*"
         ]
         Resource = "*"
       },
