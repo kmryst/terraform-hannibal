@@ -72,7 +72,7 @@ jobs:
           # 1. ECSサービス削除（desired countを0にしてから削除）
           echo "🗑️ Cleaning up ECS service..."
           aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --desired-count 0 --region ap-northeast-1 2>/dev/null || true
-          sleep 10  # ECSタスクの停止完了を待つ
+          sleep 30  # ECSタスクの完全停止を待つ（企業レベル安定性確保）
           aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --force --region ap-northeast-1 2>/dev/null || true
 
           # 2. ECSクラスタ削除（サービス削除後に実行）
