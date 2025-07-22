@@ -513,6 +513,30 @@ resource "aws_iam_policy" "hannibal_infrastructure_policy_dev" {
           "iam:DeleteRolePolicy"
         ]
         Resource = "*"
+      },
+      {
+        # Access Analyzer権限（destroy用）
+        Effect = "Allow"
+        Action = [
+          "access-analyzer:GetAnalyzer",
+          "access-analyzer:DeleteAnalyzer",
+          "access-analyzer:CreateAnalyzer",
+          "access-analyzer:ListAnalyzers"
+        ]
+        Resource = "*"
+      },
+      {
+        # SNS権限（destroy用）
+        Effect = "Allow"
+        Action = [
+          "sns:GetTopicAttributes",
+          "sns:DeleteTopic",
+          "sns:CreateTopic",
+          "sns:ListTopics",
+          "sns:Subscribe",
+          "sns:Unsubscribe"
+        ]
+        Resource = "*"
       }
     ]
   })
