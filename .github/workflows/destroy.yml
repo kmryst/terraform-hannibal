@@ -4,7 +4,7 @@
 # これを行わないと循環参照エラーでdestroyに失敗します。
 # =============================
 
-name: 🗑️ Destroy AWS Infrastructure (Safe)
+name: 🗑️ Destroy AWS Infrastructure (Dev)
 
 on:
   workflow_dispatch: # 手動実行のみ
@@ -45,15 +45,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (Development)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           aws-region: ap-northeast-1
       - name: Assume Infrastructure Role for Cleanup
         run: |
-          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole --role-session-name github-actions-destroy)
+          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole-Dev --role-session-name github-actions-destroy)
           echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
@@ -171,7 +171,7 @@ jobs:
       - name: Assume Infrastructure Role for Frontend Destroy
         if: github.event.inputs.environment == 'frontend' || github.event.inputs.environment == 'all'
         run: |
-          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole --role-session-name github-actions-frontend-destroy)
+          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole-Dev --role-session-name github-actions-frontend-destroy)
           echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
@@ -189,7 +189,7 @@ jobs:
       - name: Assume Core Role for Backend Destroy
         if: github.event.inputs.environment == 'backend' || github.event.inputs.environment == 'all'
         run: |
-          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole --role-session-name github-actions-backend-destroy)
+          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole-Dev --role-session-name github-actions-backend-destroy)
           echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CORE_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CORE_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV

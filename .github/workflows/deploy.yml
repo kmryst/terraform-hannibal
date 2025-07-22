@@ -22,7 +22,7 @@
 
 # C:\code\javascript\nestjs-hannibal-3\.github\workflows\deploy.yml
 
-name: Deploy NestJS Hannibal App
+name: Deploy NestJS Hannibal App (Dev)
 
 # on: # ワークフローのトリガーを定義
 #   pull_request:
@@ -80,11 +80,11 @@ jobs:
       # - name: から始まる各ブロックが step です
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (Development)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           aws-region: ap-northeast-1
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -98,7 +98,7 @@ jobs:
       # 📝 注意: ECRリポジトリは手動作成済みのため削除しません
       - name: Assume Infrastructure Role for Cleanup
         run: |
-          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole --role-session-name github-actions-infra)
+          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole-Dev --role-session-name github-actions-infra)
           echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
@@ -195,11 +195,11 @@ jobs:
       # === STAGE 1: Core Resources (ECS/ECR/IAM/Logs) ===
       - name: Assume Core Role
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           AWS_SESSION_TOKEN: ""
         run: |
-          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole --role-session-name github-actions-core)
+          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole-Dev --role-session-name github-actions-core)
           echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CORE_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CORE_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
@@ -219,11 +219,11 @@ jobs:
       # === STAGE 2: Infrastructure Resources (ALB/RDS/SecurityGroups) ===
       - name: Assume Infrastructure Role
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           AWS_SESSION_TOKEN: ""
         run: |
-          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole --role-session-name github-actions-infra)
+          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole-Dev --role-session-name github-actions-infra)
           echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
@@ -252,11 +252,11 @@ jobs:
       # === STAGE 4: Monitoring Resources ===
       - name: Assume Monitoring Role
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           AWS_SESSION_TOKEN: ""
         run: |
-          MONITORING_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalMonitoringRole --role-session-name github-actions-monitoring)
+          MONITORING_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalMonitoringRole-Dev --role-session-name github-actions-monitoring)
           echo "AWS_ACCESS_KEY_ID=$(echo $MONITORING_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $MONITORING_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $MONITORING_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
@@ -280,11 +280,11 @@ jobs:
 
       - name: Assume Security Role for Access Analyzer
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           AWS_SESSION_TOKEN: ""
         run: |
-          SECURITY_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalSecurityRole --role-session-name github-actions-security)
+          SECURITY_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalSecurityRole-Dev --role-session-name github-actions-security)
           echo "AWS_ACCESS_KEY_ID=$(echo $SECURITY_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $SECURITY_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $SECURITY_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
@@ -297,11 +297,11 @@ jobs:
 
       - name: Assume Infrastructure Role for Frontend
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           AWS_SESSION_TOKEN: ""
         run: |
-          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole --role-session-name github-actions-frontend)
+          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole-Dev --role-session-name github-actions-frontend)
           echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
@@ -368,11 +368,11 @@ jobs:
 
       - name: Assume Core Role for CORS Update
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           AWS_SESSION_TOKEN: ""
         run: |
-          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole --role-session-name github-actions-cors)
+          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole-Dev --role-session-name github-actions-cors)
           echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CORE_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CORE_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
