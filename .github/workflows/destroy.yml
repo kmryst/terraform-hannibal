@@ -58,6 +58,16 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
+      - name: Cache Terraform
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            **/.terraform
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/*.tf') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -168,13 +178,7 @@ jobs:
           echo "✅ CLI cleanup completed - Terraform destroy can now proceed safely"
           echo "📋 CloudTrail logs preserved in S3 for security audit purposes"
 
-      - name: Assume Infrastructure Role for Frontend Destroy
-        if: github.event.inputs.environment == 'frontend' || github.event.inputs.environment == 'all'
-        run: |
-          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole-Dev --role-session-name github-actions-frontend-destroy)
-          echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+
       # フロントエンド削除
       - name: 🎨 Destroy Frontend Infrastructure
         if: github.event.inputs.environment == 'frontend' || github.event.inputs.environment == 'all'
@@ -186,13 +190,7 @@ jobs:
           echo "✅ Frontend infrastructure destroyed"
         working-directory: ./terraform/frontend
 
-      - name: Assume Core Role for Backend Destroy
-        if: github.event.inputs.environment == 'backend' || github.event.inputs.environment == 'all'
-        run: |
-          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole-Dev --role-session-name github-actions-backend-destroy)
-          echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $CORE_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $CORE_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+
       # バックエンド削除
       - name: 🔧 Destroy Backend Infrastructure
         if: github.event.inputs.environment == 'backend' || github.event.inputs.environment == 'all'
