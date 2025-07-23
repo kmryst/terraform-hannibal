@@ -48,15 +48,15 @@ jobs:
       - name: Configure AWS credentials (Development)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
-      - name: Assume Infrastructure Role for Cleanup
+      - name: Assume CICD Role for Cleanup
         run: |
-          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole-Dev --role-session-name github-actions-destroy)
-          echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+          CICD_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --role-session-name github-actions-destroy)
+          echo "AWS_ACCESS_KEY_ID=$(echo $CICD_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $CICD_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $CICD_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
       - name: Cache Terraform
         uses: actions/cache@v4

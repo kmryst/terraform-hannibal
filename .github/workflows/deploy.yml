@@ -83,8 +83,8 @@ jobs:
       - name: Configure AWS credentials (Development)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -96,12 +96,12 @@ jobs:
 
       # 既存リソースの削除（リソース競合エラー回避）
       # 📝 注意: ECRリポジトリは手動作成済みのため削除しません
-      - name: Assume Infrastructure Role for Cleanup
+      - name: Assume CICD Role for Cleanup
         run: |
-          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole-Dev --role-session-name github-actions-infra)
-          echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+          CICD_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --role-session-name github-actions-cleanup)
+          echo "AWS_ACCESS_KEY_ID=$(echo $CICD_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $CICD_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $CICD_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
       - name: Clean up existing AWS resources
         run: |
           echo "Cleaning up existing AWS resources to avoid conflicts..."
@@ -193,22 +193,23 @@ jobs:
           echo "Cleanup completed (errors are expected if resources don't exist)"
         continue-on-error: true
       # === STAGE 1: Core Resources (ECS/ECR/IAM/Logs) ===
-      - name: Assume Core Role
+      - name: Assume CICD Role
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ""
         run: |
-          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole-Dev --role-session-name github-actions-core)
-          echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $CORE_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $CORE_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+          CICD_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --role-session-name github-actions-cicd)
+          echo "AWS_ACCESS_KEY_ID=$(echo $CICD_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $CICD_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $CICD_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
       - name: Terraform Init (Backend)
         run: yes | terraform init
         working-directory: ./terraform/backend
       - name: Deploy Core Resources
         run: |
           terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
+            -target="aws_iam_policy.hannibal_base_boundary" \
             -target="aws_ecr_lifecycle_policy.nestjs_hannibal_3_policy" \
             -target="aws_iam_role.ecs_task_execution_role" \
             -target="aws_iam_role_policy_attachment.ecs_task_execution_role_policy" \
@@ -217,16 +218,9 @@ jobs:
         working-directory: ./terraform/backend
       
       # === STAGE 2: Infrastructure Resources (ALB/RDS/SecurityGroups) ===
-      - name: Assume Infrastructure Role
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
-          AWS_SESSION_TOKEN: ""
+      - name: Continue with CICD Role
         run: |
-          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole-Dev --role-session-name github-actions-infra)
-          echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+          echo "Using existing CICD Role credentials for infrastructure resources"
       - name: Deploy Infrastructure Resources
         run: |
           terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
@@ -250,16 +244,9 @@ jobs:
         working-directory: ./terraform/backend
       
       # === STAGE 4: Monitoring Resources ===
-      - name: Assume Monitoring Role
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
-          AWS_SESSION_TOKEN: ""
+      - name: Continue with CICD Role for Monitoring
         run: |
-          MONITORING_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalMonitoringRole-Dev --role-session-name github-actions-monitoring)
-          echo "AWS_ACCESS_KEY_ID=$(echo $MONITORING_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $MONITORING_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $MONITORING_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+          echo "Using existing CICD Role credentials for monitoring resources"
       - name: Deploy Monitoring Resources
         run: |
           terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
@@ -278,16 +265,9 @@ jobs:
         working-directory: ./terraform/backend
 
 
-      - name: Assume Security Role for Access Analyzer
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
-          AWS_SESSION_TOKEN: ""
+      - name: Continue with CICD Role for Security
         run: |
-          SECURITY_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalSecurityRole-Dev --role-session-name github-actions-security)
-          echo "AWS_ACCESS_KEY_ID=$(echo $SECURITY_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $SECURITY_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $SECURITY_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+          echo "Using existing CICD Role credentials for security resources"
       - name: Create Access Analyzer (IAM Policy Analysis)
         run: |
           echo "🔍 Creating Access Analyzer for continuous IAM policy monitoring..."
@@ -295,16 +275,9 @@ jobs:
           echo "✅ Access Analyzer created - IAM usage monitoring active"
         working-directory: ./terraform/backend
 
-      - name: Assume Infrastructure Role for Frontend
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
-          AWS_SESSION_TOKEN: ""
+      - name: Continue with CICD Role for Frontend
         run: |
-          INFRA_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalInfrastructureRole-Dev --role-session-name github-actions-frontend)
-          echo "AWS_ACCESS_KEY_ID=$(echo $INFRA_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $INFRA_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $INFRA_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+          echo "Using existing CICD Role credentials for frontend resources"
       - name: Terraform Init (Frontend)
         id: init-frontend
         run: yes | terraform init
@@ -366,16 +339,9 @@ jobs:
         run: |
           sed -i "s|^VITE_GRAPHQL_ENDPOINT=.*$|VITE_GRAPHQL_ENDPOINT=https://hamilcar-hannibal.click/api/graphql|" client/.env.production
 
-      - name: Assume Core Role for CORS Update
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
-          AWS_SESSION_TOKEN: ""
+      - name: Continue with CICD Role for CORS Update
         run: |
-          CORE_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCoreRole-Dev --role-session-name github-actions-cors)
-          echo "AWS_ACCESS_KEY_ID=$(echo $CORE_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $CORE_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $CORE_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+          echo "Using existing CICD Role credentials for CORS update"
       # CloudFrontドメイン名をCORS用にbackendへ再適用
       - name: Terraform Apply (Backend, CORS Update)
         id: apply-backend-cors

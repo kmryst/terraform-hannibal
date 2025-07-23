@@ -181,6 +181,33 @@ AWS上にすでに同名のリソース（例：セキュリティグループ�
 
 
 
+## 🔐 IAM構成 (AWS Professional設計)
+
+### **基盤IAMリソース**
+```
+👤 hannibal (メイン開発者)
+├── インラインポリシー: AssumeDevRole
+└── 使用可能ロール: HannibalDeveloperRole-Dev
+
+🤖 hannibal-cicd (CI/CD自動化)
+├── インラインポリシー: AssumeCICDRole
+└── 使用可能ロール: HannibalCICDRole-Dev
+```
+
+### **運用フロー**
+```bash
+# 日常開発 (hannibal)
+aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalDeveloperRole-Dev --role-session-name dev-session
+
+# 自動デプロイ (GitHub Actions)
+# hannibal-cicdの認証情報でHannibalCICDRole-DevをAssume
+```
+
+### **管理方針**
+- **IAMユーザー**: 完全手動管理 (AWS CLI/Console)
+- **IAMロール・ポリシー**: Terraform作成後、管理から除外・永続保持
+- **段階的権限縮小**: CloudTrailログ分析後に最小権限化
+
 ## 📦 アーキテクチャ
 
 ```mermaid
