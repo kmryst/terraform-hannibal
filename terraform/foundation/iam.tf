@@ -243,7 +243,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
         # Access Analyzer権限 (セキュリティ分析用)
         Effect = "Allow"
         Action = [
-          "accessanalyzer:*"
+          "access-analyzer:*"
         ]
         Resource = "*"
       },
