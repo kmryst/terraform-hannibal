@@ -32,7 +32,7 @@
 
 ### **⚠️ 重要: GitHub Actions実行前の準備**
 
-GitHub ActionsのCI/CDパイプラインを安定して実行するため、以下のリソースを事前に手動作成してください。
+GitHub ActionsのCI/CDパイプラインを安定して実行するため、以下の3つのリソースを事前に手動作成してください。
 
 #### **1. ECRリポジトリの事前作成**
 ```bash
@@ -100,25 +100,16 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 - 💰 **コスト最適化**: ストレージ料金は数セント程度
 - 📝 **注意**: Terraform管理外のため、destroy時も自動削除されません
 
-### ⚠️ 初回セットアップ時のIAM権限について
+### ✅ IAM権限設定（完了済み）
 
-TerraformやGitHub ActionsのCI/CDを初めてセットアップする際、IAMユーザー（例: hannibal）には十分な権限が必要です。特に、S3バケットやIAMポリシーの作成・アタッチには追加の権限が必要となります。
+このプロジェクトのIAM権限設定は完了しています。
 
-#### 手順
-1. **AWSコンソールで「AmazonS3FullAccess」と「IAMFullAccess」を一時的にhannibalユーザーにアタッチ**
-   - これにより、S3バケットやtfstateへのアクセス、IAMポリシーの作成・アタッチが可能になります。
-2. **ローカルでカスタムポリシー（HannibalInfraAdminPolicy）をTerraform apply**
-   - 例:
-     ```bash
-     cd terraform/backend
-     terraform init
-     terraform apply -target="aws_iam_policy.hannibal_terraform_policy" -target="aws_iam_user_policy_attachment.hannibal_terraform_policy" -auto-approve
-     ```
-3. **カスタムポリシーがアタッチできたら、S3FullAccessとIAMFullAccessはデタッチ**
-   - カスタムポリシーに必要な権限がすべて含まれているため、不要な権限は外してください。
-4. **GitHub Actions（deploy.yml）を実行**
+#### 設定済みリソース
+- **HannibalCICDRole-Dev**: CI/CD用IAMロール
+- **HannibalCICDPolicy-Dev**: CI/CD用ポリシー（最新版）
+- **GitHub Secrets**: AWS認証情報設定済み
 
-> ※この手順を踏むことで、初回セットアップ時の権限エラーを防ぎ、安全にTerraform/IaC運用を開始できます。
+> ※ 初回セットアップ時に一時的な高権限が必要でしたが、現在は完了しているため追加作業は不要です。
 
 ## ⚠️ インフラ削除（destroy）時の注意
 

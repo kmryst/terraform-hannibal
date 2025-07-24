@@ -9,12 +9,9 @@
 # 3. CloudFront OAC
 # aws cloudfront create-origin-access-control --name nestjs-hannibal-3-oac --origin-access-control-origin-type s3 --signing-behavior always --signing-protocol sigv4 --region us-east-1
 #
-# 4. 一時的権限でIAMロール・ポリシー作成のみ
-# AWSコンソールでhannibalにS3FullAccess・IAMFullAccessを一時アタッチ
-# 4つのロール・ポリシー・アタッチメント + hannibalユーザーのAssumeRole権限のみ作成
-# cd terraform/backend
-# terraform apply -target="aws_iam_role.hannibal_core_role" -target="aws_iam_policy.hannibal_core_policy" -target="aws_iam_role_policy_attachment.hannibal_core_policy_attachment" -target="aws_iam_role.hannibal_infrastructure_role" -target="aws_iam_policy.hannibal_infrastructure_policy" -target="aws_iam_role_policy_attachment.hannibal_infrastructure_policy_attachment" -target="aws_iam_role.hannibal_monitoring_role" -target="aws_iam_policy.hannibal_monitoring_policy" -target="aws_iam_role_policy_attachment.hannibal_monitoring_policy_attachment" -target="aws_iam_role.hannibal_security_role" -target="aws_iam_policy.hannibal_security_policy" -target="aws_iam_role_policy_attachment.hannibal_security_policy_attachment" -target="aws_iam_policy.hannibal_assume_role_policy" -target="aws_iam_user_policy_attachment.hannibal_assume_role_policy_attachment" -auto-approve
-# AWSコンソールで一時権限を削除（AssumeRoleポリシーのみ残る）
+# 4. IAM権限設定（✅ 完了済み）
+# HannibalCICDRole-Dev ロールと必要な権限は設定済みです
+# GitHub Secrets（AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY）も設定済みです
 #
 # 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
 
@@ -86,6 +83,15 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
+      - name: Cache Terraform
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            **/.terraform
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/*.tf') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -387,6 +393,8 @@ jobs:
       - name: Login to Amazon ECR
         id: login_ecr
         uses: aws-actions/amazon-ecr-login@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Build, Tag, and Push Docker image to ECR
         env:
           ECR_REGISTRY: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
@@ -395,11 +403,13 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
           # Gitのコミットごとに自動生成される「SHA-1ハッシュ値」（40文字の英数字）です
 
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          # ローカルで Dockerイメージを作成する
-          # -t タグ
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Update ECS Service to use new image
         env:
           AWS_REGION: ap-northeast-1
