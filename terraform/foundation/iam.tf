@@ -266,30 +266,26 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
         Resource = "*"
       },
       {
-        # S3権限 (Terraform State + フロントエンド + CloudTrail)
+        # S3権限 (全権限)
         Effect = "Allow"
         Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:ListBucket",
-          "s3:GetBucketPolicy",
-          "s3:PutBucketPolicy"
+          "s3:*"
         ]
-        Resource = [
-          "arn:aws:s3:::nestjs-hannibal-3-terraform-state",
-          "arn:aws:s3:::nestjs-hannibal-3-terraform-state/*",
-          "arn:aws:s3:::nestjs-hannibal-3-frontend",
-          "arn:aws:s3:::nestjs-hannibal-3-frontend/*",
-          "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs",
-          "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs/*"
-        ]
+        Resource = "*"
       },
       {
-        # CloudFront権限 (キャッシュ無効化)
+        # CloudFront権限 (全権限)
         Effect = "Allow"
         Action = [
           "cloudfront:*"
+        ]
+        Resource = "*"
+      },
+      {
+        # Route53権限 (ドメイン管理)
+        Effect = "Allow"
+        Action = [
+          "route53:*"
         ]
         Resource = "*"
       },
