@@ -110,9 +110,7 @@
     {
       "Effect": "Allow",
       "Action": [
-        "cloudfront:CreateInvalidation",
-        "cloudfront:GetInvalidation",
-        "cloudfront:ListInvalidations"
+        "cloudfront:*"
       ],
       "Resource": "*"
     },

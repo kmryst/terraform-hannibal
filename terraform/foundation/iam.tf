@@ -289,9 +289,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
         # CloudFront権限 (キャッシュ無効化)
         Effect = "Allow"
         Action = [
-          "cloudfront:CreateInvalidation",
-          "cloudfront:GetInvalidation",
-          "cloudfront:ListInvalidations"
+          "cloudfront:*"
         ]
         Resource = "*"
       },
