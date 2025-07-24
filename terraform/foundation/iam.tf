@@ -257,6 +257,9 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
           "iam:DeleteRole",
           "iam:AttachRolePolicy",
           "iam:DetachRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies",
           "iam:CreatePolicy",
           "iam:DeletePolicy"
         ]
