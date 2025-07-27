@@ -277,7 +277,12 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "sns:Subscribe",
           "sts:GetCallerIdentity",
           "kms:CreateGrant",
-          "kms:DescribeKey"
+          "kms:DescribeKey",
+          "route53:GetHostedZone",
+          "route53:ListHostedZones",
+          "route53:ChangeResourceRecordSets",
+          "route53:GetChange",
+          "route53:ListResourceRecordSets"
         ]
         Resource = "*"
       },
