@@ -7,7 +7,6 @@
 # --- 1. HannibalDeveloperRole-Dev (統合開発ロール) ---
 resource "aws_iam_role" "hannibal_developer_role" {
   name = "HannibalDeveloperRole-Dev"
-  permissions_boundary = aws_iam_policy.hannibal_base_boundary.arn
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -31,7 +30,7 @@ resource "aws_iam_role" "hannibal_developer_role" {
 # --- 2. HannibalCICDRole-Dev (自動デプロイロール) ---
 resource "aws_iam_role" "hannibal_cicd_role" {
   name = "HannibalCICDRole-Dev"
-  permissions_boundary = aws_iam_policy.hannibal_base_boundary.arn
+  permissions_boundary = "arn:aws:iam::258632448142:policy/HannibalCICDBoundary"
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -326,44 +325,9 @@ resource "aws_iam_role_policy_attachment" "hannibal_cicd_policy_attachment" {
 # 3. 以降は手動管理・永続保持
 # 4. コードは再現性・ドキュメント用に保持
 
-# --- 6. Permission Boundary Policy (全ロール共通) ---
-# AWS Certified Professional/Specialtyレベルの段階的セキュリティ強化
-# 既存機能を維持しつつ、危険操作のみを禁止する安全な設計
-
-resource "aws_iam_policy" "hannibal_base_boundary" {
-  name        = "HannibalBaseBoundary"
-  description = "Base permission boundary for all Hannibal project roles - prevents dangerous operations only"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        # 危険操作のみを禁止（企業レベルセキュリティ）
-        Effect = "Deny"
-        Action = [
-          # IAMユーザー管理（内部脅威対策）
-          "iam:CreateUser",
-          "iam:DeleteUser",
-          "iam:CreateAccessKey",
-          "iam:DeleteAccessKey",
-          
-          # AWS Organizations操作（組織破壊防止）
-          "organizations:*",
-          
-          # アカウント設定変更（情報漏洩防止）
-          "account:*"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-  
-  tags = {
-    Name        = "HannibalBaseBoundary"
-    Environment = "All"
-    Purpose     = "Security-Boundary"
-  }
-}
+# --- 6. HannibalCICDBoundary (CI/CD専用Permission Boundary) ---
+# 手動作成済み: HannibalCICDBoundary
+# arn:aws:iam::258632448142:policy/HannibalCICDBoundary
 
 # --- 段階的権限縮小計画 ---
 # Phase 1: GitHub Actions動作に必要な権限を追加 (現在)

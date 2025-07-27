@@ -1,0 +1,49 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "access-analyzer:*",
+        "cloudtrail:*",
+        "ec2:*",
+        "ecr:*",
+        "ecs:*",
+        "elasticloadbalancing:*",
+        "logs:*",
+        "cloudwatch:*",
+        "rds:*",
+        "s3:*",
+        "sns:*",
+        "sts:*",
+        "kms:*",
+        "iam:GetRole",
+        "iam:PassRole",
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:GetRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:CreatePolicy",
+        "iam:DeletePolicy",
+        "cloudfront:*",
+        "route53:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateUser",
+        "iam:DeleteUser",
+        "iam:CreateAccessKey",
+        "iam:DeleteAccessKey",
+        "organizations:*",
+        "account:*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
