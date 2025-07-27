@@ -1,0 +1,89 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ECSTaskExecution",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+        "ecr:ListImages"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:PutRetentionPolicy"
+      ],
+      "Resource": [
+        "arn:aws:logs:ap-northeast-1:258632448142:log-group:/ecs/nestjs-hannibal-3-*",
+        "arn:aws:logs:ap-northeast-1:258632448142:log-group:/ecs/nestjs-hannibal-3-*:*"
+      ]
+    },
+    {
+      "Sid": "ApplicationSecrets",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:ap-northeast-1:258632448142:secret:nestjs-hannibal-3/*",
+        "arn:aws:secretsmanager:ap-northeast-1:258632448142:secret:nestjs-hannibal-3-*"
+      ]
+    },
+    {
+      "Sid": "KMSDecryption",
+      "Effect": "Allow",
+      "Action": [
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:GenerateDataKey"
+      ],
+      "Resource": "arn:aws:kms:ap-northeast-1:258632448142:key/*",
+      "Condition": {
+        "StringEquals": {
+          "kms:ViaService": [
+            "secretsmanager.ap-northeast-1.amazonaws.com",
+            "logs.ap-northeast-1.amazonaws.com",
+            "ecr.ap-northeast-1.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DatabaseAccess",
+      "Effect": "Allow",
+      "Action": [
+        "rds-db:connect"
+      ],
+      "Resource": "arn:aws:rds-db:ap-northeast-1:258632448142:dbuser:nestjs-hannibal-3-*/*"
+    },
+    {
+      "Sid": "DenyDangerousActions",
+      "Effect": "Deny",
+      "Action": [
+        "iam:*",
+        "sts:AssumeRole",
+        "ec2:*",
+        "rds:*",
+        "s3:Delete*",
+        "s3:Put*",
+        "cloudformation:*",
+        "lambda:*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

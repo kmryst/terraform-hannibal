@@ -69,7 +69,7 @@ resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
 # このロールは、ECSタスクがAWSのサービスを利用する際の認証に使用されます
 resource "aws_iam_role" "ecs_task_execution_role" {
   name                 = "${var.project_name}-ecs-task-execution-role" # プロジェクト名をプレフィックスとして使用
-  permissions_boundary = "arn:aws:iam::258632448142:policy/HannibalCICDBoundary"  # CI/CDコンテキスト用Permission Boundary
+  permissions_boundary = "arn:aws:iam::258632448142:policy/HannibalECSBoundary"  # ECS専用Permission Boundary
 
   # このロールをECSタスクが引き受けることができるようにするポリシー
   # assume_role_policyは、どのAWSサービスがこのロールを引き受けることができるかを定義します
