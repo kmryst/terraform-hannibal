@@ -30,6 +30,7 @@
         "ec2:DescribeSubnets",
         "ec2:DescribeVpcAttribute",
         "ec2:DescribeVpcs",
+        "ec2:DescribeNetworkInterfaces",
         "ec2:GetSecurityGroupsForVpc",
         "ec2:RevokeSecurityGroupEgress",
         "ec2:CreateTags",

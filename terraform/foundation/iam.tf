@@ -195,6 +195,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "ec2:DescribeSubnets",
           "ec2:DescribeVpcAttribute",
           "ec2:DescribeVpcs",
+          "ec2:DescribeNetworkInterfaces",
           "ec2:GetSecurityGroupsForVpc",
           "ec2:RevokeSecurityGroupEgress",
           "ec2:CreateTags",
