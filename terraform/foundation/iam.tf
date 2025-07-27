@@ -249,6 +249,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "s3:GetBucketPolicy",
           "s3:GetBucketPublicAccessBlock",
           "s3:PutBucketPolicy",
+          "s3:DeleteBucketPolicy",
           "s3:PutBucketPublicAccessBlock",
           "s3:GetObject",
           "s3:PutObject",
@@ -282,7 +283,19 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "route53:ListHostedZones",
           "route53:ChangeResourceRecordSets",
           "route53:GetChange",
-          "route53:ListResourceRecordSets"
+          "route53:ListResourceRecordSets",
+          "s3:DeleteBucketPublicAccessBlock",
+          "s3:DeleteBucket",
+          "s3:GetBucketAcl",
+          "s3:ListBucket",
+          "cloudwatch:DeleteLogGroup",
+          "cloudwatch:DeleteMetricAlarm",
+          "cloudwatch:DeleteDashboard",
+          "sns:DeleteTopic",
+          "sns:Unsubscribe",
+          "access-analyzer:DeleteAnalyzer",
+          "iam:DeleteRolePolicy",
+          "iam:PutRolePolicy"
         ]
         Resource = "*"
       },
