@@ -4,6 +4,27 @@
     {
       "Effect": "Allow",
       "Action": [
+        "access-analyzer:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudtrail:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
         "ecr:*"
       ],
       "Resource": "*"
@@ -12,6 +33,13 @@
       "Effect": "Allow",
       "Action": [
         "ecs:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:*"
       ],
       "Resource": "*"
     },
@@ -32,13 +60,6 @@
     {
       "Effect": "Allow",
       "Action": [
-        "sns:*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
         "rds:*"
       ],
       "Resource": "*"
@@ -46,28 +67,28 @@
     {
       "Effect": "Allow",
       "Action": [
-        "ec2:*"
+        "s3:*"
       ],
       "Resource": "*"
     },
     {
       "Effect": "Allow",
       "Action": [
-        "elasticloadbalancing:*"
+        "sns:*"
       ],
       "Resource": "*"
     },
     {
       "Effect": "Allow",
       "Action": [
-        "cloudtrail:*"
+        "sts:*"
       ],
       "Resource": "*"
     },
     {
       "Effect": "Allow",
       "Action": [
-        "access-analyzer:*"
+        "kms:*"
       ],
       "Resource": "*"
     },
@@ -91,13 +112,6 @@
     {
       "Effect": "Allow",
       "Action": [
-        "s3:*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
         "cloudfront:*"
       ],
       "Resource": "*"
@@ -106,18 +120,6 @@
       "Effect": "Allow",
       "Action": [
         "route53:*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Deny",
-      "Action": [
-        "iam:CreateUser",
-        "iam:DeleteUser",
-        "iam:CreateAccessKey",
-        "iam:DeleteAccessKey",
-        "organizations:*",
-        "account:*"
       ],
       "Resource": "*"
     }

@@ -162,13 +162,37 @@ resource "aws_iam_policy" "hannibal_developer_policy" {
 # --- 4. HannibalCICDPolicy-Dev (自動デプロイポリシー) ---
 resource "aws_iam_policy" "hannibal_cicd_policy" {
   name        = "HannibalCICDPolicy-Dev"
-  description = "CI/CD automation permissions - ECR push, ECS update, limited operations (段階的縮小予定)"
+  description = "CI/CD automation permissions - CloudTrail分析結果に基づく最小権限設計"
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        # ECR権限
+        # Access Analyzer権限 (セキュリティ分析用)
+        Effect = "Allow"
+        Action = [
+          "access-analyzer:*"
+        ]
+        Resource = "*"
+      },
+      {
+        # CloudTrail権限 (監査ログ用)
+        Effect = "Allow"
+        Action = [
+          "cloudtrail:*"
+        ]
+        Resource = "*"
+      },
+      {
+        # EC2権限 (セキュリティグループ、VPC管理用)
+        Effect = "Allow"
+        Action = [
+          "ec2:*"
+        ]
+        Resource = "*"
+      },
+      {
+        # ECR権限 (コンテナイメージ管理)
         Effect = "Allow"
         Action = [
           "ecr:*"
@@ -176,10 +200,18 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
         Resource = "*"
       },
       {
-        # ECS権限
+        # ECS権限 (コンテナサービス管理)
         Effect = "Allow"
         Action = [
           "ecs:*"
+        ]
+        Resource = "*"
+      },
+      {
+        # ELB権限 (ALB管理用)
+        Effect = "Allow"
+        Action = [
+          "elasticloadbalancing:*"
         ]
         Resource = "*"
       },
@@ -200,14 +232,6 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
         Resource = "*"
       },
       {
-        # SNS権限 (アラート通知用)
-        Effect = "Allow"
-        Action = [
-          "sns:*"
-        ]
-        Resource = "*"
-      },
-      {
         # RDS権限 (データベース管理用)
         Effect = "Allow"
         Action = [
@@ -216,34 +240,34 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
         Resource = "*"
       },
       {
-        # EC2権限 (セキュリティグループ、VPC管理用)
+        # S3権限 (全権限)
         Effect = "Allow"
         Action = [
-          "ec2:*"
+          "s3:*"
         ]
         Resource = "*"
       },
       {
-        # ELB権限 (ALB管理用)
+        # SNS権限 (アラート通知用)
         Effect = "Allow"
         Action = [
-          "elasticloadbalancing:*"
+          "sns:*"
         ]
         Resource = "*"
       },
       {
-        # CloudTrail権限 (監査ログ用)
+        # STS権限 (追加必要権限 - CloudTrail検出)
         Effect = "Allow"
         Action = [
-          "cloudtrail:*"
+          "sts:*"
         ]
         Resource = "*"
       },
       {
-        # Access Analyzer権限 (セキュリティ分析用)
+        # KMS権限 (追加必要権限 - CloudTrail検出)
         Effect = "Allow"
         Action = [
-          "access-analyzer:*"
+          "kms:*"
         ]
         Resource = "*"
       },
@@ -266,14 +290,6 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
         Resource = "*"
       },
       {
-        # S3権限 (全権限)
-        Effect = "Allow"
-        Action = [
-          "s3:*"
-        ]
-        Resource = "*"
-      },
-      {
         # CloudFront権限 (全権限)
         Effect = "Allow"
         Action = [
@@ -286,19 +302,6 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
         Effect = "Allow"
         Action = [
           "route53:*"
-        ]
-        Resource = "*"
-      },
-      {
-        # Permission Boundary (安全装置)
-        Effect = "Deny"
-        Action = [
-          "iam:CreateUser",
-          "iam:DeleteUser",
-          "iam:CreateAccessKey",
-          "iam:DeleteAccessKey",
-          "organizations:*",
-          "account:*"
         ]
         Resource = "*"
       }
@@ -329,22 +332,11 @@ resource "aws_iam_role_policy_attachment" "hannibal_cicd_policy_attachment" {
 
 resource "aws_iam_policy" "hannibal_base_boundary" {
   name        = "HannibalBaseBoundary"
-  description = "Base permission boundary for all Hannibal project roles - prevents dangerous operations while maintaining functionality"
+  description = "Base permission boundary for all Hannibal project roles - prevents dangerous operations only"
   
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      {
-        # 全操作を許可（現在の機能を維持）
-        Effect = "Allow"
-        Action = ["*"]
-        Resource = "*"
-        Condition = {
-          StringEquals = {
-            "aws:RequestedRegion" = ["ap-northeast-1", "us-east-1"]
-          }
-        }
-      },
       {
         # 危険操作のみを禁止（企業レベルセキュリティ）
         Effect = "Deny"

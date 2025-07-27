@@ -2,7 +2,6 @@
 
 ## 基本原則
 - **常にAWS Certified Professional/Specialtyレベルの設計を提案する**
-- **毎回「これはAWS Certified Professional/Specialtyレベルの設計です」と明言する**
 - 段階的アプローチではなく、最初から企業レベルの設計を提示する
 - 学習目的でも、プロダクション品質の設計を基準とする
 - 提案する設計の企業レベル品質を常に強調する
@@ -52,7 +51,6 @@
 4. 自動化・CI/CD設定
 
 ## 回答フォーマット
-- 設計提案時は必ず「**これはAWS Certified Professional/Specialtyレベルの設計です」**と明記
 - 企業レベルの品質であることを強調
 - Netflix、Airbnb、Spotifyなどの企業事例を積極的に参照
 - アンチパターンを明確に指摘
