@@ -36,6 +36,7 @@
         "ecr:InitiateLayerUpload",
         "ecr:PutImage",
         "ecr:PutLifecyclePolicy",
+        "ecr:DeleteLifecyclePolicy",
         "ecr:UploadLayerPart",
         "ecs:CreateCluster",
         "ecs:CreateService",

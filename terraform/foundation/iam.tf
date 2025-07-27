@@ -201,6 +201,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "ecr:InitiateLayerUpload",
           "ecr:PutImage",
           "ecr:PutLifecyclePolicy",
+          "ecr:DeleteLifecyclePolicy",
           "ecr:UploadLayerPart",
           "ecs:CreateCluster",
           "ecs:CreateService",
