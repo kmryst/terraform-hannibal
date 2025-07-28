@@ -176,13 +176,25 @@ AWS上にすでに同名のリソース（例：セキュリティグループ�
 
 ### **基盤IAMリソース**
 ```
-👤 hannibal (メイン開発者)
+👤 hannibal (IAMユーザー・メイン開発者)
 ├── インラインポリシー: AssumeDevRole
 └── 使用可能ロール: HannibalDeveloperRole-Dev
+   └── アタッチポリシー: HannibalDeveloperPolicy-Dev（ECR/ECS/RDS/CloudWatch/EC2/ELB/S3/CloudFront/IAM）
 
-🤖 hannibal-cicd (CI/CD自動化)
+🤖 hannibal-cicd (IAMユーザー・CI/CD自動化)
 ├── インラインポリシー: AssumeCICDRole
 └── 使用可能ロール: HannibalCICDRole-Dev
+   ├── Permission Boundary: HannibalCICDBoundary
+   ├── アタッチポリシー: HannibalCICDPolicy-Dev-Minimal（CloudTrail分析に基づく最小権限）
+   └── 保持ポリシー: HannibalCICDPolicy-Dev（広い権限・未アタッチ）
+```
+
+### **アプリケーションIAMリソース（一時的・Terraform管理）**
+```
+🔧 ecs-tasks.amazonaws.com (ECSサービス)
+└── 使用ロール: nestjs-hannibal-3-ecs-task-execution-role（Terraform管理）
+   ├── Permission Boundary: HannibalECSBoundary（現在永続化・検討の余地あり）
+   └── アタッチポリシー: AmazonECSTaskExecutionRolePolicy（AWS管理ポリシー・Terraformでアタッチ）
 ```
 
 ### **運用フロー**
@@ -195,9 +207,9 @@ aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalDeveloperR
 ```
 
 ### **管理方針**
-- **IAMユーザー**: 完全手動管理 (AWS CLI/Console)
+- **IAMユーザー**: 完全手動管理
 - **IAMロール・ポリシー**: Terraform作成後、管理から除外・永続保持
-- **段階的権限縮小**: CloudTrailログ分析後に最小権限化
+- **段階的権限縮小**: CloudTrailログ分析後に最小権限化完了
 
 ## 📦 アーキテクチャ
 
