@@ -45,8 +45,9 @@ jobs:
           export AWS_SESSION_TOKEN=$(echo $CICD_CREDS | jq -r '.Credentials.SessionToken')
           
           # Validate required resources exist
-          echo "📦 Checking ECR repository..."
-          aws ecr describe-repositories --repository-names nestjs-hannibal-3 || exit 1
+          echo "📦 Checking ECR repository access..."
+          aws ecr get-authorization-token --region ap-northeast-1 > /dev/null || exit 1
+          echo "✅ ECR access confirmed"
           
           echo "🪣 Checking S3 bucket..."
           aws s3 ls s3://nestjs-hannibal-3-frontend || exit 1

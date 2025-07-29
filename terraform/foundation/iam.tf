@@ -203,6 +203,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "ecr:BatchCheckLayerAvailability",
           "ecr:BatchGetImage",
           "ecr:CompleteLayerUpload",
+          "ecr:DescribeRepositories",
           "ecr:GetAuthorizationToken",
           "ecr:GetLifecyclePolicy",
           "ecr:InitiateLayerUpload",
