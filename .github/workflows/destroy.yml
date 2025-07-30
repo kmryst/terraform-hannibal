@@ -79,11 +79,13 @@ jobs:
       # エラー処理: 2>/dev/null || true でリソースが存在しない場合もエラーにしない
       - name: Clean up existing AWS resources (ECS/ALB/SG)
         run: |
-          # 1. ECSサービス削除（desired countを0にしてから削除）
-          echo "🗑️ Cleaning up ECS service..."
-          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --desired-count 0 --region ap-northeast-1 2>/dev/null || true
+          # 1. Blue/Green ECSサービス削除（desired countを0にしてから削除）
+          echo "🗑️ Cleaning up Blue/Green ECS services..."
+          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-blue-service --desired-count 0 --region ap-northeast-1 2>/dev/null || true
+          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-green-service --desired-count 0 --region ap-northeast-1 2>/dev/null || true
           sleep 30  # ECSタスクの完全停止を待つ（企業レベル安定性確保）
-          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --force --region ap-northeast-1 2>/dev/null || true
+          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-blue-service --force --region ap-northeast-1 2>/dev/null || true
+          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-green-service --force --region ap-northeast-1 2>/dev/null || true
 
           # 2. ECSクラスタ削除（サービス削除後に実行）
           echo "🗑️ Cleaning up ECS cluster..."
@@ -97,11 +99,16 @@ jobs:
             sleep 60  # ALB削除完了を待つ（時間がかかるため）
           fi
 
-          # 4. ターゲットグループ削除（ALB削除後に実行）
-          echo "🗑️ Cleaning up target group..."
-          TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
-          if [ "$TG_ARN" != "None" ] && [ "$TG_ARN" != "null" ]; then
-            aws elbv2 delete-target-group --target-group-arn "$TG_ARN" --region ap-northeast-1
+          # 4. Blue/Greenターゲットグループ削除（ALB削除後に実行）
+          echo "🗑️ Cleaning up Blue/Green target groups..."
+          BLUE_TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-blue-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
+          if [ "$BLUE_TG_ARN" != "None" ] && [ "$BLUE_TG_ARN" != "null" ]; then
+            aws elbv2 delete-target-group --target-group-arn "$BLUE_TG_ARN" --region ap-northeast-1
+          fi
+          
+          GREEN_TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-green-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
+          if [ "$GREEN_TG_ARN" != "None" ] && [ "$GREEN_TG_ARN" != "null" ]; then
+            aws elbv2 delete-target-group --target-group-arn "$GREEN_TG_ARN" --region ap-northeast-1
           fi
 
           sleep 30  # 依存関係のクリアを待つ
@@ -143,7 +150,7 @@ jobs:
           # 10. 監視リソース削除（CloudWatch Alarms, SNS Topic, Dashboard）
           echo "🗑️ Cleaning up monitoring resources..."
           
-          # CloudWatch Alarms削除
+          # CloudWatch Alarms削除（Blue/Green監視アラーム含む）
           aws cloudwatch delete-alarms --alarm-names \
             "nestjs-hannibal-3-ecs-cpu-high" \
             "nestjs-hannibal-3-ecs-memory-high" \
@@ -152,6 +159,8 @@ jobs:
             "nestjs-hannibal-3-rds-connections-high" \
             "nestjs-hannibal-3-alb-response-time-high" \
             "nestjs-hannibal-3-alb-5xx-error-rate-high" \
+            "nestjs-hannibal-3-blue-health-alarm" \
+            "nestjs-hannibal-3-green-health-alarm" \
             --region ap-northeast-1 2>/dev/null || true
           
           # CloudWatch Dashboard削除

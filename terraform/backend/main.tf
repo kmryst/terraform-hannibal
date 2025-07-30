@@ -178,9 +178,10 @@ resource "aws_lb" "main" {
   enable_deletion_protection = false
 }
 
-# --- ALB Target Group ---
-resource "aws_lb_target_group" "api" {
-  name        = "${var.project_name}-tg"
+# --- Blue/Green Target Groups (企業レベル設計) ---
+# Blue Target Group (現在稼働中)
+resource "aws_lb_target_group" "blue" {
+  name        = "${var.project_name}-blue-tg"
   port        = var.container_port
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.selected.id
@@ -196,20 +197,50 @@ resource "aws_lb_target_group" "api" {
     interval            = 15
     matcher             = "200-399"
   }
+  tags = {
+    Name = "${var.project_name}-blue-target-group"
+    Environment = "blue"
+  }
 }
 
-# --- ALB Listener ---
+# Green Target Group (新バージョン)
+resource "aws_lb_target_group" "green" {
+  name        = "${var.project_name}-green-tg"
+  port        = var.container_port
+  protocol    = "HTTP"
+  vpc_id      = data.aws_vpc.selected.id
+  target_type = "ip"
+  health_check {
+    enabled             = true
+    path                = var.health_check_path
+    protocol            = "HTTP"
+    port                = "traffic-port"
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 10
+    interval            = 15
+    matcher             = "200-399"
+  }
+  tags = {
+    Name = "${var.project_name}-green-target-group"
+    Environment = "green"
+  }
+}
+
+# --- ALB Listener (Blue/Green対応) ---
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = var.alb_listener_port
   protocol          = "HTTP"
+  
+  # Blue/Green切り替え対応デフォルトアクション
   default_action {
-    type = "forward"
-    forward {
-      target_group {
-        arn = aws_lb_target_group.api.arn
-      }
-    }
+    type             = "forward"
+    target_group_arn = var.active_environment == "blue" ? aws_lb_target_group.blue.arn : aws_lb_target_group.green.arn
+  }
+  
+  tags = {
+    Name = "${var.project_name}-http-listener"
   }
 }
 
@@ -251,24 +282,32 @@ resource "aws_security_group" "ecs_service_sg" {
   }
 }
 
-# --- ECS Service ---
-resource "aws_ecs_service" "api" {
-  name                              = "${var.project_name}-api-service"
+# --- ECS Service (Blue環境) ---
+resource "aws_ecs_service" "blue" {
+  name                              = "${var.project_name}-blue-service"
   cluster                           = aws_ecs_cluster.main.id
   task_definition                   = aws_ecs_task_definition.api.arn
   desired_count                     = var.desired_task_count
   launch_type                       = "FARGATE"
   health_check_grace_period_seconds = 60
+  
   network_configuration {
     subnets          = data.aws_subnets.public.ids
     security_groups  = [aws_security_group.ecs_service_sg.id]
     assign_public_ip = true
   }
+  
   load_balancer {
-    target_group_arn = aws_lb_target_group.api.arn
+    target_group_arn = aws_lb_target_group.blue.arn
     container_name   = "${var.project_name}-container"
     container_port   = var.container_port
   }
+  
+  tags = {
+    Name = "${var.project_name}-blue-service"
+    Environment = "blue"
+  }
+  
   depends_on = [aws_lb_listener.http, aws_db_instance.postgres]
 }
 

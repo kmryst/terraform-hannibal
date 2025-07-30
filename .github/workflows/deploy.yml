@@ -116,10 +116,12 @@ jobs:
           # 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
           echo "Skipping ECR deletion - using pre-created repository"
 
-          # ECSサービス削除
-          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --desired-count 0 --region ap-northeast-1 2>/dev/null || echo "ECS service not found"
+          # Blue/Green ECSサービス削除
+          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-blue-service --desired-count 0 --region ap-northeast-1 2>/dev/null || echo "Blue ECS service not found"
+          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-green-service --desired-count 0 --region ap-northeast-1 2>/dev/null || echo "Green ECS service not found"
           sleep 10
-          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --force --region ap-northeast-1 2>/dev/null || echo "ECS service not found"
+          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-blue-service --force --region ap-northeast-1 2>/dev/null || echo "Blue ECS service not found"
+          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-green-service --force --region ap-northeast-1 2>/dev/null || echo "Green ECS service not found"
 
           # ECSクラスタ削除
           aws ecs delete-cluster --cluster nestjs-hannibal-3-cluster --region ap-northeast-1 2>/dev/null || echo "ECS cluster not found"
@@ -132,10 +134,15 @@ jobs:
             sleep 60
           fi
 
-          # ターゲットグループ削除
-          TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
-          if [ "$TG_ARN" != "None" ] && [ "$TG_ARN" != "null" ]; then
-            aws elbv2 delete-target-group --target-group-arn "$TG_ARN" --region ap-northeast-1
+          # Blue/Greenターゲットグループ削除
+          BLUE_TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-blue-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
+          if [ "$BLUE_TG_ARN" != "None" ] && [ "$BLUE_TG_ARN" != "null" ]; then
+            aws elbv2 delete-target-group --target-group-arn "$BLUE_TG_ARN" --region ap-northeast-1
+          fi
+          
+          GREEN_TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-green-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
+          if [ "$GREEN_TG_ARN" != "None" ] && [ "$GREEN_TG_ARN" != "null" ]; then
+            aws elbv2 delete-target-group --target-group-arn "$GREEN_TG_ARN" --region ap-northeast-1
           fi
 
           # セキュリティグループ削除（ALB削除後に実行）
@@ -233,7 +240,8 @@ jobs:
             -target="aws_security_group.alb_sg" \
             -target="aws_security_group.ecs_service_sg" \
             -target="aws_security_group.rds_sg" \
-            -target="aws_lb_target_group.api" \
+            -target="aws_lb_target_group.blue" \
+            -target="aws_lb_target_group.green" \
             -target="aws_lb.main" \
             -target="aws_lb_listener.http" \
             -target="aws_db_subnet_group.postgres" \
@@ -246,7 +254,8 @@ jobs:
         run: |
           terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
             -target="aws_ecs_task_definition.api" \
-            -target="aws_ecs_service.api"
+            -target="aws_ecs_service.blue" \
+            -target="aws_ecs_service.green"
         working-directory: ./terraform/backend
       
       # === STAGE 4: Monitoring Resources ===
@@ -414,8 +423,8 @@ jobs:
         env:
           AWS_REGION: ap-northeast-1
           CLUSTER_NAME: nestjs-hannibal-3-cluster
-          # Terraformで作成済みのリソース nestjs-hannibal-3-cluster を GitHub Actions の環境変数に格納する
-          SERVICE_NAME: nestjs-hannibal-3-api-service
+          # Blue/Green Deployment: Blue環境をメインとして更新
+          SERVICE_NAME: nestjs-hannibal-3-blue-service
           TASK_FAMILY: nestjs-hannibal-3-api-task
           CONTAINER_NAME: nestjs-hannibal-3-container
           IMAGE_TAG: ${{ github.sha }}
