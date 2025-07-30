@@ -209,8 +209,8 @@ jobs:
           echo "🔧 Cleaning up CloudFront from Terraform state..."
           terraform state rm aws_cloudfront_distribution.main 2>/dev/null || true
           
-          # Terraform destroy実行
-          terraform destroy -auto-approve -var="api_alb_dns_name="
+          # Terraform destroy実行（CloudFront無効化）
+          terraform destroy -auto-approve -var="api_alb_dns_name=dummy" -var="enable_cloudfront=false"
           echo "✅ Frontend infrastructure destroyed"
         working-directory: ./terraform/frontend
 
