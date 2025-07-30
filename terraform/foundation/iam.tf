@@ -237,6 +237,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "elasticloadbalancing:DescribeTags",
           "elasticloadbalancing:DescribeTargetGroupAttributes",
           "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeRules",
           "elasticloadbalancing:ModifyLoadBalancerAttributes",
           "elasticloadbalancing:ModifyTargetGroupAttributes",
           "elasticloadbalancing:AddTags",
