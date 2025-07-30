@@ -173,6 +173,7 @@
         "iam:ListAttachedRolePolicies",
         "iam:GetRolePolicy",
         "iam:ListRolePolicies",
+        "iam:ListInstanceProfilesForRole",
         "iam:CreatePolicy",
         "iam:DeletePolicy",
         "iam:TagRole",

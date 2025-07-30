@@ -338,6 +338,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "iam:ListAttachedRolePolicies",
           "iam:GetRolePolicy",
           "iam:ListRolePolicies",
+          "iam:ListInstanceProfilesForRole",
           "iam:CreatePolicy",
           "iam:DeletePolicy",
           "iam:TagRole",

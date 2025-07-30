@@ -1,4 +1,4 @@
-# AWS Certified Professional/Specialty Complete Validation
+# Complete Infrastructure Validation
 # Single comprehensive test following Netflix/Airbnb enterprise standards
 
 name: E2E Test
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  aws-professional-validation:
+  validation:
     runs-on: ubuntu-latest
     
     steps:
@@ -36,7 +36,7 @@ jobs:
           
           CICD_CREDS=$(aws sts assume-role \
             --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev \
-            --role-session-name professional-validation)
+            --role-session-name validation)
           
           export AWS_ACCESS_KEY_ID=$(echo $CICD_CREDS | jq -r '.Credentials.AccessKeyId')
           export AWS_SECRET_ACCESS_KEY=$(echo $CICD_CREDS | jq -r '.Credentials.SecretAccessKey')
@@ -66,7 +66,7 @@ jobs:
           terraform init -input=false
           
           echo "🚀 Backend Deploy Phase"
-          terraform apply -input=false -var="client_url_for_cors=https://professional-validation.example.com" -auto-approve
+          terraform apply -input=false -var="client_url_for_cors=https://validation.example.com" -auto-approve
           
           echo "🔍 Backend Validation Phase"
           aws elbv2 describe-load-balancers --names nestjs-hannibal-3-alb
@@ -78,21 +78,21 @@ jobs:
           aws cloudwatch describe-alarms
           
           echo "🗑️ Backend Destroy Phase"
-          terraform destroy -input=false -var="client_url_for_cors=https://professional-validation.example.com" -auto-approve
+          terraform destroy -input=false -var="client_url_for_cors=https://validation.example.com" -auto-approve
           
           # Frontend Complete Cycle
           cd ../frontend
           terraform init -input=false
           
           echo "🎨 Frontend Deploy Phase"
-          terraform apply -input=false -var="api_alb_dns_name=professional-validation.example.com" -auto-approve
+          terraform apply -input=false -var="api_alb_dns_name=validation.example.com" -auto-approve
           
           echo "🔍 Frontend Validation Phase"
           aws cloudfront list-distributions --query 'DistributionList.Items[?Comment==`nestjs-hannibal-3 distribution`]'
           aws s3api get-bucket-policy --bucket nestjs-hannibal-3-frontend
           
           echo "🗑️ Frontend Destroy Phase"
-          terraform destroy -input=false -var="api_alb_dns_name=professional-validation.example.com" -auto-approve
+          terraform destroy -input=false -var="api_alb_dns_name=validation.example.com" -auto-approve
           
           echo "✅ Complete Infrastructure Validation PASSED"
           
@@ -102,13 +102,13 @@ jobs:
           echo "🐳 Application Pipeline Validation"
           
           # Docker Build Test
-          docker build -t nestjs-hannibal-3:professional-test .
-          docker run --rm -d --name professional-test -p 3001:3000 nestjs-hannibal-3:professional-test
+          docker build -t nestjs-hannibal-3:test .
+          docker run --rm -d --name test-container -p 3001:3000 nestjs-hannibal-3:test
           sleep 5
           
-          if docker ps | grep professional-test; then
+          if docker ps | grep test-container; then
             echo "✅ Container validation PASSED"
-            docker stop professional-test
+            docker stop test-container
           else
             echo "❌ Container validation FAILED"
             exit 1
@@ -126,7 +126,7 @@ jobs:
             exit 1
           fi
           
-      # === STAGE 4: Professional CloudTrail Analysis ===
+      # === STAGE 4: CloudTrail Analysis ===
       - name: 📊 CloudTrail Analysis
         run: |
           echo "📊 CloudTrail Analysis"
@@ -209,7 +209,7 @@ jobs:
           echo "=========================================================="
           echo "✅ Complete Apply/Destroy Cycle: PASSED (Netflix Standard)"
           echo "✅ Zero Surprise Deployment: PASSED (Airbnb Standard)"
-          echo "✅ 100% Permission Coverage: PASSED (Professional Standard)"
+          echo "✅ 100% Permission Coverage: PASSED"
           echo "✅ Enterprise Resource Validation: PASSED (Spotify Standard)"
           echo "✅ Application Pipeline: PASSED (Container + Frontend)"
           echo "✅ CloudTrail Analysis: PASSED (15min propagation)"
