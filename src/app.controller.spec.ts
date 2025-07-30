@@ -22,4 +22,25 @@ describe('AppController', () => {
       expect(appController.getHello()).toBe('Hello World!');
     });
   });
+
+  describe('health checks', () => {
+    it('should return health status', async () => {
+      const result = await appController.getHealth();
+      expect(result).toHaveProperty('status');
+      expect(result).toHaveProperty('timestamp');
+      expect(result).toHaveProperty('checks');
+    });
+
+    it('should return readiness status', async () => {
+      const result = await appController.getReadiness();
+      expect(result).toHaveProperty('status');
+      expect(result).toHaveProperty('timestamp');
+    });
+
+    it('should return liveness status', async () => {
+      const result = await appController.getLiveness();
+      expect(result).toHaveProperty('status', 'alive');
+      expect(result).toHaveProperty('uptime');
+    });
+  });
 });

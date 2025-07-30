@@ -12,4 +12,20 @@ export class AppController {
   getHello(): string {
     return this.appService.getHello();
   }
+
+  // 企業レベルECS Health Check (Blue/Green対応)
+  @Get('health')
+  async getHealth() {
+    return await this.appService.getHealthStatus();
+  }
+
+  @Get('health/ready')
+  async getReadiness() {
+    return await this.appService.getReadinessStatus();
+  }
+
+  @Get('health/live')
+  async getLiveness() {
+    return await this.appService.getLivenessStatus();
+  }
 }
