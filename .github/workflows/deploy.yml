@@ -358,10 +358,18 @@ jobs:
           
           # Professional設計: 既存Route53レコードの冪等性チェック
           echo "🔍 Checking existing Route53 records..."
-          EXISTING_RECORD=$(aws route53 list-resource-record-sets --hosted-zone-id Z08174213SJBKPD4CKZGD --query "ResourceRecordSets[?Name=='hamilcar-hannibal.click.' && Type=='A'].Name" --output text 2>/dev/null || echo "")
-          if [ "$EXISTING_RECORD" != "" ]; then
-            echo "ℹ️ Existing Route53 record found - importing to Terraform state"
-            terraform import 'aws_route53_record.www[0]' Z08174213SJBKPD4CKZGD_hamilcar-hannibal.click_A 2>/dev/null || echo "Import skipped (already managed)"
+          HOSTED_ZONE_ID=$(aws route53 list-hosted-zones --query "HostedZones[?Name=='hamilcar-hannibal.click.'].Id" --output text | sed 's|/hostedzone/||')
+          if [ -z "$HOSTED_ZONE_ID" ]; then
+            echo "⚠️ No hosted zone found for hamilcar-hannibal.click"
+          else
+            echo "ℹ️ Found hosted zone: $HOSTED_ZONE_ID"
+            EXISTING_RECORD=$(aws route53 list-resource-record-sets --hosted-zone-id "$HOSTED_ZONE_ID" --query "ResourceRecordSets[?Name=='hamilcar-hannibal.click.' && Type=='A'].Name" --output text 2>/dev/null || echo "")
+            if [ "$EXISTING_RECORD" != "" ]; then
+              echo "ℹ️ Existing Route53 record found - importing to Terraform state"
+              terraform import 'aws_route53_record.www[0]' "${HOSTED_ZONE_ID}_hamilcar-hannibal.click_A" 2>/dev/null || echo "Import skipped (already managed)"
+            else
+              echo "ℹ️ No existing Route53 record found - will create new one"
+            fi
           fi
           
           # CloudFrontも含めてデプロイするため、enable_cloudfront=trueでapply
