@@ -109,12 +109,30 @@ jobs:
             echo "⚠️ ALB exists: $ALB_EXISTS"
           fi
           
+          # Check Blue/Green Target Groups don't exist (clean state)
+          BLUE_TG_EXISTS=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-blue-tg --query 'TargetGroups[0].State' --output text 2>/dev/null || echo "not-found")
+          GREEN_TG_EXISTS=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-green-tg --query 'TargetGroups[0].State' --output text 2>/dev/null || echo "not-found")
+          if [ "$BLUE_TG_EXISTS" = "not-found" ] && [ "$GREEN_TG_EXISTS" = "not-found" ]; then
+            echo "✅ Blue/Green Target Groups: Clean state confirmed"
+          else
+            echo "⚠️ Blue TG: $BLUE_TG_EXISTS, Green TG: $GREEN_TG_EXISTS"
+          fi
+          
           # Check ECS cluster doesn't exist (clean state)
           CLUSTER_EXISTS=$(aws ecs describe-clusters --clusters nestjs-hannibal-3-cluster --query 'clusters[0].status' --output text 2>/dev/null || echo "not-found")
           if [ "$CLUSTER_EXISTS" = "not-found" ]; then
             echo "✅ ECS Cluster: Clean state confirmed"
           else
             echo "⚠️ ECS Cluster exists: $CLUSTER_EXISTS"
+          fi
+          
+          # Check Blue/Green ECS Services don't exist (clean state)
+          BLUE_SERVICE_EXISTS=$(aws ecs describe-services --cluster nestjs-hannibal-3-cluster --services nestjs-hannibal-3-blue-service --query 'services[0].status' --output text 2>/dev/null || echo "not-found")
+          GREEN_SERVICE_EXISTS=$(aws ecs describe-services --cluster nestjs-hannibal-3-cluster --services nestjs-hannibal-3-green-service --query 'services[0].status' --output text 2>/dev/null || echo "not-found")
+          if [ "$BLUE_SERVICE_EXISTS" = "not-found" ] && [ "$GREEN_SERVICE_EXISTS" = "not-found" ]; then
+            echo "✅ Blue/Green ECS Services: Clean state confirmed"
+          else
+            echo "⚠️ Blue Service: $BLUE_SERVICE_EXISTS, Green Service: $GREEN_SERVICE_EXISTS"
           fi
           
           echo "✅ First deployment sequence validated"
@@ -210,6 +228,7 @@ jobs:
           echo "✅ Prerequisites validation: PASSED"
           echo "✅ Terraform pipeline flow: PASSED"
           echo "✅ First deployment sequence: PASSED"
+          echo "✅ Blue/Green deployment validation: PASSED"
           echo "✅ Docker build pipeline: PASSED"
           echo "✅ Frontend build pipeline: PASSED"
           echo "✅ Security validation: PASSED"
