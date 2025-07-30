@@ -100,6 +100,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.0.0
+          terraform_wrapper: false
       - name: Install jq # JSONデータをquery(検索、加工)するためのコマンドラインツール
         run: sudo apt-get update && sudo apt-get install -y jq
         # apt-get は「Advanced Package Tool」の略で、Debian系Linux（Ubuntuなど）で使われるパッケージ管理コマンドです
@@ -225,7 +226,17 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CICD_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CICD_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
       - name: Terraform Init (Backend)
-        run: yes | terraform init
+        run: |
+          for i in {1..3}; do
+            echo "Terraform init attempt $i/3"
+            if timeout 300 terraform init -input=false; then
+              echo "Terraform init successful"
+              break
+            else
+              echo "Terraform init failed, retrying..."
+              sleep 30
+            fi
+          done
         working-directory: ./terraform/backend
       - name: Deploy Core Resources
         run: |
@@ -308,7 +319,17 @@ jobs:
           echo "Using existing CICD Role credentials for frontend resources"
       - name: Terraform Init (Frontend)
         id: init-frontend
-        run: yes | terraform init
+        run: |
+          for i in {1..3}; do
+            echo "Terraform init attempt $i/3"
+            if timeout 300 terraform init -input=false; then
+              echo "Terraform init successful"
+              break
+            else
+              echo "Terraform init failed, retrying..."
+              sleep 30
+            fi
+          done
         working-directory: ./terraform/frontend
       - name: Terraform Plan (Frontend)
         id: plan-frontend
@@ -324,7 +345,16 @@ jobs:
       - name: 🚀 Deploy Frontend Infrastructure
         run: |
           echo "🚀 Deploying frontend resources..."
-          yes | terraform init
+          for i in {1..3}; do
+            echo "Terraform init attempt $i/3"
+            if timeout 300 terraform init -input=false; then
+              echo "Terraform init successful"
+              break
+            else
+              echo "Terraform init failed, retrying..."
+              sleep 30
+            fi
+          done
           # CloudFrontも含めてデプロイするため、enable_cloudfront=trueでapply
           terraform apply -auto-approve -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" -var="enable_cloudfront=true"
           echo "✅ Frontend infrastructure deployed"
