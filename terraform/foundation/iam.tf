@@ -30,7 +30,7 @@ resource "aws_iam_role" "hannibal_developer_role" {
 # --- 2. HannibalCICDRole-Dev (自動デプロイロール) ---
 resource "aws_iam_role" "hannibal_cicd_role" {
   name = "HannibalCICDRole-Dev"
-  permissions_boundary = "arn:aws:iam::258632448142:policy/HannibalCICDBoundary"
+  permissions_boundary = aws_iam_policy.hannibal_cicd_boundary.arn
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -338,7 +338,6 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "iam:ListAttachedRolePolicies",
           "iam:GetRolePolicy",
           "iam:ListRolePolicies",
-          "iam:ListInstanceProfilesForRole",
           "iam:CreatePolicy",
           "iam:DeletePolicy",
           "iam:TagRole",
@@ -370,9 +369,62 @@ resource "aws_iam_role_policy_attachment" "hannibal_cicd_policy_attachment" {
 # 4. コードは再現性・ドキュメント用に保持
 
 # --- 6. Permission Boundary管理 ---
-# HannibalCICDBoundary: CI/CD専用Permission Boundary (手動作成済み)
-# arn:aws:iam::258632448142:policy/HannibalCICDBoundary
-#
+resource "aws_iam_policy" "hannibal_cicd_boundary" {
+  name        = "HannibalCICDBoundary"
+  description = "Permission boundary for CI/CD role - limits maximum permissions"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "access-analyzer:*",
+          "cloudtrail:*",
+          "ec2:*",
+          "ecr:*",
+          "ecs:*",
+          "elasticloadbalancing:*",
+          "logs:*",
+          "cloudwatch:*",
+          "rds:*",
+          "s3:*",
+          "sns:*",
+          "sts:*",
+          "kms:*",
+          "iam:GetRole",
+          "iam:PassRole",
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies",
+          "iam:ListInstanceProfilesForRole",
+          "iam:CreatePolicy",
+          "iam:DeletePolicy",
+          "cloudfront:*",
+          "route53:*"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Deny"
+        Action = [
+          "iam:CreateUser",
+          "iam:DeleteUser",
+          "iam:CreateAccessKey",
+          "iam:DeleteAccessKey",
+          "organizations:*",
+          "account:*"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # HannibalECSBoundary: ECS専用Permission Boundary (手動作成済み)
 # arn:aws:iam::258632448142:policy/HannibalECSBoundary
 # 用途: ECSタスク実行ロールの権限制限
