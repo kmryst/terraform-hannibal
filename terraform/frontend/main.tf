@@ -63,6 +63,9 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
   id = "E1EA19Y8SLU52D" # 既存のOACのIDを直接指定
 }
 
+# AWS Account ID取得
+data "aws_caller_identity" "current" {}
+
 # # CloudFrontのみがS3にアクセスできるように設定するための、S3 bucket 側の設定 
 # --- S3 Bucket Policy to Allow CloudFront OAC ---
 data "aws_iam_policy_document" "s3_bucket_policy_for_cloudfront" {
@@ -78,12 +81,13 @@ data "aws_iam_policy_document" "s3_bucket_policy_for_cloudfront" {
     condition {
       test     = "StringEquals"
       variable = "AWS:SourceArn"
-      values   = length(aws_cloudfront_distribution.main) > 0 ? [aws_cloudfront_distribution.main[0].arn] : []
+      values   = var.enable_cloudfront && length(aws_cloudfront_distribution.main) > 0 ? [aws_cloudfront_distribution.main[0].arn] : ["arn:aws:cloudfront::${data.aws_caller_identity.current.account_id}:distribution/dummy"]
     }
   }
 }
 
 resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
+  count  = var.enable_cloudfront ? 1 : 0
   bucket = data.aws_s3_bucket.frontend_bucket.id
   policy = data.aws_iam_policy_document.s3_bucket_policy_for_cloudfront.json
 }

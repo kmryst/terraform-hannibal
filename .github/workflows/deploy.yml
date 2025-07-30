@@ -346,7 +346,7 @@ jobs:
           echo "s3_bucket_name=$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
           # echo で文字列を作り、>> で$GITHUB_OUTPUTに追記する
           # $GITHUB_OUTPUT は「GitHub Actionsの同じジョブ内の他のステップで参照するためのファイル」です
-          # ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }} これが使えるようになる 
+          # steps.get_terraform_outputs.outputs.s3_bucket_name これが使えるようになる 
 
           echo "cloudfront_domain_name=$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
           echo "cloudfront_distribution_id=$(jq -r '.cloudfront_distribution_id.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
