@@ -83,6 +83,10 @@ jobs:
           terraform validate
           terraform plan -input=false -var="api_alb_dns_name=test.example.com" -detailed-exitcode || echo "⚠️ Plan shows changes (expected for first deployment)"
           
+          # Test Blue/Green Target Group dependencies
+          echo "🔍 Testing Blue/Green Target Group dependencies..."
+          terraform plan -input=false -var="client_url_for_cors=" -target="aws_lb_target_group.blue" -target="aws_lb_target_group.green" -target="aws_lb.main" -target="aws_lb_listener.http" -target="aws_lb_listener_rule.green" -detailed-exitcode || echo "⚠️ Blue/Green ALB dependencies plan shows changes"
+          
           echo "✅ Terraform pipeline validated"
           
       # === STAGE 3: Deployment Sequence Test ===

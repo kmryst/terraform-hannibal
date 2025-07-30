@@ -236,11 +236,28 @@ resource "aws_lb_listener" "http" {
   # Blue/Green切り替え対応デフォルトアクション
   default_action {
     type             = "forward"
-    target_group_arn = var.active_environment == "blue" ? aws_lb_target_group.blue.arn : aws_lb_target_group.green.arn
+    target_group_arn = aws_lb_target_group.blue.arn  # 初期はBlue
   }
   
   tags = {
     Name = "${var.project_name}-http-listener"
+  }
+}
+
+# Green Target Group用のListener Rule
+resource "aws_lb_listener_rule" "green" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 100
+  
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.green.arn
+  }
+  
+  condition {
+    path_pattern {
+      values = ["/green/*"]  # Green環境テスト用パス
+    }
   }
 }
 

@@ -247,6 +247,7 @@ jobs:
             -target="aws_lb_target_group.green" \
             -target="aws_lb.main" \
             -target="aws_lb_listener.http" \
+            -target="aws_lb_listener_rule.green" \
             -target="aws_db_subnet_group.postgres" \
             -target="aws_db_instance.postgres" \
             -target="aws_s3_bucket_policy.cloudtrail_logs"
