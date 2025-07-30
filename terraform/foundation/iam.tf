@@ -226,6 +226,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "elasticloadbalancing:CreateListener",
           "elasticloadbalancing:CreateLoadBalancer",
           "elasticloadbalancing:CreateTargetGroup",
+          "elasticloadbalancing:CreateRule",
           "elasticloadbalancing:DeleteListener",
           "elasticloadbalancing:DeleteLoadBalancer",
           "elasticloadbalancing:DeleteTargetGroup",

@@ -61,6 +61,7 @@
         "elasticloadbalancing:CreateListener",
         "elasticloadbalancing:CreateLoadBalancer",
         "elasticloadbalancing:CreateTargetGroup",
+        "elasticloadbalancing:CreateRule",
         "elasticloadbalancing:DeleteListener",
         "elasticloadbalancing:DeleteLoadBalancer",
         "elasticloadbalancing:DeleteTargetGroup",
