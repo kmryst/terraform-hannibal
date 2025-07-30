@@ -355,6 +355,15 @@ jobs:
               sleep 30
             fi
           done
+          
+          # Professional設計: 既存Route53レコードの冪等性チェック
+          echo "🔍 Checking existing Route53 records..."
+          EXISTING_RECORD=$(aws route53 list-resource-record-sets --hosted-zone-id Z08174213SJBKPD4CKZGD --query "ResourceRecordSets[?Name=='hamilcar-hannibal.click.' && Type=='A'].Name" --output text 2>/dev/null || echo "")
+          if [ "$EXISTING_RECORD" != "" ]; then
+            echo "ℹ️ Existing Route53 record found - importing to Terraform state"
+            terraform import 'aws_route53_record.www[0]' Z08174213SJBKPD4CKZGD_hamilcar-hannibal.click_A 2>/dev/null || echo "Import skipped (already managed)"
+          fi
+          
           # CloudFrontも含めてデプロイするため、enable_cloudfront=trueでapply
           terraform apply -auto-approve -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" -var="enable_cloudfront=true"
           echo "✅ Frontend infrastructure deployed"

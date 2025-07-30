@@ -257,7 +257,7 @@ resource "aws_cloudfront_distribution" "main" {
   }
 }
 
-# Route 53で独自ドメインをCloudFrontに向ける
+# Route 53で独自ドメインをCloudFrontに向ける（冪等性対応）
 resource "aws_route53_record" "www" {
   count   = var.domain_name != "" && var.hosted_zone_id != "" && length(aws_cloudfront_distribution.main) > 0 ? 1 : 0
   zone_id = var.hosted_zone_id
@@ -268,5 +268,10 @@ resource "aws_route53_record" "www" {
     name                   = aws_cloudfront_distribution.main[0].domain_name
     zone_id                = aws_cloudfront_distribution.main[0].hosted_zone_id
     evaluate_target_health = false
+  }
+
+  # Professional設計: 既存レコードとの競合回避
+  lifecycle {
+    ignore_changes = [ttl]
   }
 }
