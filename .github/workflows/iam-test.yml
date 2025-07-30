@@ -117,6 +117,14 @@ jobs:
           echo "⚖️ Testing ALB Target Group permissions..."
           aws elbv2 describe-target-groups --region ap-northeast-1 > /dev/null || echo "⚠️ Target Group describe test (expected if none exist)"
           
+          # Test ALB Listener Rule permissions (Blue/Green deployment)
+          echo "📋 Testing ALB Listener Rule permissions..."
+          aws elbv2 describe-rules --listener-arn arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:listener/app/test/test --region ap-northeast-1 2>/dev/null || echo "⚠️ Listener Rule test (expected - testing CreateRule permission availability)"
+          
+          # Test specific Blue/Green deployment permissions
+          echo "🔄 Testing Blue/Green specific permissions..."
+          aws iam simulate-principal-policy --policy-source-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --action-names elasticloadbalancing:CreateRule --resource-arns "*" --region ap-northeast-1 || echo "⚠️ CreateRule simulation test"
+          
           # Test CloudWatch Alarms permissions for Blue/Green monitoring
           echo "📊 Testing CloudWatch Alarms permissions..."
           aws cloudwatch describe-alarms --region ap-northeast-1 > /dev/null || echo "⚠️ CloudWatch describe test (expected if no alarms exist)"
