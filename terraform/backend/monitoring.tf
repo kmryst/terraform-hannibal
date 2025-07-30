@@ -19,9 +19,9 @@ resource "aws_sns_topic_subscription" "email_alerts" {
 }
 
 # --- ECS Monitoring ---
-# ECS CPU使用率監視（実務レベル: 70%）
-resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
-  alarm_name          = "${var.project_name}-ecs-cpu-high"
+# Blue環境 CPU監視
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high_blue" {
+  alarm_name          = "${var.project_name}-ecs-cpu-high-blue"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "CPUUtilization"
@@ -29,24 +29,52 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
   period              = "300"
   statistic           = "Average"
   threshold           = "70"
-  alarm_description   = "ECS CPU utilization is too high"
+  alarm_description   = "Blue ECS CPU utilization is too high"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
   treat_missing_data  = "breaching"
 
   dimensions = {
-    ServiceName = aws_ecs_service.api.name
+    ServiceName = aws_ecs_service.blue.name
     ClusterName = aws_ecs_cluster.main.name
   }
 
   tags = {
-    Name = "${var.project_name}-ecs-cpu-alarm"
+    Name = "${var.project_name}-ecs-cpu-alarm-blue"
+    Environment = "blue"
   }
 }
 
-# ECS メモリ使用率監視（実務レベル: 75%）
-resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
-  alarm_name          = "${var.project_name}-ecs-memory-high"
+# Green環境 CPU監視
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high_green" {
+  count               = var.active_environment == "green" ? 1 : 0
+  alarm_name          = "${var.project_name}-ecs-cpu-high-green"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = "70"
+  alarm_description   = "Green ECS CPU utilization is too high"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+  treat_missing_data  = "breaching"
+
+  dimensions = {
+    ServiceName = "${var.project_name}-green-service"
+    ClusterName = aws_ecs_cluster.main.name
+  }
+
+  tags = {
+    Name = "${var.project_name}-ecs-cpu-alarm-green"
+    Environment = "green"
+  }
+}
+
+# Blue環境 Memory監視
+resource "aws_cloudwatch_metric_alarm" "ecs_memory_high_blue" {
+  alarm_name          = "${var.project_name}-ecs-memory-high-blue"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "MemoryUtilization"
@@ -54,42 +82,71 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
   period              = "300"
   statistic           = "Average"
   threshold           = "75"
-  alarm_description   = "ECS Memory utilization is too high - possible memory leak"
+  alarm_description   = "Blue ECS Memory utilization is too high"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
   treat_missing_data  = "breaching"
 
   dimensions = {
-    ServiceName = aws_ecs_service.api.name
+    ServiceName = aws_ecs_service.blue.name
     ClusterName = aws_ecs_cluster.main.name
   }
 
   tags = {
-    Name = "${var.project_name}-ecs-memory-alarm"
+    Name = "${var.project_name}-ecs-memory-alarm-blue"
+    Environment = "blue"
   }
 }
 
-# ECS タスク異常終了監視
-resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped" {
-  alarm_name          = "${var.project_name}-ecs-task-stopped"
+# Green環境 Memory監視
+resource "aws_cloudwatch_metric_alarm" "ecs_memory_high_green" {
+  count               = var.active_environment == "green" ? 1 : 0
+  alarm_name          = "${var.project_name}-ecs-memory-high-green"
   comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "MemoryUtilization"
+  namespace           = "AWS/ECS"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = "75"
+  alarm_description   = "Green ECS Memory utilization is too high"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+  treat_missing_data  = "breaching"
+
+  dimensions = {
+    ServiceName = "${var.project_name}-green-service"
+    ClusterName = aws_ecs_cluster.main.name
+  }
+
+  tags = {
+    Name = "${var.project_name}-ecs-memory-alarm-green"
+    Environment = "green"
+  }
+}
+
+# アクティブ環境タスク監視（動的切り替え対応）
+resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped_active" {
+  alarm_name          = "${var.project_name}-ecs-task-stopped-${var.active_environment}"
+  comparison_operator = "LessThanThreshold"
   evaluation_periods  = "1"
   metric_name         = "RunningTaskCount"
   namespace           = "AWS/ECS"
   period              = "60"
   statistic           = "Average"
-  threshold           = "0"
-  alarm_description   = "ECS task has stopped unexpectedly"
+  threshold           = "1"
+  alarm_description   = "Active ${var.active_environment} environment has no running tasks"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   treat_missing_data  = "breaching"
 
   dimensions = {
-    ServiceName = aws_ecs_service.api.name
+    ServiceName = var.active_environment == "blue" ? aws_ecs_service.blue.name : "${var.project_name}-green-service"
     ClusterName = aws_ecs_cluster.main.name
   }
 
   tags = {
-    Name = "${var.project_name}-ecs-task-alarm"
+    Name = "${var.project_name}-ecs-task-alarm-active"
+    Environment = var.active_environment
   }
 }
 
@@ -206,7 +263,7 @@ resource "aws_cloudwatch_dashboard" "main" {
 
         properties = {
           metrics = [
-            ["AWS/ECS", "CPUUtilization", "ServiceName", aws_ecs_service.api.name, "ClusterName", aws_ecs_cluster.main.name],
+            ["AWS/ECS", "CPUUtilization", "ServiceName", var.active_environment == "blue" ? aws_ecs_service.blue.name : "${var.project_name}-green-service", "ClusterName", aws_ecs_cluster.main.name],
             [".", "MemoryUtilization", ".", ".", ".", "."]
           ]
           view    = "timeSeries"
