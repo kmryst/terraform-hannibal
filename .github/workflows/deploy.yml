@@ -301,27 +301,7 @@ jobs:
           terraform apply -target="aws_accessanalyzer_analyzer.main" -auto-approve -var="client_url_for_cors="
           echo "✅ Access Analyzer created - IAM usage monitoring active"
         working-directory: ./terraform/backend
-      - name: 📊 CloudTrail Analysis Setup (Professional Design)
-        run: |
-          echo "📊 === Professional CloudTrail Analysis Setup ==="
-          echo "🏢 Enterprise Best Practice: Separation of Deployment and Analysis"
-          echo "✅ CloudTrail logging: Active (s3://nestjs-hannibal-3-cloudtrail-logs/)"
-          echo "✅ Athena workspace: Ready (hannibal-cloudtrail-analysis)"
-          echo "✅ Analysis queries: Pre-configured (Named Queries)"
-          echo ""
-          echo "🔍 Manual Analysis Commands (Netflix/Airbnb/Spotify approach):"
-          echo "# Permission Statistics:"
-          echo 'aws athena start-query-execution --query-string "SELECT COUNT(DISTINCT CONCAT(regexp_replace(record.eventSource, '\'.amazonaws\.com$'\', '\''\'), '\':'\'', record.eventName)) as total_permissions, COUNT(*) as total_api_calls FROM hannibal_cloudtrail_db.cloudtrail_logs_partitioned CROSS JOIN UNNEST(Records) AS t(record) WHERE record.userIdentity.arn LIKE '\'%HannibalCICDRole-Dev%'\' AND record.errorCode IS NULL" --result-configuration OutputLocation=s3://nestjs-hannibal-3-athena-results/ --work-group hannibal-cloudtrail-analysis'
-          echo ""
-          echo "# Detailed Permission Analysis:"
-          echo 'aws athena start-query-execution --query-string "SELECT CONCAT(regexp_replace(record.eventSource, '\'.amazonaws\.com$'\', '\''\'), '\':'\'', record.eventName) as permission, COUNT(*) as usage_count FROM hannibal_cloudtrail_db.cloudtrail_logs_partitioned CROSS JOIN UNNEST(Records) AS t(record) WHERE record.userIdentity.arn LIKE '\'%HannibalCICDRole-Dev%'\' AND record.errorCode IS NULL GROUP BY record.eventSource, record.eventName ORDER BY usage_count DESC" --result-configuration OutputLocation=s3://nestjs-hannibal-3-athena-results/ --work-group hannibal-cloudtrail-analysis'
-          echo ""
-          echo "🎯 Professional Benefits:"
-          echo "  ✅ Fast CI/CD Pipeline (18 minutes saved)"
-          echo "  ✅ On-demand Analysis (when needed)"
-          echo "  ✅ Separation of Concerns (deployment vs analysis)"
-          echo "  ✅ Cost Optimization (analysis only when required)"
-          echo "📝 Analysis results stored in: s3://nestjs-hannibal-3-athena-results/"
+
 
       - name: Continue with CICD Role for Frontend
         run: |
