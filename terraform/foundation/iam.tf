@@ -322,7 +322,10 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "sns:Unsubscribe",
           "access-analyzer:DeleteAnalyzer",
           "iam:DeleteRolePolicy",
-          "iam:PutRolePolicy"
+          "iam:PutRolePolicy",
+          "athena:StartQueryExecution",
+          "athena:GetQueryExecution",
+          "athena:GetQueryResults"
         ]
         Resource = "*"
       },

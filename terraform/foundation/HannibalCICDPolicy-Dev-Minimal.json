@@ -157,7 +157,10 @@
         "sns:Unsubscribe",
         "access-analyzer:DeleteAnalyzer",
         "iam:DeleteRolePolicy",
-        "iam:PutRolePolicy"
+        "iam:PutRolePolicy",
+        "athena:StartQueryExecution",
+        "athena:GetQueryExecution",
+        "athena:GetQueryResults"
       ],
       "Resource": "*"
     },
