@@ -119,7 +119,7 @@ jobs:
           
           # Test Blue/Green Terraform Plan (Professional-Grade)
           echo "🏆 Testing Blue/Green Terraform Plan (AWS Professional Method)..."
-          cd ../../terraform/backend
+          cd terraform/backend
           
           # Test complete Blue/Green deployment permissions via Terraform
           terraform init -input=false
