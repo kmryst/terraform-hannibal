@@ -6,6 +6,10 @@ name: E2E Test
 on:
   workflow_dispatch:
 
+concurrency:
+  group: terraform-e2e
+  cancel-in-progress: true
+
 jobs:
   validation:
     runs-on: ubuntu-latest

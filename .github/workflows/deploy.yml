@@ -30,6 +30,10 @@ name: Deploy NestJS Hannibal App (Dev)
 on:
   workflow_dispatch:
 
+concurrency:
+  group: terraform-deploy
+  cancel-in-progress: true
+
 jobs:
   test:
     # (変更なし)
