@@ -2,9 +2,16 @@
 // C:\code\javascript\nestjs-hannibal-3\src\app.service.ts
 
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Route } from './entities';
 
 @Injectable()
 export class AppService {
+  constructor(
+    @InjectRepository(Route)
+    private readonly routeRepository: Repository<Route>,
+  ) {}
   getHello(): string {
     return 'Hello World!';
   }
@@ -66,11 +73,12 @@ export class AppService {
     };
   }
 
-  private async checkDatabase(): Promise<{ status: string; responseTime?: number; error?: string }> {
+  // AWS Professional設計: 実際のDB接続チェック
+  async checkDatabaseConnection(): Promise<{ status: string; responseTime?: number; error?: string }> {
     const startTime = Date.now();
     try {
-      // 実際のDB接続チェック（後で実装）
-      await new Promise(resolve => setTimeout(resolve, 10)); // 模擬チェック
+      // Blue/Green対応: 実際のDB接続テスト
+      await this.routeRepository.manager.connection.query('SELECT 1');
       return {
         status: 'healthy',
         responseTime: Date.now() - startTime
@@ -82,6 +90,10 @@ export class AppService {
         error: error.message
       };
     }
+  }
+
+  private async checkDatabase(): Promise<{ status: string; responseTime?: number; error?: string }> {
+    return await this.checkDatabaseConnection();
   }
 
   private async checkMemory(): Promise<{ status: string; usage?: number }> {

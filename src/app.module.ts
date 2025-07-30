@@ -8,6 +8,8 @@ import { join } from 'path';
 import { MapModule } from './modules/map/map.module';
 import { RouteModule } from './modules/route/route.module';
 import { Route } from './entities';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -22,6 +24,7 @@ import { Route } from './entities';
       synchronize: process.env.NODE_ENV !== 'production', // 本番では false
       logging: process.env.NODE_ENV === 'development',
     }),
+    TypeOrmModule.forFeature([Route]), // AWS Professional: Repository注入用
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       typePaths: ['./**/*.graphql'],
@@ -37,6 +40,8 @@ import { Route } from './entities';
     MapModule,
     RouteModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
 

@@ -4,14 +4,30 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Route } from './entities';
 
 describe('AppController', () => {
   let appController: AppController;
 
   beforeEach(async () => {
+    const mockRepository = {
+      manager: {
+        connection: {
+          query: jest.fn().mockResolvedValue([{ result: 1 }])
+        }
+      }
+    };
+
     const app: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
-      providers: [AppService],
+      providers: [
+        AppService,
+        {
+          provide: getRepositoryToken(Route),
+          useValue: mockRepository,
+        },
+      ],
     }).compile();
 
     appController = app.get<AppController>(AppController);
