@@ -197,8 +197,13 @@ jobs:
         run: |
           echo "🗑️ Destroying frontend resources..."
           yes | terraform init
-          # CloudFrontは手動削除済みなので、enable_cloudfront=falseでdestroy
-          terraform destroy -auto-approve -var="api_alb_dns_name=" -var="enable_cloudfront=false"
+          
+          # CloudFront state cleanup (Professional設計: 手動削除後のstate同期)
+          echo "🔧 Cleaning up CloudFront from Terraform state..."
+          terraform state rm aws_cloudfront_distribution.main 2>/dev/null || true
+          
+          # Terraform destroy実行
+          terraform destroy -auto-approve -var="api_alb_dns_name="
           echo "✅ Frontend infrastructure destroyed"
         working-directory: ./terraform/frontend
 
