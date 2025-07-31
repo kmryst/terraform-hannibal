@@ -115,6 +115,8 @@
         "s3:GetObjectTagging",
         "s3:PutObjectTagging",
         "s3:DeleteObjectTagging",
+        "s3:GetBucketVersioning",
+        "s3:PutBucketVersioning",
         "cloudfront:GetOriginAccessControl",
         "cloudfront:ListOriginAccessControls",
         "cloudfront:CreateDistribution",
