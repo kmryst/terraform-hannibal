@@ -147,3 +147,14 @@ variable "alert_email" {
   type        = string
   default     = "gatsbykenji@gmail.com"
 }
+
+variable "active_environment" {
+  description = "Active environment for Blue/Green deployment (blue or green)"
+  type        = string
+  default     = "blue"
+  
+  validation {
+    condition     = contains(["blue", "green"], var.active_environment)
+    error_message = "Active environment must be either 'blue' or 'green'."
+  }
+}

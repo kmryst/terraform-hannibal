@@ -160,7 +160,19 @@
         "iam:PutRolePolicy",
         "athena:StartQueryExecution",
         "athena:GetQueryExecution",
-        "athena:GetQueryResults"
+        "athena:GetQueryResults",
+        "ecs:ListClusters",
+        "ecs:PutClusterCapacityProviders",
+        "codedeploy:ListApplications",
+        "codedeploy:CreateApplication",
+        "codedeploy:DeleteApplication",
+        "codedeploy:CreateDeploymentGroup",
+        "codedeploy:DeleteDeploymentGroup",
+        "codedeploy:ListDeploymentGroups",
+        "codedeploy:CreateDeployment",
+        "codedeploy:GetDeployment",
+        "codedeploy:StopDeployment",
+        "cloudwatch:ListMetrics"
       ],
       "Resource": "*"
     },
