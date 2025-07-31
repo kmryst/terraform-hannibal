@@ -29,7 +29,7 @@ output "rds_endpoint" {
 # Professional Blue/Green Outputs
 output "codedeploy_application_name" {
   description = "CodeDeploy application name for Blue/Green deployment"
-  value       = aws_codedeploy_application.ecs_app.name
+  value       = aws_codedeploy_app.ecs_app.name
 }
 
 output "codedeploy_deployment_group_name" {

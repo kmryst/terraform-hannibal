@@ -71,7 +71,7 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   alarm_configuration {
     enabled = true
     alarms  = [
-      aws_cloudwatch_metric_alarm.deployment_health.name
+      aws_cloudwatch_metric_alarm.deployment_health.alarm_name
     ]
   }
 }
