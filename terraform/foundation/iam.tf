@@ -158,7 +158,61 @@ resource "aws_iam_policy" "hannibal_developer_policy" {
   })
 }
 
-# --- 4. HannibalCICDPolicy-Dev-Minimal (最小権限自動デプロイポリシー) ---
+# --- 4. HannibalCICDPolicy-Dev (広い権限自動デプロイポリシー) ---
+resource "aws_iam_policy" "hannibal_cicd_policy" {
+  name        = "HannibalCICDPolicy-Dev"
+  description = "Wide CI/CD permissions - Blue/Green, Canary, Organizations support"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "access-analyzer:*",
+          "cloudtrail:*",
+          "ec2:*",
+          "ecr:*",
+          "ecs:*",
+          "elasticloadbalancing:*",
+          "logs:*",
+          "cloudwatch:*",
+          "rds:*",
+          "s3:*",
+          "cloudfront:*",
+          "sns:*",
+          "sts:*",
+          "kms:*",
+          "route53:*",
+          "athena:*",
+          "codedeploy:*",
+          "organizations:*",
+          "controltower:*",
+          "sso:*",
+          "sso-admin:*",
+          "identitystore:*",
+          "config:*",
+          "guardduty:*",
+          "securityhub:*",
+          "cloudformation:*",
+          "servicecatalog:*",
+          "support:*",
+          "trustedadvisor:*"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:*"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# --- 5. HannibalCICDPolicy-Dev-Minimal (最小権限自動デプロイポリシー) ---
 resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
   name        = "HannibalCICDPolicy-Dev-Minimal"
   description = "Minimal CI/CD permissions - CloudTrail analysis + destroy operations"
@@ -377,7 +431,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
   })
 }
 
-# --- 5. ポリシーアタッチメント ---
+# --- 6. ポリシーアタッチメント ---
 resource "aws_iam_role_policy_attachment" "hannibal_developer_policy_attachment" {
   role       = aws_iam_role.hannibal_developer_role.name
   policy_arn = aws_iam_policy.hannibal_developer_policy.arn
@@ -385,7 +439,7 @@ resource "aws_iam_role_policy_attachment" "hannibal_developer_policy_attachment"
 
 resource "aws_iam_role_policy_attachment" "hannibal_cicd_policy_attachment" {
   role       = aws_iam_role.hannibal_cicd_role.name
-  policy_arn = aws_iam_policy.hannibal_cicd_policy_minimal.arn
+  policy_arn = aws_iam_policy.hannibal_cicd_policy.arn
 }
 
 # --- 実装後の管理方針 ---
@@ -394,7 +448,7 @@ resource "aws_iam_role_policy_attachment" "hannibal_cicd_policy_attachment" {
 # 3. 以降は手動管理・永続保持
 # 4. コードは再現性・ドキュメント用に保持
 
-# --- 6. Permission Boundary管理 ---
+# --- 7. Permission Boundary管理 ---
 resource "aws_iam_policy" "hannibal_cicd_boundary" {
   name        = "HannibalCICDBoundary"
   description = "Permission boundary for CI/CD role - limits maximum permissions"
@@ -433,7 +487,17 @@ resource "aws_iam_policy" "hannibal_cicd_boundary" {
           "cloudfront:*",
           "route53:*",
           "codedeploy:*",
-          "athena:*"
+          "athena:*",
+          "organizations:*",
+          "controltower:*",
+          "sso:*",
+          "sso-admin:*",
+          "identitystore:*",
+          "config:*",
+          "guardduty:*",
+          "securityhub:*",
+          "cloudformation:*",
+          "servicecatalog:*"
         ]
         Resource = "*"
       },
@@ -444,7 +508,6 @@ resource "aws_iam_policy" "hannibal_cicd_boundary" {
           "iam:DeleteUser",
           "iam:CreateAccessKey",
           "iam:DeleteAccessKey",
-          "organizations:*",
           "account:*"
         ]
         Resource = "*"
@@ -458,6 +521,6 @@ resource "aws_iam_policy" "hannibal_cicd_boundary" {
 # 用途: ECSタスク実行ロールの権限制限
 
 # --- 現在の運用状況 ---
-# HannibalCICDRole-Dev: HannibalCICDPolicy-Dev-Minimal v2 アタッチ済み
-# deploy.yml + destroy.yml 両対応の最小権限設計
-# CloudTrail分析結果に基づく実用的な権限設定
+# HannibalCICDRole-Dev: HannibalCICDPolicy-Dev v9 アタッチ済み
+# Blue/Green、Canary、AWS Organizations対応の広い権限設計
+# 実装完了後にCloudTrail分析で最小権限化予定

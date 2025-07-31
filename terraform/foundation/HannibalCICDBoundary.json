@@ -32,7 +32,17 @@
         "cloudfront:*",
         "route53:*",
         "codedeploy:*",
-        "athena:*"
+        "athena:*",
+        "organizations:*",
+        "controltower:*",
+        "sso:*",
+        "sso-admin:*",
+        "identitystore:*",
+        "config:*",
+        "guardduty:*",
+        "securityhub:*",
+        "cloudformation:*",
+        "servicecatalog:*"
       ],
       "Resource": "*"
     },
@@ -43,7 +53,6 @@
         "iam:DeleteUser",
         "iam:CreateAccessKey",
         "iam:DeleteAccessKey",
-        "organizations:*",
         "account:*"
       ],
       "Resource": "*"
