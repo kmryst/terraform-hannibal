@@ -86,7 +86,7 @@ jobs:
       # エラー処理: 2>/dev/null || true でリソースが存在しない場合もエラーにしない
       - name: Clean up existing AWS resources (ECS/ALB/SG)
         run: |
-          # 1. CodeDeploy削除（Professional Blue/Green - 依存関係順序重要）
+          # 1. CodeDeploy削除（AWS Professional Blue/Green - 依存関係順序重要）
           echo "🗑️ Cleaning up CodeDeploy deployment group..."
           if aws deploy get-deployment-group --application-name nestjs-hannibal-3-ecs-app --deployment-group-name nestjs-hannibal-3-deployment-group --region ap-northeast-1 >/dev/null 2>&1; then
             aws deploy delete-deployment-group --application-name nestjs-hannibal-3-ecs-app --deployment-group-name nestjs-hannibal-3-deployment-group --region ap-northeast-1
@@ -103,13 +103,19 @@ jobs:
             echo "ℹ️ CodeDeploy application not found (already deleted)"
           fi
           
-          # 2. Blue ECSサービス削除（GreenはCodeDeployが管理）
+          # 2. Blue/Green ECSサービス削除（Professional設計対応）
+          echo "🗑️ Cleaning up Green ECS service..."
+          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-green-service --desired-count 0 --region ap-northeast-1 2>/dev/null || true
+          sleep 30
+          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-green-service --force --region ap-northeast-1 2>/dev/null || true
+          
+          # 3. Blue ECSサービス削除
           echo "🗑️ Cleaning up Blue ECS service..."
           aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-blue-service --desired-count 0 --region ap-northeast-1 2>/dev/null || true
           sleep 30  # ECSタスクの完全停止を待つ
           aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-blue-service --force --region ap-northeast-1 2>/dev/null || true
 
-          # 2. ECSクラスタ削除（サービス削除後に実行）
+          # 4. ECSクラスタ削除（全サービス削除後に実行）
           echo "🗑️ Cleaning up ECS cluster..."
           aws ecs delete-cluster --cluster nestjs-hannibal-3-cluster --region ap-northeast-1 2>/dev/null || true
 
@@ -176,7 +182,7 @@ jobs:
           # 10. 監視リソース削除（CloudWatch Alarms, SNS Topic, Dashboard）
           echo "🗑️ Cleaning up monitoring resources..."
           
-          # CloudWatch Alarms削除（Professional Blue/Green監視）
+          # CloudWatch Alarms削除（AWS Professional Blue/Green監視）
           aws cloudwatch delete-alarms --alarm-names \
             "nestjs-hannibal-3-ecs-cpu-high-blue" \
             "nestjs-hannibal-3-ecs-cpu-high-green" \
@@ -184,6 +190,7 @@ jobs:
             "nestjs-hannibal-3-ecs-memory-high-green" \
             "nestjs-hannibal-3-ecs-task-stopped-active" \
             "nestjs-hannibal-3-deployment-health" \
+            "nestjs-hannibal-3-deployment-health-green" \
             "nestjs-hannibal-3-rds-cpu-high" \
             "nestjs-hannibal-3-rds-connections-high" \
             "nestjs-hannibal-3-alb-response-time-high" \

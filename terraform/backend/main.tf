@@ -302,9 +302,14 @@ resource "aws_ecs_service" "blue" {
   launch_type                       = "FARGATE"
   health_check_grace_period_seconds = 60
   
-  # Blue/Green Deployment用のデプロイメントコントローラー設定
+  # AWS Professional Blue/Green Deployment
   deployment_controller {
     type = "CODE_DEPLOY"
+  }
+  
+  # Professional設計: CodeDeploy管理下のため、Terraform更新を無視
+  lifecycle {
+    ignore_changes = [task_definition, desired_count]
   }
   
   network_configuration {
@@ -336,9 +341,14 @@ resource "aws_ecs_service" "green" {
   launch_type                       = "FARGATE"
   health_check_grace_period_seconds = 60
   
-  # Blue/Green Deployment用のデプロイメントコントローラー設定
+  # AWS Professional Blue/Green Deployment
   deployment_controller {
     type = "CODE_DEPLOY"
+  }
+  
+  # Professional設計: CodeDeploy管理下のため、Terraform更新を無視
+  lifecycle {
+    ignore_changes = [task_definition, desired_count]
   }
   
   network_configuration {
