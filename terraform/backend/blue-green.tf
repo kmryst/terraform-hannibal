@@ -4,7 +4,6 @@
 # --- CodeDeploy Service Role ---
 resource "aws_iam_role" "codedeploy_service_role" {
   name                 = "${var.project_name}-codedeploy-service-role"
-  permissions_boundary = "arn:aws:iam::258632448142:policy/HannibalECSBoundary"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
