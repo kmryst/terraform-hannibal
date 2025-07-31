@@ -1,10 +1,52 @@
 # AWS Professional Design Rules
 
 ## 基本原則
-- **常にAWS Certified Professional/Specialtyレベルの設計を提案する**
+- **以下の優先順位に基づいてAWS Certified Professional/Specialtyレベルの設計を提案する**
 - 段階的アプローチではなく、最初から企業レベルの設計を提示する
 - 学習目的でも、プロダクション品質の設計を基準とする
 - 提案する設計の企業レベル品質を常に強調する
+
+## 参考資料の優先順位
+
+### 最優先（Tier 1）- 絶対的基準
+1. Well-Architected Framework
+2. AWS公式ドキュメント（サービス別）
+3. AWS公式ベストプラクティスガイド
+
+### 高優先（Tier 2）- 公式権威
+4. AWS Architecture Center
+5. AWS Prescriptive Guidance
+6. AWS公式ホワイトペーパー
+7. AWS Certified試験ガイド
+
+### 中優先（Tier 3）- 公式実例
+8. re:Invent公式セッション
+9. AWS公式ブログ
+10. AWS公式ケーススタディ
+11. AWS re:Post（公式コミュニティ）
+
+### 補完（Tier 4）- 実装参考
+12. 企業レベル参考例（Netflix、Capital One等）
+    - Netflix: 環境別ユーザー + ロール組み合わせ
+    - Slack: GitOps + IAM Policy as Code
+    - Twitch: Blue/Green IAM Deployment
+    - Pinterest: Immutable Infrastructure + 権限テンプレート化
+    - Airbnb: 段階的権限管理
+    - Capital One: PermissionBoundary + Service Control Policy組み合わせ
+    - Goldman Sachs: Multi-Account + Cross-Account Role Chain
+    - JPMorgan Chase: 時限付きアクセス + Just-In-Time権限昇格
+    - Spotify: チーム別 + 環境別分離
+    - Uber: Service-Linked Role + 自動権限検出
+    - Lyft: CloudFormation StackSets + 組織単位権限管理
+    - Dropbox: AWS Organizations + 集中ログ管理
+13. AWS Solutions Library
+14. HashiCorp Learn（Terraform）
+15. Stack Overflow（実装例）
+
+### 参考程度（Tier 5）- 個人経験
+16. GitHub Issues/Discussions
+17. 業界標準フレームワーク（NIST等）
+18. 技術ブログ（Qiita、Medium等）
 
 ## 設計原則
 
@@ -32,11 +74,6 @@
 - 手動作業の最小化
 - 再現可能な設計
 - バージョン管理による変更追跡
-
-## 企業レベル参考例
-- Netflix: 環境別ユーザー + ロール組み合わせ
-- Airbnb: 段階的権限管理
-- Spotify: チーム別 + 環境別分離
 
 ## 禁止パターン
 - 単一ユーザーでの全環境管理

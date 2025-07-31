@@ -1,0 +1,52 @@
+name: Blue/Green Deployment (Professional)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        default: 'latest'
+
+jobs:
+  blue-green-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+          
+      - name: Assume CICD Role
+        run: |
+          CICD_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --role-session-name blue-green-deploy)
+          echo "AWS_ACCESS_KEY_ID=$(echo $CICD_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $CICD_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $CICD_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+          
+      - name: Create CodeDeploy Deployment
+        run: |
+          # Task Definition更新
+          TASK_DEF_ARN=$(aws ecs describe-services --cluster nestjs-hannibal-3-cluster --services nestjs-hannibal-3-blue-service --query "services[0].taskDefinition" --output text)
+          aws ecs describe-task-definition --task-definition $TASK_DEF_ARN > task-def.json
+          
+          NEW_IMAGE="258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.event.inputs.image_tag }}"
+          cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" '(.taskDefinition.containerDefinitions[] | select(.name == "nestjs-hannibal-3-container") | .image) |= $IMAGE | .taskDefinition | {family,taskRoleArn,executionRoleArn,networkMode,containerDefinitions,volumes,placementConstraints,requiresCompatibilities,cpu,memory,tags,runtimePlatform} | with_entries(select(.value != null))' > new-task-def.json
+          
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
+          
+          # CodeDeploy実行
+          aws deploy create-deployment \
+            --application-name nestjs-hannibal-3-ecs-app \
+            --deployment-group-name nestjs-hannibal-3-deployment-group \
+            --revision revisionType=ECS,ecsService='{serviceName=nestjs-hannibal-3-blue-service,clusterName=nestjs-hannibal-3-cluster,taskDefinition='$NEW_TASK_DEF_ARN'}'
+            
+      - name: Monitor Deployment
+        run: |
+          echo "✅ Professional Blue/Green Deployment initiated with CodeDeploy"
+          echo "🔍 Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments"

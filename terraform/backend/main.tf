@@ -244,22 +244,7 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# Green Target Group用のListener Rule
-resource "aws_lb_listener_rule" "green" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 100
-  
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.green.arn
-  }
-  
-  condition {
-    path_pattern {
-      values = ["/green/*"]  # Green環境テスト用パス
-    }
-  }
-}
+
 
 # --- Security Group for ALB ---
 resource "aws_security_group" "alb_sg" {

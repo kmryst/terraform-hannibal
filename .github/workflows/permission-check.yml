@@ -57,6 +57,10 @@ jobs:
           aws ecs list-clusters --region ap-northeast-1 || echo "❌ ECS:ListClusters"
           aws ecs describe-services --cluster non-existent --services non-existent --region ap-northeast-1 2>/dev/null || echo "✅ ECS:DescribeServices"
           
+          # CodeDeploy Permissions (Professional Blue/Green)
+          aws deploy list-applications --region ap-northeast-1 || echo "❌ CodeDeploy:ListApplications"
+          aws deploy list-deployment-groups --application-name non-existent --region ap-northeast-1 2>/dev/null || echo "✅ CodeDeploy:ListDeploymentGroups"
+          
           # ALB Permissions
           aws elbv2 describe-load-balancers --region ap-northeast-1 || echo "❌ ELBv2:DescribeLoadBalancers"
           aws elbv2 describe-target-groups --region ap-northeast-1 || echo "❌ ELBv2:DescribeTargetGroups"
@@ -99,6 +103,11 @@ jobs:
           echo "🐳 ECS Detailed Permissions:"
           aws ecs create-cluster --cluster-name permission-test-cluster --dry-run 2>&1 | grep -q "DryRunOperation" && echo "✅ ECS:CreateCluster" || echo "❌ ECS:CreateCluster"
           aws ecs put-cluster-capacity-providers --cluster permission-test --capacity-providers FARGATE --dry-run 2>&1 | grep -q "DryRunOperation" && echo "✅ ECS:PutClusterCapacityProviders" || echo "❌ ECS:PutClusterCapacityProviders"
+          
+          # CodeDeploy Detailed Permissions (Professional Blue/Green)
+          echo "🚀 CodeDeploy Detailed Permissions:"
+          aws deploy create-application --application-name permission-test --compute-platform ECS --dry-run 2>&1 | grep -q "DryRunOperation" && echo "✅ CodeDeploy:CreateApplication" || echo "❌ CodeDeploy:CreateApplication"
+          aws deploy create-deployment-group --application-name permission-test --deployment-group-name test --service-role-arn arn:aws:iam::123456789012:role/test --dry-run 2>&1 | grep -q "DryRunOperation" && echo "✅ CodeDeploy:CreateDeploymentGroup" || echo "❌ CodeDeploy:CreateDeploymentGroup"
           
           # ALB Detailed Permissions
           echo "⚖️ ALB Detailed Permissions:"

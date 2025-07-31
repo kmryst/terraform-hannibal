@@ -77,7 +77,9 @@ jobs:
           aws elbv2 describe-target-groups --names nestjs-hannibal-3-blue-tg nestjs-hannibal-3-green-tg
           aws elbv2 describe-rules --listener-arn $(aws elbv2 describe-listeners --load-balancer-arn $(aws elbv2 describe-load-balancers --names nestjs-hannibal-3-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text) --query 'Listeners[0].ListenerArn' --output text)
           aws ecs describe-clusters --clusters nestjs-hannibal-3-cluster
-          aws ecs describe-services --cluster nestjs-hannibal-3-cluster --services nestjs-hannibal-3-blue-service nestjs-hannibal-3-green-service
+          aws ecs describe-services --cluster nestjs-hannibal-3-cluster --services nestjs-hannibal-3-blue-service
+          aws deploy list-applications --query 'applications[?contains(@, `nestjs-hannibal-3-ecs-app`)]'
+          aws deploy list-deployment-groups --application-name nestjs-hannibal-3-ecs-app
           aws rds describe-db-instances --db-instance-identifier nestjs-hannibal-3-postgres
           aws cloudwatch describe-alarms
           

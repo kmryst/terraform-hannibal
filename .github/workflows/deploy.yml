@@ -121,12 +121,10 @@ jobs:
           # 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
           echo "Skipping ECR deletion - using pre-created repository"
 
-          # Blue/Green ECSサービス削除
+          # Blue ECSサービス削除（CodeDeployがGreen環境を管理）
           aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-blue-service --desired-count 0 --region ap-northeast-1 2>/dev/null || echo "Blue ECS service not found"
-          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-green-service --desired-count 0 --region ap-northeast-1 2>/dev/null || echo "Green ECS service not found"
           sleep 10
           aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-blue-service --force --region ap-northeast-1 2>/dev/null || echo "Blue ECS service not found"
-          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-green-service --force --region ap-northeast-1 2>/dev/null || echo "Green ECS service not found"
 
           # ECSクラスタ削除
           aws ecs delete-cluster --cluster nestjs-hannibal-3-cluster --region ap-northeast-1 2>/dev/null || echo "ECS cluster not found"
@@ -171,15 +169,14 @@ jobs:
           # 監視リソース削除（CloudWatch Alarms, SNS Topic, Dashboard）
           echo "Cleaning up monitoring resources..."
           
-          # CloudWatch Alarms削除（Blue/Green対応）
+          # CloudWatch Alarms削除（Professional Blue/Green対応）
           aws cloudwatch delete-alarms --alarm-names \
             "nestjs-hannibal-3-ecs-cpu-high-blue" \
             "nestjs-hannibal-3-ecs-cpu-high-green" \
             "nestjs-hannibal-3-ecs-memory-high-blue" \
             "nestjs-hannibal-3-ecs-memory-high-green" \
             "nestjs-hannibal-3-ecs-task-stopped-active" \
-            "nestjs-hannibal-3-blue-health-alarm" \
-            "nestjs-hannibal-3-green-health-alarm" \
+            "nestjs-hannibal-3-deployment-health" \
             "nestjs-hannibal-3-rds-cpu-high" \
             "nestjs-hannibal-3-rds-connections-high" \
             "nestjs-hannibal-3-alb-response-time-high" \
@@ -262,7 +259,7 @@ jobs:
             -target="aws_lb_target_group.green" \
             -target="aws_lb.main" \
             -target="aws_lb_listener.http" \
-            -target="aws_lb_listener_rule.green" \
+
             -target="aws_db_subnet_group.postgres" \
             -target="aws_db_instance.postgres" \
             -target="aws_s3_bucket_policy.cloudtrail_logs"
@@ -274,7 +271,7 @@ jobs:
           terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
             -target="aws_ecs_task_definition.api" \
             -target="aws_ecs_service.blue" \
-            -target="aws_ecs_service.green"
+
         working-directory: ./terraform/backend
       
       # === STAGE 4: Monitoring Resources ===
@@ -295,10 +292,14 @@ jobs:
             -target="aws_cloudwatch_metric_alarm.rds_connections_high" \
             -target="aws_cloudwatch_metric_alarm.alb_response_time_high" \
             -target="aws_cloudwatch_metric_alarm.alb_5xx_error_rate_high" \
-            -target="aws_cloudwatch_metric_alarm.blue_health_check" \
-            -target="aws_cloudwatch_metric_alarm.green_health_check" \
+            -target="aws_cloudwatch_metric_alarm.deployment_health" \
             -target="aws_cloudwatch_dashboard.main" \
-            -target="aws_cloudtrail.main"
+            -target="aws_cloudtrail.main" \
+            -target="aws_iam_role.codedeploy_service_role" \
+            -target="aws_iam_role_policy_attachment.codedeploy_service_role_policy" \
+            -target="aws_codedeploy_application.ecs_app" \
+            -target="aws_codedeploy_deployment_group.ecs_deployment_group" \
+            -target="aws_cloudwatch_metric_alarm.deployment_health"
           terraform output -json > ../tf_outputs_backend.json
         working-directory: ./terraform/backend
 
@@ -479,69 +480,34 @@ jobs:
           tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Update ECS Service to use new image
+      - name: Professional Blue/Green Deployment with CodeDeploy
         env:
           AWS_REGION: ap-northeast-1
           CLUSTER_NAME: nestjs-hannibal-3-cluster
-          # Blue/Green Deployment: Blue環境をメインとして更新
           SERVICE_NAME: nestjs-hannibal-3-blue-service
-          TASK_FAMILY: nestjs-hannibal-3-api-task
           CONTAINER_NAME: nestjs-hannibal-3-container
           IMAGE_TAG: ${{ github.sha }}
           ECR_REGISTRY: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
-          # AWSアカウント×リージョンごとに1つ自動で割り当てられます
           ECR_REPOSITORY: nestjs-hannibal-3
         run: |
-
-          TASK_DEF_ARN=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query "services[0].taskDefinition" --output text)
-          # ECSにある現状のタスク定義を取得している
-          # タスク定義 どのイメージを使うか、リソース、環境変数などの設計図
-          # services[0] 返り値は必ず services という配列になるので、services[0]と指定する
-          # taskDefinition タスク定義のARN
-          # クラスタ名とサービス名を指定すれば、「そのサービスが使っているタスク定義（設計図）」は一意に特定できます
-
-          aws ecs describe-task-definition --task-definition $TASK_DEF_ARN > task-def.json
-          # タスク定義の詳細情報を取得し、ファイルに保存する
-
-          # Dockerイメージの書き換え
-          # jqの | パイプは「部分的に値を更新し、全体の構造を維持する」動きをします
-          # クォートでくくってある範囲は「jqに渡すJSON加工用のスクリプト」です
-
-          NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" --arg NAME "$CONTAINER_NAME" '(.taskDefinition.containerDefinitions[] | select(.name == $NAME) | .image) |= $IMAGE | .taskDefinition | {
-            family,
-            taskRoleArn,
-            executionRoleArn,
-            networkMode,
-            containerDefinitions,
-            volumes,
-            placementConstraints,
-            requiresCompatibilities,
-            cpu,
-            memory,
-            tags,
-            runtimePlatform
-          } | with_entries(select(.value != null))' > new-task-def.json
-          # {} jqのオブジェクトリテラル 指定したフィールドだけを抜き出して新しいJSONオブジェクトを作る
-          # aws ecs register-task-definition では、受け付けるJSONのフィールドが厳密に決まっているため、主要な項目だけの新しいJSON ファイルを作る必要があります
-          # with_entries オブジェクトの各プロパティ(キーと値のペア)に処理を行う関数です
-          # select 条件に合う要素だけを残す  配列 → 各要素（オブジェクト）に対して select
-          # .taskDefinition.containerDefinitions[] jq で使う場合、[] をつけるとループ処理やフィルタができる
-          # |= は「部分的な値の更新」を意味するjqの演算子です
-
-
-          # 新しいタスク定義を ECS に登録
-          TASK_DEF_ARN_NEW=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
-          # aws ecs register-task-definition 新しいECSタスク定義を登録し、登録した内容を JSON 形式で返す
-          # --cli-input-json コマンドの入力パラメータをJSONでまとめて渡す
-          # -query 返ってきた JSON の一部を抽出する
-          # taskDefinitionArn はECSがタスク定義を登録したときに自動で付与する値です
-
-          # サービスを新タスク定義で更新
-          aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $TASK_DEF_ARN_NEW
-          # ECSが新しいイメージからコンテナを作成・起動する
+          echo "🚀 Starting Professional Blue/Green Deployment with AWS CodeDeploy"
           
-          # ECSサービスの安定化を待つ
-          echo "Waiting for ECS service to stabilize..."
-          aws ecs wait services-stable --cluster $CLUSTER_NAME --services $SERVICE_NAME --region $AWS_REGION
-          echo "ECS service is now stable"
+          # Task Definition更新
+          TASK_DEF_ARN=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query "services[0].taskDefinition" --output text)
+          aws ecs describe-task-definition --task-definition $TASK_DEF_ARN > task-def.json
+          
+          NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" --arg NAME "$CONTAINER_NAME" '(.taskDefinition.containerDefinitions[] | select(.name == $NAME) | .image) |= $IMAGE | .taskDefinition | {family,taskRoleArn,executionRoleArn,networkMode,containerDefinitions,volumes,placementConstraints,requiresCompatibilities,cpu,memory,tags,runtimePlatform} | with_entries(select(.value != null))' > new-task-def.json
+          
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
+          
+          # CodeDeploy Blue/Green Deployment実行
+          DEPLOYMENT_ID=$(aws deploy create-deployment \
+            --application-name nestjs-hannibal-3-ecs-app \
+            --deployment-group-name nestjs-hannibal-3-deployment-group \
+            --revision "revisionType=ECS,ecsService={serviceName=$SERVICE_NAME,clusterName=$CLUSTER_NAME,taskDefinition=$NEW_TASK_DEF_ARN}" \
+            --query 'deploymentId' --output text)
+          
+          echo "✅ CodeDeploy Deployment ID: $DEPLOYMENT_ID"
+          echo "🔍 Monitor: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
+          echo "🎯 Professional Blue/Green with auto-rollback enabled"
