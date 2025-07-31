@@ -60,14 +60,12 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
 
   # AWS Professional設計: ECS Blue/Greenデプロイメント用ターゲットグループ設定
   load_balancer_info {
-    target_group_info_list = [
-      {
-        name = aws_lb_target_group.blue.name
-      },
-      {
-        name = aws_lb_target_group.green.name
-      }
-    ]
+    target_group_info {
+      name = aws_lb_target_group.blue.name
+    }
+    target_group_info {
+      name = aws_lb_target_group.green.name
+    }
   }
 
   auto_rollback_configuration {
