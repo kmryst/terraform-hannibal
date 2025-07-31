@@ -59,10 +59,10 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   }
 
   load_balancer_info {
-    target_group_info_list {
+    target_group_info {
       name = aws_lb_target_group.blue.name
     }
-    target_group_info_list {
+    target_group_info {
       name = aws_lb_target_group.green.name
     }
   }
