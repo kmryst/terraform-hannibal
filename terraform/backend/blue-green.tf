@@ -58,8 +58,15 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
     service_name = aws_ecs_service.blue.name
   }
 
-  # AWS Professional設計: ECSデプロイメントではload_balancer_info不要
-  # ターゲットグループ情報はECSサービス定義から自動取得
+  # AWS Professional設計: ECS Blue/Greenデプロイメント用ターゲットグループ設定
+  load_balancer_info {
+    target_group_info_list {
+      name = aws_lb_target_group.blue.name
+    }
+    target_group_info_list {
+      name = aws_lb_target_group.green.name
+    }
+  }
 
   auto_rollback_configuration {
     enabled = true
