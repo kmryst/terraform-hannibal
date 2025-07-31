@@ -148,13 +148,4 @@ variable "alert_email" {
   default     = "gatsbykenji@gmail.com"
 }
 
-variable "active_environment" {
-  description = "Active environment for Blue/Green deployment (blue or green)"
-  type        = string
-  default     = "blue"
-  
-  validation {
-    condition     = contains(["blue", "green"], var.active_environment)
-    error_message = "Active environment must be either 'blue' or 'green'."
-  }
-}
+# active_environment変数を削除（blue-green.tfでBlue環境固定のため不要）

@@ -182,7 +182,7 @@ jobs:
           # 10. 監視リソース削除（CloudWatch Alarms, SNS Topic, Dashboard）
           echo "🗑️ Cleaning up monitoring resources..."
           
-          # CloudWatch Alarms削除（AWS Professional Blue/Green監視）
+          # CloudWatch Alarms削除（AWS Professional Blue/Green監視対応）
           aws cloudwatch delete-alarms --alarm-names \
             "nestjs-hannibal-3-ecs-cpu-high-blue" \
             "nestjs-hannibal-3-ecs-cpu-high-green" \

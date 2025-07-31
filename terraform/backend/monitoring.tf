@@ -45,9 +45,8 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high_blue" {
   }
 }
 
-# Green環境 CPU監視
+# Green環境 CPU監視（AWS Professional設計: 常時作成）
 resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high_green" {
-  count               = var.active_environment == "green" ? 1 : 0
   alarm_name          = "${var.project_name}-ecs-cpu-high-green"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
@@ -98,9 +97,8 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory_high_blue" {
   }
 }
 
-# Green環境 Memory監視
+# Green環境 Memory監視（AWS Professional設計: 常時作成）
 resource "aws_cloudwatch_metric_alarm" "ecs_memory_high_green" {
-  count               = var.active_environment == "green" ? 1 : 0
   alarm_name          = "${var.project_name}-ecs-memory-high-green"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
@@ -125,9 +123,9 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory_high_green" {
   }
 }
 
-# アクティブ環境タスク監視（動的切り替え対応）
+# Blue環境タスク監視（AWS Professional設計: Blue環境固定）
 resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped_active" {
-  alarm_name          = "${var.project_name}-ecs-task-stopped-${var.active_environment}"
+  alarm_name          = "${var.project_name}-ecs-task-stopped-blue"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "1"
   metric_name         = "RunningTaskCount"
@@ -135,18 +133,18 @@ resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped_active" {
   period              = "60"
   statistic           = "Average"
   threshold           = "1"
-  alarm_description   = "Active ${var.active_environment} environment has no running tasks"
+  alarm_description   = "Blue environment has no running tasks"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   treat_missing_data  = "breaching"
 
   dimensions = {
-    ServiceName = var.active_environment == "blue" ? aws_ecs_service.blue.name : aws_ecs_service.green.name
+    ServiceName = aws_ecs_service.blue.name
     ClusterName = aws_ecs_cluster.main.name
   }
 
   tags = {
     Name = "${var.project_name}-ecs-task-alarm-active"
-    Environment = var.active_environment
+    Environment = "blue"
   }
 }
 
@@ -263,7 +261,7 @@ resource "aws_cloudwatch_dashboard" "main" {
 
         properties = {
           metrics = [
-            ["AWS/ECS", "CPUUtilization", "ServiceName", var.active_environment == "blue" ? aws_ecs_service.blue.name : aws_ecs_service.green.name, "ClusterName", aws_ecs_cluster.main.name],
+            ["AWS/ECS", "CPUUtilization", "ServiceName", aws_ecs_service.blue.name, "ClusterName", aws_ecs_cluster.main.name],
             [".", "MemoryUtilization", ".", ".", ".", "."]
           ]
           view    = "timeSeries"

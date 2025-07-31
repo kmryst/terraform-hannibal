@@ -177,6 +177,7 @@ jobs:
             "nestjs-hannibal-3-ecs-memory-high-green" \
             "nestjs-hannibal-3-ecs-task-stopped-active" \
             "nestjs-hannibal-3-deployment-health" \
+            "nestjs-hannibal-3-deployment-health-green" \
             "nestjs-hannibal-3-rds-cpu-high" \
             "nestjs-hannibal-3-rds-connections-high" \
             "nestjs-hannibal-3-alb-response-time-high" \
@@ -292,13 +293,13 @@ jobs:
             -target="aws_cloudwatch_metric_alarm.alb_response_time_high" \
             -target="aws_cloudwatch_metric_alarm.alb_5xx_error_rate_high" \
             -target="aws_cloudwatch_metric_alarm.deployment_health" \
+            -target="aws_cloudwatch_metric_alarm.deployment_health_green" \
             -target="aws_cloudwatch_dashboard.main" \
             -target="aws_cloudtrail.main" \
             -target="aws_iam_role.codedeploy_service_role" \
             -target="aws_iam_role_policy_attachment.codedeploy_service_role_policy" \
-            -target="aws_codedeploy_application.ecs_app" \
-            -target="aws_codedeploy_deployment_group.ecs_deployment_group" \
-            -target="aws_cloudwatch_metric_alarm.deployment_health"
+            -target="aws_codedeploy_app.ecs_app" \
+            -target="aws_codedeploy_deployment_group.ecs_deployment_group"
           terraform output -json > ../tf_outputs_backend.json
         working-directory: ./terraform/backend
 
