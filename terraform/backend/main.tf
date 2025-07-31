@@ -228,7 +228,7 @@ resource "aws_lb_target_group" "green" {
 }
 
 # --- ALB Listener (Blue/Green対応) ---
-resource "aws_lb_listener" "http" {
+resource "aws_lb_listener" "main" {
   load_balancer_arn = aws_lb.main.arn
   port              = var.alb_listener_port
   protocol          = "HTTP"
@@ -249,7 +249,7 @@ resource "aws_lb_listener" "http" {
   }
   
   tags = {
-    Name = "${var.project_name}-http-listener"
+    Name = "${var.project_name}-main-listener"
   }
 }
 
@@ -329,7 +329,7 @@ resource "aws_ecs_service" "blue" {
     Environment = "blue"
   }
   
-  depends_on = [aws_lb_listener.http, aws_db_instance.postgres]
+  depends_on = [aws_lb_listener.main, aws_db_instance.postgres]
 }
 
 # --- ECS Service (Green環境) ---
@@ -368,7 +368,7 @@ resource "aws_ecs_service" "green" {
     Environment = "green"
   }
   
-  depends_on = [aws_lb_listener.http, aws_db_instance.postgres]
+  depends_on = [aws_lb_listener.main, aws_db_instance.postgres]
 }
 
 # --- RDS Subnet Group ---

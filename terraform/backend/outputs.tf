@@ -46,3 +46,23 @@ output "green_target_group_arn" {
   description = "Green environment target group ARN"
   value       = aws_lb_target_group.green.arn
 }
+
+output "alb_listener_arn" {
+  description = "ALB Listener ARN for CodeDeploy"
+  value       = aws_lb_listener.main.arn
+}
+
+output "codedeploy_service_role_arn" {
+  description = "CodeDeploy service role ARN"
+  value       = aws_iam_role.codedeploy_service_role.arn
+}
+
+output "blue_service_name" {
+  description = "Blue ECS service name"
+  value       = aws_ecs_service.blue.name
+}
+
+output "green_service_name" {
+  description = "Green ECS service name"
+  value       = aws_ecs_service.green.name
+}

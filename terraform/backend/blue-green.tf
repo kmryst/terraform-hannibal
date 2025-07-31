@@ -36,10 +36,7 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   deployment_group_name = "${var.project_name}-deployment-group"
   service_role_arn      = aws_iam_role.codedeploy_service_role.arn
 
-  # 【修正点 1: デプロイ設定の変更】
-  # 元々カナリアデプロイ (CodeDeployDefault.ECSCanary10Percent5Minutes) が設定されていましたが、
-  # Blue/Greenデプロイメントのベストプラクティスとして、トラフィックを一度に切り替える
-  # ECSAllAtOnce に変更しました。これによりBlue/Greenの意図に沿った動作になります。
+  # ベストプラクティス: Blue/Greenでは一度にトラフィックを切り替える設定が一般的
   deployment_config_name = "CodeDeployDefault.ECSAllAtOnce"
 
   deployment_style {
@@ -49,9 +46,7 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
 
   blue_green_deployment_config {
     deployment_ready_option {
-      # 【修正点 2: タイムアウト時の動作変更】
-      # 元々 CONTINUE_DEPLOYMENT でタイムアウトしてもデプロイを続行する設定でしたが、
-      # 問題発生時にデプロイを停止し、安全性を確保するため STOP_DEPLOYMENT に変更しました。
+      # ベストプラクティス: タイムアウト時は安全のためデプロイを停止・ロールバック
       action_on_timeout = "STOP_DEPLOYMENT"
     }
 
@@ -66,8 +61,26 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
     service_name = aws_ecs_service.blue.name
   }
 
-  # AWS Professional設計: ECS Blue/Greenではload_balancer_info不要
-  # ターゲットグループ情報はECSサービスから自動継承
+  # 【エラー修正】ロードバランサー情報を明示的に指定します。
+  # CodeDeployがトラフィックを切り替えるために、リスナーとBlue/Greenの
+  # ターゲットグループのペアをここで定義する必要があり、このブロックは必須です。
+  load_balancer_info {
+    target_group_pair_info {
+      # 本番トラフィックを受け付けているリスナーを指定
+      prod_traffic_route {
+        # 注: この値はご自身の環境のALBリスナーリソースを指すようにしてください
+        listener_arns = [aws_lb_listener.main.arn]
+      }
+
+      # Blue環境とGreen環境のターゲットグループを指定
+      target_group {
+        name = aws_lb_target_group.blue.name
+      }
+      target_group {
+        name = aws_lb_target_group.green.name
+      }
+    }
+  }
 
   auto_rollback_configuration {
     enabled = true
@@ -76,10 +89,7 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
 
   alarm_configuration {
     enabled = true
-    # 【修正点 3: アラーム設定の最適化】
-    # ロールバックトリガーとして設定するアラームは、新しくデプロイされる
-    # Green環境の健全性を監視するものが適切です。
-    # 元々含まれていたBlue環境用のアラームは不要であるため、Green環境用のみに限定しました。
+    # ベストプラクティス: ロールバック監視は、新しくデプロイされるGreen環境のアラームに限定
     alarms = [
       aws_cloudwatch_metric_alarm.deployment_health_green.alarm_name
     ]
