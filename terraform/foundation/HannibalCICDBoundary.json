@@ -30,7 +30,9 @@
         "iam:CreatePolicy",
         "iam:DeletePolicy",
         "cloudfront:*",
-        "route53:*"
+        "route53:*",
+        "codedeploy:*",
+        "athena:*"
       ],
       "Resource": "*"
     },
