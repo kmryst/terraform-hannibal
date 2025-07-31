@@ -307,9 +307,9 @@ resource "aws_ecs_service" "blue" {
     type = "CODE_DEPLOY"
   }
   
-  # Professional設計: CodeDeploy管理下のため、Terraform更新を無視
+  # AWS Professional設計: CodeDeploy完全制御下のため、Terraform更新を無視
   lifecycle {
-    ignore_changes = [task_definition, desired_count]
+    ignore_changes = [task_definition, desired_count, load_balancer]
   }
   
   network_configuration {
@@ -346,9 +346,9 @@ resource "aws_ecs_service" "green" {
     type = "CODE_DEPLOY"
   }
   
-  # Professional設計: CodeDeploy管理下のため、Terraform更新を無視
+  # AWS Professional設計: CodeDeploy完全制御下のため、Terraform更新を無視
   lifecycle {
-    ignore_changes = [task_definition, desired_count]
+    ignore_changes = [task_definition, desired_count, load_balancer]
   }
   
   network_configuration {
