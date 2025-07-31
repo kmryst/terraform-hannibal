@@ -325,7 +325,21 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "iam:PutRolePolicy",
           "athena:StartQueryExecution",
           "athena:GetQueryExecution",
-          "athena:GetQueryResults"
+          "athena:GetQueryResults",
+          "ecs:ListClusters",
+          "ecs:PutClusterCapacityProviders",
+          "codedeploy:ListApplications",
+          "codedeploy:CreateApplication",
+          "codedeploy:DeleteApplication",
+          "codedeploy:CreateDeploymentGroup",
+          "codedeploy:DeleteDeploymentGroup",
+          "codedeploy:ListDeploymentGroups",
+          "codedeploy:CreateDeployment",
+          "codedeploy:GetDeployment",
+          "codedeploy:StopDeployment",
+          "cloudwatch:ListMetrics",
+          "s3:GetBucketVersioning",
+          "s3:PutBucketVersioning"
         ]
         Resource = "*"
       },
@@ -408,7 +422,9 @@ resource "aws_iam_policy" "hannibal_cicd_boundary" {
           "iam:CreatePolicy",
           "iam:DeletePolicy",
           "cloudfront:*",
-          "route53:*"
+          "route53:*",
+          "codedeploy:*",
+          "athena:*"
         ]
         Resource = "*"
       },

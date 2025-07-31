@@ -57,6 +57,15 @@ jobs:
         run: |
           echo "🏗️ Infrastructure as Code Validation (Enterprise Standard)"
           
+          CICD_CREDS=$(aws sts assume-role \
+            --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev \
+            --role-session-name terraform-validation)
+          
+          unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+          export AWS_ACCESS_KEY_ID=$(echo $CICD_CREDS | jq -r '.Credentials.AccessKeyId')
+          export AWS_SECRET_ACCESS_KEY=$(echo $CICD_CREDS | jq -r '.Credentials.SecretAccessKey')
+          export AWS_SESSION_TOKEN=$(echo $CICD_CREDS | jq -r '.Credentials.SessionToken')
+          
           # Backend Infrastructure Plan
           cd terraform/backend
           terraform init -input=false
