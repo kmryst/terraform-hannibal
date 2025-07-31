@@ -265,6 +265,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "rds:DeleteDBSubnetGroup",
           "rds:DescribeDBInstances",
           "rds:DescribeDBSubnetGroups",
+          "rds:ModifyDBInstance",
           "rds:ListTagsForResource",
           "rds:AddTagsToResource",
           "rds:RemoveTagsFromResource",
