@@ -342,6 +342,9 @@ resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
           "codedeploy:CreateDeployment",
           "codedeploy:GetDeployment",
           "codedeploy:StopDeployment",
+          "codedeploy:ListTagsForResource",
+          "codedeploy:TagResource",
+          "codedeploy:UntagResource",
           "cloudwatch:ListMetrics",
           "s3:GetBucketVersioning",
           "s3:PutBucketVersioning"

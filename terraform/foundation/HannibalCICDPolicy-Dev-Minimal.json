@@ -179,6 +179,9 @@
         "codedeploy:CreateDeployment",
         "codedeploy:GetDeployment",
         "codedeploy:StopDeployment",
+        "codedeploy:ListTagsForResource",
+        "codedeploy:TagResource",
+        "codedeploy:UntagResource",
         "cloudwatch:ListMetrics"
       ],
       "Resource": "*"
