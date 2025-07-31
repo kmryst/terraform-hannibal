@@ -293,6 +293,11 @@ resource "aws_ecs_service" "blue" {
   launch_type                       = "FARGATE"
   health_check_grace_period_seconds = 60
   
+  # Blue/Green Deployment用のデプロイメントコントローラー設定
+  deployment_controller {
+    type = "CODE_DEPLOY"
+  }
+  
   network_configuration {
     subnets          = data.aws_subnets.public.ids
     security_groups  = [aws_security_group.ecs_service_sg.id]
