@@ -26,14 +26,14 @@ resource "aws_iam_role_policy_attachment" "codedeploy_service_role_policy" {
 }
 
 # --- CodeDeploy Application ---
-resource "aws_codedeploy_application" "ecs_app" {
+resource "aws_codedeploy_app" "ecs_app" {
   name             = "${var.project_name}-ecs-app"
   compute_platform = "ECS"
 }
 
 # --- CodeDeploy Deployment Group ---
 resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
-  app_name               = aws_codedeploy_application.ecs_app.name
+  app_name               = aws_codedeploy_app.ecs_app.name
   deployment_group_name  = "${var.project_name}-deployment-group"
   service_role_arn      = aws_iam_role.codedeploy_service_role.arn
   deployment_config_name = "CodeDeployDefault.ECSAllAtOnceBlueGreen"
