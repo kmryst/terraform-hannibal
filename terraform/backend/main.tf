@@ -367,9 +367,9 @@ resource "aws_db_instance" "postgres" {
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
   db_subnet_group_name   = aws_db_subnet_group.postgres.name
   
-  backup_retention_period = 7
-  backup_window          = "03:00-04:00"
-  maintenance_window     = "sun:04:00-sun:05:00"
+  backup_retention_period = 0
+  # backup_window          = "03:00-04:00"  # 開発環境では無効化
+  # maintenance_window     = "sun:04:00-sun:05:00"  # 開発環境では無効化
   
   skip_final_snapshot = true
   deletion_protection = false

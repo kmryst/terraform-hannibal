@@ -86,9 +86,22 @@ jobs:
       # エラー処理: 2>/dev/null || true でリソースが存在しない場合もエラーにしない
       - name: Clean up existing AWS resources (ECS/ALB/SG)
         run: |
-          # 1. CodeDeployアプリケーション削除（Professional Blue/Green）
+          # 1. CodeDeploy削除（Professional Blue/Green - 依存関係順序重要）
+          echo "🗑️ Cleaning up CodeDeploy deployment group..."
+          if aws deploy get-deployment-group --application-name nestjs-hannibal-3-ecs-app --deployment-group-name nestjs-hannibal-3-deployment-group --region ap-northeast-1 >/dev/null 2>&1; then
+            aws deploy delete-deployment-group --application-name nestjs-hannibal-3-ecs-app --deployment-group-name nestjs-hannibal-3-deployment-group --region ap-northeast-1
+            echo "✅ CodeDeploy deployment group deleted"
+          else
+            echo "ℹ️ CodeDeploy deployment group not found (already deleted)"
+          fi
+          
           echo "🗑️ Cleaning up CodeDeploy application..."
-          aws deploy delete-application --application-name nestjs-hannibal-3-ecs-app --region ap-northeast-1 2>/dev/null || true
+          if aws deploy get-application --application-name nestjs-hannibal-3-ecs-app --region ap-northeast-1 >/dev/null 2>&1; then
+            aws deploy delete-application --application-name nestjs-hannibal-3-ecs-app --region ap-northeast-1
+            echo "✅ CodeDeploy application deleted"
+          else
+            echo "ℹ️ CodeDeploy application not found (already deleted)"
+          fi
           
           # 2. Blue ECSサービス削除（GreenはCodeDeployが管理）
           echo "🗑️ Cleaning up Blue ECS service..."
