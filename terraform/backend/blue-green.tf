@@ -35,7 +35,7 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   app_name               = aws_codedeploy_app.ecs_app.name
   deployment_group_name  = "${var.project_name}-deployment-group"
   service_role_arn      = aws_iam_role.codedeploy_service_role.arn
-  deployment_config_name = "CodeDeployDefault.ECSAllAtOnceBlueGreen"
+  deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
 
   deployment_style {
     deployment_type   = "BLUE_GREEN"
@@ -55,7 +55,7 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
 
   ecs_service {
     cluster_name = aws_ecs_cluster.main.name
-    service_name = aws_ecs_service.blue.name
+    service_name = var.active_environment == "blue" ? aws_ecs_service.blue.name : aws_ecs_service.green.name
   }
 
   load_balancer_info {
@@ -75,12 +75,13 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   alarm_configuration {
     enabled = true
     alarms  = [
-      aws_cloudwatch_metric_alarm.deployment_health.alarm_name
+      aws_cloudwatch_metric_alarm.deployment_health.alarm_name,
+      aws_cloudwatch_metric_alarm.deployment_health_green.alarm_name
     ]
   }
 }
 
-# --- Professional Health Check Alarm ---
+# --- Professional Health Check Alarm (Blue) ---
 resource "aws_cloudwatch_metric_alarm" "deployment_health" {
   alarm_name          = "${var.project_name}-deployment-health"
   comparison_operator = "LessThanThreshold"
@@ -90,10 +91,28 @@ resource "aws_cloudwatch_metric_alarm" "deployment_health" {
   period              = "60"
   statistic           = "Average"
   threshold           = "1"
-  alarm_description   = "Professional deployment health monitoring"
+  alarm_description   = "Professional deployment health monitoring - Blue environment"
   
   dimensions = {
     TargetGroup  = aws_lb_target_group.blue.arn_suffix
+    LoadBalancer = aws_lb.main.arn_suffix
+  }
+}
+
+# --- Professional Health Check Alarm (Green) ---
+resource "aws_cloudwatch_metric_alarm" "deployment_health_green" {
+  alarm_name          = "${var.project_name}-deployment-health-green"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "HealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "1"
+  alarm_description   = "Professional deployment health monitoring - Green environment"
+  
+  dimensions = {
+    TargetGroup  = aws_lb_target_group.green.arn_suffix
     LoadBalancer = aws_lb.main.arn_suffix
   }
 }

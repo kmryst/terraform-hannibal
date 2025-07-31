@@ -62,7 +62,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high_green" {
   treat_missing_data  = "breaching"
 
   dimensions = {
-    ServiceName = "${var.project_name}-green-service"
+    ServiceName = aws_ecs_service.green.name
     ClusterName = aws_ecs_cluster.main.name
   }
 
@@ -115,7 +115,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory_high_green" {
   treat_missing_data  = "breaching"
 
   dimensions = {
-    ServiceName = "${var.project_name}-green-service"
+    ServiceName = aws_ecs_service.green.name
     ClusterName = aws_ecs_cluster.main.name
   }
 
@@ -140,7 +140,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped_active" {
   treat_missing_data  = "breaching"
 
   dimensions = {
-    ServiceName = var.active_environment == "blue" ? aws_ecs_service.blue.name : "${var.project_name}-green-service"
+    ServiceName = var.active_environment == "blue" ? aws_ecs_service.blue.name : aws_ecs_service.green.name
     ClusterName = aws_ecs_cluster.main.name
   }
 
@@ -263,7 +263,7 @@ resource "aws_cloudwatch_dashboard" "main" {
 
         properties = {
           metrics = [
-            ["AWS/ECS", "CPUUtilization", "ServiceName", var.active_environment == "blue" ? aws_ecs_service.blue.name : "${var.project_name}-green-service", "ClusterName", aws_ecs_cluster.main.name],
+            ["AWS/ECS", "CPUUtilization", "ServiceName", var.active_environment == "blue" ? aws_ecs_service.blue.name : aws_ecs_service.green.name, "ClusterName", aws_ecs_cluster.main.name],
             [".", "MemoryUtilization", ".", ".", ".", "."]
           ]
           view    = "timeSeries"

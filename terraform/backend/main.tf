@@ -233,10 +233,19 @@ resource "aws_lb_listener" "http" {
   port              = var.alb_listener_port
   protocol          = "HTTP"
   
-  # Blue/Green切り替え対応デフォルトアクション
+  # CodeDeploy制御対応 - 重み付きルーティング
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.blue.arn  # 初期はBlue
+    type = "forward"
+    forward {
+      target_group {
+        arn    = aws_lb_target_group.blue.arn
+        weight = 100  # 初期は100%Blue
+      }
+      target_group {
+        arn    = aws_lb_target_group.green.arn
+        weight = 0    # 初期は0%Green
+      }
+    }
   }
   
   tags = {
@@ -313,6 +322,40 @@ resource "aws_ecs_service" "blue" {
   tags = {
     Name = "${var.project_name}-blue-service"
     Environment = "blue"
+  }
+  
+  depends_on = [aws_lb_listener.http, aws_db_instance.postgres]
+}
+
+# --- ECS Service (Green環境) ---
+resource "aws_ecs_service" "green" {
+  name                              = "${var.project_name}-green-service"
+  cluster                           = aws_ecs_cluster.main.id
+  task_definition                   = aws_ecs_task_definition.api.arn
+  desired_count                     = 0  # 初期は0、デプロイ時にCodeDeployが制御
+  launch_type                       = "FARGATE"
+  health_check_grace_period_seconds = 60
+  
+  # Blue/Green Deployment用のデプロイメントコントローラー設定
+  deployment_controller {
+    type = "CODE_DEPLOY"
+  }
+  
+  network_configuration {
+    subnets          = data.aws_subnets.public.ids
+    security_groups  = [aws_security_group.ecs_service_sg.id]
+    assign_public_ip = true
+  }
+  
+  load_balancer {
+    target_group_arn = aws_lb_target_group.green.arn
+    container_name   = "${var.project_name}-container"
+    container_port   = var.container_port
+  }
+  
+  tags = {
+    Name = "${var.project_name}-green-service"
+    Environment = "green"
   }
   
   depends_on = [aws_lb_listener.http, aws_db_instance.postgres]
