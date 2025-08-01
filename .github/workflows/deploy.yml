@@ -261,22 +261,25 @@ jobs:
           echo "✅ New Task Definition registered: $NEW_TASK_DEF_ARN"
 
           # --- Step 2: CodeDeployでデプロイを開始 ---
-          # 【最終修正案】ベストプラクティス: 複雑なパラメータは一時ファイルに書き出し、file:// 構文で読み込ませる
-          cat > revision.json <<EOF
+          # 【最終解決策】ベストプラクティス: コマンド全体の引数をJSONファイルに書き出し、--cli-input-jsonで実行する
+          cat > deployment.json <<EOF
           {
-            "revisionType": "ECS",
-            "ecsService": {
-              "serviceName": "${SERVICE_NAME}",
-              "clusterName": "${CLUSTER_NAME}",
-              "taskDefinition": "${NEW_TASK_DEF_ARN}"
+            "applicationName": "${CODEDEPLOY_APP}",
+            "deploymentGroupName": "${CODEDEPLOY_GROUP}",
+            "revision": {
+              "revisionType": "ECS",
+              "ecsService": {
+                "serviceName": "${SERVICE_NAME}",
+                "clusterName": "${CLUSTER_NAME}",
+                "taskDefinition": "${NEW_TASK_DEF_ARN}"
+              }
             }
           }
           EOF
 
+          # 全ての引数をファイルで渡すため、コマンド自体は非常にシンプルになる
           DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --application-name "$CODEDEPLOY_APP" \
-            --deployment-group-name "$CODEDEPLOY_GROUP" \
-            --revision file://revision.json \
+            --cli-input-json file://deployment.json \
             --query 'deploymentId' --output text)
           
           echo "✅ CodeDeploy Deployment ID: $DEPLOYMENT_ID"

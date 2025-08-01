@@ -79,6 +79,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.0.0
+          terraform_wrapper: false
 
       # ⚠️ 競合しやすいリソースを事前削除（Terraform destroyの成功率向上のため）
       # 理由: ECSサービス、ALB、セキュリティグループなどは依存関係でTerraform destroyが失敗しやすい
