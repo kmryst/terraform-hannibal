@@ -86,21 +86,22 @@ jobs:
       # エラー処理: 2>/dev/null || true でリソースが存在しない場合もエラーにしない
       - name: Clean up existing AWS resources (ECS/ALB/SG)
         run: |
-          # 0. Terraformのoutputから動的に値を取得（Professional設計）
+          # 0. Professional設計: プロジェクト名とTerraformのoutputから動的に値を取得
+          PROJECT_NAME="nestjs-hannibal-3"
           cd ./terraform/backend
           if [ -f "terraform.tfstate" ] && [ -s "terraform.tfstate" ]; then
-            CODEDEPLOY_APP=$(terraform output -raw codedeploy_application_name 2>/dev/null || echo "nestjs-hannibal-3-ecs-app")
-            CODEDEPLOY_GROUP=$(terraform output -raw codedeploy_deployment_group_name 2>/dev/null || echo "nestjs-hannibal-3-deployment-group")
-            BLUE_SERVICE=$(terraform output -raw blue_service_name 2>/dev/null || echo "nestjs-hannibal-3-blue-service")
-            GREEN_SERVICE=$(terraform output -raw green_service_name 2>/dev/null || echo "nestjs-hannibal-3-green-service")
-            CLUSTER_NAME=$(terraform output -raw ecs_cluster_name 2>/dev/null || echo "nestjs-hannibal-3-cluster")
+            CODEDEPLOY_APP=$(terraform output -raw codedeploy_application_name 2>/dev/null || echo "$PROJECT_NAME-ecs-app")
+            CODEDEPLOY_GROUP=$(terraform output -raw codedeploy_deployment_group_name 2>/dev/null || echo "$PROJECT_NAME-deployment-group")
+            BLUE_SERVICE=$(terraform output -raw blue_service_name 2>/dev/null || echo "$PROJECT_NAME-blue-service")
+            GREEN_SERVICE=$(terraform output -raw green_service_name 2>/dev/null || echo "$PROJECT_NAME-green-service")
+            CLUSTER_NAME=$(terraform output -raw ecs_cluster_name 2>/dev/null || echo "$PROJECT_NAME-cluster")
           else
             echo "ℹ️ Terraform state not found, using default names"
-            CODEDEPLOY_APP="nestjs-hannibal-3-ecs-app"
-            CODEDEPLOY_GROUP="nestjs-hannibal-3-deployment-group"
-            BLUE_SERVICE="nestjs-hannibal-3-blue-service"
-            GREEN_SERVICE="nestjs-hannibal-3-green-service"
-            CLUSTER_NAME="nestjs-hannibal-3-cluster"
+            CODEDEPLOY_APP="$PROJECT_NAME-ecs-app"
+            CODEDEPLOY_GROUP="$PROJECT_NAME-deployment-group"
+            BLUE_SERVICE="$PROJECT_NAME-blue-service"
+            GREEN_SERVICE="$PROJECT_NAME-green-service"
+            CLUSTER_NAME="$PROJECT_NAME-cluster"
           fi
           cd ../..
           
@@ -179,7 +180,6 @@ jobs:
 
           # 6. IAMロール削除（Professional Blue/Green対応）
           echo "🗑️ Cleaning up IAM roles..."
-          PROJECT_NAME="nestjs-hannibal-3"
           # ECS Task Execution Role
           aws iam detach-role-policy --role-name $PROJECT_NAME-ecs-task-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy 2>/dev/null || true
           aws iam delete-role --role-name $PROJECT_NAME-ecs-task-execution-role 2>/dev/null || true

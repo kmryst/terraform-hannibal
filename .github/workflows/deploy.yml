@@ -130,7 +130,6 @@ jobs:
       - name: 🎯 Terraform Plan (Frontend) - Professional Design
         run: |
           echo "🔍 Planning frontend infrastructure..."
-          # Professional設計: 既存Route53レコードの冪等性チェック
           HOSTED_ZONE_ID=$(aws route53 list-hosted-zones --query "HostedZones[?Name=='hamilcar-hannibal.click.'].Id" --output text | sed 's|/hostedzone/||')
           if [ -z "$HOSTED_ZONE_ID" ]; then
             echo "⚠️ No hosted zone found for hamilcar-hannibal.click"
@@ -176,7 +175,6 @@ jobs:
         run: |
           sed -i "s|^VITE_GRAPHQL_ENDPOINT=.*$|VITE_GRAPHQL_ENDPOINT=https://hamilcar-hannibal.click/api/graphql|" client/.env.production
 
-      # CloudFrontドメイン名をCORS用にbackendへ再適用
       - name: 🔄 Terraform Apply (Backend, CORS Update) - Professional
         run: |
           echo "🔄 Updating backend CORS configuration..."
@@ -211,7 +209,6 @@ jobs:
           echo "Invalidating CloudFront cache for distribution: $CF_DIST_ID"
           aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"
 
-      # --- Professional Blue/Green Deployment ---
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
       - name: Set up Docker Buildx
@@ -254,24 +251,9 @@ jobs:
           aws ecs describe-task-definition --task-definition $TASK_DEF_ARN > task-def.json
           NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
-          # 【エラー修正】jqコマンドを修正し、null値を持つキーをJSONから除外する
-          # これにより、taskRoleArnなどのオプションパラメータが存在しない場合でもエラーを防ぐ
           NEW_TASK_DEF_CONTENT=$(cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" '
             ( .taskDefinition.containerDefinitions[0].image = $IMAGE ) | 
-            .taskDefinition |
-            {
-              family,
-              taskRoleArn,
-              executionRoleArn,
-              networkMode,
-              containerDefinitions,
-              volumes,
-              placementConstraints,
-              requiresCompatibilities,
-              cpu,
-              memory
-            } |
-            # ベストプラクティス: この一行で、値がnullのキーをすべて安全に除去
+            .taskDefinition | { family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory } |
             with_entries(select(.value != null))
           ')
           
@@ -279,10 +261,23 @@ jobs:
           echo "✅ New Task Definition registered: $NEW_TASK_DEF_ARN"
 
           # --- Step 2: CodeDeployでデプロイを開始 ---
+          # 【エラー修正】ベストプラクティス: 複雑な--revisionパラメータはJSONで安全に構築する
+          REVISION_JSON=$(cat <<EOF
+          {
+            "revisionType": "ECS",
+            "ecsService": {
+              "serviceName": "${SERVICE_NAME}",
+              "clusterName": "${CLUSTER_NAME}",
+              "taskDefinition": "${NEW_TASK_DEF_ARN}"
+            }
+          }
+          EOF
+          )
+
           DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --application-name $CODEDEPLOY_APP \
-            --deployment-group-name $CODEDEPLOY_GROUP \
-            --revision "revisionType=ECS,ecsService={serviceName=$SERVICE_NAME,clusterName=$CLUSTER_NAME,taskDefinition=$NEW_TASK_DEF_ARN}" \
+            --application-name "$CODEDEPLOY_APP" \
+            --deployment-group-name "$CODEDEPLOY_GROUP" \
+            --revision "$REVISION_JSON" \
             --query 'deploymentId' --output text)
           
           echo "✅ CodeDeploy Deployment ID: $DEPLOYMENT_ID"
