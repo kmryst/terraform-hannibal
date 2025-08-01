@@ -79,7 +79,7 @@ variable "alb_listener_port" {
 variable "health_check_path" {
   description = "Path for ALB health check"
   type        = string
-  default     = "/health/simple" # Professional設計: ALB専用エンドポイント
+  default     = "/health" # Professional設計: 実際に存在するエンドポイント
 
 }
 

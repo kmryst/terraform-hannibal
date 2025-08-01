@@ -45,7 +45,13 @@ async function bootstrap() {
     // ブラウザがクロスオリジン通信（CORS）時に自動で付与し、サーバー側はこの値をもとにアクセス許可するオリジンかどうかを判定する
     // AWS Professional: 安定性重視のCORS設定
     app.enableCors({
-      origin: allowedOrigins.length > 0 ? allowedOrigins : false,
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       methods: ['GET', 'POST', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
       credentials: true,
