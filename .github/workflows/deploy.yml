@@ -261,8 +261,8 @@ jobs:
           echo "✅ New Task Definition registered: $NEW_TASK_DEF_ARN"
 
           # --- Step 2: CodeDeployでデプロイを開始 ---
-          # 【エラー修正】ベストプラクティス: 複雑な--revisionパラメータはJSONで安全に構築する
-          REVISION_JSON=$(cat <<EOF
+          # 【最終修正案】ベストプラクティス: 複雑なパラメータは一時ファイルに書き出し、file:// 構文で読み込ませる
+          cat > revision.json <<EOF
           {
             "revisionType": "ECS",
             "ecsService": {
@@ -272,12 +272,11 @@ jobs:
             }
           }
           EOF
-          )
 
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name "$CODEDEPLOY_APP" \
             --deployment-group-name "$CODEDEPLOY_GROUP" \
-            --revision "$REVISION_JSON" \
+            --revision file://revision.json \
             --query 'deploymentId' --output text)
           
           echo "✅ CodeDeploy Deployment ID: $DEPLOYMENT_ID"
