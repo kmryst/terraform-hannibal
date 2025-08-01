@@ -49,6 +49,10 @@ import { AppService } from './app.service';
       csrfPrevention: false,
       playground: true,
       introspection: true,
+      cors: {
+        origin: process.env.CLIENT_URL || 'https://hamilcar-hannibal.click',
+        credentials: true,
+      },
       formatError: (error) => {
         console.error('GraphQL Error:', error);
         return error;
