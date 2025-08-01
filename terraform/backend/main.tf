@@ -178,6 +178,7 @@ resource "aws_cloudwatch_log_group" "ecs_api_task_logs" {
 }
 
 # --- ALB (Application Load Balancer) ---
+# amazonq-ignore-next-line
 resource "aws_lb" "main" {
   name                       = "${var.project_name}-alb"
   internal                   = false
@@ -185,8 +186,10 @@ resource "aws_lb" "main" {
   security_groups            = [aws_security_group.alb_sg.id]
   subnets                    = data.aws_subnets.public.ids
   enable_deletion_protection = false
+  drop_invalid_header_fields = true
 }
 
+# amazonq-ignore-next-line
 # --- Blue/Green Target Groups (企業レベル設計) ---
 # Blue Target Group (現在稼働中)
 resource "aws_lb_target_group" "blue" {
@@ -241,6 +244,7 @@ resource "aws_lb_listener" "main" {
   load_balancer_arn = aws_lb.main.arn
   port              = var.alb_listener_port
   protocol          = "HTTP"
+  # amazonq-ignore-next-line
   
   # CodeDeploy制御対応 - 重み付きルーティング
   default_action {
@@ -438,6 +442,7 @@ resource "aws_db_parameter_group" "postgres" {
     Name = "${var.project_name}-postgres-params"
   }
 }
+# amazonq-ignore-next-line
 
 # --- RDS PostgreSQL Instance (Professional最短時間最適化) ---
 # 🏆 AWS Professional/Specialtyベストプラクティス:

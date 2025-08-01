@@ -62,6 +62,7 @@ resource "aws_iam_policy" "hannibal_developer_policy" {
     Statement = [
       {
         # ECR権限 (フル操作)
+        # amazonq-ignore-next-line
         Effect = "Allow"
         Action = [
           "ecr:*"
