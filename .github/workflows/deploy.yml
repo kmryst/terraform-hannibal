@@ -102,7 +102,7 @@ jobs:
       - name: 🎯 Terraform Plan (Backend) - Professional Blue/Green
         run: |
           echo "🔍 Planning backend infrastructure with Blue/Green deployment..."
-          terraform plan -var="client_url_for_cors=https://hamilcar-hannibal.click" -out=backend.tfplan
+          terraform plan -var="client_url_for_cors=" -out=backend.tfplan
         working-directory: ./terraform/backend
 
       - name: 🚀 Terraform Apply (Backend) - Professional Blue/Green
@@ -171,9 +171,9 @@ jobs:
         run: |
           sed -i "s|^CLIENT_URL=.*$|CLIENT_URL=https://hamilcar-hannibal.click|" .env
 
-      - name: Create/Update VITE_GRAPHQL_ENDPOINT in client/.env.production
+      - name: Update VITE_GRAPHQL_ENDPOINT in client/.env.production
         run: |
-          echo "VITE_GRAPHQL_ENDPOINT=https://hamilcar-hannibal.click/api/graphql" > client/.env.production
+          sed -i "s|^VITE_GRAPHQL_ENDPOINT=.*$|VITE_GRAPHQL_ENDPOINT=https://hamilcar-hannibal.click/api/graphql|" client/.env.production
 
       - name: 🔄 Terraform Apply (Backend, CORS Update) - Professional
         run: |
@@ -232,40 +232,46 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
           ECR_REGISTRY: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
           ECR_REPOSITORY: nestjs-hannibal-3
-
+          # ⭐️[覚書ポイント1: AppSpec用の必須パラメータ]
+          # 以下の `CONTAINER_NAME` と `CONTAINER_PORT` は、この後で動的に生成するAppSpecで必須となる情報です。
+          # ご自身のECSタスク定義内のコンテナ名と、コンテナが公開しているポート番号に必ず一致させてください。
+          CONTAINER_NAME: nestjs-hannibal-3-container
+          CONTAINER_PORT: 3000
         run: |
           echo "🚀 Starting Professional Blue/Green Deployment with AWS CodeDeploy"
-
-          # --- Step 0: Terraformのoutputから必要な値を取得 ---
+          
+          # ⭐️[覚書ポイント2: リソース名の動的取得]
+          # ハードコードを避け、Terraformが管理する実際のリソース名を `terraform output` で動的に取得します。
+          # これにより、Terraform側の変更が自動的にパイプラインに反映され、保守性が大幅に向上します。
           cd ./terraform/backend
           CLUSTER_NAME=$(terraform output -raw ecs_cluster_name)
           SERVICE_NAME=$(terraform output -raw blue_service_name)
           CODEDEPLOY_APP=$(terraform output -raw codedeploy_application_name)
           CODEDEPLOY_GROUP=$(terraform output -raw codedeploy_deployment_group_name)
-          CONTAINER_NAME=$(terraform output -raw container_name)
-          CONTAINER_PORT=$(terraform output -raw container_port)
           cd ../..
-
+          
           echo "ℹ️ Using Cluster: $CLUSTER_NAME"
           echo "ℹ️ Using Service: $SERVICE_NAME"
-
-          # --- Step 1: 新しいDockerイメージでECSタスク定義を更新 ---
+          
+          # ⭐️[覚書ポイント3: 安全なタスク定義の更新]
+          # 既存のタスク定義を元にイメージのみを更新します。
+          # 最後の `with_entries(select(.value != null))` は、元のタスク定義に存在しないオプション項目(例: taskRoleArn)が
+          # `null`値となってAPIエラーを引き起こすのを防ぐ、非常に重要な「お守り」です。
           TASK_DEF_ARN=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query "services[0].taskDefinition" --output text)
           aws ecs describe-task-definition --task-definition $TASK_DEF_ARN > task-def.json
           NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-
           NEW_TASK_DEF_CONTENT=$(cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" '
             ( .taskDefinition.containerDefinitions[0].image = $IMAGE ) | 
             .taskDefinition | { family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory } |
             with_entries(select(.value != null))
           ')
-
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF_CONTENT" --query 'taskDefinition.taskDefinitionArn' --output text)
           echo "✅ New Task Definition registered: $NEW_TASK_DEF_ARN"
 
-          # --- Step 2: CodeDeployでデプロイを開始 ---
-          # 【最終解決策】ベストプラクティス: AppSpecを動的に生成し、revisionType=AppSpecContentで渡す
-          # これがECS Blue/Greenデプロイにおける唯一の正しいリビジョン指定方法です。
+          # ⭐️[覚書ポイント4: 正しいリビジョン(AppSpec)の動的生成]
+          # これが、このパイプラインの最も重要な核心です。
+          # ECSのBlue/Greenデプロイでは、「どのタスク定義を使うか」を伝えるために、このAppSpec形式のJSONを動的に生成する必要があります。
+          # (`revisionType=ECS`という方法は存在せず、このAppSpecこそが唯一の正しい方法でした。)
           APPSPEC_CONTENT=$(cat <<EOF
           {
             "version": "0.0",
@@ -287,14 +293,16 @@ jobs:
           EOF
           )
 
-          # AppSpecを文字列として渡すため、--revisionパラメータを正しく構成する
-          # contentの値はシングルクォートで囲み、シェルの解釈を避ける
+          # ⭐️[覚書ポイント5: 壊れないコマンドの実行方法]
+          # AppSpecのJSONコンテンツ（変数 $APPSPEC_CONTENT）を、`content='...'` のようにシングルクォートで囲んでいます。
+          # これにより、JSON内のダブルクォートなどがシェルの解釈によって壊れるのを防ぎ、コマンドを安全に実行できます。
+          # 複雑なパラメータを渡す際の、最も安定した方法です。
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name "$CODEDEPLOY_APP" \
             --deployment-group-name "$CODEDEPLOY_GROUP" \
             --revision "revisionType=AppSpecContent,appSpecContent={content='$APPSPEC_CONTENT'}" \
             --query 'deploymentId' --output text)
-
+          
           echo "✅ CodeDeploy Deployment ID: $DEPLOYMENT_ID"
           echo "🔍 Monitor your deployment: https://${AWS_REGION}.console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
           echo "🎯 Professional Blue/Green deployment with auto-rollback initiated."

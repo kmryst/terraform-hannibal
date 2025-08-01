@@ -439,7 +439,7 @@ resource "aws_db_parameter_group" "postgres" {
   }
 }
 
-# --- RDS PostgreSQL Instance (Professional最短時間最適化) ---
+# --- RDS PostgreSQL Instance (Professional状態管理最適化) ---
 resource "aws_db_instance" "postgres" {
   identifier     = "${var.project_name}-postgres"
   engine         = "postgres"
@@ -461,13 +461,21 @@ resource "aws_db_instance" "postgres" {
   backup_retention_period = 1  # Professional: 最小バックアップ
   backup_window          = "03:00-04:00"  # Professional: 低負荷時間
   maintenance_window     = "sun:04:00-sun:05:00"  # Professional: 計画メンテナンス
-  apply_immediately      = true  # 高速作成: 即座適用
+  apply_immediately      = false  # Professional: 状態管理で安全適用
   
   # Professional: 基本パラメータのみ
   parameter_group_name = aws_db_parameter_group.postgres.name
   
   skip_final_snapshot = true
   deletion_protection = false
+  
+  # Professional: 状態管理で安全性向上
+  lifecycle {
+    ignore_changes = [engine_version]  # バージョン更新は計画的に実施
+  }
+  
+  # Professional: パラメータグループ変更後の依存関係
+  depends_on = [aws_db_parameter_group.postgres]
   
   tags = {
     Name = "${var.project_name}-postgres"
