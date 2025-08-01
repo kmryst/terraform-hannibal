@@ -335,11 +335,11 @@ resource "aws_ecs_service" "blue" {
     Environment = "blue"
   }
   
-    depends_on = [aws_lb_listener.main]
-  }
+  depends_on = [aws_lb_listener.main]
+}
 
-  # --- ECS Service (Green環境) ---
-  resource "aws_ecs_service" "green" {
+# --- ECS Service (Green環境) ---
+resource "aws_ecs_service" "green" {
     name                              = "${var.project_name}-green-service"
     cluster                           = aws_ecs_cluster.main.id
     task_definition                   = aws_ecs_task_definition.api.arn

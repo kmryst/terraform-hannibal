@@ -86,7 +86,7 @@ variable "health_check_path" {
 variable "client_url_for_cors" {
   description = "Frontend CloudFront URL for CORS configuration (e.g., https://dXXXXXXXXXXXXX.cloudfront.net)"
   type        = string
-  default     = "" # フロントエンドデプロイ後に設定するか、固定ドメインを指定
+  default     = "https://hamilcar-hannibal.click" # Professional設計: 固定ドメイン使用
 }
 
 variable "database_url" {

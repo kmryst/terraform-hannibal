@@ -102,7 +102,7 @@ jobs:
       - name: 🎯 Terraform Plan (Backend) - Professional Blue/Green
         run: |
           echo "🔍 Planning backend infrastructure with Blue/Green deployment..."
-          terraform plan -var="client_url_for_cors=" -out=backend.tfplan
+          terraform plan -var="client_url_for_cors=https://hamilcar-hannibal.click" -out=backend.tfplan
         working-directory: ./terraform/backend
 
       - name: 🚀 Terraform Apply (Backend) - Professional Blue/Green
