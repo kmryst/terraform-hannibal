@@ -56,8 +56,9 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
 
   blue_green_deployment_config {
     deployment_ready_option {
-      # ベストプラクティス: タイムアウト時は安全のためデプロイを停止・ロールバック
-      action_on_timeout = "STOP_DEPLOYMENT"
+      # AWS Professional設計: 手動承認なしで即座にトラフィック切り替え
+      action_on_timeout    = "CONTINUE_DEPLOYMENT"
+      wait_time_in_minutes = 0
     }
 
     terminate_blue_instances_on_deployment_success {
