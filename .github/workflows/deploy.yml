@@ -253,29 +253,29 @@ jobs:
           
           # AWS Professional設計: AppSpec形式でBlue/Green Deployment実行
           cat > appspec.json << EOF
-          {
-            "version": "0.0",
-            "Resources": [
-              {
-                "TargetService": {
-                  "Type": "AWS::ECS::Service",
-                  "Properties": {
-                    "TaskDefinition": "$NEW_TASK_DEF_ARN",
-                    "LoadBalancerInfo": {
-                      "ContainerName": "$CONTAINER_NAME",
-                      "ContainerPort": 3000
-                    }
-                  }
-                }
-              }
-            ]
+{
+  "version": "0.0",
+  "Resources": [
+    {
+      "TargetService": {
+        "Type": "AWS::ECS::Service",
+        "Properties": {
+          "TaskDefinition": "$NEW_TASK_DEF_ARN",
+          "LoadBalancerInfo": {
+            "ContainerName": "$CONTAINER_NAME",
+            "ContainerPort": 3000
           }
-          EOF
+        }
+      }
+    }
+  ]
+}
+EOF
           
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name nestjs-hannibal-3-ecs-app \
             --deployment-group-name nestjs-hannibal-3-deployment-group \
-            --revision revisionType=AppSpecContent,appSpecContent="$(cat appspec.json)" \
+            --revision file://appspec.json \
             --query 'deploymentId' --output text)
           
           echo "✅ CodeDeploy Deployment ID: $DEPLOYMENT_ID"
