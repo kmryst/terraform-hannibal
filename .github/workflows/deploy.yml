@@ -279,7 +279,7 @@ jobs:
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name nestjs-hannibal-3-ecs-app \
             --deployment-group-name nestjs-hannibal-3-deployment-group \
-            --revision file://appspec.json \
+            --revision revisionType=AppSpecContent,appSpecContent=file://appspec.json \
             --query 'deploymentId' --output text)
           
           echo "✅ CodeDeploy Deployment ID: $DEPLOYMENT_ID"
