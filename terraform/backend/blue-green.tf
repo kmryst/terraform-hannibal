@@ -36,6 +36,16 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   deployment_group_name = "${var.project_name}-deployment-group"
   service_role_arn      = aws_iam_role.codedeploy_service_role.arn
 
+  # AWS Professional設計: 依存関係を明示的に定義
+  depends_on = [
+    aws_ecs_service.blue,
+    aws_ecs_service.green,
+    aws_lb_listener.main,
+    aws_lb_target_group.blue,
+    aws_lb_target_group.green,
+    aws_iam_role_policy_attachment.codedeploy_service_role_policy
+  ]
+
   # ベストプラクティス: Blue/Greenでは一度にトラフィックを切り替える設定が一般的
   deployment_config_name = "CodeDeployDefault.ECSAllAtOnce"
 

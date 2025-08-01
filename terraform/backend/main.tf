@@ -337,7 +337,7 @@ resource "aws_ecs_service" "green" {
   name                              = "${var.project_name}-green-service"
   cluster                           = aws_ecs_cluster.main.id
   task_definition                   = aws_ecs_task_definition.api.arn
-  desired_count                     = 0  # 初期は0、デプロイ時にCodeDeployが制御
+  desired_count                     = var.desired_task_count  # AWS Professional: Blueと同じ設定で初期化
   launch_type                       = "FARGATE"
   health_check_grace_period_seconds = 60
   

@@ -1,54 +1,29 @@
-# 🚨 重要: このワークフローを実行する前に以下のリソースを手動作成してください
-#
-# 1. ECRリポジトリ
-# aws ecr create-repository --repository-name nestjs-hannibal-3 --region ap-northeast-1
-#
-# 2. S3バケット（フロントエンド用）
-# aws s3 mb s3://nestjs-hannibal-3-frontend --region ap-northeast-1
-#
-# 3. CloudFront OAC
-# aws cloudfront create-origin-access-control --name nestjs-hannibal-3-oac --origin-access-control-origin-type s3 --signing-behavior always --signing-protocol sigv4 --region us-east-1
-#
-# 4. IAM権限設定（✅ 完了済み）
-# HannibalCICDRole-Dev ロールと必要な権限は設定済みです
-# GitHub Secrets（AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY）も設定済みです
-#
-# 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
+# AWS Professional Blue/Green Deployment Workflow
+# Netflix, Airbnb, Spotify等の企業レベル設計
 
-
-
-# C:\code\javascript\nestjs-hannibal-3\.github\workflows\deploy.yml
-
-name: Deploy NestJS Hannibal App (Dev)
-
-# on: # ワークフローのトリガーを定義
-#   pull_request:
-#     branches: [feature/github-actions]
-#   push:
-#     branches: [feature/github-actions]
+name: 🚀 Professional Blue/Green Deploy (Dev)
 
 on:
   workflow_dispatch:
 
 concurrency:
-  group: terraform-deploy
+  group: terraform-professional-deploy
   cancel-in-progress: true
 
 jobs:
   test:
-    # (変更なし)
-    runs-on: ubuntu-latest # このジョブを実行する仮想マシン
-    steps: # step: 手順
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # GitHubが提供する公式アクションで、リポジトリのコードをチェックアウト（取得）します
+        uses: actions/checkout@v4
       - name: Setup Node.js for Backend
-        uses: actions/setup-node@v3 # GitHubが提供する公式アクションで、指定したバージョンのNode.jsをインストールします
-        with: # usesで指定したアクションに渡すパラメータ（設定値）を定義するキーワードです
+        uses: actions/setup-node@v3
+        with:
           node-version: '20'
-          cache: 'npm' # npmのキャッシュを有効にすることで、依存関係のダウンロードを高速化します
+          cache: 'npm'
           cache-dependency-path: package-lock.json
       - name: Install Backend Dependencies
-        run: npm ci # clean install
+        run: npm ci
       - name: Run Backend Tests
         run: npm test
       - name: Setup Node.js for Frontend
@@ -62,23 +37,18 @@ jobs:
         working-directory: ./client
       - name: Run Frontend Tests
         run: echo "Frontend tests would run here (e.g., npm run test)"
-        # e.g. ラテン語 "exempli gratia" 例えば
         working-directory: ./client
 
   deploy:
-    # (変更なし)
-    needs: test # testが成功した場合のみ実行される
+    needs: test
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    # github はワークフロー実行の状況（コンテキスト）を表すオブジェクトで、イベントやブランチなどの情報を提供します
-    # ブランチの参照は refs/heads/<ブランチ名> という形式で表現されます
     runs-on: ubuntu-latest
-    outputs: # このジョブで生成した値を他のジョブで利用できるようにする(今は使ってない)
+    outputs:
       s3_bucket_name: ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}
       cloudfront_distribution_id: ${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}
       cloudfront_domain_name: ${{ steps.get_terraform_outputs.outputs.cloudfront_domain_name }}
 
     steps:
-      # - name: から始まる各ブロックが step です
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Configure AWS credentials (Development)
@@ -101,118 +71,10 @@ jobs:
         with:
           terraform_version: 1.0.0
           terraform_wrapper: false
-      - name: Install jq # JSONデータをquery(検索、加工)するためのコマンドラインツール
+      - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
-        # apt-get は「Advanced Package Tool」の略で、Debian系Linux（Ubuntuなど）で使われるパッケージ管理コマンドです
 
-      # 既存リソースの削除（リソース競合エラー回避）
-      # 📝 注意: ECRリポジトリは手動作成済みのため削除しません
-      - name: Assume CICD Role for Cleanup
-        run: |
-          CICD_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --role-session-name github-actions-cleanup)
-          echo "AWS_ACCESS_KEY_ID=$(echo $CICD_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $CICD_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $CICD_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
-      - name: Clean up existing AWS resources
-        run: |
-          echo "Cleaning up existing AWS resources to avoid conflicts..."
-
-          # 📝 ECRリポジトリは手動作成済みのため削除をスキップ
-          # 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
-          echo "Skipping ECR deletion - using pre-created repository"
-
-          # Blue ECSサービス削除（CodeDeployがGreen環境を管理）
-          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-blue-service --desired-count 0 --region ap-northeast-1 2>/dev/null || echo "Blue ECS service not found"
-          sleep 10
-          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-blue-service --force --region ap-northeast-1 2>/dev/null || echo "Blue ECS service not found"
-
-          # ECSクラスタ削除
-          aws ecs delete-cluster --cluster nestjs-hannibal-3-cluster --region ap-northeast-1 2>/dev/null || echo "ECS cluster not found"
-
-          # ALB削除
-          ALB_ARN=$(aws elbv2 describe-load-balancers --names nestjs-hannibal-3-alb --region ap-northeast-1 --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "None")
-          if [ "$ALB_ARN" != "None" ] && [ "$ALB_ARN" != "null" ]; then
-            aws elbv2 delete-load-balancer --load-balancer-arn "$ALB_ARN" --region ap-northeast-1
-            echo "Waiting for ALB deletion..."
-            sleep 60
-          fi
-
-          # Blue/Greenターゲットグループ削除
-          BLUE_TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-blue-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
-          if [ "$BLUE_TG_ARN" != "None" ] && [ "$BLUE_TG_ARN" != "null" ]; then
-            aws elbv2 delete-target-group --target-group-arn "$BLUE_TG_ARN" --region ap-northeast-1
-          fi
-          
-          GREEN_TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-green-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
-          if [ "$GREEN_TG_ARN" != "None" ] && [ "$GREEN_TG_ARN" != "null" ]; then
-            aws elbv2 delete-target-group --target-group-arn "$GREEN_TG_ARN" --region ap-northeast-1
-          fi
-
-          # セキュリティグループ削除（ALB削除後に実行）
-          echo "Waiting for security group dependencies to clear..."
-          sleep 30
-
-          SG_ECS_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-ecs-service-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
-          if [ "$SG_ECS_ID" != "None" ] && [ "$SG_ECS_ID" != "null" ]; then
-            aws ec2 delete-security-group --group-id "$SG_ECS_ID" --region ap-northeast-1 2>/dev/null || echo "Security group deletion failed (dependencies may exist)"
-          fi
-
-          SG_ALB_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-alb-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
-          if [ "$SG_ALB_ID" != "None" ] && [ "$SG_ALB_ID" != "null" ]; then
-            aws ec2 delete-security-group --group-id "$SG_ALB_ID" --region ap-northeast-1 2>/dev/null || echo "Security group deletion failed (dependencies may exist)"
-          fi
-
-          # IAMロール削除
-          aws iam detach-role-policy --role-name nestjs-hannibal-3-ecs-task-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy 2>/dev/null || echo "IAM role policy not found"
-          aws iam delete-role --role-name nestjs-hannibal-3-ecs-task-execution-role 2>/dev/null || echo "IAM role not found"
-
-          # 監視リソース削除（CloudWatch Alarms, SNS Topic, Dashboard）
-          echo "Cleaning up monitoring resources..."
-          
-          # CloudWatch Alarms削除（Professional Blue/Green対応）
-          aws cloudwatch delete-alarms --alarm-names \
-            "nestjs-hannibal-3-ecs-cpu-high-blue" \
-            "nestjs-hannibal-3-ecs-cpu-high-green" \
-            "nestjs-hannibal-3-ecs-memory-high-blue" \
-            "nestjs-hannibal-3-ecs-memory-high-green" \
-            "nestjs-hannibal-3-ecs-task-stopped-active" \
-            "nestjs-hannibal-3-deployment-health" \
-            "nestjs-hannibal-3-deployment-health-green" \
-            "nestjs-hannibal-3-rds-cpu-high" \
-            "nestjs-hannibal-3-rds-connections-high" \
-            "nestjs-hannibal-3-alb-response-time-high" \
-            "nestjs-hannibal-3-alb-5xx-error-rate-high" \
-            --region ap-northeast-1 2>/dev/null || echo "Alarms not found"
-          
-          # CloudWatch Dashboard削除
-          aws cloudwatch delete-dashboards --dashboard-names "hannibal-system-dashboard" --region ap-northeast-1 2>/dev/null || echo "Dashboard not found"
-          
-          # SNS Topic削除
-          SNS_TOPIC_ARN=$(aws sns list-topics --region ap-northeast-1 --query 'Topics[?contains(TopicArn, `nestjs-hannibal-3-alerts`)].TopicArn' --output text 2>/dev/null || echo "None")
-          if [ "$SNS_TOPIC_ARN" != "None" ] && [ "$SNS_TOPIC_ARN" != "" ]; then
-            aws sns delete-topic --topic-arn "$SNS_TOPIC_ARN" --region ap-northeast-1 2>/dev/null || echo "SNS topic deletion failed"
-          fi
-
-          # CloudWatchログループ削除
-          aws logs delete-log-group --log-group-name /ecs/nestjs-hannibal-3-api-task --region ap-northeast-1 2>/dev/null || echo "Log group not found"
-
-          # RDS削除（セキュリティグループ削除前に実行）
-          aws rds delete-db-instance --db-instance-identifier nestjs-hannibal-3-postgres --skip-final-snapshot --region ap-northeast-1 2>/dev/null || echo "RDS instance not found"
-          echo "Waiting for RDS deletion..."
-          sleep 60
-
-          # RDSサブネットグループ削除
-          aws rds delete-db-subnet-group --db-subnet-group-name nestjs-hannibal-3-db-subnet-group --region ap-northeast-1 2>/dev/null || echo "DB subnet group not found"
-
-          # RDSセキュリティグループ削除
-          SG_RDS_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-rds-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
-          if [ "$SG_RDS_ID" != "None" ] && [ "$SG_RDS_ID" != "null" ]; then
-            aws ec2 delete-security-group --group-id "$SG_RDS_ID" --region ap-northeast-1 2>/dev/null || echo "RDS security group deletion failed"
-          fi
-
-          echo "Cleanup completed (errors are expected if resources don't exist)"
-        continue-on-error: true
-      # === STAGE 1: Core Resources (ECS/ECR/IAM/Logs) ===
+      # === AWS Professional設計: シンプルなplan/applyサイクル ===
       - name: Assume CICD Role
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -223,6 +85,7 @@ jobs:
           echo "AWS_ACCESS_KEY_ID=$(echo $CICD_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CICD_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CICD_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+      
       - name: Terraform Init (Backend)
         run: |
           for i in {1..3}; do
@@ -236,90 +99,22 @@ jobs:
             fi
           done
         working-directory: ./terraform/backend
-      - name: Deploy Core Resources
+      
+      - name: 🎯 Terraform Plan (Backend) - Professional Blue/Green
         run: |
-          terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
-            -target="aws_ecr_lifecycle_policy.nestjs_hannibal_3_policy" \
-            -target="aws_iam_role.ecs_task_execution_role" \
-            -target="aws_iam_role_policy_attachment.ecs_task_execution_role_policy" \
-            -target="aws_ecs_cluster.main" \
-            -target="aws_cloudwatch_log_group.ecs_api_task_logs"
+          echo "🔍 Planning backend infrastructure with Blue/Green deployment..."
+          terraform plan -var="client_url_for_cors=" -out=backend.tfplan
         working-directory: ./terraform/backend
       
-      # === STAGE 2: Infrastructure Resources (ALB/RDS/SecurityGroups) ===
-      - name: Continue with CICD Role
+      - name: 🚀 Terraform Apply (Backend) - Professional Blue/Green
         run: |
-          echo "Using existing CICD Role credentials for infrastructure resources"
-      - name: Deploy Infrastructure Resources
-        run: |
-          terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
-            -target="aws_security_group.alb_sg" \
-            -target="aws_security_group.ecs_service_sg" \
-            -target="aws_security_group.rds_sg" \
-            -target="aws_lb_target_group.blue" \
-            -target="aws_lb_target_group.green" \
-            -target="aws_lb.main" \
-            -target="aws_lb_listener.main" \
-            -target="aws_db_subnet_group.postgres" \
-            -target="aws_db_instance.postgres" \
-            -target="aws_s3_bucket_policy.cloudtrail_logs"
-        working-directory: ./terraform/backend
-      
-      # === STAGE 3: ECS Service (requires ALB) ===
-      - name: Deploy ECS Service with Infrastructure Role
-        run: |
-          terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
-            -target="aws_ecs_task_definition.api" \
-            -target="aws_ecs_service.blue" \
-
-        working-directory: ./terraform/backend
-      
-      # === STAGE 4: Monitoring Resources ===
-      - name: Continue with CICD Role for Monitoring
-        run: |
-          echo "Using existing CICD Role credentials for monitoring resources"
-      - name: Deploy Monitoring Resources
-        run: |
-          terraform apply -auto-approve -no-color -var="client_url_for_cors=" \
-            -target="aws_sns_topic.alerts" \
-            -target="aws_sns_topic_subscription.email_alerts" \
-            -target="aws_cloudwatch_metric_alarm.ecs_cpu_high_blue" \
-            -target="aws_cloudwatch_metric_alarm.ecs_cpu_high_green" \
-            -target="aws_cloudwatch_metric_alarm.ecs_memory_high_blue" \
-            -target="aws_cloudwatch_metric_alarm.ecs_memory_high_green" \
-            -target="aws_cloudwatch_metric_alarm.ecs_task_stopped_active" \
-            -target="aws_cloudwatch_metric_alarm.rds_cpu_high" \
-            -target="aws_cloudwatch_metric_alarm.rds_connections_high" \
-            -target="aws_cloudwatch_metric_alarm.alb_response_time_high" \
-            -target="aws_cloudwatch_metric_alarm.alb_5xx_error_rate_high" \
-            -target="aws_cloudwatch_metric_alarm.deployment_health" \
-            -target="aws_cloudwatch_metric_alarm.deployment_health_green" \
-            -target="aws_cloudwatch_dashboard.main" \
-            -target="aws_cloudtrail.main" \
-            -target="aws_iam_role.codedeploy_service_role" \
-            -target="aws_iam_role_policy_attachment.codedeploy_service_role_policy" \
-            -target="aws_codedeploy_app.ecs_app" \
-            -target="aws_codedeploy_deployment_group.ecs_deployment_group"
+          echo "🚀 Deploying backend infrastructure with automatic dependency resolution..."
+          terraform apply -auto-approve backend.tfplan
           terraform output -json > ../tf_outputs_backend.json
+          echo "✅ Backend deployment completed - Blue/Green environment ready"
         working-directory: ./terraform/backend
 
-
-      - name: Continue with CICD Role for Security
-        run: |
-          echo "Using existing CICD Role credentials for security resources"
-      - name: Create Access Analyzer (IAM Policy Analysis)
-        run: |
-          echo "🔍 Creating Access Analyzer for continuous IAM policy monitoring..."
-          terraform apply -target="aws_accessanalyzer_analyzer.main" -auto-approve -var="client_url_for_cors="
-          echo "✅ Access Analyzer created - IAM usage monitoring active"
-        working-directory: ./terraform/backend
-
-
-      - name: Continue with CICD Role for Frontend
-        run: |
-          echo "Using existing CICD Role credentials for frontend resources"
       - name: Terraform Init (Frontend)
-        id: init-frontend
         run: |
           for i in {1..3}; do
             echo "Terraform init attempt $i/3"
@@ -332,33 +127,11 @@ jobs:
             fi
           done
         working-directory: ./terraform/frontend
-      - name: Terraform Plan (Frontend)
-        id: plan-frontend
-
-        run: terraform plan -no-color -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)"
-        # $()　コマンド置換、コマンドの実行結果が埋め込まれる
-        # jq -r　--raw-output 抽出した値を「ダブルクォートなしの生の文字列（raw）」で出力します
-        # バックエンド（API）の ALB のDNS名をフロントエンドのTerraform設定に動的に反映させることができます
-        # ../tf_outputs_backend.json: GitHub サーバ上に作られる一時ファイル の中の .alb_dns_name キーの.value にアクセスする
-
-        working-directory: ./terraform/frontend
-        continue-on-error: true
-      - name: 🚀 Deploy Frontend Infrastructure
+      
+      - name: 🎯 Terraform Plan (Frontend) - Professional Design
         run: |
-          echo "🚀 Deploying frontend resources..."
-          for i in {1..3}; do
-            echo "Terraform init attempt $i/3"
-            if timeout 300 terraform init -input=false; then
-              echo "Terraform init successful"
-              break
-            else
-              echo "Terraform init failed, retrying..."
-              sleep 30
-            fi
-          done
-          
+          echo "🔍 Planning frontend infrastructure..."
           # Professional設計: 既存Route53レコードの冪等性チェック
-          echo "🔍 Checking existing Route53 records..."
           HOSTED_ZONE_ID=$(aws route53 list-hosted-zones --query "HostedZones[?Name=='hamilcar-hannibal.click.'].Id" --output text | sed 's|/hostedzone/||')
           if [ -z "$HOSTED_ZONE_ID" ]; then
             echo "⚠️ No hosted zone found for hamilcar-hannibal.click"
@@ -368,18 +141,20 @@ jobs:
             if [ "$EXISTING_RECORD" != "" ]; then
               echo "ℹ️ Existing Route53 record found - importing to Terraform state"
               terraform import 'aws_route53_record.www[0]' "${HOSTED_ZONE_ID}_hamilcar-hannibal.click_A" 2>/dev/null || echo "Import skipped (already managed)"
-            else
-              echo "ℹ️ No existing Route53 record found - will create new one"
             fi
           fi
-          
-          # CloudFrontも含めてデプロイするため、enable_cloudfront=trueでapply
-          terraform apply -auto-approve -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" -var="enable_cloudfront=true"
+          terraform plan -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" -var="enable_cloudfront=true" -out=frontend.tfplan
+        working-directory: ./terraform/frontend
+      
+      - name: 🚀 Terraform Apply (Frontend) - Professional Design
+        run: |
+          echo "🚀 Deploying frontend infrastructure with automatic dependency resolution..."
+          terraform apply -auto-approve frontend.tfplan
           echo "✅ Frontend infrastructure deployed"
         working-directory: ./terraform/frontend
+
       - name: Get Terraform Outputs (Frontend)
         id: get_terraform_outputs
-        # shell
         run: |
           echo "Retrieving Terraform outputs (frontend)..."
           cd ./terraform/frontend
@@ -389,23 +164,10 @@ jobs:
           echo "--------------------------------"
 
           cd ../..
-          # 2階層上に移動する
-
           echo "s3_bucket_name=$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
-          # echo で文字列を作り、>> で$GITHUB_OUTPUTに追記する
-          # $GITHUB_OUTPUT は「GitHub Actionsの同じジョブ内の他のステップで参照するためのファイル」です
-          # steps.get_terraform_outputs.outputs.s3_bucket_name これが使えるようになる 
-
           echo "cloudfront_domain_name=$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
           echo "cloudfront_distribution_id=$(jq -r '.cloudfront_distribution_id.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
-
-          # 古いやり方 不要
-          # echo "::set-output name=s3_bucket_name::$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)"
-          # echo "::set-output name=cloudfront_domain_name::$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)"
-          # echo "::set-output name=cloudfront_distribution_id::$(jq -r '.cloudfront_distribution_id.value' ./terraform/frontend/tf_outputs.json)"
-
         working-directory: ./
-        # この step の開始時点で、ルートディレクトリで開始する
 
       - name: Update CLIENT_URL in .env
         run: |
@@ -415,14 +177,15 @@ jobs:
         run: |
           sed -i "s|^VITE_GRAPHQL_ENDPOINT=.*$|VITE_GRAPHQL_ENDPOINT=https://hamilcar-hannibal.click/api/graphql|" client/.env.production
 
-      - name: Continue with CICD Role for CORS Update
-        run: |
-          echo "Using existing CICD Role credentials for CORS update"
       # CloudFrontドメイン名をCORS用にbackendへ再適用
-      - name: Terraform Apply (Backend, CORS Update)
-        id: apply-backend-cors
-        run: terraform apply -auto-approve -no-color -var="client_url_for_cors=https://hamilcar-hannibal.click"
+      - name: 🔄 Terraform Apply (Backend, CORS Update) - Professional
+        run: |
+          echo "🔄 Updating backend CORS configuration..."
+          terraform plan -var="client_url_for_cors=https://hamilcar-hannibal.click" -out=backend-cors.tfplan
+          terraform apply -auto-approve backend-cors.tfplan
+          echo "✅ CORS configuration updated"
         working-directory: ./terraform/backend
+
       - name: Setup Node.js for Frontend Build
         uses: actions/setup-node@v3
         with:
@@ -437,31 +200,20 @@ jobs:
         working-directory: ./client
       - name: Deploy Frontend to S3
         run: |
-          # (内容は変更なし)
           S3_BUCKET="${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}"
-
           if [ -z "$S3_BUCKET" ]; then echo "::error::S3 bucket name not found."; exit 1; fi 
-          # -z zero length
-          # if が true なら then を実行する
-          # ::error:: ::warning:: ::notice:: GitHub Actions独自のログ注釈機能です
-          # exit 1 異常終了
-
           echo "Deploying frontend to bucket: $S3_BUCKET"
           aws s3 sync ./client/dist "s3://$S3_BUCKET" --delete
-          # --delete S3バケット側にあってローカルに存在しないファイルは自動的に削除されます
 
       - name: Invalidate CloudFront Cache
         run: |
           CF_DIST_ID="${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}"
           if [ -z "$CF_DIST_ID" ]; then echo "::error::CloudFront distribution ID not found."; exit 1; fi 
           echo "Invalidating CloudFront cache for distribution: $CF_DIST_ID"
-
           aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"
-          # --paths "/*" すべてのパス
 
-      # --- ★★★ ECS Fargate/ECRへのバックエンドデプロイ ★★★ ---
+      # --- Professional Blue/Green Deployment ---
       - name: Login to Amazon ECR
-        id: login_ecr
         uses: aws-actions/amazon-ecr-login@v2
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -469,10 +221,7 @@ jobs:
         env:
           ECR_REGISTRY: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
           ECR_REPOSITORY: nestjs-hannibal-3
-
           IMAGE_TAG: ${{ github.sha }}
-          # Gitのコミットごとに自動生成される「SHA-1ハッシュ値」（40文字の英数字）です
-
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -480,7 +229,8 @@ jobs:
           tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Professional Blue/Green Deployment with CodeDeploy
+
+      - name: 🎯 Professional Blue/Green Deployment with CodeDeploy
         env:
           AWS_REGION: ap-northeast-1
           CLUSTER_NAME: nestjs-hannibal-3-cluster
