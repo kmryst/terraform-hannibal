@@ -420,11 +420,18 @@ resource "aws_db_parameter_group" "postgres" {
   family = "postgres15"
   name   = "${var.project_name}-postgres-params"
 
-  # Professional: 最小必須パラメータのみ
+  # Professional: AWS推奨static parameter設定
   parameter {
     name         = "max_connections"
     value        = "100"  # Professional: 最小推奨値
-    apply_method = "immediate"  # 高速作成: 即座適用
+    apply_method = "pending-reboot"  # Professional: static parameterは再起動必須
+  }
+
+  # Professional: 高速作成用dynamic parameter追加
+  parameter {
+    name         = "log_statement"
+    value        = "none"  # Professional: ログ最小化で高速化
+    apply_method = "immediate"  # dynamic parameterは即座適用可能
   }
 
   tags = {
