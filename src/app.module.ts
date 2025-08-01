@@ -33,8 +33,6 @@ import { AppService } from './app.service';
       autoLoadEntities: true,
       keepConnectionAlive: true,
       connectTimeoutMS: 30000,
-      acquireTimeoutMillis: 30000,
-      timeout: 30000,
       ssl: {
         rejectUnauthorized: false
       }
