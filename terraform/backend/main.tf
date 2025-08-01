@@ -308,9 +308,9 @@ resource "aws_ecs_service" "blue" {
   launch_type                       = "FARGATE"
   health_check_grace_period_seconds = 600
   
-  # AWS Professional Blue/Green Deployment
+  # AWS Professional: 一時的にECS管理に変更
   deployment_controller {
-    type = "CODE_DEPLOY"
+    type = "ECS"
   }
   
   # AWS Professional設計: CodeDeploy完全制御下のため、Terraform更新を無視

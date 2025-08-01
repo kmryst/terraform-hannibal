@@ -27,11 +27,46 @@ const MapContainer: React.FC = () => {
   const [isMapboxLoading, setIsMapboxLoading] = useState(true);
   const { loading, error, data } = useQuery(GET_MAP_DATA);
   
-  // Professional設計: モックデータで動作確認
+  // Professional設計: テストデータで表示確認
   const mockData = {
-    capitalCities: { type: "FeatureCollection" as const, features: [] },
-    hannibalRoute: { type: "FeatureCollection" as const, features: [] },
-    pointRoute: { type: "FeatureCollection" as const, features: [] }
+    capitalCities: { 
+      type: "FeatureCollection" as const, 
+      features: [
+        {
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [12.4924, 41.8902] },
+          properties: { name: "Rome", empire: "Roman" }
+        },
+        {
+          type: "Feature" as const, 
+          geometry: { type: "Point" as const, coordinates: [2.3522, 48.8566] },
+          properties: { name: "Paris", empire: "Gallic" }
+        }
+      ]
+    },
+    hannibalRoute: { 
+      type: "FeatureCollection" as const, 
+      features: [
+        {
+          type: "Feature" as const,
+          geometry: { 
+            type: "LineString" as const, 
+            coordinates: [[-6.2597, 36.1408], [12.4924, 41.8902]] 
+          },
+          properties: { description: "Hannibal's Route" }
+        }
+      ]
+    },
+    pointRoute: { 
+      type: "FeatureCollection" as const, 
+      features: [
+        {
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [-6.2597, 36.1408] },
+          properties: { description: "Carthage" }
+        }
+      ]
+    }
   };
 
   // Mapboxの動的インポート

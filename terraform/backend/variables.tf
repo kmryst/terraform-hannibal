@@ -37,7 +37,7 @@ variable "private_subnet_ids" {
 variable "container_image_uri" {
   description = "ECR URI of the Docker image for the NestJS API"
   type        = string
-  default     = "258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:latest" # 事前にECRにpushしたイメージURI
+  default     = "258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3@sha256:192aef2ce21c2a2cc5234a53abf6754fed26201dbc0e1446eebd557cc18f5ad0" # 最新ダイジェスト使用
 }
 
 variable "ecr_repository_url" {
