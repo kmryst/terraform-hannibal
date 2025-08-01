@@ -13,10 +13,50 @@ import {
 } from "../services/mapLayers";
 import { setupClickHandlers, setupCursorHandlers } from "../utils/mapUtils";
 
-// GraphQLクエリ - Professional設計: 存在するクエリのみ使用
+// GraphQLクエリ - 元のクエリを復元
 const GET_MAP_DATA = gql`
   query GetMapData {
-    __typename
+    capitalCities {
+      type
+      features {
+        type
+        geometry {
+          type
+          coordinates
+        }
+        properties {
+          name
+          description
+          empire
+        }
+      }
+    }
+    hannibalRoute {
+      type
+      features {
+        type
+        geometry {
+          type
+          coordinates
+        }
+        properties {
+          description
+        }
+      }
+    }
+    pointRoute {
+      type
+      features {
+        type
+        geometry {
+          type
+          coordinates
+        }
+        properties {
+          description
+        }
+      }
+    }
   }
 `;
 
@@ -115,8 +155,13 @@ const MapContainer: React.FC = () => {
         setSnowEffect(map);
 
         try {
-          addHannibalRouteLayers(map, mockData.hannibalRoute, mockData.pointRoute);
-          addCapitalCityLayers(map, mockData.capitalCities);
+          // 実際のGraphQLデータを使用、フォールバックでモックデータ
+          const routeData = data?.hannibalRoute || mockData.hannibalRoute;
+          const pointData = data?.pointRoute || mockData.pointRoute;
+          const cityData = data?.capitalCities || mockData.capitalCities;
+          
+          addHannibalRouteLayers(map, routeData, pointData);
+          addCapitalCityLayers(map, cityData);
 
           setupClickHandlers(map);
           setupCursorHandlers(map);
@@ -135,7 +180,7 @@ const MapContainer: React.FC = () => {
       console.error("Map Initialization Failed:", e);
       handleError(`Map Initialization Failed: ${e}`);
     }
-  }, [isMapboxLoading]);
+  }, [data, isMapboxLoading]);
 
   if (isMapboxLoading) {
     return <div>Loading Mapbox...</div>;
