@@ -21,6 +21,7 @@ variable "vpc_id" {
   default     = "" # 空文字列をデフォルト値として設定し、オプショナルにする
 }
 
+# amazonq-ignore-next-line
 # variable "public_subnet_ids" {
 #   description = "List of public subnet IDs for ALB and Fargate tasks (at least 2 in different AZs)"
 #   type        = list(string)

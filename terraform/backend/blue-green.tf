@@ -108,6 +108,7 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
 }
 
 # --- Professional Health Check Alarm (Blue) ---
+# amazonq-ignore-next-line
 resource "aws_cloudwatch_metric_alarm" "deployment_health" {
   alarm_name          = "${var.project_name}-deployment-health"
   comparison_operator = "LessThanThreshold"

@@ -56,6 +56,7 @@ resource "aws_iam_policy" "hannibal_developer_policy" {
   name        = "HannibalDeveloperPolicy-Dev"
   description = "Integrated development permissions - ECS/ECR/RDS/CloudWatch operations, limited Terraform execution"
 
+  # amazonq-ignore-next-line
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [

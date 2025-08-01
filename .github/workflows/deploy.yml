@@ -207,7 +207,7 @@ jobs:
           CF_DIST_ID="${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}"
           if [ -z "$CF_DIST_ID" ]; then echo "::error::CloudFront distribution ID not found."; exit 1; fi 
           echo "Invalidating CloudFront cache for distribution: $CF_DIST_ID"
-          aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"
+          aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"eate-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
