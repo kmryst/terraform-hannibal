@@ -1,308 +1,104 @@
-# C:\code\javascript\nestjs-hannibal-3\.github\workflows\deploy.yml
-
-name: 🚀 Deploy (Dev)
+name: 🚀 Deploy (Simple & Fast)
 
 on:
   workflow_dispatch:
 
 concurrency:
-  group: terraform-professional-deploy
+  group: simple-deploy
   cancel-in-progress: true
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Setup Node.js for Backend
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-      - name: Install Backend Dependencies
-        run: npm ci
-      - name: Run Backend Tests
-        run: npm test
-      - name: Setup Node.js for Frontend
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: client/package-lock.json
-      - name: Install Frontend Dependencies
-        run: npm ci
-        working-directory: ./client
-      - name: Run Frontend Tests
-        run: echo "Frontend tests would run here (e.g., npm run test)"
-        working-directory: ./client
-
   deploy:
-    needs: test
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    outputs:
-      s3_bucket_name: ${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}
-      cloudfront_distribution_id: ${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}
-      cloudfront_domain_name: ${{ steps.get_terraform_outputs.outputs.cloudfront_domain_name }}
-
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: Configure AWS credentials (Development)
+
+      - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
-      - name: Cache Terraform
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.terraform.d/plugin-cache
-            **/.terraform
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/*.tf') }}
-          restore-keys: |
-            ${{ runner.os }}-terraform-
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.0.0
           terraform_wrapper: false
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
 
-      # === AWS Professional設計: シンプルなplan/applyサイクル ===
       - name: Assume CICD Role
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ''
         run: |
-          CICD_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --role-session-name github-actions-cicd)
-          echo "AWS_ACCESS_KEY_ID=$(echo $CICD_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $CICD_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $CICD_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+          CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --role-session-name deploy)
+          echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
-      - name: Terraform Init (Backend)
+      # Backend
+      - name: Deploy Backend
         run: |
-          for i in {1..3}; do
-            echo "Terraform init attempt $i/3"
-            if timeout 300 terraform init -input=false; then
-              echo "Terraform init successful"
-              break
-            else
-              echo "Terraform init failed, retrying..."
-              sleep 30
-            fi
-          done
-        working-directory: ./terraform/backend
-
-      - name: 🎯 Terraform Plan (Backend) - Professional Blue/Green
-        run: |
-          echo "🔍 Planning backend infrastructure with Blue/Green deployment..."
-          terraform plan -var="client_url_for_cors=" -out=backend.tfplan
-        working-directory: ./terraform/backend
-
-      - name: 🚀 Terraform Apply (Backend) - Professional Blue/Green
-        run: |
-          echo "🚀 Deploying backend infrastructure with automatic dependency resolution..."
-          terraform apply -auto-approve backend.tfplan
+          terraform init
+          terraform apply -auto-approve -var="client_url_for_cors=https://hamilcar-hannibal.click"
           terraform output -json > ../tf_outputs_backend.json
-          echo "✅ Backend deployment completed - Blue/Green environment ready"
         working-directory: ./terraform/backend
 
-      - name: Terraform Init (Frontend)
+      # Frontend
+      - name: Deploy Frontend Infrastructure
         run: |
-          for i in {1..3}; do
-            echo "Terraform init attempt $i/3"
-            if timeout 300 terraform init -input=false; then
-              echo "Terraform init successful"
-              break
-            else
-              echo "Terraform init failed, retrying..."
-              sleep 30
-            fi
-          done
-        working-directory: ./terraform/frontend
-
-      - name: 🎯 Terraform Plan (Frontend) - Professional Design
-        run: |
-          echo "🔍 Planning frontend infrastructure..."
-          HOSTED_ZONE_ID=$(aws route53 list-hosted-zones --query "HostedZones[?Name=='hamilcar-hannibal.click.'].Id" --output text | sed 's|/hostedzone/||')
-          if [ -z "$HOSTED_ZONE_ID" ]; then
-            echo "⚠️ No hosted zone found for hamilcar-hannibal.click"
-          else
-            echo "ℹ️ Found hosted zone: $HOSTED_ZONE_ID"
-            EXISTING_RECORD=$(aws route53 list-resource-record-sets --hosted-zone-id "$HOSTED_ZONE_ID" --query "ResourceRecordSets[?Name=='hamilcar-hannibal.click.' && Type=='A'].Name" --output text 2>/dev/null || echo "")
-            if [ "$EXISTING_RECORD" != "" ]; then
-              echo "ℹ️ Existing Route53 record found - importing to Terraform state"
-              terraform import 'aws_route53_record.www[0]' "${HOSTED_ZONE_ID}_hamilcar-hannibal.click_A" 2>/dev/null || echo "Import skipped (already managed)"
-            fi
-          fi
-          terraform plan -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" -var="enable_cloudfront=true" -out=frontend.tfplan
-        working-directory: ./terraform/frontend
-
-      - name: 🚀 Terraform Apply (Frontend) - Professional Design
-        run: |
-          echo "🚀 Deploying frontend infrastructure with automatic dependency resolution..."
-          terraform apply -auto-approve frontend.tfplan
-          echo "✅ Frontend infrastructure deployed"
-        working-directory: ./terraform/frontend
-
-      - name: Get Terraform Outputs (Frontend)
-        id: get_terraform_outputs
-        run: |
-          echo "Retrieving Terraform outputs (frontend)..."
-          cd ./terraform/frontend
+          terraform init
+          terraform apply -auto-approve -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" -var="enable_cloudfront=true"
           terraform output -json > tf_outputs.json
-          echo "--- Terraform Outputs (JSON) ---"
-          cat tf_outputs.json
-          echo "--------------------------------"
+        working-directory: ./terraform/frontend
 
-          cd ../..
-          echo "s3_bucket_name=$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "cloudfront_domain_name=$(jq -r '.cloudfront_domain_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "cloudfront_distribution_id=$(jq -r '.cloudfront_distribution_id.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
-        working-directory: ./
-
-      - name: Update CLIENT_URL in .env
-        run: |
-          sed -i "s|^CLIENT_URL=.*$|CLIENT_URL=https://hamilcar-hannibal.click|" .env
-
-      - name: Update VITE_GRAPHQL_ENDPOINT in client/.env.production
-        run: |
-          sed -i "s|^VITE_GRAPHQL_ENDPOINT=.*$|VITE_GRAPHQL_ENDPOINT=https://hamilcar-hannibal.click/api/graphql|" client/.env.production
-
-      - name: 🔄 Terraform Apply (Backend, CORS Update) - Professional
-        run: |
-          echo "🔄 Updating backend CORS configuration..."
-          terraform plan -var="client_url_for_cors=https://hamilcar-hannibal.click" -out=backend-cors.tfplan
-          terraform apply -auto-approve backend-cors.tfplan
-          echo "✅ CORS configuration updated"
-        working-directory: ./terraform/backend
-
-      - name: Setup Node.js for Frontend Build
+      # Build & Deploy
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
-      - name: Install Frontend Dependencies for Build
-        run: npm ci
-        working-directory: ./client
-      - name: Build Frontend
-        run: npm run build
-        working-directory: ./client
-      - name: Deploy Frontend to S3
-        run: |
-          S3_BUCKET="${{ steps.get_terraform_outputs.outputs.s3_bucket_name }}"
-          if [ -z "$S3_BUCKET" ]; then echo "::error::S3 bucket name not found."; exit 1; fi 
-          echo "Deploying frontend to bucket: $S3_BUCKET"
-          aws s3 sync ./client/dist "s3://$S3_BUCKET" --delete
 
-      - name: Invalidate CloudFront Cache
+      - name: Build & Deploy Frontend
         run: |
-          CF_DIST_ID="${{ steps.get_terraform_outputs.outputs.cloudfront_distribution_id }}"
-          if [ -z "$CF_DIST_ID" ]; then echo "::error::CloudFront distribution ID not found."; exit 1; fi 
-          echo "Invalidating CloudFront cache for distribution: $CF_DIST_ID"
-          aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"eate-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"
+          cd client
+          npm ci
+          npm run build
+          S3_BUCKET=$(jq -r '.s3_bucket_name.value' ../terraform/frontend/tf_outputs.json)
+          aws s3 sync ./dist "s3://$S3_BUCKET" --delete
 
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build, Tag, and Push Docker image to ECR
-        env:
-          ECR_REGISTRY: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
-          ECR_REPOSITORY: nestjs-hannibal-3
-          IMAGE_TAG: ${{ github.sha }}
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: 🎯 Professional Blue/Green Deployment with CodeDeploy
-        env:
-          AWS_REGION: ap-northeast-1
-          IMAGE_TAG: ${{ github.sha }}
-          ECR_REGISTRY: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
-          ECR_REPOSITORY: nestjs-hannibal-3
-          # ⭐️[覚書ポイント1: AppSpec用の必須パラメータ]
-          # 以下の `CONTAINER_NAME` と `CONTAINER_PORT` は、この後で動的に生成するAppSpecで必須となる情報です。
-          # ご自身のECSタスク定義内のコンテナ名と、コンテナが公開しているポート番号に必ず一致させてください。
-          CONTAINER_NAME: nestjs-hannibal-3-container
-          CONTAINER_PORT: 3000
+      - name: Build & Push Docker
         run: |
-          echo "🚀 Starting Professional Blue/Green Deployment with AWS CodeDeploy"
-          
-          # ⭐️[覚書ポイント2: リソース名の動的取得]
-          # ハードコードを避け、Terraformが管理する実際のリソース名を `terraform output` で動的に取得します。
-          # これにより、Terraform側の変更が自動的にパイプラインに反映され、保守性が大幅に向上します。
-          cd ./terraform/backend
-          CLUSTER_NAME=$(terraform output -raw ecs_cluster_name)
-          SERVICE_NAME=$(terraform output -raw blue_service_name)
-          CODEDEPLOY_APP=$(terraform output -raw codedeploy_application_name)
-          CODEDEPLOY_GROUP=$(terraform output -raw codedeploy_deployment_group_name)
+          aws ecr get-login-password | docker login --username AWS --password-stdin 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
+          docker build -t nestjs-hannibal-3 .
+          docker tag nestjs-hannibal-3:latest 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}
+          docker push 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}
+
+      - name: Update ECS Service
+        run: |
+          cd terraform/backend
+          CLUSTER=$(terraform output -raw ecs_cluster_name)
+          SERVICE=$(terraform output -raw ecs_service_name)
           cd ../..
           
-          echo "ℹ️ Using Cluster: $CLUSTER_NAME"
-          echo "ℹ️ Using Service: $SERVICE_NAME"
-          
-          # ⭐️[覚書ポイント3: 安全なタスク定義の更新]
-          # 既存のタスク定義を元にイメージのみを更新します。
-          # 最後の `with_entries(select(.value != null))` は、元のタスク定義に存在しないオプション項目(例: taskRoleArn)が
-          # `null`値となってAPIエラーを引き起こすのを防ぐ、非常に重要な「お守り」です。
-          TASK_DEF_ARN=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query "services[0].taskDefinition" --output text)
+          TASK_DEF_ARN=$(aws ecs describe-services --cluster $CLUSTER --services $SERVICE --query "services[0].taskDefinition" --output text)
           aws ecs describe-task-definition --task-definition $TASK_DEF_ARN > task-def.json
-          NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          NEW_TASK_DEF_CONTENT=$(cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" '
-            ( .taskDefinition.containerDefinitions[0].image = $IMAGE ) | 
-            .taskDefinition | { family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory } |
+          
+          NEW_IMAGE="258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}"
+          NEW_TASK_DEF=$(cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" '
+            (.taskDefinition.containerDefinitions[0].image = $IMAGE) | 
+            .taskDefinition | 
+            {family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory} |
             with_entries(select(.value != null))
           ')
-          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF_CONTENT" --query 'taskDefinition.taskDefinitionArn' --output text)
-          echo "✅ New Task Definition registered: $NEW_TASK_DEF_ARN"
-
-          # ⭐️[覚書ポイント4: 正しいリビジョン(AppSpec)の動的生成]
-          # これが、このパイプラインの最も重要な核心です。
-          # ECSのBlue/Greenデプロイでは、「どのタスク定義を使うか」を伝えるために、このAppSpec形式のJSONを動的に生成する必要があります。
-          # (`revisionType=ECS`という方法は存在せず、このAppSpecこそが唯一の正しい方法でした。)
-          APPSPEC_CONTENT=$(cat <<EOF
-          {
-            "version": "0.0",
-            "Resources": [
-              {
-                "TargetService": {
-                  "Type": "AWS::ECS::Service",
-                  "Properties": {
-                    "TaskDefinition": "${NEW_TASK_DEF_ARN}",
-                    "LoadBalancerInfo": {
-                      "ContainerName": "${CONTAINER_NAME}",
-                      "ContainerPort": ${CONTAINER_PORT}
-                    }
-                  }
-                }
-              }
-            ]
-          }
-          EOF
-          )
-
-          # ⭐️[覚書ポイント5: 壊れないコマンドの実行方法]
-          # AppSpecのJSONコンテンツ（変数 $APPSPEC_CONTENT）を、`content='...'` のようにシングルクォートで囲んでいます。
-          # これにより、JSON内のダブルクォートなどがシェルの解釈によって壊れるのを防ぎ、コマンドを安全に実行できます。
-          # 複雑なパラメータを渡す際の、最も安定した方法です。
-          DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --application-name "$CODEDEPLOY_APP" \
-            --deployment-group-name "$CODEDEPLOY_GROUP" \
-            --revision "revisionType=AppSpecContent,appSpecContent={content='$APPSPEC_CONTENT'}" \
-            --query 'deploymentId' --output text)
           
-          echo "✅ CodeDeploy Deployment ID: $DEPLOYMENT_ID"
-          echo "🔍 Monitor your deployment: https://${AWS_REGION}.console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
-          echo "🎯 Professional Blue/Green deployment with auto-rollback initiated."
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF" --query 'taskDefinition.taskDefinitionArn' --output text)
+          aws ecs update-service --cluster $CLUSTER --service $SERVICE --task-definition $NEW_TASK_DEF_ARN
+          aws ecs wait services-stable --cluster $CLUSTER --services $SERVICE
+
+      - name: Invalidate CloudFront
+        run: |
+          CF_DIST_ID=$(jq -r '.cloudfront_distribution_id.value' terraform/frontend/tf_outputs.json)
+          aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*"
+
+      - name: 🎉 Complete
+        run: echo "🎉 Deployment completed! https://hamilcar-hannibal.click"

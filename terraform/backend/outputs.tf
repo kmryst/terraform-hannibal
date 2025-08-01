@@ -1,4 +1,4 @@
-# terraform/backend/outputs.tf
+# terraform/backend/outputs.tf (In-Place Deployment)
 
 output "alb_dns_name" {
   description = "DNS name of the Application Load Balancer"
@@ -17,7 +17,7 @@ output "ecs_cluster_name" {
 
 output "ecs_service_name" {
   description = "Name of the ECS service"
-  value       = aws_ecs_service.blue.name
+  value       = aws_ecs_service.main.name
 }
 
 output "rds_endpoint" {
@@ -26,54 +26,17 @@ output "rds_endpoint" {
   sensitive   = true
 }
 
-# Professional Blue/Green Outputs
-output "codedeploy_application_name" {
-  description = "CodeDeploy application name for Blue/Green deployment"
-  value       = aws_codedeploy_app.ecs_app.name
+output "target_group_arn" {
+  description = "Target group ARN"
+  value       = aws_lb_target_group.main.arn
 }
 
-output "codedeploy_deployment_group_name" {
-  description = "CodeDeploy deployment group name"
-  value       = aws_codedeploy_deployment_group.ecs_deployment_group.deployment_group_name
-}
-
-output "blue_target_group_arn" {
-  description = "Blue environment target group ARN"
-  value       = aws_lb_target_group.blue.arn
-}
-
-output "green_target_group_arn" {
-  description = "Green environment target group ARN"
-  value       = aws_lb_target_group.green.arn
-}
-
-output "alb_listener_arn" {
-  description = "ALB Listener ARN for CodeDeploy"
-  value       = aws_lb_listener.main.arn
-}
-
-output "codedeploy_service_role_arn" {
-  description = "CodeDeploy service role ARN"
-  value       = aws_iam_role.codedeploy_service_role.arn
-}
-
-output "blue_service_name" {
-  description = "Blue ECS service name"
-  value       = aws_ecs_service.blue.name
-}
-
-output "green_service_name" {
-  description = "Green ECS service name"
-  value       = aws_ecs_service.green.name
-}
-
-# Professional Blue/Green AppSpec用
 output "container_name" {
-  description = "Container name for AppSpec"
+  description = "Container name"
   value       = "${var.project_name}-container"
 }
 
 output "container_port" {
-  description = "Container port for AppSpec"
+  description = "Container port"
   value       = var.container_port
 }
