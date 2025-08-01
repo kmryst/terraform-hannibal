@@ -28,7 +28,7 @@ export class AppController {
     }
   }
 
-  // AWS Professional: シンプルなヘルスチェック（ALB用）
+  // AWS Professional: ALB用軽量ヘルスチェック（DB接続不要）
   @Get('health/simple')
   getSimpleHealth() {
     return {
@@ -36,6 +36,12 @@ export class AppController {
       timestamp: new Date().toISOString(),
       service: 'nestjs-hannibal-3',
     };
+  }
+
+  // AWS Professional: ALB専用ヘルスチェック（最軽量）
+  @Get('health/alb')
+  getALBHealth() {
+    return 'OK';
   }
 
   @Get('health/ready')
