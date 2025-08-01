@@ -232,6 +232,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
           ECR_REGISTRY: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
           ECR_REPOSITORY: nestjs-hannibal-3
+
         run: |
           echo "🚀 Starting Professional Blue/Green Deployment with AWS CodeDeploy"
           
@@ -241,6 +242,8 @@ jobs:
           SERVICE_NAME=$(terraform output -raw blue_service_name)
           CODEDEPLOY_APP=$(terraform output -raw codedeploy_application_name)
           CODEDEPLOY_GROUP=$(terraform output -raw codedeploy_deployment_group_name)
+          CONTAINER_NAME=$(terraform output -raw container_name)
+          CONTAINER_PORT=$(terraform output -raw container_port)
           cd ../..
           
           echo "ℹ️ Using Cluster: $CLUSTER_NAME"
@@ -261,25 +264,35 @@ jobs:
           echo "✅ New Task Definition registered: $NEW_TASK_DEF_ARN"
 
           # --- Step 2: CodeDeployでデプロイを開始 ---
-          # 【最終解決策】ベストプラクティス: コマンド全体の引数をJSONファイルに書き出し、--cli-input-jsonで実行する
-          cat > deployment.json <<EOF
+          # 【最終解決策】ベストプラクティス: AppSpecを動的に生成し、revisionType=AppSpecContentで渡す
+          # これがECS Blue/Greenデプロイにおける唯一の正しいリビジョン指定方法です。
+          APPSPEC_CONTENT=$(cat <<EOF
           {
-            "applicationName": "${CODEDEPLOY_APP}",
-            "deploymentGroupName": "${CODEDEPLOY_GROUP}",
-            "revision": {
-              "revisionType": "ECS",
-              "ecsService": {
-                "serviceName": "${SERVICE_NAME}",
-                "clusterName": "${CLUSTER_NAME}",
-                "taskDefinition": "${NEW_TASK_DEF_ARN}"
+            "version": "0.0",
+            "Resources": [
+              {
+                "TargetService": {
+                  "Type": "AWS::ECS::Service",
+                  "Properties": {
+                    "TaskDefinition": "${NEW_TASK_DEF_ARN}",
+                    "LoadBalancerInfo": {
+                      "ContainerName": "${CONTAINER_NAME}",
+                      "ContainerPort": ${CONTAINER_PORT}
+                    }
+                  }
+                }
               }
-            }
+            ]
           }
           EOF
+          )
 
-          # 全ての引数をファイルで渡すため、コマンド自体は非常にシンプルになる
+          # AppSpecを文字列として渡すため、--revisionパラメータを正しく構成する
+          # contentの値はシングルクォートで囲み、シェルの解釈を避ける
           DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --cli-input-json file://deployment.json \
+            --application-name "$CODEDEPLOY_APP" \
+            --deployment-group-name "$CODEDEPLOY_GROUP" \
+            --revision "revisionType=AppSpecContent,appSpecContent={content='$APPSPEC_CONTENT'}" \
             --query 'deploymentId' --output text)
           
           echo "✅ CodeDeploy Deployment ID: $DEPLOYMENT_ID"

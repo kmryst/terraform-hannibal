@@ -66,3 +66,14 @@ output "green_service_name" {
   description = "Green ECS service name"
   value       = aws_ecs_service.green.name
 }
+
+# Professional Blue/Green AppSpec用
+output "container_name" {
+  description = "Container name for AppSpec"
+  value       = "${var.project_name}-container"
+}
+
+output "container_port" {
+  description = "Container port for AppSpec"
+  value       = var.container_port
+}
