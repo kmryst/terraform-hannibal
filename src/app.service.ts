@@ -126,6 +126,7 @@ export class AppService {
     try {
       // Blue/Green対応: 実際のDB接続テスト
       await this.routeRepository.manager.connection.query('SELECT 1');
+      console.log('Database connection check successful');
       return {
         status: 'healthy',
         responseTime: Date.now() - startTime,

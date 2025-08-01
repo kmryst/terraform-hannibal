@@ -59,10 +59,28 @@ async function bootstrap() {
       // await: サーバが起動するまで次の処理を待つ
       logger.log(`🚀 Server ready at http://${host}:${port}/graphql`);
       logger.log(`Environment: ${nodeEnv}`);
+      logger.log(`Database configured: ${process.env.DB_HOST ? 'Yes' : 'No'}`);
       if (allowedOrigins.length > 0) {
         logger.log(`Allowed CORS origins: ${allowedOrigins.join(', ')}`);
       } else {
         logger.log('No origins explicitly allowed by CORS.'); // explicitly: 明確に
+      }
+
+      // AWS Professional: データベース接続確認
+      logger.log('Checking database connection...');
+      const appService = app.get('AppService');
+      if (appService) {
+        appService
+          .checkDatabaseConnection()
+          .then((result) => {
+            logger.log(`Database connection: ${result.status}`);
+            if (result.status === 'unhealthy') {
+              logger.error(`Database connection failed: ${result.error}`);
+            }
+          })
+          .catch((error) => {
+            logger.error('Database connection check error:', error);
+          });
       }
     });
   } catch (error) {
