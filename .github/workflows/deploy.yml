@@ -248,44 +248,37 @@ jobs:
           
           echo "ℹ️ Using Cluster: $CLUSTER_NAME"
           echo "ℹ️ Using Service: $SERVICE_NAME"
-          echo "ℹ️ Using CodeDeploy App: $CODEDEPLOY_APP"
-          echo "ℹ️ Using CodeDeploy Group: $CODEDEPLOY_GROUP"
           
           # --- Step 1: 新しいDockerイメージでECSタスク定義を更新 ---
-          # 現在のECSサービスのタスク定義ARNを取得
           TASK_DEF_ARN=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query "services[0].taskDefinition" --output text)
-          
-          # 取得したタスク定義の詳細を取得し、ファイルに保存
           aws ecs describe-task-definition --task-definition $TASK_DEF_ARN > task-def.json
-          
-          # 新しいDockerイメージのタグを設定
           NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
-          # jqを使ってコンテナイメージのパスを新しいものに置き換え、不要なキーを削除して新しいタスク定義ファイルを作成
-          # ベストプラクティス: 登録に必要なキーのみに絞ることで、APIエラーを防ぐ
+          # 【エラー修正】jqコマンドを修正し、null値を持つキーをJSONから除外する
+          # これにより、taskRoleArnなどのオプションパラメータが存在しない場合でもエラーを防ぐ
           NEW_TASK_DEF_CONTENT=$(cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" '
-            .taskDefinition.containerDefinitions[0].image = $IMAGE | 
-            .taskDefinition | 
+            ( .taskDefinition.containerDefinitions[0].image = $IMAGE ) | 
+            .taskDefinition |
             {
-              family: .family, 
-              taskRoleArn: .taskRoleArn, 
-              executionRoleArn: .executionRoleArn, 
-              networkMode: .networkMode, 
-              containerDefinitions: .containerDefinitions, 
-              volumes: .volumes, 
-              placementConstraints: .placementConstraints, 
-              requiresCompatibilities: .requiresCompatibilities, 
-              cpu: .cpu, 
-              memory: .memory
-            }
+              family,
+              taskRoleArn,
+              executionRoleArn,
+              networkMode,
+              containerDefinitions,
+              volumes,
+              placementConstraints,
+              requiresCompatibilities,
+              cpu,
+              memory
+            } |
+            # ベストプラクティス: この一行で、値がnullのキーをすべて安全に除去
+            with_entries(select(.value != null))
           ')
           
-          # 新しい内容でタスク定義を登録し、新しいARNを取得
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF_CONTENT" --query 'taskDefinition.taskDefinitionArn' --output text)
           echo "✅ New Task Definition registered: $NEW_TASK_DEF_ARN"
 
           # --- Step 2: CodeDeployでデプロイを開始 ---
-          # ベストプラクティス: revisionType=ECS を使用し、シンプルでエラーの起きにくい方法でデプロイをトリガー
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name $CODEDEPLOY_APP \
             --deployment-group-name $CODEDEPLOY_GROUP \

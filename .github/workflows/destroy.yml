@@ -145,7 +145,7 @@ jobs:
 
           # 3. ALB削除（ターゲットグループが残っていると失敗するため先に削除）
           echo "🗑️ Cleaning up ALB..."
-          ALB_ARN=$(aws elbv2 describe-load-balancers --names nestjs-hannibal-3-alb --region ap-northeast-1 --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "None")
+          ALB_ARN=$(aws elbv2 describe-load-balancers --names $PROJECT_NAME-alb --region ap-northeast-1 --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "None")
           if [ "$ALB_ARN" != "None" ] && [ "$ALB_ARN" != "null" ]; then
             aws elbv2 delete-load-balancer --load-balancer-arn "$ALB_ARN" --region ap-northeast-1
             sleep 60  # ALB削除完了を待つ（時間がかかるため）
@@ -153,12 +153,12 @@ jobs:
 
           # 4. Blue/Greenターゲットグループ削除（ALB削除後に実行）
           echo "🗑️ Cleaning up Blue/Green target groups..."
-          BLUE_TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-blue-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
+          BLUE_TG_ARN=$(aws elbv2 describe-target-groups --names $PROJECT_NAME-blue-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
           if [ "$BLUE_TG_ARN" != "None" ] && [ "$BLUE_TG_ARN" != "null" ]; then
             aws elbv2 delete-target-group --target-group-arn "$BLUE_TG_ARN" --region ap-northeast-1
           fi
           
-          GREEN_TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-green-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
+          GREEN_TG_ARN=$(aws elbv2 describe-target-groups --names $PROJECT_NAME-green-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
           if [ "$GREEN_TG_ARN" != "None" ] && [ "$GREEN_TG_ARN" != "null" ]; then
             aws elbv2 delete-target-group --target-group-arn "$GREEN_TG_ARN" --region ap-northeast-1
           fi
@@ -167,38 +167,39 @@ jobs:
 
           # 5. セキュリティグループ削除（ECSタスクやALBが削除された後に実行）
           echo "🗑️ Cleaning up security groups..."
-          SG_ECS_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-ecs-service-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
+          SG_ECS_ID=$(aws ec2 describe-security-groups --group-names $PROJECT_NAME-ecs-service-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
           if [ "$SG_ECS_ID" != "None" ] && [ "$SG_ECS_ID" != "null" ]; then
             aws ec2 delete-security-group --group-id "$SG_ECS_ID" --region ap-northeast-1 2>/dev/null || true
           fi
 
-          SG_ALB_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-alb-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
+          SG_ALB_ID=$(aws ec2 describe-security-groups --group-names $PROJECT_NAME-alb-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
           if [ "$SG_ALB_ID" != "None" ] && [ "$SG_ALB_ID" != "null" ]; then
             aws ec2 delete-security-group --group-id "$SG_ALB_ID" --region ap-northeast-1 2>/dev/null || true
           fi
 
           # 6. IAMロール削除（Professional Blue/Green対応）
           echo "🗑️ Cleaning up IAM roles..."
+          PROJECT_NAME="nestjs-hannibal-3"
           # ECS Task Execution Role
-          aws iam detach-role-policy --role-name nestjs-hannibal-3-ecs-task-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy 2>/dev/null || true
-          aws iam delete-role --role-name nestjs-hannibal-3-ecs-task-execution-role 2>/dev/null || true
+          aws iam detach-role-policy --role-name $PROJECT_NAME-ecs-task-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy 2>/dev/null || true
+          aws iam delete-role --role-name $PROJECT_NAME-ecs-task-execution-role 2>/dev/null || true
           # CodeDeploy Service Role
-          aws iam detach-role-policy --role-name nestjs-hannibal-3-codedeploy-service-role --policy-arn arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS 2>/dev/null || true
-          aws iam delete-role --role-name nestjs-hannibal-3-codedeploy-service-role 2>/dev/null || true
+          aws iam detach-role-policy --role-name $PROJECT_NAME-codedeploy-service-role --policy-arn arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS 2>/dev/null || true
+          aws iam delete-role --role-name $PROJECT_NAME-codedeploy-service-role 2>/dev/null || true
 
           # 7. RDS削除（セキュリティグループ削除前に実行）
           echo "🗑️ Cleaning up RDS instance..."
-          aws rds delete-db-instance --db-instance-identifier nestjs-hannibal-3-postgres --skip-final-snapshot --region ap-northeast-1 2>/dev/null || true
+          aws rds delete-db-instance --db-instance-identifier $PROJECT_NAME-postgres --skip-final-snapshot --region ap-northeast-1 2>/dev/null || true
           echo "⏳ Waiting for RDS deletion (this may take several minutes)..."
           sleep 120  # RDS削除には時間がかかる
 
           # 8. RDSサブネットグループ削除
           echo "🗑️ Cleaning up RDS subnet group..."
-          aws rds delete-db-subnet-group --db-subnet-group-name nestjs-hannibal-3-db-subnet-group --region ap-northeast-1 2>/dev/null || true
+          aws rds delete-db-subnet-group --db-subnet-group-name $PROJECT_NAME-db-subnet-group --region ap-northeast-1 2>/dev/null || true
 
           # 9. RDSセキュリティグループ削除
           echo "🗑️ Cleaning up RDS security group..."
-          SG_RDS_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-rds-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
+          SG_RDS_ID=$(aws ec2 describe-security-groups --group-names $PROJECT_NAME-rds-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
           if [ "$SG_RDS_ID" != "None" ] && [ "$SG_RDS_ID" != "null" ]; then
             aws ec2 delete-security-group --group-id "$SG_RDS_ID" --region ap-northeast-1 2>/dev/null || true
           fi
@@ -208,39 +209,39 @@ jobs:
           
           # CloudWatch Alarms削除（AWS Professional Blue/Green監視対応）
           aws cloudwatch delete-alarms --alarm-names \
-            "nestjs-hannibal-3-ecs-cpu-high-blue" \
-            "nestjs-hannibal-3-ecs-cpu-high-green" \
-            "nestjs-hannibal-3-ecs-memory-high-blue" \
-            "nestjs-hannibal-3-ecs-memory-high-green" \
-            "nestjs-hannibal-3-ecs-task-stopped-active" \
-            "nestjs-hannibal-3-deployment-health" \
-            "nestjs-hannibal-3-deployment-health-green" \
-            "nestjs-hannibal-3-rds-cpu-high" \
-            "nestjs-hannibal-3-rds-connections-high" \
-            "nestjs-hannibal-3-alb-response-time-high" \
-            "nestjs-hannibal-3-alb-5xx-error-rate-high" \
+            "$PROJECT_NAME-ecs-cpu-high-blue" \
+            "$PROJECT_NAME-ecs-cpu-high-green" \
+            "$PROJECT_NAME-ecs-memory-high-blue" \
+            "$PROJECT_NAME-ecs-memory-high-green" \
+            "$PROJECT_NAME-ecs-task-stopped-active" \
+            "$PROJECT_NAME-deployment-health" \
+            "$PROJECT_NAME-deployment-health-green" \
+            "$PROJECT_NAME-rds-cpu-high" \
+            "$PROJECT_NAME-rds-connections-high" \
+            "$PROJECT_NAME-alb-response-time-high" \
+            "$PROJECT_NAME-alb-5xx-error-rate-high" \
             --region ap-northeast-1 2>/dev/null || true
           
           # CloudWatch Dashboard削除
           aws cloudwatch delete-dashboards --dashboard-names "hannibal-system-dashboard" --region ap-northeast-1 2>/dev/null || true
           
           # SNS Topic削除
-          SNS_TOPIC_ARN=$(aws sns list-topics --region ap-northeast-1 --query 'Topics[?contains(TopicArn, `nestjs-hannibal-3-alerts`)].TopicArn' --output text 2>/dev/null || echo "None")
+          SNS_TOPIC_ARN=$(aws sns list-topics --region ap-northeast-1 --query "Topics[?contains(TopicArn, \`$PROJECT_NAME-alerts\`)].TopicArn" --output text 2>/dev/null || echo "None")
           if [ "$SNS_TOPIC_ARN" != "None" ] && [ "$SNS_TOPIC_ARN" != "" ]; then
             aws sns delete-topic --topic-arn "$SNS_TOPIC_ARN" --region ap-northeast-1 2>/dev/null || true
           fi
 
           # 11. CloudWatchロググループ削除（ECSタスク削除後に実行）
           echo "🗑️ Cleaning up CloudWatch log group..."
-          aws logs delete-log-group --log-group-name /ecs/nestjs-hannibal-3-api-task --region ap-northeast-1 2>/dev/null || true
+          aws logs delete-log-group --log-group-name /ecs/$PROJECT_NAME-api-task --region ap-northeast-1 2>/dev/null || true
 
           # 12. CloudTrail削除（S3ログは保持）
           echo "🗑️ Cleaning up CloudTrail (keeping S3 logs for audit)..."
-          aws cloudtrail delete-trail --name nestjs-hannibal-3-terraform-trail --region ap-northeast-1 2>/dev/null || true
+          aws cloudtrail delete-trail --name $PROJECT_NAME-terraform-trail --region ap-northeast-1 2>/dev/null || true
 
           # 13. Access Analyzer削除
           echo "🗑️ Cleaning up Access Analyzer..."
-          aws accessanalyzer delete-analyzer --analyzer-name nestjs-hannibal-3-analyzer --region ap-northeast-1 2>/dev/null || true
+          aws accessanalyzer delete-analyzer --analyzer-name $PROJECT_NAME-analyzer --region ap-northeast-1 2>/dev/null || true
 
           echo "✅ CLI cleanup completed - Terraform destroy can now proceed safely"
           echo "📋 CloudTrail logs preserved in S3 for security audit purposes"
