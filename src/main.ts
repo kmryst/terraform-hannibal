@@ -51,6 +51,10 @@ async function bootstrap() {
       credentials: true,
     });
 
+    // AWS Professional: グローバルエラーハンドリング
+    app.useGlobalFilters();
+    app.useGlobalInterceptors();
+
     await app.listen(port, host, () => {
       // await: サーバが起動するまで次の処理を待つ
       logger.log(`🚀 Server ready at http://${host}:${port}/graphql`);

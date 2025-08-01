@@ -36,6 +36,12 @@ import { AppService } from './app.service';
       ssl: {
         rejectUnauthorized: false,
       },
+      // AWS Professional: データベース接続失敗時のフォールバック
+      extra: {
+        max: 20,
+        connectionTimeoutMillis: 5000,
+        idleTimeoutMillis: 30000,
+      },
     }),
     TypeOrmModule.forFeature([Route]), // AWS Professional: Repository注入用
     GraphQLModule.forRoot<ApolloDriverConfig>({

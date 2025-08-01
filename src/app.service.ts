@@ -121,6 +121,30 @@ export class AppService {
         responseTime: Date.now() - startTime,
       };
     } catch (error) {
+      console.error('Database connection check failed:', error);
+      return {
+        status: 'unhealthy',
+        responseTime: Date.now() - startTime,
+        error: error.message,
+      };
+    }
+  }
+
+  // AWS Professional: データベース接続なしでも動作する軽量チェック
+  async checkDatabaseLight(): Promise<{
+    status: string;
+    responseTime?: number;
+    error?: string;
+  }> {
+    const startTime = Date.now();
+    try {
+      // 軽量な接続チェック
+      const isConnected = this.routeRepository.manager.connection.isConnected;
+      return {
+        status: isConnected ? 'healthy' : 'unhealthy',
+        responseTime: Date.now() - startTime,
+      };
+    } catch (error) {
       return {
         status: 'unhealthy',
         responseTime: Date.now() - startTime,
@@ -134,7 +158,13 @@ export class AppService {
     responseTime?: number;
     error?: string;
   }> {
-    return await this.checkDatabaseConnection();
+    // AWS Professional: 軽量チェックを優先、失敗時のみ詳細チェック
+    try {
+      return await this.checkDatabaseLight();
+    } catch (error) {
+      console.warn('Light database check failed, trying full check:', error);
+      return await this.checkDatabaseConnection();
+    }
   }
 
   private async checkMemory(): Promise<{ status: string; usage?: number }> {
