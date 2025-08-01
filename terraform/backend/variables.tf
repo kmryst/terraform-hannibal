@@ -79,7 +79,7 @@ variable "alb_listener_port" {
 variable "health_check_path" {
   description = "Path for ALB health check"
   type        = string
-  default     = "/health/simple" # AWS Professional: シンプルなヘルスチェックエンドポイント
+  default     = "/health/simple" # Professional設計: ALB専用エンドポイント
 
 }
 
