@@ -22,12 +22,17 @@ async function bootstrap() {
       allowedOrigins = [clientUrl];
       logger.log(`Production CORS: ${clientUrl}`);
     } else {
-      logger.warn('Production: CLIENT_URL not set, CORS disabled');
+      // フォールバック: 本番環境でもCORSを有効にする
+      allowedOrigins = ['https://hamilcar-hannibal.click'];
+      logger.warn('Production: CLIENT_URL not set, using fallback CORS');
     }
   } else {
     allowedOrigins = [
-      configService.get<string>('DEV_CLIENT_URL_LOCAL', 'http://localhost:5173'),
-      configService.get<string>('DEV_CLIENT_URL_IP', 'http://192.168.1.3:5173')
+      configService.get<string>(
+        'DEV_CLIENT_URL_LOCAL',
+        'http://localhost:5173',
+      ),
+      configService.get<string>('DEV_CLIENT_URL_IP', 'http://192.168.1.3:5173'),
     ];
     logger.log(`Development CORS: ${allowedOrigins.join(', ')}`);
   }
@@ -42,7 +47,8 @@ async function bootstrap() {
     credentials: true,
   });
 
-  await app.listen(port, host, () => { // await: サーバが起動するまで次の処理を待つ 
+  await app.listen(port, host, () => {
+    // await: サーバが起動するまで次の処理を待つ
     logger.log(`🚀 Server ready at http://${host}:${port}/graphql`);
     logger.log(`Environment: ${nodeEnv}`);
     if (allowedOrigins.length > 0) {

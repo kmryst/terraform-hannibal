@@ -78,13 +78,13 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ""
+          AWS_SESSION_TOKEN: ''
         run: |
           CICD_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --role-session-name github-actions-cicd)
           echo "AWS_ACCESS_KEY_ID=$(echo $CICD_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CICD_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CICD_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
-      
+
       - name: Terraform Init (Backend)
         run: |
           for i in {1..3}; do
@@ -98,13 +98,13 @@ jobs:
             fi
           done
         working-directory: ./terraform/backend
-      
+
       - name: 🎯 Terraform Plan (Backend) - Professional Blue/Green
         run: |
           echo "🔍 Planning backend infrastructure with Blue/Green deployment..."
           terraform plan -var="client_url_for_cors=" -out=backend.tfplan
         working-directory: ./terraform/backend
-      
+
       - name: 🚀 Terraform Apply (Backend) - Professional Blue/Green
         run: |
           echo "🚀 Deploying backend infrastructure with automatic dependency resolution..."
@@ -126,7 +126,7 @@ jobs:
             fi
           done
         working-directory: ./terraform/frontend
-      
+
       - name: 🎯 Terraform Plan (Frontend) - Professional Design
         run: |
           echo "🔍 Planning frontend infrastructure..."
@@ -143,7 +143,7 @@ jobs:
           fi
           terraform plan -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" -var="enable_cloudfront=true" -out=frontend.tfplan
         working-directory: ./terraform/frontend
-      
+
       - name: 🚀 Terraform Apply (Frontend) - Professional Design
         run: |
           echo "🚀 Deploying frontend infrastructure with automatic dependency resolution..."
@@ -171,9 +171,9 @@ jobs:
         run: |
           sed -i "s|^CLIENT_URL=.*$|CLIENT_URL=https://hamilcar-hannibal.click|" .env
 
-      - name: Update VITE_GRAPHQL_ENDPOINT in client/.env.production
+      - name: Create/Update VITE_GRAPHQL_ENDPOINT in client/.env.production
         run: |
-          sed -i "s|^VITE_GRAPHQL_ENDPOINT=.*$|VITE_GRAPHQL_ENDPOINT=https://hamilcar-hannibal.click/api/graphql|" client/.env.production
+          echo "VITE_GRAPHQL_ENDPOINT=https://hamilcar-hannibal.click/api/graphql" > client/.env.production
 
       - name: 🔄 Terraform Apply (Backend, CORS Update) - Professional
         run: |
@@ -235,7 +235,7 @@ jobs:
 
         run: |
           echo "🚀 Starting Professional Blue/Green Deployment with AWS CodeDeploy"
-          
+
           # --- Step 0: Terraformのoutputから必要な値を取得 ---
           cd ./terraform/backend
           CLUSTER_NAME=$(terraform output -raw ecs_cluster_name)
@@ -245,10 +245,10 @@ jobs:
           CONTAINER_NAME=$(terraform output -raw container_name)
           CONTAINER_PORT=$(terraform output -raw container_port)
           cd ../..
-          
+
           echo "ℹ️ Using Cluster: $CLUSTER_NAME"
           echo "ℹ️ Using Service: $SERVICE_NAME"
-          
+
           # --- Step 1: 新しいDockerイメージでECSタスク定義を更新 ---
           TASK_DEF_ARN=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query "services[0].taskDefinition" --output text)
           aws ecs describe-task-definition --task-definition $TASK_DEF_ARN > task-def.json
@@ -259,7 +259,7 @@ jobs:
             .taskDefinition | { family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory } |
             with_entries(select(.value != null))
           ')
-          
+
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF_CONTENT" --query 'taskDefinition.taskDefinitionArn' --output text)
           echo "✅ New Task Definition registered: $NEW_TASK_DEF_ARN"
 
@@ -294,7 +294,7 @@ jobs:
             --deployment-group-name "$CODEDEPLOY_GROUP" \
             --revision "revisionType=AppSpecContent,appSpecContent={content='$APPSPEC_CONTENT'}" \
             --query 'deploymentId' --output text)
-          
+
           echo "✅ CodeDeploy Deployment ID: $DEPLOYMENT_ID"
           echo "🔍 Monitor your deployment: https://${AWS_REGION}.console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
           echo "🎯 Professional Blue/Green deployment with auto-rollback initiated."

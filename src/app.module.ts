@@ -34,8 +34,8 @@ import { AppService } from './app.service';
       keepConnectionAlive: true,
       connectTimeoutMS: 30000,
       ssl: {
-        rejectUnauthorized: false
-      }
+        rejectUnauthorized: false,
+      },
     }),
     TypeOrmModule.forFeature([Route]), // AWS Professional: Repository注入用
     GraphQLModule.forRoot<ApolloDriverConfig>({
@@ -51,8 +51,20 @@ import { AppService } from './app.service';
       introspection: true,
       formatError: (error) => {
         console.error('GraphQL Error:', error);
+        // 503エラーの詳細ログを追加
+        if (error.extensions?.code === 'INTERNAL_SERVER_ERROR') {
+          console.error('GraphQL 503 Error Details:', {
+            message: error.message,
+            path: error.path,
+            extensions: error.extensions,
+            originalError: error.originalError,
+          });
+        }
         return error;
       },
+      // エラー時の詳細情報を有効化
+      debug: process.env.NODE_ENV !== 'production',
+      playground: process.env.NODE_ENV !== 'production',
     }),
     MapModule,
     RouteModule,
@@ -61,5 +73,3 @@ import { AppService } from './app.service';
   providers: [AppService],
 })
 export class AppModule {}
-
-
