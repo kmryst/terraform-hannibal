@@ -1,7 +1,7 @@
 # AWS Professional Blue/Green Deployment Workflow
 # Netflix, Airbnb, Spotify等の企業レベル設計
 
-name: 🚀 Professional Blue/Green Deploy (Dev)
+name: 🚀 Deploy (Dev)
 
 on:
   workflow_dispatch:
