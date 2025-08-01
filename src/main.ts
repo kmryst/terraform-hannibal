@@ -68,6 +68,9 @@ async function bootstrap() {
 
       // AWS Professional: データベース接続確認
       logger.log('Checking database connection...');
+      logger.log(
+        `Database configuration: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+      );
       const appService = app.get('AppService');
       if (appService) {
         appService

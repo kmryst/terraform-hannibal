@@ -133,6 +133,15 @@ export class AppService {
       };
     } catch (error) {
       console.error('Database connection check failed:', error);
+      // AWS Professional: 詳細なエラー情報をログ出力
+      console.error('Database connection error details:', {
+        host: process.env.DB_HOST,
+        port: process.env.DB_PORT,
+        database: process.env.DB_NAME,
+        username: process.env.DB_USERNAME,
+        error: error.message,
+        stack: error.stack,
+      });
       return {
         status: 'unhealthy',
         responseTime: Date.now() - startTime,
