@@ -47,24 +47,44 @@ import { AppService } from './app.service';
       },
       context: ({ req }) => ({ req }),
       csrfPrevention: false,
-      playground: true,
+      playground: process.env.NODE_ENV !== 'production',
       introspection: true,
       formatError: (error) => {
-        console.error('GraphQL Error:', error);
+        // AWS Professional: 構造化ログ出力
+        const errorLog = {
+          timestamp: new Date().toISOString(),
+          errorType: 'GraphQL',
+          message: error.message,
+          path: error.path,
+          extensions: error.extensions,
+          environment: process.env.NODE_ENV || 'development',
+        };
+
         // 503エラーの詳細ログを追加
         if (error.extensions?.code === 'INTERNAL_SERVER_ERROR') {
           console.error('GraphQL 503 Error Details:', {
-            message: error.message,
-            path: error.path,
-            extensions: error.extensions,
-            originalError: error.originalError,
+            ...errorLog,
+            // originalErrorは存在しない場合があるため安全にアクセス
+            ...(error.extensions?.originalError && {
+              originalError: error.extensions.originalError,
+            }),
           });
+        } else {
+          console.error('GraphQL Error:', errorLog);
         }
+
+        // AWS Professional: 本番環境では機密情報を除去
+        if (process.env.NODE_ENV === 'production') {
+          return {
+            message: 'Internal server error',
+            extensions: {
+              code: error.extensions?.code || 'INTERNAL_SERVER_ERROR',
+            },
+          };
+        }
+
         return error;
       },
-      // エラー時の詳細情報を有効化
-      debug: process.env.NODE_ENV !== 'production',
-      playground: process.env.NODE_ENV !== 'production',
     }),
     MapModule,
     RouteModule,
