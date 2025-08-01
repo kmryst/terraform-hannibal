@@ -36,7 +36,6 @@ import { AppService } from './app.service';
       ssl: {
         rejectUnauthorized: false,
       },
-      // AWS Professional: データベース接続失敗時のフォールバック
       extra: {
         max: 20,
         connectionTimeoutMillis: 5000,

@@ -11,6 +11,15 @@ export class AppService {
     @InjectRepository(Route)
     private readonly routeRepository: Repository<Route>,
   ) {}
+
+  // AWS Professional: データベース接続状態を確認
+  private isDatabaseAvailable(): boolean {
+    try {
+      return this.routeRepository?.manager?.connection?.isConnected || false;
+    } catch {
+      return false;
+    }
+  }
   getHello(): string {
     return 'Hello World!';
   }
@@ -51,6 +60,7 @@ export class AppService {
       version: process.env.npm_package_version || '1.0.0',
       environment: process.env.NODE_ENV || 'development',
       service: 'nestjs-hannibal-3',
+
       checks: {
         database: dbStatus,
         memory: memoryStatus,

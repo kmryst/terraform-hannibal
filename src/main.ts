@@ -19,7 +19,7 @@ async function bootstrap() {
 
     if (nodeEnv === 'production') {
       const clientUrl = configService.get<string>('CLIENT_URL');
-      if (clientUrl) {
+      if (clientUrl && clientUrl !== '') {
         allowedOrigins = [clientUrl];
         logger.log(`Production CORS: ${clientUrl}`);
       } else {
