@@ -146,7 +146,12 @@ resource "aws_ecs_task_definition" "api" {                            # APIサ�
 
         { name = "NODE_ENV", value = "production" },             # 本番環境
         { name = "CLIENT_URL", value = var.client_url_for_cors }, # CORS設定用のフロントエンドURL
-        { name = "DATABASE_URL", value = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.postgres.endpoint}/${var.db_name}?sslmode=require&sslrootcert=/opt/rds-ca-2019-root.pem" }
+        { name = "DATABASE_URL", value = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.postgres.endpoint}/${var.db_name}?sslmode=require&connect_timeout=30&application_name=nestjs-hannibal-3" },
+        { name = "DB_HOST", value = aws_db_instance.postgres.endpoint },
+        { name = "DB_PORT", value = "5432" },
+        { name = "DB_NAME", value = var.db_name },
+        { name = "DB_USERNAME", value = var.db_username },
+        { name = "DB_PASSWORD", value = var.db_password }
         # 他に必要な環境変数があれば追加
       ]
       logConfiguration = {    # CloudWatch Logs設定
@@ -301,7 +306,7 @@ resource "aws_ecs_service" "blue" {
   task_definition                   = aws_ecs_task_definition.api.arn
   desired_count                     = var.desired_task_count
   launch_type                       = "FARGATE"
-  health_check_grace_period_seconds = 60
+  health_check_grace_period_seconds = 300
   
   # AWS Professional Blue/Green Deployment
   deployment_controller {
@@ -340,7 +345,7 @@ resource "aws_ecs_service" "green" {
   task_definition                   = aws_ecs_task_definition.api.arn
   desired_count                     = var.desired_task_count  # AWS Professional: Blueと同じ設定で初期化
   launch_type                       = "FARGATE"
-  health_check_grace_period_seconds = 60
+  health_check_grace_period_seconds = 300
   
   # AWS Professional Blue/Green Deployment
   deployment_controller {
@@ -407,6 +412,36 @@ resource "aws_security_group" "rds_sg" {
   }
 }
 
+# --- RDS Parameter Group (Professional設計) ---
+resource "aws_db_parameter_group" "postgres" {
+  family = "postgres15"
+  name   = "${var.project_name}-postgres-params"
+
+  parameter {
+    name  = "max_connections"
+    value = "200"
+  }
+
+  parameter {
+    name  = "shared_preload_libraries"
+    value = "pg_stat_statements"
+  }
+
+  parameter {
+    name  = "log_statement"
+    value = "all"
+  }
+
+  parameter {
+    name  = "log_min_duration_statement"
+    value = "1000"
+  }
+
+  tags = {
+    Name = "${var.project_name}-postgres-params"
+  }
+}
+
 # --- RDS PostgreSQL Instance ---
 resource "aws_db_instance" "postgres" {
   identifier     = "${var.project_name}-postgres"
@@ -429,6 +464,9 @@ resource "aws_db_instance" "postgres" {
   backup_retention_period = 0
   # backup_window          = "03:00-04:00"  # 開発環境では無効化
   # maintenance_window     = "sun:04:00-sun:05:00"  # 開発環境では無効化
+  
+  # Professional設計: 接続数とタイムアウト設定
+  parameter_group_name = aws_db_parameter_group.postgres.name
   
   skip_final_snapshot = true
   deletion_protection = false

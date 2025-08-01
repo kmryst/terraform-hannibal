@@ -20,9 +20,24 @@ import { AppService } from './app.service';
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL,
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT) || 5432,
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
       entities: [Route],
-      synchronize: process.env.NODE_ENV !== 'production', // 本番では false
-      logging: process.env.NODE_ENV === 'development',
+      synchronize: process.env.NODE_ENV !== 'production',
+      logging: ['error', 'warn'],
+      retryAttempts: 5,
+      retryDelay: 3000,
+      autoLoadEntities: true,
+      keepConnectionAlive: true,
+      connectTimeoutMS: 30000,
+      acquireTimeoutMillis: 30000,
+      timeout: 30000,
+      ssl: {
+        rejectUnauthorized: false
+      }
     }),
     TypeOrmModule.forFeature([Route]), // AWS Professional: Repository注入用
     GraphQLModule.forRoot<ApolloDriverConfig>({
@@ -36,6 +51,10 @@ import { AppService } from './app.service';
       csrfPrevention: false,
       playground: true,
       introspection: true,
+      formatError: (error) => {
+        console.error('GraphQL Error:', error);
+        return error;
+      },
     }),
     MapModule,
     RouteModule,
