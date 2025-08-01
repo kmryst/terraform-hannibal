@@ -37,7 +37,7 @@ variable "domain_name" {
 }
 
 variable "hosted_zone_id" {
-  description = "Route 53 Hosted Zone ID for the domain_name"
+  description = "Route 53 Hosted Zone ID for the domain_name (auto-detected if empty)"
   type        = string
   default     = "Z06663901XRPJ5V5J5GIW"
 }

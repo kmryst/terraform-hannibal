@@ -86,18 +86,42 @@ jobs:
       # エラー処理: 2>/dev/null || true でリソースが存在しない場合もエラーにしない
       - name: Clean up existing AWS resources (ECS/ALB/SG)
         run: |
+          # 0. Terraformのoutputから動的に値を取得（Professional設計）
+          cd ./terraform/backend
+          if [ -f "terraform.tfstate" ] && [ -s "terraform.tfstate" ]; then
+            CODEDEPLOY_APP=$(terraform output -raw codedeploy_application_name 2>/dev/null || echo "nestjs-hannibal-3-ecs-app")
+            CODEDEPLOY_GROUP=$(terraform output -raw codedeploy_deployment_group_name 2>/dev/null || echo "nestjs-hannibal-3-deployment-group")
+            BLUE_SERVICE=$(terraform output -raw blue_service_name 2>/dev/null || echo "nestjs-hannibal-3-blue-service")
+            GREEN_SERVICE=$(terraform output -raw green_service_name 2>/dev/null || echo "nestjs-hannibal-3-green-service")
+            CLUSTER_NAME=$(terraform output -raw ecs_cluster_name 2>/dev/null || echo "nestjs-hannibal-3-cluster")
+          else
+            echo "ℹ️ Terraform state not found, using default names"
+            CODEDEPLOY_APP="nestjs-hannibal-3-ecs-app"
+            CODEDEPLOY_GROUP="nestjs-hannibal-3-deployment-group"
+            BLUE_SERVICE="nestjs-hannibal-3-blue-service"
+            GREEN_SERVICE="nestjs-hannibal-3-green-service"
+            CLUSTER_NAME="nestjs-hannibal-3-cluster"
+          fi
+          cd ../..
+          
+          echo "ℹ️ Using CodeDeploy App: $CODEDEPLOY_APP"
+          echo "ℹ️ Using CodeDeploy Group: $CODEDEPLOY_GROUP"
+          echo "ℹ️ Using Blue Service: $BLUE_SERVICE"
+          echo "ℹ️ Using Green Service: $GREEN_SERVICE"
+          echo "ℹ️ Using Cluster: $CLUSTER_NAME"
+          
           # 1. CodeDeploy削除（AWS Professional Blue/Green - 依存関係順序重要）
           echo "🗑️ Cleaning up CodeDeploy deployment group..."
-          if aws deploy get-deployment-group --application-name nestjs-hannibal-3-ecs-app --deployment-group-name nestjs-hannibal-3-deployment-group --region ap-northeast-1 >/dev/null 2>&1; then
-            aws deploy delete-deployment-group --application-name nestjs-hannibal-3-ecs-app --deployment-group-name nestjs-hannibal-3-deployment-group --region ap-northeast-1
+          if aws deploy get-deployment-group --application-name $CODEDEPLOY_APP --deployment-group-name $CODEDEPLOY_GROUP --region ap-northeast-1 >/dev/null 2>&1; then
+            aws deploy delete-deployment-group --application-name $CODEDEPLOY_APP --deployment-group-name $CODEDEPLOY_GROUP --region ap-northeast-1
             echo "✅ CodeDeploy deployment group deleted"
           else
             echo "ℹ️ CodeDeploy deployment group not found (already deleted)"
           fi
           
           echo "🗑️ Cleaning up CodeDeploy application..."
-          if aws deploy get-application --application-name nestjs-hannibal-3-ecs-app --region ap-northeast-1 >/dev/null 2>&1; then
-            aws deploy delete-application --application-name nestjs-hannibal-3-ecs-app --region ap-northeast-1
+          if aws deploy get-application --application-name $CODEDEPLOY_APP --region ap-northeast-1 >/dev/null 2>&1; then
+            aws deploy delete-application --application-name $CODEDEPLOY_APP --region ap-northeast-1
             echo "✅ CodeDeploy application deleted"
           else
             echo "ℹ️ CodeDeploy application not found (already deleted)"
@@ -105,19 +129,19 @@ jobs:
           
           # 2. Blue/Green ECSサービス削除（Professional設計対応）
           echo "🗑️ Cleaning up Green ECS service..."
-          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-green-service --desired-count 0 --region ap-northeast-1 2>/dev/null || true
+          aws ecs update-service --cluster $CLUSTER_NAME --service $GREEN_SERVICE --desired-count 0 --region ap-northeast-1 2>/dev/null || true
           sleep 30
-          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-green-service --force --region ap-northeast-1 2>/dev/null || true
+          aws ecs delete-service --cluster $CLUSTER_NAME --service $GREEN_SERVICE --force --region ap-northeast-1 2>/dev/null || true
           
           # 3. Blue ECSサービス削除
           echo "🗑️ Cleaning up Blue ECS service..."
-          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-blue-service --desired-count 0 --region ap-northeast-1 2>/dev/null || true
+          aws ecs update-service --cluster $CLUSTER_NAME --service $BLUE_SERVICE --desired-count 0 --region ap-northeast-1 2>/dev/null || true
           sleep 30  # ECSタスクの完全停止を待つ
-          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-blue-service --force --region ap-northeast-1 2>/dev/null || true
+          aws ecs delete-service --cluster $CLUSTER_NAME --service $BLUE_SERVICE --force --region ap-northeast-1 2>/dev/null || true
 
           # 4. ECSクラスタ削除（全サービス削除後に実行）
           echo "🗑️ Cleaning up ECS cluster..."
-          aws ecs delete-cluster --cluster nestjs-hannibal-3-cluster --region ap-northeast-1 2>/dev/null || true
+          aws ecs delete-cluster --cluster $CLUSTER_NAME --region ap-northeast-1 2>/dev/null || true
 
           # 3. ALB削除（ターゲットグループが残っていると失敗するため先に削除）
           echo "🗑️ Cleaning up ALB..."

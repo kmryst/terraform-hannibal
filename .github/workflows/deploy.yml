@@ -1,5 +1,4 @@
-# AWS Professional Blue/Green Deployment Workflow
-# Netflix, Airbnb, Spotify等の企業レベル設計
+# C:\code\javascript\nestjs-hannibal-3\.github\workflows\deploy.yml
 
 name: 🚀 Deploy (Dev)
 
@@ -233,55 +232,66 @@ jobs:
       - name: 🎯 Professional Blue/Green Deployment with CodeDeploy
         env:
           AWS_REGION: ap-northeast-1
-          CLUSTER_NAME: nestjs-hannibal-3-cluster
-          SERVICE_NAME: nestjs-hannibal-3-blue-service
-          CONTAINER_NAME: nestjs-hannibal-3-container
           IMAGE_TAG: ${{ github.sha }}
           ECR_REGISTRY: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com
           ECR_REPOSITORY: nestjs-hannibal-3
         run: |
           echo "🚀 Starting Professional Blue/Green Deployment with AWS CodeDeploy"
           
-          # Task Definition更新
+          # --- Step 0: Terraformのoutputから必要な値を取得 ---
+          cd ./terraform/backend
+          CLUSTER_NAME=$(terraform output -raw ecs_cluster_name)
+          SERVICE_NAME=$(terraform output -raw blue_service_name)
+          CODEDEPLOY_APP=$(terraform output -raw codedeploy_application_name)
+          CODEDEPLOY_GROUP=$(terraform output -raw codedeploy_deployment_group_name)
+          cd ../..
+          
+          echo "ℹ️ Using Cluster: $CLUSTER_NAME"
+          echo "ℹ️ Using Service: $SERVICE_NAME"
+          echo "ℹ️ Using CodeDeploy App: $CODEDEPLOY_APP"
+          echo "ℹ️ Using CodeDeploy Group: $CODEDEPLOY_GROUP"
+          
+          # --- Step 1: 新しいDockerイメージでECSタスク定義を更新 ---
+          # 現在のECSサービスのタスク定義ARNを取得
           TASK_DEF_ARN=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query "services[0].taskDefinition" --output text)
+          
+          # 取得したタスク定義の詳細を取得し、ファイルに保存
           aws ecs describe-task-definition --task-definition $TASK_DEF_ARN > task-def.json
           
+          # 新しいDockerイメージのタグを設定
           NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" --arg NAME "$CONTAINER_NAME" '(.taskDefinition.containerDefinitions[] | select(.name == $NAME) | .image) |= $IMAGE | .taskDefinition | {family,taskRoleArn,executionRoleArn,networkMode,containerDefinitions,volumes,placementConstraints,requiresCompatibilities,cpu,memory,tags,runtimePlatform} | with_entries(select(.value != null))' > new-task-def.json
+
+          # jqを使ってコンテナイメージのパスを新しいものに置き換え、不要なキーを削除して新しいタスク定義ファイルを作成
+          # ベストプラクティス: 登録に必要なキーのみに絞ることで、APIエラーを防ぐ
+          NEW_TASK_DEF_CONTENT=$(cat task-def.json | jq --arg IMAGE "$NEW_IMAGE" '
+            .taskDefinition.containerDefinitions[0].image = $IMAGE | 
+            .taskDefinition | 
+            {
+              family: .family, 
+              taskRoleArn: .taskRoleArn, 
+              executionRoleArn: .executionRoleArn, 
+              networkMode: .networkMode, 
+              containerDefinitions: .containerDefinitions, 
+              volumes: .volumes, 
+              placementConstraints: .placementConstraints, 
+              requiresCompatibilities: .requiresCompatibilities, 
+              cpu: .cpu, 
+              memory: .memory
+            }
+          ')
           
-          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
-          
-          # AWS Professional設計: AppSpec形式でBlue/Green Deployment実行
-          cat > appspec.json << 'EOF'
-          {
-            "version": "0.0",
-            "Resources": [
-              {
-                "TargetService": {
-                  "Type": "AWS::ECS::Service",
-                  "Properties": {
-                    "TaskDefinition": "TASK_DEF_PLACEHOLDER",
-                    "LoadBalancerInfo": {
-                      "ContainerName": "CONTAINER_NAME_PLACEHOLDER",
-                      "ContainerPort": 3000
-                    }
-                  }
-                }
-              }
-            ]
-          }
-          EOF
-          
-          # 変数を置換
-          sed -i "s|TASK_DEF_PLACEHOLDER|$NEW_TASK_DEF_ARN|g" appspec.json
-          sed -i "s|CONTAINER_NAME_PLACEHOLDER|$CONTAINER_NAME|g" appspec.json
-          
+          # 新しい内容でタスク定義を登録し、新しいARNを取得
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF_CONTENT" --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "✅ New Task Definition registered: $NEW_TASK_DEF_ARN"
+
+          # --- Step 2: CodeDeployでデプロイを開始 ---
+          # ベストプラクティス: revisionType=ECS を使用し、シンプルでエラーの起きにくい方法でデプロイをトリガー
           DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --application-name nestjs-hannibal-3-ecs-app \
-            --deployment-group-name nestjs-hannibal-3-deployment-group \
-            --revision revisionType=AppSpecContent,appSpecContent=file://appspec.json \
+            --application-name $CODEDEPLOY_APP \
+            --deployment-group-name $CODEDEPLOY_GROUP \
+            --revision "revisionType=ECS,ecsService={serviceName=$SERVICE_NAME,clusterName=$CLUSTER_NAME,taskDefinition=$NEW_TASK_DEF_ARN}" \
             --query 'deploymentId' --output text)
           
           echo "✅ CodeDeploy Deployment ID: $DEPLOYMENT_ID"
-          echo "🔍 Monitor: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
-          echo "🎯 Professional Blue/Green with auto-rollback enabled"
+          echo "🔍 Monitor your deployment: https://${AWS_REGION}.console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
+          echo "🎯 Professional Blue/Green deployment with auto-rollback initiated."
