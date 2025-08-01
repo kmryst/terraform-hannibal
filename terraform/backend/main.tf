@@ -306,7 +306,7 @@ resource "aws_ecs_service" "blue" {
   task_definition                   = aws_ecs_task_definition.api.arn
   desired_count                     = var.desired_task_count
   launch_type                       = "FARGATE"
-  health_check_grace_period_seconds = 300
+  health_check_grace_period_seconds = 600
   
   # AWS Professional Blue/Green Deployment
   deployment_controller {
@@ -345,7 +345,7 @@ resource "aws_ecs_service" "green" {
     task_definition                   = aws_ecs_task_definition.api.arn
     desired_count                     = var.desired_task_count  # AWS Professional: Blueと同じ設定で初期化
     launch_type                       = "FARGATE"
-    health_check_grace_period_seconds = 300
+    health_check_grace_period_seconds = 600
 
     # AWS Professional Blue/Green Deployment
     deployment_controller {

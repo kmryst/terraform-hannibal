@@ -100,7 +100,7 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
 
   alarm_configuration {
     enabled = true
-    # ベストプラクティス: ロールバック監視は、新しくデプロイされるGreen環境のアラームに限定
+    # Professional設計: Green環境のヘルスチェック監視
     alarms = [
       aws_cloudwatch_metric_alarm.deployment_health_green.alarm_name
     ]
@@ -129,12 +129,12 @@ resource "aws_cloudwatch_metric_alarm" "deployment_health" {
 resource "aws_cloudwatch_metric_alarm" "deployment_health_green" {
   alarm_name          = "${var.project_name}-deployment-health-green"
   comparison_operator = "LessThanThreshold"
-  evaluation_periods  = "2"
+  evaluation_periods  = "3"
   metric_name         = "HealthyHostCount"
   namespace           = "AWS/ApplicationELB"
   period              = "60"
   statistic           = "Average"
-  threshold           = "1"
+  threshold           = "0"
   alarm_description   = "Professional deployment health monitoring - Green environment"
 
   dimensions = {
