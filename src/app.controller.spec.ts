@@ -1,4 +1,3 @@
-
 // C:\code\javascript\nestjs-hannibal-3\src\app.controller.spec.ts
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -14,9 +13,9 @@ describe('AppController', () => {
     const mockRepository = {
       manager: {
         connection: {
-          query: jest.fn().mockResolvedValue([{ result: 1 }])
-        }
-      }
+          query: jest.fn().mockResolvedValue([{ result: 1 }]),
+        },
+      },
     };
 
     const app: TestingModule = await Test.createTestingModule({

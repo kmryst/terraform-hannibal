@@ -9,7 +9,8 @@ export class MapResolver {
   constructor(private readonly mapService: MapService) {}
 
   @Query('capitalCities') // capitalCitiesという名前のクエリ
-  getCapitalCities() { // getCapitalCities(): 今ここで定義したメソッド
+  getCapitalCities() {
+    // getCapitalCities(): 今ここで定義したメソッド
     return this.mapService.getCapitalCities();
   }
 }

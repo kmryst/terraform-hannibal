@@ -1,4 +1,3 @@
-
 // C:\code\javascript\nestjs-hannibal-3\src\modules\route\route.service.ts
 
 import { Injectable } from '@nestjs/common';
@@ -60,7 +59,7 @@ export class RouteService {
         geometry: {
           ...feature.geometry,
           coordinates:
-            feature.geometry.type === "LineString"
+            feature.geometry.type === 'LineString'
               ? feature.geometry.coordinates
               : [feature.geometry.coordinates],
         },

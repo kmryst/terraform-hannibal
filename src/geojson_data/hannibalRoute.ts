@@ -1,4 +1,3 @@
-
 // C:\code\javascript\nestjs-hannibal-3\src\geojson_data\hannibalRoute.ts
 
 /*
@@ -18,12 +17,12 @@
 */
 
 export const hannibalRoute = {
-  type: "FeatureCollection",
+  type: 'FeatureCollection',
   features: [
     {
-      type: "Feature",
+      type: 'Feature',
       geometry: {
-        type: "LineString",
+        type: 'LineString',
         coordinates: [
           [-0.9738, 37.6013],
           [-0.2667, 39.6833],
@@ -52,4 +51,3 @@ export const hannibalRoute = {
     },
   ],
 };
-

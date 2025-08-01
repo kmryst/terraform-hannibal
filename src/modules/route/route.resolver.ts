@@ -1,4 +1,3 @@
-
 // C:\code\javascript\nestjs-hannibal-1\src\modules\route\route.resolver.ts
 
 import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
@@ -16,7 +15,9 @@ export class RouteResolver {
   }
 
   @Query(() => Route, { nullable: true })
-  async route(@Args('id', { type: () => Int }) id: number): Promise<Route | null> {
+  async route(
+    @Args('id', { type: () => Int }) id: number,
+  ): Promise<Route | null> {
     return this.routeService.findOne(id);
   }
 
