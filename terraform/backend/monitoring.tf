@@ -1,5 +1,5 @@
 # terraform/backend/monitoring.tf
-# 🔥 NestJS Hannibal 3 - 実務レベル監視・アラートシステム
+# 🔥 NestJS Hannibal 3 - In-Place Deployment監視システム
 
 # --- SNS Topic for Alerts ---
 resource "aws_sns_topic" "alerts" {
@@ -19,9 +19,8 @@ resource "aws_sns_topic_subscription" "email_alerts" {
 }
 
 # --- ECS Monitoring ---
-# Blue環境 CPU監視
-resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high_blue" {
-  alarm_name          = "${var.project_name}-ecs-cpu-high-blue"
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
+  alarm_name          = "${var.project_name}-ecs-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "CPUUtilization"
@@ -29,51 +28,23 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high_blue" {
   period              = "300"
   statistic           = "Average"
   threshold           = "70"
-  alarm_description   = "Blue ECS CPU utilization is too high"
+  alarm_description   = "ECS CPU utilization is too high"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
   treat_missing_data  = "breaching"
 
   dimensions = {
-    ServiceName = aws_ecs_service.blue.name
+    ServiceName = aws_ecs_service.main.name
     ClusterName = aws_ecs_cluster.main.name
   }
 
   tags = {
-    Name = "${var.project_name}-ecs-cpu-alarm-blue"
-    Environment = "blue"
+    Name = "${var.project_name}-ecs-cpu-alarm"
   }
 }
 
-# Green環境 CPU監視（AWS Professional設計: 常時作成）
-resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high_green" {
-  alarm_name          = "${var.project_name}-ecs-cpu-high-green"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/ECS"
-  period              = "300"
-  statistic           = "Average"
-  threshold           = "70"
-  alarm_description   = "Green ECS CPU utilization is too high"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-  ok_actions          = [aws_sns_topic.alerts.arn]
-  treat_missing_data  = "breaching"
-
-  dimensions = {
-    ServiceName = aws_ecs_service.green.name
-    ClusterName = aws_ecs_cluster.main.name
-  }
-
-  tags = {
-    Name = "${var.project_name}-ecs-cpu-alarm-green"
-    Environment = "green"
-  }
-}
-
-# Blue環境 Memory監視
-resource "aws_cloudwatch_metric_alarm" "ecs_memory_high_blue" {
-  alarm_name          = "${var.project_name}-ecs-memory-high-blue"
+resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
+  alarm_name          = "${var.project_name}-ecs-memory-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "MemoryUtilization"
@@ -81,51 +52,23 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory_high_blue" {
   period              = "300"
   statistic           = "Average"
   threshold           = "75"
-  alarm_description   = "Blue ECS Memory utilization is too high"
+  alarm_description   = "ECS Memory utilization is too high"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
   treat_missing_data  = "breaching"
 
   dimensions = {
-    ServiceName = aws_ecs_service.blue.name
+    ServiceName = aws_ecs_service.main.name
     ClusterName = aws_ecs_cluster.main.name
   }
 
   tags = {
-    Name = "${var.project_name}-ecs-memory-alarm-blue"
-    Environment = "blue"
+    Name = "${var.project_name}-ecs-memory-alarm"
   }
 }
 
-# Green環境 Memory監視（AWS Professional設計: 常時作成）
-resource "aws_cloudwatch_metric_alarm" "ecs_memory_high_green" {
-  alarm_name          = "${var.project_name}-ecs-memory-high-green"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "MemoryUtilization"
-  namespace           = "AWS/ECS"
-  period              = "300"
-  statistic           = "Average"
-  threshold           = "75"
-  alarm_description   = "Green ECS Memory utilization is too high"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-  ok_actions          = [aws_sns_topic.alerts.arn]
-  treat_missing_data  = "breaching"
-
-  dimensions = {
-    ServiceName = aws_ecs_service.green.name
-    ClusterName = aws_ecs_cluster.main.name
-  }
-
-  tags = {
-    Name = "${var.project_name}-ecs-memory-alarm-green"
-    Environment = "green"
-  }
-}
-
-# Blue環境タスク監視（AWS Professional設計: Blue環境固定）
-resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped_active" {
-  alarm_name          = "${var.project_name}-ecs-task-stopped-blue"
+resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped" {
+  alarm_name          = "${var.project_name}-ecs-task-stopped"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "1"
   metric_name         = "RunningTaskCount"
@@ -133,23 +76,21 @@ resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped_active" {
   period              = "60"
   statistic           = "Average"
   threshold           = "1"
-  alarm_description   = "Blue environment has no running tasks"
+  alarm_description   = "ECS service has no running tasks"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   treat_missing_data  = "breaching"
 
   dimensions = {
-    ServiceName = aws_ecs_service.blue.name
+    ServiceName = aws_ecs_service.main.name
     ClusterName = aws_ecs_cluster.main.name
   }
 
   tags = {
-    Name = "${var.project_name}-ecs-task-alarm-active"
-    Environment = "blue"
+    Name = "${var.project_name}-ecs-task-alarm"
   }
 }
 
 # --- RDS Monitoring ---
-# RDS CPU使用率監視（実務レベル: 60%）
 resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
   alarm_name          = "${var.project_name}-rds-cpu-high"
   comparison_operator = "GreaterThanThreshold"
@@ -173,7 +114,6 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
   }
 }
 
-# RDS 接続数監視（実務レベル: 12/20）
 resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
   alarm_name          = "${var.project_name}-rds-connections-high"
   comparison_operator = "GreaterThanThreshold"
@@ -183,7 +123,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
   period              = "300"
   statistic           = "Average"
   threshold           = "12"
-  alarm_description   = "RDS connection count is too high - possible connection pool exhaustion"
+  alarm_description   = "RDS connection count is too high"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
   treat_missing_data  = "notBreaching"
@@ -198,7 +138,6 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
 }
 
 # --- ALB Monitoring ---
-# ALB レスポンス時間監視（実務レベル: 1秒）
 resource "aws_cloudwatch_metric_alarm" "alb_response_time_high" {
   alarm_name          = "${var.project_name}-alb-response-time-high"
   comparison_operator = "GreaterThanThreshold"
@@ -208,7 +147,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_response_time_high" {
   period              = "300"
   statistic           = "Average"
   threshold           = "1"
-  alarm_description   = "ALB response time is too high - poor user experience"
+  alarm_description   = "ALB response time is too high"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
   treat_missing_data  = "notBreaching"
@@ -222,7 +161,6 @@ resource "aws_cloudwatch_metric_alarm" "alb_response_time_high" {
   }
 }
 
-# ALB 5xxエラー率監視（実務レベル: 1%）
 resource "aws_cloudwatch_metric_alarm" "alb_5xx_error_rate_high" {
   alarm_name          = "${var.project_name}-alb-5xx-error-rate-high"
   comparison_operator = "GreaterThanThreshold"
@@ -232,7 +170,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_error_rate_high" {
   period              = "300"
   statistic           = "Sum"
   threshold           = "5"
-  alarm_description   = "ALB 5xx error rate is too high - server errors detected"
+  alarm_description   = "ALB 5xx error rate is too high"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
   treat_missing_data  = "notBreaching"
@@ -261,7 +199,7 @@ resource "aws_cloudwatch_dashboard" "main" {
 
         properties = {
           metrics = [
-            ["AWS/ECS", "CPUUtilization", "ServiceName", aws_ecs_service.blue.name, "ClusterName", aws_ecs_cluster.main.name],
+            ["AWS/ECS", "CPUUtilization", "ServiceName", aws_ecs_service.main.name, "ClusterName", aws_ecs_cluster.main.name],
             [".", "MemoryUtilization", ".", ".", ".", "."]
           ]
           view    = "timeSeries"
@@ -315,19 +253,6 @@ resource "aws_cloudwatch_dashboard" "main" {
           region  = var.aws_region
           title   = "ALB Response Time & HTTP Status Codes"
           period  = 300
-        }
-      },
-      {
-        type   = "log"
-        x      = 0
-        y      = 12
-        width  = 12
-        height = 6
-
-        properties = {
-          query   = "SOURCE '/ecs/${var.project_name}-api-task'\n| fields @timestamp, @message\n| filter @message like /ERROR/\n| sort @timestamp desc\n| limit 20"
-          region  = var.aws_region
-          title   = "Recent Error Logs"
         }
       }
     ]
