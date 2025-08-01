@@ -251,11 +251,31 @@ jobs:
           
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
           
-          # CodeDeploy Blue/Green Deployment実行
+          # AWS Professional設計: AppSpec形式でBlue/Green Deployment実行
+          cat > appspec.json << EOF
+          {
+            "version": "0.0",
+            "Resources": [
+              {
+                "TargetService": {
+                  "Type": "AWS::ECS::Service",
+                  "Properties": {
+                    "TaskDefinition": "$NEW_TASK_DEF_ARN",
+                    "LoadBalancerInfo": {
+                      "ContainerName": "$CONTAINER_NAME",
+                      "ContainerPort": 3000
+                    }
+                  }
+                }
+              }
+            ]
+          }
+          EOF
+          
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name nestjs-hannibal-3-ecs-app \
             --deployment-group-name nestjs-hannibal-3-deployment-group \
-            --revision "revisionType=ECS,ecsService={serviceName=$SERVICE_NAME,clusterName=$CLUSTER_NAME,taskDefinition=$NEW_TASK_DEF_ARN}" \
+            --revision revisionType=AppSpecContent,appSpecContent="$(cat appspec.json)" \
             --query 'deploymentId' --output text)
           
           echo "✅ CodeDeploy Deployment ID: $DEPLOYMENT_ID"
