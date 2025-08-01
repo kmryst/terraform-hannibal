@@ -131,7 +131,7 @@ resource "aws_cloudfront_distribution" "main" {
       https_port               = 443
       origin_protocol_policy   = "http-only" # ALBがHTTPのみなら "http-only", HTTPSなら "https-only"
       origin_ssl_protocols     = ["TLSv1.2"]
-      origin_read_timeout      = 30 # オリジンからの応答タイムアウト
+      origin_read_timeout      = 60 # GraphQLクエリ用にタイムアウトを延長
       origin_keepalive_timeout = 5  # TCP接続の維持時間
     }
   }

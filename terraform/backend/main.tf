@@ -193,9 +193,9 @@ resource "aws_lb_target_group" "blue" {
     protocol            = "HTTP"
     port                = "traffic-port"
     healthy_threshold   = 2
-    unhealthy_threshold = 2
+    unhealthy_threshold = 3
     timeout             = 10
-    interval            = 15
+    interval            = 30
     matcher             = "200-399"
   }
   tags = {
@@ -217,9 +217,9 @@ resource "aws_lb_target_group" "green" {
     protocol            = "HTTP"
     port                = "traffic-port"
     healthy_threshold   = 2
-    unhealthy_threshold = 2
+    unhealthy_threshold = 3
     timeout             = 10
-    interval            = 15
+    interval            = 30
     matcher             = "200-399"
   }
   tags = {
