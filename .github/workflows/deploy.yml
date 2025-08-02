@@ -65,7 +65,7 @@ jobs:
       - name: Deploy Frontend Infrastructure
         run: |
           terraform init -input=false
-          terraform apply -auto-approve -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" -var="environment=dev" -var="enable_cloudfront=false"
+          terraform apply -auto-approve -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" -var="environment=dev" -var="enable_cloudfront=true"
           terraform output -json > tf_outputs.json
         working-directory: ./terraform/frontend
 
