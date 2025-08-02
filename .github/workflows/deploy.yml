@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       s3_bucket_name: ${{ steps.outputs.outputs.s3_bucket_name }}
-      cloudfront_distribution_id: ${{ steps.outputs.outputs.cloudfront_distribution_id }}
+      cloudfront_distribution_id: ${{ steps.outputs.outputs.cloudfront_distribution_id || 'null' }}
     steps:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
@@ -89,6 +89,7 @@ jobs:
       - name: Deploy to S3
         run: aws s3 sync ./client/dist "s3://${{ steps.outputs.outputs.s3_bucket_name }}" --delete
       - name: Invalidate CloudFront
+        if: steps.outputs.outputs.cloudfront_distribution_id != 'null' && steps.outputs.outputs.cloudfront_distribution_id != ''
         run: aws cloudfront create-invalidation --distribution-id "${{ steps.outputs.outputs.cloudfront_distribution_id }}" --paths "/*"
 
       # Build and Deploy Backend
