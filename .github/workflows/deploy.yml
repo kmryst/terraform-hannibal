@@ -38,11 +38,18 @@ jobs:
           aws-region: ap-northeast-1
       - uses: actions/cache@v4
         with:
-          path: ~/.terraform.d/plugin-cache
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/*.tf') }}
+          path: |
+            ~/.terraform.d/plugin-cache
+            terraform/backend/.terraform
+            terraform/frontend/.terraform
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.0.0
+        env:
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
       - run: sudo apt-get update && sudo apt-get install -y jq
 
       # Assume CICD Role
