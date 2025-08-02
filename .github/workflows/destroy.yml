@@ -62,6 +62,6 @@ jobs:
       - name: Destroy Frontend
         run: |
           terraform init -input=false
-          terraform destroy -auto-approve -var="api_alb_dns_name=" -var="environment=dev" -var="enable_cloudfront=false"
+          terraform destroy -auto-approve -var="api_alb_dns_name=" -var="environment=dev" -var="enable_cloudfront=true"
           # 本番用: -var="environment=prod" -var="enable_cloudfront=true"
         working-directory: ./terraform/frontend
