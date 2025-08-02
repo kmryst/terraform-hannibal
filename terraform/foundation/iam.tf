@@ -133,24 +133,10 @@ resource "aws_iam_policy" "hannibal_developer_policy" {
         Resource = "*"
       },
       {
-        # IAM権限 (限定的操作)
+        # IAM権限 (フル操作)
         Effect = "Allow"
         Action = [
-          "iam:Get*",
-          "iam:List*",
-          "iam:CreateRole",
-          "iam:AttachRolePolicy",
-          "iam:DetachRolePolicy",
-          "iam:DeleteRole",
-          "iam:PassRole",
-          "iam:CreatePolicy",
-          "iam:DeletePolicy",
-          "iam:GetPolicy",
-          "iam:GetPolicyVersion",
-          "iam:ListRolePolicies",
-          "iam:GetRolePolicy",
-          "iam:PutRolePolicy",
-          "iam:DeleteRolePolicy"
+          "iam:*"
         ]
         Resource = "*"
       }

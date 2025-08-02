@@ -95,17 +95,7 @@
     {
       "Effect": "Allow",
       "Action": [
-        "iam:GetRole",
-        "iam:PassRole",
-        "iam:CreateRole",
-        "iam:DeleteRole",
-        "iam:AttachRolePolicy",
-        "iam:DetachRolePolicy",
-        "iam:ListAttachedRolePolicies",
-        "iam:GetRolePolicy",
-        "iam:ListRolePolicies",
-        "iam:CreatePolicy",
-        "iam:DeletePolicy"
+        "iam:*"
       ],
       "Resource": "*"
     },

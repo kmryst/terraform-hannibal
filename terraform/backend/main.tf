@@ -101,20 +101,9 @@ resource "aws_iam_policy" "ecs_blue_green_policy" {
       {
         Effect = "Allow"
         Action = [
-          "elasticloadbalancing:ModifyListener",
-          "elasticloadbalancing:ModifyRule",
-          "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeListeners",
-          "elasticloadbalancing:DescribeRules",
-          "elasticloadbalancing:RegisterTargets",
-          "elasticloadbalancing:DeregisterTargets",
-          "elasticloadbalancing:DescribeTargetHealth",
-          "elasticloadbalancing:DescribeLoadBalancers",
-          "ecs:DescribeServices",
-          "ecs:UpdateService",
-          "ecs:DescribeTaskDefinition",
-          "ecs:DescribeTasks",
-          "ecs:ListTasks"
+          "elasticloadbalancing:*",
+          "ecs:*",
+          "iam:PassRole"
         ]
         Resource = "*"
       }
