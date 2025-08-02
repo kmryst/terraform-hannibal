@@ -43,6 +43,7 @@
         "iam:DeleteInstanceProfile",
         "iam:AddRoleToInstanceProfile",
         "iam:RemoveRoleFromInstanceProfile",
+        "iam:ListInstanceProfilesForRole",
         "cloudfront:*",
         "route53:*"
       ],
