@@ -73,6 +73,11 @@ async function bootstrap() {
     // trueにすると、フロントエンドからのログイン状態の維持などが可能になります
   });
 
+  // Enterprise health check endpoint
+  app.use('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
   await app.listen(port, host, () => { // await: サーバが起動するまで次の処理を待つ 
     logger.log(`🚀 Server ready at http://${host}:${port}/graphql`);
     logger.log(`Environment: ${nodeEnv}`);
