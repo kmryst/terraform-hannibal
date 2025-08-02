@@ -147,3 +147,14 @@ variable "alert_email" {
   type        = string
   default     = "gatsbykenji@gmail.com"
 }
+
+# --- AWS Professional Environment Configuration ---
+variable "environment" {
+  description = "Environment (dev/staging/prod)"
+  type        = string
+  default     = "dev"
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "Environment must be dev, staging, or prod."
+  }
+}

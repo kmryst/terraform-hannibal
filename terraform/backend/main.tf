@@ -1,5 +1,15 @@
 # terraform/backend/main.tf
 
+# --- AWS Professional Environment Configuration ---
+locals {
+  # 環境別リソース最適化（Netflix/Airbnb/Spotify標準パターン）
+  enable_multi_az        = var.environment != "dev"
+  enable_backup          = var.environment != "dev"
+  backup_retention_days  = var.environment == "prod" ? 7 : 0
+  publicly_accessible    = var.environment == "dev"
+  deletion_protection    = var.environment == "prod"
+}
+
 # --- VPC Data Sources (既存のVPCとサブネットを使用する場合) ---
 # dataソースは、「AWS上にすでに存在するVPCの情報を自動で取得する」ためのものです
 # これにより、手動でVPC IDを指定する代わりに、Terraformが自動的にVPC情報を取得できます
@@ -326,12 +336,17 @@ resource "aws_db_instance" "postgres" {
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
   db_subnet_group_name   = aws_db_subnet_group.postgres.name
   
-  backup_retention_period = 7
-  backup_window          = "03:00-04:00"
-  maintenance_window     = "sun:04:00-sun:05:00"
+  # AWS Professional環境別設定（Netflix/Airbnb/Spotify標準）
+  backup_retention_period = local.backup_retention_days
+  multi_az               = local.enable_multi_az
+  publicly_accessible    = local.publicly_accessible
+  
+  # 本番環境のみ有効
+  backup_window      = local.enable_backup ? "03:00-04:00" : null
+  maintenance_window = local.enable_backup ? "sun:04:00-sun:05:00" : null
   
   skip_final_snapshot = true
-  deletion_protection = false
+  deletion_protection = local.deletion_protection
   
   tags = {
     Name = "${var.project_name}-postgres"

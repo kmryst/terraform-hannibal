@@ -57,7 +57,7 @@ jobs:
       - name: Deploy Backend
         run: |
           terraform init -input=false
-          terraform apply -auto-approve -var="client_url_for_cors=https://hamilcar-hannibal.click"
+          terraform apply -auto-approve -var="client_url_for_cors=https://hamilcar-hannibal.click" -var="environment=dev"
           terraform output -json > ../tf_outputs_backend.json
         working-directory: ./terraform/backend
 
@@ -65,7 +65,7 @@ jobs:
       - name: Deploy Frontend Infrastructure
         run: |
           terraform init -input=false
-          terraform apply -auto-approve -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" -var="enable_cloudfront=true"
+          terraform apply -auto-approve -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" -var="environment=dev" -var="enable_cloudfront=false"
           terraform output -json > tf_outputs.json
         working-directory: ./terraform/frontend
 

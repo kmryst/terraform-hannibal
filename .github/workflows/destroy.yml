@@ -1,212 +1,67 @@
-# =============================
-# ⚠️ 重要: CloudFrontディストリビューションはterraform destroy前に必ず手動で削除してください！
-# AWSマネジメントコンソール→CloudFront→該当ディストリビューション→Disable→Delete
-# これを行わないと循環参照エラーでdestroyに失敗します。
-# =============================
+name: Destroy AWS Infrastructure (Fast)
 
-name: 🗑️ Destroy AWS Infrastructure (Dev)
+# 本番用設定（コメントアウト）
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       environment:
+#         type: choice
+#         options: [frontend, backend, all]
+#       confirm:
+#         description: 'Type "DESTROY" to confirm'
+#       double_confirm:
+#         description: 'Type project name to double confirm'
 
 on:
-  workflow_dispatch: # 手動実行のみ
+  workflow_dispatch:
     inputs:
-      environment:
-        description: 'Which environment to destroy?'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - frontend
-          - backend
-          - all
-      confirm_destroy:
-        description: 'Type "DESTROY" to confirm deletion'
-        required: true
-        type: string
-      double_confirm:
-        description: 'Type project name "nestjs-hannibal-3" to double confirm'
+      confirm:
+        description: 'Type "DESTROY" to confirm'
         required: true
         type: string
 
 jobs:
   destroy:
     runs-on: ubuntu-latest
-    if: >
-      github.event.inputs.confirm_destroy == 'DESTROY' && 
-      github.event.inputs.double_confirm == 'nestjs-hannibal-3'
+    if: github.event.inputs.confirm == 'DESTROY'
     steps:
-      - name: 🛑 Destruction Warning
-        run: |
-          echo "⚠️  WARNING: This will PERMANENTLY DELETE AWS resources!"
-          echo "📋 Environment: ${{ github.event.inputs.environment }}"
-          echo "💰 This will stop AWS billing for this project (except for ECR/S3 tfstate/CloudTrail logs/OAC)"
-          echo "🔄 Resources can be recreated later with terraform apply"
-          echo "❗ ECRリポジトリ・S3バケット（tfstate・CloudTrailログ）・OACは絶対に消しません！"
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials (Development)
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
-      - name: Assume CICD Role for Cleanup
-        run: |
-          CICD_CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --role-session-name github-actions-destroy)
-          echo "AWS_ACCESS_KEY_ID=$(echo $CICD_CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $CICD_CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $CICD_CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
-
-      - name: Cache Terraform
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.terraform.d/plugin-cache
-            **/.terraform
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/*.tf') }}
-          restore-keys: |
-            ${{ runner.os }}-terraform-
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.0.0
 
-      # ⚠️ 競合しやすいリソースを事前削除（Terraform destroyの成功率向上のため）
-      # 理由: ECSサービス、ALB、セキュリティグループなどは依存関係でTerraform destroyが失敗しやすい
-      # 順番: 依存関係の逆順（下流→上流）で削除
-      # エラー処理: 2>/dev/null || true でリソースが存在しない場合もエラーにしない
-      - name: Clean up existing AWS resources (ECS/ALB/SG)
+      # Assume CICD Role
+      - name: Assume CICD Role
         run: |
-          # 1. ECSサービス削除（desired countを0にしてから削除）
-          echo "🗑️ Cleaning up ECS service..."
-          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --desired-count 0 --region ap-northeast-1 2>/dev/null || true
-          sleep 30  # ECSタスクの完全停止を待つ（企業レベル安定性確保）
-          aws ecs delete-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --force --region ap-northeast-1 2>/dev/null || true
+          CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --role-session-name destroy)
+          echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
-          # 2. ECSクラスタ削除（サービス削除後に実行）
-          echo "🗑️ Cleaning up ECS cluster..."
-          aws ecs delete-cluster --cluster nestjs-hannibal-3-cluster --region ap-northeast-1 2>/dev/null || true
+      # 本番用: CloudFront手動削除が必要
+      # - name: Manual CloudFront Deletion Required
+      #   run: |
+      #     echo "⚠️ For production: Manually delete CloudFront distribution first"
+      #     echo "AWS Console → CloudFront → Disable → Delete"
+      #     echo "Then: terraform state rm aws_cloudfront_distribution.main"
 
-          # 3. ALB削除（ターゲットグループが残っていると失敗するため先に削除）
-          echo "🗑️ Cleaning up ALB..."
-          ALB_ARN=$(aws elbv2 describe-load-balancers --names nestjs-hannibal-3-alb --region ap-northeast-1 --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "None")
-          if [ "$ALB_ARN" != "None" ] && [ "$ALB_ARN" != "null" ]; then
-            aws elbv2 delete-load-balancer --load-balancer-arn "$ALB_ARN" --region ap-northeast-1
-            sleep 60  # ALB削除完了を待つ（時間がかかるため）
-          fi
-
-          # 4. ターゲットグループ削除（ALB削除後に実行）
-          echo "🗑️ Cleaning up target group..."
-          TG_ARN=$(aws elbv2 describe-target-groups --names nestjs-hannibal-3-tg --region ap-northeast-1 --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
-          if [ "$TG_ARN" != "None" ] && [ "$TG_ARN" != "null" ]; then
-            aws elbv2 delete-target-group --target-group-arn "$TG_ARN" --region ap-northeast-1
-          fi
-
-          sleep 30  # 依存関係のクリアを待つ
-
-          # 5. セキュリティグループ削除（ECSタスクやALBが削除された後に実行）
-          echo "🗑️ Cleaning up security groups..."
-          SG_ECS_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-ecs-service-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
-          if [ "$SG_ECS_ID" != "None" ] && [ "$SG_ECS_ID" != "null" ]; then
-            aws ec2 delete-security-group --group-id "$SG_ECS_ID" --region ap-northeast-1 2>/dev/null || true
-          fi
-
-          SG_ALB_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-alb-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
-          if [ "$SG_ALB_ID" != "None" ] && [ "$SG_ALB_ID" != "null" ]; then
-            aws ec2 delete-security-group --group-id "$SG_ALB_ID" --region ap-northeast-1 2>/dev/null || true
-          fi
-
-          # 6. IAMロール削除（ポリシーをデタッチしてから削除）
-          echo "🗑️ Cleaning up IAM role..."
-          aws iam detach-role-policy --role-name nestjs-hannibal-3-ecs-task-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy 2>/dev/null || true
-          aws iam delete-role --role-name nestjs-hannibal-3-ecs-task-execution-role 2>/dev/null || true
-
-          # 7. RDS削除（セキュリティグループ削除前に実行）
-          echo "🗑️ Cleaning up RDS instance..."
-          aws rds delete-db-instance --db-instance-identifier nestjs-hannibal-3-postgres --skip-final-snapshot --region ap-northeast-1 2>/dev/null || true
-          echo "⏳ Waiting for RDS deletion (this may take several minutes)..."
-          sleep 120  # RDS削除には時間がかかる
-
-          # 8. RDSサブネットグループ削除
-          echo "🗑️ Cleaning up RDS subnet group..."
-          aws rds delete-db-subnet-group --db-subnet-group-name nestjs-hannibal-3-db-subnet-group --region ap-northeast-1 2>/dev/null || true
-
-          # 9. RDSセキュリティグループ削除
-          echo "🗑️ Cleaning up RDS security group..."
-          SG_RDS_ID=$(aws ec2 describe-security-groups --group-names nestjs-hannibal-3-rds-sg --region ap-northeast-1 --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "None")
-          if [ "$SG_RDS_ID" != "None" ] && [ "$SG_RDS_ID" != "null" ]; then
-            aws ec2 delete-security-group --group-id "$SG_RDS_ID" --region ap-northeast-1 2>/dev/null || true
-          fi
-
-          # 10. 監視リソース削除（CloudWatch Alarms, SNS Topic, Dashboard）
-          echo "🗑️ Cleaning up monitoring resources..."
-          
-          # CloudWatch Alarms削除
-          aws cloudwatch delete-alarms --alarm-names \
-            "nestjs-hannibal-3-ecs-cpu-high" \
-            "nestjs-hannibal-3-ecs-memory-high" \
-            "nestjs-hannibal-3-ecs-task-stopped" \
-            "nestjs-hannibal-3-rds-cpu-high" \
-            "nestjs-hannibal-3-rds-connections-high" \
-            "nestjs-hannibal-3-alb-response-time-high" \
-            "nestjs-hannibal-3-alb-5xx-error-rate-high" \
-            --region ap-northeast-1 2>/dev/null || true
-          
-          # CloudWatch Dashboard削除
-          aws cloudwatch delete-dashboards --dashboard-names "hannibal-system-dashboard" --region ap-northeast-1 2>/dev/null || true
-          
-          # SNS Topic削除
-          SNS_TOPIC_ARN=$(aws sns list-topics --region ap-northeast-1 --query 'Topics[?contains(TopicArn, `nestjs-hannibal-3-alerts`)].TopicArn' --output text 2>/dev/null || echo "None")
-          if [ "$SNS_TOPIC_ARN" != "None" ] && [ "$SNS_TOPIC_ARN" != "" ]; then
-            aws sns delete-topic --topic-arn "$SNS_TOPIC_ARN" --region ap-northeast-1 2>/dev/null || true
-          fi
-
-          # 11. CloudWatchロググループ削除（ECSタスク削除後に実行）
-          echo "🗑️ Cleaning up CloudWatch log group..."
-          aws logs delete-log-group --log-group-name /ecs/nestjs-hannibal-3-api-task --region ap-northeast-1 2>/dev/null || true
-
-          # 12. CloudTrail削除（S3ログは保持）
-          echo "🗑️ Cleaning up CloudTrail (keeping S3 logs for audit)..."
-          aws cloudtrail delete-trail --name nestjs-hannibal-3-terraform-trail --region ap-northeast-1 2>/dev/null || true
-
-          # 13. Access Analyzer削除
-          echo "🗑️ Cleaning up Access Analyzer..."
-          aws accessanalyzer delete-analyzer --analyzer-name nestjs-hannibal-3-analyzer --region ap-northeast-1 2>/dev/null || true
-
-          echo "✅ CLI cleanup completed - Terraform destroy can now proceed safely"
-          echo "📋 CloudTrail logs preserved in S3 for security audit purposes"
-
-
-      # フロントエンド削除
-      - name: 🎨 Destroy Frontend Infrastructure
-        if: github.event.inputs.environment == 'frontend' || github.event.inputs.environment == 'all'
+      # Destroy Backend
+      - name: Destroy Backend
         run: |
-          echo "🗑️ Destroying frontend resources..."
-          yes | terraform init
-          # CloudFrontは手動削除済みなので、enable_cloudfront=falseでdestroy
-          terraform destroy -auto-approve -var="api_alb_dns_name=" -var="enable_cloudfront=false"
-          echo "✅ Frontend infrastructure destroyed"
-        working-directory: ./terraform/frontend
-
-
-      # バックエンド削除
-      - name: 🔧 Destroy Backend Infrastructure
-        if: github.event.inputs.environment == 'backend' || github.event.inputs.environment == 'all'
-        run: |
-          echo "🗑️ Destroying backend resources..."
-          yes | terraform init
-          terraform destroy -auto-approve -var="client_url_for_cors="
-          echo "✅ Backend infrastructure destroyed"
+          terraform init -input=false
+          terraform destroy -auto-approve -var="client_url_for_cors=" -var="environment=dev"
+          # 本番用: -var="environment=prod"
         working-directory: ./terraform/backend
 
-      - name: 🎉 Cleanup Complete
+      # Destroy Frontend  
+      - name: Destroy Frontend
         run: |
-          echo "🎉 Infrastructure cleanup completed!"
-          echo "💰 AWS billing should stop within 1-2 hours (except for ECR/S3 tfstate/CloudTrail logs/OAC)"
-          echo "📊 Check AWS Cost Explorer to confirm"
-          echo ""
-          echo "🔄 To redeploy later:"
-          echo "  1. Push to feature/github-actions branch"
-          echo "  2. Or run terraform apply manually"
+          terraform init -input=false
+          terraform destroy -auto-approve -var="api_alb_dns_name=" -var="environment=dev" -var="enable_cloudfront=false"
+          # 本番用: -var="environment=prod" -var="enable_cloudfront=true"
+        working-directory: ./terraform/frontend

@@ -47,3 +47,20 @@ variable "acm_certificate_arn_us_east_1" {
   type        = string
   default     = "arn:aws:acm:us-east-1:258632448142:certificate/85268053-8bc9-4210-a855-50530d41116d"
 }
+
+# --- AWS Professional Environment Configuration ---
+variable "environment" {
+  description = "Environment (dev/staging/prod)"
+  type        = string
+  default     = "dev"
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "Environment must be dev, staging, or prod."
+  }
+}
+
+variable "enable_cloudfront" {
+  description = "Enable CloudFront distribution (disable for dev to save time)"
+  type        = bool
+  default     = true
+}

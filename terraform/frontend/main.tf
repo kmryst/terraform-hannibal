@@ -1,5 +1,11 @@
 # terraform/frontend/main.tf
 
+# --- AWS Professional Environment Configuration ---
+locals {
+  # 環境別CloudFront最適化（Netflix/Airbnb/Spotify標準）
+  enable_cloudfront_computed = var.enable_cloudfront && var.environment != "dev"
+}
+
 # --- S3 Bucket for Frontend Static Files ---
 data "aws_s3_bucket" "frontend_bucket" {
   bucket = var.s3_bucket_name
@@ -49,11 +55,7 @@ resource "aws_s3_object" "frontend_files" {
   # etag: Entity Tag
 }
 
-# CloudFrontの有効・無効を切り替えるための変数を追加
-variable "enable_cloudfront" {
-  type    = bool
-  default = true # デフォルトはtrue（通常はCloudFrontを作成）
-}
+
 
 # CloudFrontのみがS3にアクセスできるように設定するための、CloudFront distribution 側の設定
 # OACは「CloudFrontからS3バケットへの専用アクセス権限」を管理するAWSの機能です
@@ -97,7 +99,7 @@ resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
 # その後terraform destroyを実行してください。
 # =============================
 resource "aws_cloudfront_distribution" "main" {
-  count               = var.enable_cloudfront ? 1 : 0 # falseなら作成しない
+  count               = local.enable_cloudfront_computed ? 1 : 0 # dev環境では作成しない
   enabled             = true
   is_ipv6_enabled     = true
   comment             = "${var.project_name} CloudFront Distribution"
