@@ -29,6 +29,7 @@
         "iam:CreatePolicy",
         "iam:DeletePolicy",
         "iam:GetPolicy",
+        "iam:GetPolicyVersion",
         "cloudfront:*",
         "route53:*"
       ],
