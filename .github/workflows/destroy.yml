@@ -43,11 +43,17 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
-      # Minimal Cleanup for IAM Role
-      - name: Delete IAM Role
+      # Minimal Cleanup for IAM Roles
+      - name: Delete IAM Roles
         run: |
+          # ECS Task Execution Role
           aws iam detach-role-policy --role-name nestjs-hannibal-3-ecs-task-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy 2>/dev/null || true
           aws iam delete-role --role-name nestjs-hannibal-3-ecs-task-execution-role 2>/dev/null || true
+          
+          # ECS Service Role (Blue/Green)
+          aws iam detach-role-policy --role-name nestjs-hannibal-3-ecs-service-role --policy-arn arn:aws:iam::258632448142:policy/nestjs-hannibal-3-ecs-blue-green-policy 2>/dev/null || true
+          aws iam delete-policy --policy-arn arn:aws:iam::258632448142:policy/nestjs-hannibal-3-ecs-blue-green-policy 2>/dev/null || true
+          aws iam delete-role --role-name nestjs-hannibal-3-ecs-service-role 2>/dev/null || true
 
       # 本番用: CloudFront手動削除が必要
       # - name: Manual CloudFront Deletion Required

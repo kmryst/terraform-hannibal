@@ -74,6 +74,59 @@ resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
 
 # --- Application Resources (アプリケーションリソース) ---
 
+# --- IAM Role for ECS Service (Blue/Green) ---
+resource "aws_iam_role" "ecs_service_role" {
+  name = "${var.project_name}-ecs-service-role"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "ecs_blue_green_policy" {
+  name = "${var.project_name}-ecs-blue-green-policy"
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "elasticloadbalancing:ModifyListener",
+          "elasticloadbalancing:ModifyRule",
+          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeListeners",
+          "elasticloadbalancing:DescribeRules",
+          "elasticloadbalancing:RegisterTargets",
+          "elasticloadbalancing:DeregisterTargets",
+          "elasticloadbalancing:DescribeTargetHealth",
+          "elasticloadbalancing:DescribeLoadBalancers",
+          "ecs:DescribeServices",
+          "ecs:UpdateService",
+          "ecs:DescribeTaskDefinition",
+          "ecs:DescribeTasks",
+          "ecs:ListTasks"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_service_blue_green" {
+  role       = aws_iam_role.ecs_service_role.name
+  policy_arn = aws_iam_policy.ecs_blue_green_policy.arn
+}
+
 # --- IAM Role for ECS Task ---
 # ECSタスクがAWSのサービス（例：ECRからイメージのpullなど）にアクセスするためのIAMロールを作成
 # このロールは、ECSタスクがAWSのサービスを利用する際の認証に使用されます
@@ -188,9 +241,9 @@ resource "aws_lb" "main" {
   enable_deletion_protection = false
 }
 
-# --- ALB Target Group ---
-resource "aws_lb_target_group" "api" {
-  name        = "${var.project_name}-tg"
+# --- ALB Target Group (Blue Environment) ---
+resource "aws_lb_target_group" "blue" {
+  name        = "${var.project_name}-blue-tg"
   port        = var.container_port
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.selected.id
@@ -208,7 +261,27 @@ resource "aws_lb_target_group" "api" {
   }
 }
 
-# --- ALB Listener ---
+# --- ALB Target Group (Green Environment) ---
+resource "aws_lb_target_group" "green" {
+  name        = "${var.project_name}-green-tg"
+  port        = var.container_port
+  protocol    = "HTTP"
+  vpc_id      = data.aws_vpc.selected.id
+  target_type = "ip"
+  health_check {
+    enabled             = true
+    path                = var.health_check_path
+    protocol            = "HTTP"
+    port                = "traffic-port"
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 10
+    interval            = 15
+    matcher             = "200-399"
+  }
+}
+
+# --- ALB Listener (Production) ---
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = var.alb_listener_port
@@ -217,23 +290,84 @@ resource "aws_lb_listener" "http" {
     type = "forward"
     forward {
       target_group {
-        arn = aws_lb_target_group.api.arn
+        arn = aws_lb_target_group.blue.arn
       }
     }
   }
 }
+
+# --- ALB Test Listener (Blue/Green Dark Canary) ---
+resource "aws_lb_listener" "test" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = 8080
+  protocol          = "HTTP"
+  default_action {
+    type = "forward"
+    forward {
+      target_group {
+        arn = aws_lb_target_group.green.arn
+      }
+    }
+  }
+}
+
+# --- ALB Listener Rules for Blue/Green ---
+resource "aws_lb_listener_rule" "production" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 100
+  
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.blue.arn
+  }
+  
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "test" {
+  listener_arn = aws_lb_listener.test.arn
+  priority     = 100
+  
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.green.arn
+  }
+  
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
+  }
+}
+
+
 
 # --- Security Group for ALB ---
 resource "aws_security_group" "alb_sg" {
   name        = "${var.project_name}-alb-sg"
   description = "Allow HTTP/HTTPS traffic to ALB"
   vpc_id      = data.aws_vpc.selected.id
+  
+  # Production Listener (Port 80)
   ingress {
     from_port   = var.alb_listener_port
     to_port     = var.alb_listener_port
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  
+  # Test Listener for Blue/Green Dark Canary (Port 8080)
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
   egress {
     from_port   = 0
     to_port     = 0
@@ -269,17 +403,37 @@ resource "aws_ecs_service" "api" {
   desired_count                     = var.desired_task_count
   launch_type                       = "FARGATE"
   health_check_grace_period_seconds = 60
+  
+  deployment_controller {
+    type = "ECS"
+  }
+  
+  # ECS Native Blue/Green Deployment (2025年7月17日新機能・v6.4.0対応)
+  deployment_configuration {
+    strategy = "BLUE_GREEN"
+    bake_time_in_minutes = 5
+  }
+  
   network_configuration {
     subnets          = data.aws_subnets.public.ids
     security_groups  = [aws_security_group.ecs_service_sg.id]
     assign_public_ip = true
   }
+  
   load_balancer {
-    target_group_arn = aws_lb_target_group.api.arn
+    target_group_arn = aws_lb_target_group.blue.arn
     container_name   = "${var.project_name}-container"
     container_port   = var.container_port
+    
+    # Blue/Green専用設定 (v6.4.0対応)
+    advanced_configuration {
+      alternate_target_group_arn = aws_lb_target_group.green.arn
+      production_listener_rule   = aws_lb_listener_rule.production.arn
+      test_listener_rule        = aws_lb_listener_rule.test.arn
+      role_arn                  = aws_iam_role.ecs_service_role.arn
+    }
   }
-  depends_on = [aws_lb_listener.http, aws_db_instance.postgres]
+  depends_on = [aws_lb_listener.http, aws_lb_listener.test, aws_db_instance.postgres]
 }
 
 # --- RDS Subnet Group ---

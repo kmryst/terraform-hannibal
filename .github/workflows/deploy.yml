@@ -102,12 +102,16 @@ jobs:
           tags: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Update ECS Service
+      - name: Deploy with Terraform-managed Blue/Green
         run: |
-          TASK_DEF=$(aws ecs describe-services --cluster nestjs-hannibal-3-cluster --services nestjs-hannibal-3-api-service --query "services[0].taskDefinition" --output text)
-          aws ecs describe-task-definition --task-definition $TASK_DEF > task-def.json
+          # 新しいコンテナイメージでタスク定義を更新
           NEW_IMAGE="258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}"
-          jq --arg IMAGE "$NEW_IMAGE" '(.taskDefinition.containerDefinitions[] | select(.name == "nestjs-hannibal-3-container") | .image) |= $IMAGE | .taskDefinition | {family,taskRoleArn,executionRoleArn,networkMode,containerDefinitions,volumes,placementConstraints,requiresCompatibilities,cpu,memory,tags,runtimePlatform} | with_entries(select(.value != null))' task-def.json > new-task-def.json
-          NEW_TASK_DEF=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
-          aws ecs update-service --cluster nestjs-hannibal-3-cluster --service nestjs-hannibal-3-api-service --task-definition $NEW_TASK_DEF
-          aws ecs wait services-stable --cluster nestjs-hannibal-3-cluster --services nestjs-hannibal-3-api-service
+          
+          # Terraformで新しいイメージを使用してBlue/Green deployment実行
+          terraform apply -auto-approve \
+            -var="client_url_for_cors=https://hamilcar-hannibal.click" \
+            -var="environment=dev" \
+            -var="container_image_uri=$NEW_IMAGE"
+          
+          echo "🚀 Terraform-managed Blue/Green deployment completed successfully!"
+        working-directory: ./terraform/backend
