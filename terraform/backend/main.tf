@@ -101,9 +101,20 @@ resource "aws_iam_policy" "ecs_blue_green_policy" {
       {
         Effect = "Allow"
         Action = [
-          "elasticloadbalancing:*",
-          "ecs:*",
-          "iam:PassRole"
+          "elasticloadbalancing:ModifyListener",
+          "elasticloadbalancing:ModifyRule",
+          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeListeners",
+          "elasticloadbalancing:DescribeRules",
+          "elasticloadbalancing:RegisterTargets",
+          "elasticloadbalancing:DeregisterTargets",
+          "elasticloadbalancing:DescribeTargetHealth",
+          "elasticloadbalancing:DescribeLoadBalancers",
+          "ecs:DescribeServices",
+          "ecs:UpdateService",
+          "ecs:DescribeTaskDefinition",
+          "ecs:DescribeTasks",
+          "ecs:ListTasks"
         ]
         Resource = "*"
       }
@@ -419,7 +430,6 @@ resource "aws_ecs_service" "api" {
       alternate_target_group_arn = aws_lb_target_group.green.arn
       production_listener_rule   = aws_lb_listener_rule.production.arn
       test_listener_rule        = aws_lb_listener_rule.test.arn
-      role_arn                  = aws_iam_role.ecs_service_role.arn
     }
   }
   depends_on = [aws_lb_listener.http, aws_lb_listener.test, aws_db_instance.postgres]
