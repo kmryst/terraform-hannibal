@@ -254,10 +254,10 @@ resource "aws_lb_target_group" "blue" {
     protocol            = "HTTP"
     port                = "traffic-port"
     healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 10
-    interval            = 15
-    matcher             = "200-399"
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+    matcher             = "200"
   }
 }
 
@@ -274,10 +274,10 @@ resource "aws_lb_target_group" "green" {
     protocol            = "HTTP"
     port                = "traffic-port"
     healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 10
-    interval            = 15
-    matcher             = "200-399"
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+    matcher             = "200"
   }
 }
 
