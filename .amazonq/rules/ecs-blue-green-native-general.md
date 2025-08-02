@@ -1,8 +1,8 @@
-# ECS Native Blue/Green Deployment Rules
+# ECS Native Blue/Green Deployment Rules (General)
 
 ## 概要
 Amazon ECS blue/green deployments (Released July 17, 2025)
-2025年7月17日にリリースされたECSネイティブのBlue/Green deployment機能に関する設定とルール
+2025年7月17日にリリースされたECSネイティブのBlue/Green deployment機能に関する汎用設定とルール
 
 ## 基本原則
 - **CodeDeployを使わずにECS単体でBlue/Green deploymentを実現**
@@ -24,7 +24,7 @@ Amazon ECS blue/green deployments (Released July 17, 2025)
 
 ## 動作確認済み最小構成（推奨）
 
-### ECSサービス設定（実装済み・動作確認済み）
+### ECSサービス設定（動作確認済み）
 ```hcl
 resource "aws_ecs_service" "api" {
   name            = "${var.project_name}-api-service"
@@ -147,7 +147,16 @@ resource "aws_iam_policy" "ecs_blue_green_policy" {
           "elasticloadbalancing:ModifyRule",
           "elasticloadbalancing:DescribeTargetGroups",
           "elasticloadbalancing:DescribeListeners",
-          "elasticloadbalancing:DescribeRules"
+          "elasticloadbalancing:DescribeRules",
+          "elasticloadbalancing:RegisterTargets",
+          "elasticloadbalancing:DeregisterTargets",
+          "elasticloadbalancing:DescribeTargetHealth",
+          "elasticloadbalancing:DescribeLoadBalancers",
+          "ecs:DescribeServices",
+          "ecs:UpdateService",
+          "ecs:DescribeTaskDefinition",
+          "ecs:DescribeTasks",
+          "ecs:ListTasks"
         ]
         Resource = "*"
       }
@@ -160,7 +169,7 @@ resource "aws_iam_role_policy_attachment" "ecs_service_blue_green" {
   policy_arn = aws_iam_policy.ecs_blue_green_policy.arn
 }
 
-# ライフサイクルフック用IAMロール
+# ライフサイクルフック用IAMロール（オプション）
 resource "aws_iam_role" "ecs_lifecycle_hook" {
   name = "${var.project_name}-ecs-lifecycle-hook-role"
   
@@ -209,8 +218,8 @@ resource "aws_iam_role_policy_attachment" "ecs_lifecycle_hook" {
 - name: Update ECS Service (Auto Blue/Green)
   run: |
     aws ecs update-service \
-      --cluster nestjs-hannibal-3-cluster \
-      --service nestjs-hannibal-3-api-service \
+      --cluster ${CLUSTER_NAME} \
+      --service ${SERVICE_NAME} \
       --task-definition $NEW_TASK_DEF
 ```
 
@@ -294,7 +303,7 @@ resource "aws_ecs_service" "api" {
 
 ## 実装で得た重要な知見
 
-### 1. 実際に動作する設定（Hannibal 3プロジェクトで確認済み）
+### 1. 実際に動作する設定（動作確認済み）
 ```hcl
 # 最小動作構成
 deployment_configuration {
@@ -316,7 +325,7 @@ load_balancer {
 }
 ```
 
-### 2. IAM権限の完全版（実装済み・動作確認済み）
+### 2. IAM権限の完全版（動作確認済み）
 ```hcl
 resource "aws_iam_policy" "ecs_blue_green_policy" {
   name = "${var.project_name}-ecs-blue-green-policy"
@@ -361,7 +370,7 @@ resource "aws_iam_policy" "ecs_blue_green_policy" {
 - **理由**: Blue/Green deploymentでは自動最適化される
 - **エラー例**: "deployment_circuit_breaker cannot be used with strategy BLUE_GREEN"
 
-## Terraform実装手順（Hannibal 3）
+## Terraform実装手順
 
 ### Step 1: 既存リソースの名前変更
 ```hcl
@@ -406,29 +415,9 @@ resource "aws_security_group" "alb_sg" {
 
 ### Step 4: terraform plan/apply実行
 ```bash
-cd terraform/backend
-terraform plan -var="client_url_for_cors=https://hamilcar-hannibal.click" -var="environment=dev"
+terraform plan
 terraform apply
 ```
-
-## Hannibal 3固有の実装ポイント
-
-### 現在の設定からの変更点
-- **ターゲットグループ**: `aws_lb_target_group.api` → `aws_lb_target_group.blue`
-- **ECSサービス**: `deployment_configuration`に`strategy = "BLUE_GREEN"`追加
-- **ALBリスナー**: テスト用ポート8080追加
-- **セキュリティグループ**: ポート8080のingress rule追加
-
-### 動作の仕組み
-1. **通常時**: Blue環境（ポート80）で稼働
-2. **デプロイ時**: Green環境（ポート8080）で新バージョン起動
-3. **ヘルスチェック**: Green環境の健全性確認
-4. **トラフィック切り替え**: Blue → Green に一括切り替え
-5. **完了**: 旧Blue環境を自動削除
-
-### desired_count = 1での動作
-- **デプロイ中**: 一時的に2個のタスク（Blue + Green）
-- **完了後**: 1個のタスク（新Green環境）に戻る
 
 ## ベストプラクティス
 - **本番環境**: Blue/Green deployment使用
@@ -454,5 +443,5 @@ terraform apply
 - **ECS操作失敗**: `ecs:DescribeServices`、`ecs:UpdateService`権限確認
 
 ---
-**企業レベルのBlue/Green deployment実装完了**
+**企業レベルのBlue/Green deployment実装ガイド**
 **実装知見: Terraform v6.4.0 + カスタムIAMポリシー必須**
