@@ -3,7 +3,7 @@
 # --- AWS Professional Environment Configuration ---
 locals {
   # 環境別CloudFront最適化（Netflix/Airbnb/Spotify標準）
-  enable_cloudfront_computed = var.enable_cloudfront && var.environment != "dev"
+  enable_cloudfront_computed = var.enable_cloudfront
 }
 
 # --- S3 Bucket for Frontend Static Files ---
@@ -99,7 +99,7 @@ resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
 # その後terraform destroyを実行してください。
 # =============================
 resource "aws_cloudfront_distribution" "main" {
-  count               = local.enable_cloudfront_computed ? 1 : 0 # dev環境では作成しない
+  count               = local.enable_cloudfront_computed ? 1 : 0 # enable_cloudfront変数で制御
   enabled             = true
   is_ipv6_enabled     = true
   comment             = "${var.project_name} CloudFront Distribution"
