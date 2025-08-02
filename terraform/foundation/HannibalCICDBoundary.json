@@ -28,6 +28,7 @@
         "iam:ListRolePolicies",
         "iam:CreatePolicy",
         "iam:DeletePolicy",
+        "iam:GetPolicy",
         "cloudfront:*",
         "route53:*"
       ],
