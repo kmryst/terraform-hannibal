@@ -114,14 +114,14 @@ jobs:
           # 新しいコンテナイメージ
           NEW_IMAGE="258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}"
           
-          # 現在のタスク定義を取得
-          CURRENT_TASK_DEF=$(aws ecs describe-task-definition --task-definition nestjs-hannibal-3-api-task --query 'taskDefinition')
+          # 現在のタスク定義を取得してファイルに保存
+          aws ecs describe-task-definition --task-definition nestjs-hannibal-3-api-task --query 'taskDefinition' > current_task_def.json
           
           # 新しいタスク定義を作成（イメージのみ更新）
-          NEW_TASK_DEF=$(echo $CURRENT_TASK_DEF | jq --arg IMAGE "$NEW_IMAGE" '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)')
+          jq --arg IMAGE "$NEW_IMAGE" '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)' current_task_def.json > new_task_def.json
           
           # 新しいタスク定義を登録
-          NEW_TASK_DEF_ARN=$(echo $NEW_TASK_DEF | aws ecs register-task-definition --cli-input-json file:///dev/stdin --query 'taskDefinition.taskDefinitionArn' --output text)
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://new_task_def.json --query 'taskDefinition.taskDefinitionArn' --output text)
           
           # ECS Native Blue/Green deployment実行
           aws ecs update-service \

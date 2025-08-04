@@ -115,34 +115,7 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 
 > ※ 初回セットアップ時に一時的な高権限が必要でしたが、現在は完了しているため追加作業は不要です。
 
-## ⚠️ インフラ削除（destroy）時の注意
 
-> **補足:** CloudFrontディストリビューションは、循環参照や削除遅延の問題から「手動削除＋tfstateからstate rm」が現場のベストプラクティスです。Terraform destroyによる一括削除はエラーや不整合が起きやすいため、下記の手順を推奨します。
-
-Terraform destroy（destroy.yml）を実行する前に、**必ずAWSマネジメントコンソールでCloudFrontディストリビューションを手動で「Disable→Delete」してください**。
-
-さらに、**tfstate（S3）からCloudFrontリソースを削除する必要があります**。
-
-### 手順
-1. AWSマネジメントコンソールにログインし、CloudFrontサービスを開く
-2. 対象のCloudFrontディストリビューションを選択
-3. 「Disable（無効化）」を実行し、ステータスがDisabledになるのを待つ
-4. 「Delete（削除）」を実行し、完全に削除されるのを確認
-5. `terraform/frontend`ディレクトリで以下を実行し、tfstateからCloudFrontリソースを削除
-   ```bash
-   cd C:\code\javascript\nestjs-hannibal-3\terraform\frontend
-
-   terraform state rm aws_cloudfront_distribution.main
-   ```
-   ※「リソース名」はmain.tfで定義したものに置き換えてください
-6. **CloudFrontリソースがtfstateから削除されたことを確認**
-   ```bash
-   terraform state list
-   ```
-   何も表示されなければOKです。
-7. その後、GitHub Actionsのdestroy.ymlを実行
-
-> これを忘れると、循環参照エラーや「origin.0.domain_name must not be empty」などのエラーが発生します。
 
 ### 🛠️ 既存リソースがある場合の対応（terraform import）
 
