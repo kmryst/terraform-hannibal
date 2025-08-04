@@ -109,16 +109,25 @@ jobs:
           tags: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Deploy with Terraform-managed Blue/Green
+      - name: Deploy with ECS Native Blue/Green
         run: |
-          # 新しいコンテナイメージでタスク定義を更新
+          # 新しいコンテナイメージ
           NEW_IMAGE="258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}"
           
-          # Terraformで新しいイメージを使用してBlue/Green deployment実行
-          terraform apply -auto-approve \
-            -var="client_url_for_cors=https://hamilcar-hannibal.click" \
-            -var="environment=dev" \
-            -var="container_image_uri=$NEW_IMAGE"
+          # 現在のタスク定義を取得
+          CURRENT_TASK_DEF=$(aws ecs describe-task-definition --task-definition nestjs-hannibal-3-api-task --query 'taskDefinition')
           
-          echo "🚀 Terraform-managed Blue/Green deployment completed successfully!"
-        working-directory: ./terraform/backend
+          # 新しいタスク定義を作成（イメージのみ更新）
+          NEW_TASK_DEF=$(echo $CURRENT_TASK_DEF | jq --arg IMAGE "$NEW_IMAGE" '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)')
+          
+          # 新しいタスク定義を登録
+          NEW_TASK_DEF_ARN=$(echo $NEW_TASK_DEF | aws ecs register-task-definition --cli-input-json file:///dev/stdin --query 'taskDefinition.taskDefinitionArn' --output text)
+          
+          # ECS Native Blue/Green deployment実行
+          aws ecs update-service \
+            --cluster nestjs-hannibal-3-cluster \
+            --service nestjs-hannibal-3-api-service \
+            --task-definition $NEW_TASK_DEF_ARN
+          
+          echo "🚀 ECS Native Blue/Green deployment initiated successfully!"
+          echo "Task Definition: $NEW_TASK_DEF_ARN"

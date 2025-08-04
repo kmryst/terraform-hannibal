@@ -187,7 +187,7 @@ resource "aws_ecs_task_definition" "api" {                            # APIサ�
   container_definitions = jsonencode([
     {
       name      = "${var.project_name}-container" # コンテナ名
-      image     = var.container_image_uri         # ECRから取得するDockerイメージ
+      image     = "${var.ecr_repository_url}:latest" # ECRから取得するDockerイメージ（初期値）
       cpu       = var.cpu                         # コンテナに割り当てるCPUユニット
       memory    = var.memory                      # コンテナに割り当てるメモリ
       essential = true                            # このコンテナが必須かどうか
