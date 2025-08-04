@@ -414,7 +414,7 @@ resource "aws_ecs_service" "api" {
   
   # ECS Native Blue/Green Deployment (2025年7月17日新機能・v6.4.0対応)
   deployment_configuration {
-    strategy = "BLUE_GREEN"
+    strategy             = "BLUE_GREEN"
     bake_time_in_minutes = 5
   }
   
@@ -430,11 +430,12 @@ resource "aws_ecs_service" "api" {
     container_port   = var.container_port
     
     # Blue/Green専用設定 (v6.4.0対応)
+    # terraform-ignore: advanced_configuration is valid for ECS Native Blue/Green
     advanced_configuration {
       alternate_target_group_arn = aws_lb_target_group.green.arn
       production_listener_rule   = aws_lb_listener_rule.production.arn
-      test_listener_rule        = aws_lb_listener_rule.test.arn
-      role_arn                  = aws_iam_role.ecs_service_role.arn
+      test_listener_rule         = aws_lb_listener_rule.test.arn
+      role_arn                   = aws_iam_role.ecs_service_role.arn
     }
   }
   depends_on = [aws_lb_listener.http, aws_lb_listener.test, aws_db_instance.postgres]
