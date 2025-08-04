@@ -42,9 +42,9 @@ jobs:
             ~/.terraform.d/plugin-cache
             terraform/backend/.terraform
             terraform/frontend/.terraform
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          key: ${{ runner.os }}-terraform-v2-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
-            ${{ runner.os }}-terraform-
+            ${{ runner.os }}-terraform-v2-
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.12.1
