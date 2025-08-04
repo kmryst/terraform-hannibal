@@ -4,6 +4,13 @@
 Amazon ECS blue/green deployments (Released July 17, 2025)
 2025年7月17日にリリースされたECSネイティブのBlue/Green deployment機能に関する汎用設定とルール
 
+## 動作確認済み環境
+- **Terraform**: 1.12.1 (2025年7月リリース最新版)
+- **AWS Provider**: 6.7.0 (2025年7月31日リリース最新版)
+- **実装プロジェクト**: nestjs-hannibal-3
+- **確認日**: 2025年8月4日
+- **動作状況**: ✅ 完全動作確認済み
+
 ## 基本原則
 - **CodeDeployを使わずにECS単体でBlue/Green deploymentを実現**
 - ALBターゲットグループの自動切り替え
