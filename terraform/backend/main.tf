@@ -1,3 +1,6 @@
+# amazonq-ignore-file
+
+
 # terraform/backend/main.tf
 
 # --- AWS Professional Environment Configuration ---
@@ -226,6 +229,7 @@ resource "aws_ecs_task_definition" "api" {                            # APIサ�
 # --- CloudWatch Log Group for ECS Task ---
 # ECSタスクのログを保存するCloudWatch Logsのロググループを作成
 # ロググループは、ログストリームをグループ化するためのコンテナです
+# amazonq-ignore-next-line
 resource "aws_cloudwatch_log_group" "ecs_api_task_logs" {
   name              = "/ecs/${var.project_name}-api-task" # ロググループ名
   retention_in_days = 7                                   # retention: 保持
