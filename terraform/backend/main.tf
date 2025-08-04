@@ -415,7 +415,7 @@ resource "aws_ecs_service" "api" {
   # ECS Native Blue/Green Deployment (2025年7月17日新機能・v6.4.0対応)
   deployment_configuration {
     strategy             = "BLUE_GREEN"
-    bake_time_in_minutes = 5
+    bake_time_in_minutes = 1
   }
   
   network_configuration {
