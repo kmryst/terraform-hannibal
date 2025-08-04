@@ -43,17 +43,17 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
-      # Destroy Backend
-      - name: Destroy Backend
-        run: |
-          terraform init -input=false
-          terraform destroy -auto-approve -var="client_url_for_cors=" -var="environment=dev"
-        working-directory: ./terraform/backend
-
-      # Destroy Frontend  
+      # Destroy Frontend First (CloudFront dependency)
       - name: Destroy Frontend
         run: |
           terraform init -input=false
           terraform destroy -auto-approve -var="api_alb_dns_name=dummy.elb.amazonaws.com" -var="environment=dev" -var="enable_cloudfront=true"
           # 本番用: -var="environment=prod" -var="enable_cloudfront=true"
         working-directory: ./terraform/frontend
+
+      # Destroy Backend (Complete Infrastructure)
+      - name: Destroy Backend
+        run: |
+          terraform init -input=false
+          terraform destroy -auto-approve -var="client_url_for_cors=" -var="environment=dev"
+        working-directory: ./terraform/backend
