@@ -1,0 +1,56 @@
+name: Update Architecture Diagram
+
+on:
+  workflow_dispatch:  # 手動トリガー
+    inputs:
+      reason:
+        description: 'Reason for generating diagram'
+        required: false
+        default: 'Manual update'
+  push:
+    paths:
+      - 'infrastructure/diagrams/**'  # スクリプト変更時のみ自動実行
+    branches:
+      - main
+      - feature/automation
+
+jobs:
+  generate-diagram:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz
+      
+      - name: Install Python dependencies
+        run: |
+          pip install -r infrastructure/diagrams/requirements.txt
+      
+      - name: Generate Architecture Diagram
+        run: |
+          cd infrastructure/diagrams
+          python generate_diagram.py
+      
+      - name: Commit and push updated diagram
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add docs/architecture.svg
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🏗️ Auto-update architecture diagram"
+            git push
+          fi
