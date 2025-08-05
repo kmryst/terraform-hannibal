@@ -1,18 +1,12 @@
 name: Update Architecture Diagram
 
 on:
-  workflow_dispatch:  # 手動トリガー
+  workflow_dispatch:  # 手動トリガーのみ
     inputs:
       reason:
         description: 'Reason for generating diagram'
         required: false
         default: 'Manual update'
-  push:
-    paths:
-      - 'infrastructure/diagrams/**'  # スクリプト変更時のみ自動実行
-    branches:
-      - main
-      - feature/automation
 
 jobs:
   generate-diagram:

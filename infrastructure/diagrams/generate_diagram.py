@@ -9,7 +9,7 @@ from diagrams.aws.compute import ECS
 from diagrams.aws.network import ALB, CloudFront, Route53
 from diagrams.aws.database import RDS
 from diagrams.aws.storage import S3
-from diagrams.aws.devtools import ECR
+
 from diagrams.aws.security import IAM, SecurityGroup
 from diagrams.aws.management import Cloudwatch
 
@@ -37,7 +37,7 @@ def generate_architecture_diagram():
             
             with Cluster("ECS Fargate Cluster"):
                 ecs_service = ECS("API Service\n(NestJS)")
-                ecr = ECR("Container\nRegistry")
+
         
         # Database Layer
         with Cluster("Database Layer"):
@@ -58,7 +58,7 @@ def generate_architecture_diagram():
         
         alb >> ecs_service
         ecs_service >> rds
-        ecr >> Edge(label="Pull Images") >> ecs_service
+
         
         # Security relationships
         sg_alb >> Edge(style="dashed", color="orange") >> alb
