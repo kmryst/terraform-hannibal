@@ -38,7 +38,7 @@ def generate_architecture_diagram():
         }
     ):
         # DNS & CDN Layer
-        dns = Route53("Route53")
+        dns = Route53("Route53\nhamilcar-hannibal.click")
         cf = CloudFront("CloudFront")
         
         # Frontend Layer
