@@ -11,6 +11,8 @@ from diagrams.aws.database import RDS
 from diagrams.aws.storage import S3
 from diagrams.aws.security import IAM
 from diagrams.aws.management import Cloudwatch
+from diagrams.onprem.ci import GithubActions
+from diagrams.onprem.iac import Terraform
 import os
 import shutil
 import re
@@ -37,8 +39,10 @@ def generate_architecture_diagram():
             "bgcolor": "white"
         }
     ):
-        # DNS & CDN Layer
+        # DNS & CDN Layer + CI/CD Tools
         dns = Route53("Route53\nhamilcar-hannibal.click")
+        github = GithubActions("GitHub Actions")
+        terraform = Terraform("Terraform")
         cf = CloudFront("CloudFront")
         
         # Frontend Layer
