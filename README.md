@@ -10,6 +10,10 @@
 
 ## 🏗️ AWSアーキテクチャ
 
+### 自動生成構成図
+![AWS Architecture](docs/architecture/diagrams/latest.png)
+
+### 詳細構成図
 ```mermaid
 graph TB
     %% User Layer
