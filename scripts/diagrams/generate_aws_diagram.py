@@ -32,8 +32,12 @@ def generate_architecture_diagram():
         show=False,
         direction="TB",
         graph_attr={
-            "fontsize": "16",
-            "bgcolor": "white"
+            "fontsize": "12",
+            "bgcolor": "white",
+            "size": "10,5",
+            "dpi": "150",
+            "margin": "0.2",
+            "pad": "0.2"
         }
     ):
         # DNS & CDN Layer
@@ -64,7 +68,7 @@ def generate_architecture_diagram():
         cf >> Edge(label="Static Files") >> s3_frontend
         cf >> Edge(label="/api/*") >> alb
         alb >> Edge(label="Blue/Green") >> ecs_service
-        ecs_service >> Edge(label="DB Connection") >> rds
+        ecs_service >> Edge(label="GraphQL API") >> rds
         
         # CI/CD Flow
         ecr >> Edge(label="Container Images") >> ecs_service
