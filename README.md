@@ -10,7 +10,9 @@
 
 ## 🏗️ AWSアーキテクチャ
 
-<img src="docs/architecture/diagrams/latest.png" alt="AWS Architecture" width="600">
+<div align="center">
+  <img src="docs/architecture/diagrams/latest.png" alt="AWS Architecture" width="600">
+</div>
 
 ## 🔧 技術スタック
 
