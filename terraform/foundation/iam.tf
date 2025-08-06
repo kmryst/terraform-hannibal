@@ -362,3 +362,73 @@ resource "aws_iam_role_policy_attachment" "hannibal_cicd_policy_attachment" {
 # HannibalCICDRole-Dev: HannibalCICDPolicy-Dev-Minimal v2 アタッチ済み
 # deploy.yml + destroy.yml 両対応の最小権限設計
 # CloudTrail分析結果に基づく実用的な権限設定
+
+# --- 7. 外部サービス連携用ロール・ポリシー ---
+
+# Cacoo AWS Integration Role (構成図自動生成サービス)
+resource "aws_iam_role" "cacoo_integration_role" {
+  name = "CacooAWSIntegrationRole"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::631054961367:root"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "cacoo_readonly_policy" {
+  name        = "CacooReadOnlyPolicy"
+  description = "Read-only permissions for Cacoo AWS diagram generation"
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudfront:ListDistributions",
+          "ec2:DescribeInstances",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeVpcs",
+          "ec2:DescribeAvailabilityZones",
+          "elasticloadbalancing:DescribeLoadBalancers",
+          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeTargetHealth",
+          "elasticache:DescribeCacheSubnetGroups",
+          "elasticache:DescribeCacheClusters",
+          "rds:DescribeDBInstances",
+          "s3:ListAllMyBuckets",
+          "s3:GetBucketLocation",
+          "sns:ListTopics",
+          "sns:GetTopicAttributes",
+          "sqs:ListQueues",
+          "ec2:DescribeRouteTables",
+          "ec2:DescribeNatGateways",
+          "ecs:DescribeClusters",
+          "ecs:DescribeServices",
+          "ecs:DescribeTasks",
+          "ecs:ListClusters",
+          "ecs:ListServices",
+          "ecs:ListTasks",
+          "iam:ListRoles",
+          "iam:GetRole",
+          "iam:ListInstanceProfiles"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "cacoo_policy_attachment" {
+  role       = aws_iam_role.cacoo_integration_role.name
+  policy_arn = aws_iam_policy.cacoo_readonly_policy.arn
+}
