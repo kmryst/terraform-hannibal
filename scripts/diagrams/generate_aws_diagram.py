@@ -13,6 +13,7 @@ from diagrams.aws.security import IAM
 from diagrams.aws.management import Cloudwatch
 import os
 import shutil
+import re
 from datetime import datetime
 
 def generate_architecture_diagram():
@@ -32,64 +33,92 @@ def generate_architecture_diagram():
         show=False,
         direction="TB",
         graph_attr={
-            "fontsize": "12",
-            "bgcolor": "white",
-            "size": "10,5",
-            "dpi": "150",
-            "margin": "0.2",
-            "pad": "0.2"
+            "fontsize": "16",
+            "bgcolor": "white"
         }
     ):
         # DNS & CDN Layer
-        dns = Route53("Route53\nhamilcar-hannibal.click")
-        cf = CloudFront("CloudFront\nGlobal CDN")
+        dns = Route53("Route53")
+        cf = CloudFront("CloudFront")
         
         # Frontend Layer
         s3_frontend = S3("S3 Frontend")
         
         # Load Balancer Layer
-        alb = ALB("Application Load Balancer\nBlue/Green Support")
+        alb = ALB("ALB")
         
         # Container Layer
-        with Cluster("ECS Fargate Cluster"):
-            ecs_service = ECS("ECS Service\nBlue/Green Deployment")
-            ecr = ECR("ECR Repository")
+        with Cluster("ECS Fargate"):
+            ecs_service = ECS("ECS Service")
+            ecr = ECR("ECR")
         
         # Database Layer
         rds = RDS("RDS PostgreSQL")
         
         # Security & Monitoring
         with Cluster("Security & Monitoring"):
-            iam = IAM("IAM Roles\nPermission Boundary")
-            logs = Cloudwatch("CloudWatch Logs\nECS Task Logs")
+            iam = IAM("IAM")
+            logs = Cloudwatch("CloudWatch")
         
         # Network Flow
         dns >> cf
-        cf >> Edge(label="Static Files") >> s3_frontend
-        cf >> Edge(label="/api/*") >> alb
-        alb >> Edge(label="Blue/Green") >> ecs_service
-        ecs_service >> Edge(label="GraphQL API") >> rds
+        cf >> s3_frontend
+        cf >> alb
+        alb >> ecs_service
+        ecs_service >> rds
         
         # CI/CD Flow
-        ecr >> Edge(label="Container Images") >> ecs_service
+        ecr >> ecs_service
         
         # Security & Monitoring Flow
-        iam >> Edge(label="Permissions") >> ecs_service
-        ecs_service >> Edge(label="Logs") >> logs
+        iam >> ecs_service
+        ecs_service >> logs
     
-    # 固定名でもコピー（README.md用）
+    # latest.pngを生成（README.md用）
     shutil.copy(f"{output_dir}/{diagram_name}.png", f"{output_dir}/latest.png")
     
     print(f"✅ AWS構成図を生成しました: {output_dir}/{diagram_name}.png")
-    print(f"✅ 固定名でもコピー: {output_dir}/latest.png")
+    print(f"✅ latest.pngを更新しました: {output_dir}/latest.png")
     return f"{diagram_name}.png"
 
-if __name__ == "__main__":
-    print("🚀 NestJS Hannibal 3 AWS構成図生成開始...")
+def update_readme_cache_buster():
+    """README.mdのキャッシュバスターをタイムスタンプに自動更新"""
+    
+    readme_path = "../../README.md"
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     
     try:
+        with open(readme_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # キャッシュバスターのパターンを検索・更新
+        pattern = r'(docs/architecture/diagrams/latest\.png)(\?v=\d+)?'
+        replacement = f'docs/architecture/diagrams/latest.png?v={timestamp}'
+        
+        updated_content = re.sub(pattern, replacement, content)
+        
+        with open(readme_path, 'w', encoding='utf-8') as f:
+            f.write(updated_content)
+        
+        print(f"✅ README.mdのキャッシュバスターを更新: ?v={timestamp}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ README.md更新エラー: {e}")
+        return False
+
+if __name__ == "__main__":
+    print("🚀 AWS構成図完全自動化開始...")
+    
+    try:
+        # 1. 構成図生成
         diagram_filename = generate_architecture_diagram()
-        print("✅ 構成図生成完了！")
+        
+        # 2. README.mdキャッシュバスター自動更新
+        update_readme_cache_buster()
+        
+        print("\n✅ 完全自動化完了！")
+        print("次のステップ: git add . && git commit && git push")
         
     except ImportError as e:
         print("❌ エラー: Diagramsライブラリがインストールされていません")
