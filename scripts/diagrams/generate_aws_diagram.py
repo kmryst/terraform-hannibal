@@ -27,7 +27,7 @@ def generate_architecture_diagram():
     diagram_name = f"nestjs-hannibal-3-architecture-{timestamp}"
     
     with Diagram(
-        "NestJS Hannibal 3 AWS Architecture",
+        "AWS Architecture",
         filename=f"{output_dir}/{diagram_name}",
         show=False,
         direction="TB",
@@ -45,7 +45,7 @@ def generate_architecture_diagram():
         cf = CloudFront("CloudFront\nGlobal CDN")
         
         # Frontend Layer
-        s3_frontend = S3("S3 Frontend\nnestjs-hannibal-3-frontend")
+        s3_frontend = S3("S3 Frontend")
         
         # Load Balancer Layer
         alb = ALB("Application Load Balancer\nBlue/Green Support")
@@ -53,10 +53,10 @@ def generate_architecture_diagram():
         # Container Layer
         with Cluster("ECS Fargate Cluster"):
             ecs_service = ECS("ECS Service\nBlue/Green Deployment")
-            ecr = ECR("ECR Repository\nnestjs-hannibal-3")
+            ecr = ECR("ECR Repository")
         
         # Database Layer
-        rds = RDS("RDS PostgreSQL\nnestjs-hannibal-3-postgres")
+        rds = RDS("RDS PostgreSQL")
         
         # Security & Monitoring
         with Cluster("Security & Monitoring"):
