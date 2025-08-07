@@ -93,10 +93,9 @@ resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
 
 # --- CloudFront Distribution ---
 # =============================
-# ⚠️ 重要: CloudFrontディストリビューションとS3バケットポリシーは循環参照になるため、
-# Terraform destroy時はCloudFrontディストリビューションを必ず手動で先に削除してください！
-# （AWSマネジメントコンソール→CloudFront→該当ディストリビューション→Disable→Delete）
-# その後terraform destroyを実行してください。
+# ✅ 更新: destroy.ymlでenable_cloudfront=trueを指定することで、
+# CloudFrontディストリビューションも自動的に削除されます。
+# 手動での事前削除は不要です。
 # =============================
 resource "aws_cloudfront_distribution" "main" {
   count               = local.enable_cloudfront_computed ? 1 : 0 # enable_cloudfront変数で制御
