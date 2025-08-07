@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: (SO0075) Workload Discovery on AWS Main Template - Solution - Main Template (uksb-1r0720e27) (version:v2.3.2)
+Description: (SO0075) Workload Discovery on AWS Main Template - Solution - Main Template (uksb-1r0720e27) (version:v2.3.2) - Tokyo Region (ap-northeast-1) Only
 
 Transform: AWS::Serverless-2016-10-31
 
@@ -55,7 +55,7 @@ Parameters:
     Type: String
     Default: 1 vCPU
     Description:
-      The number of CPUs to allocate for the Fargate task that the discovery process runs in
+      The number of CPUs to allocate for the Fargate task that the discovery process runs in (development environment optimized)
     AllowedValues:
       - 1 vCPU
       - 2 vCPU
@@ -65,7 +65,7 @@ Parameters:
     Type: String
     Default: 2048
     Description:
-      The amount of memory to allocate for the Fargate task that the discovery process runs in
+      The amount of memory to allocate for the Fargate task that the discovery process runs in (development environment optimized)
     AllowedValues:
       - 2048
       - 4096
@@ -90,8 +90,8 @@ Parameters:
       - FARGATE_SPOT
   DiscoveryTaskFrequency:
     Type: String
-    Description: The time interval between every run of the discovery process ECS task
-    Default: 15mins
+    Description: The time interval between every run of the discovery process ECS task (development environment optimized)
+    Default: 24hrs
     AllowedValues:
       - 15mins
       - 1hr
@@ -112,8 +112,8 @@ Parameters:
     ConstraintDescription: Please specify if this account has the OpenSearch service role created (Yes / No)
   NeptuneInstanceClass:
     Type: String
-    Description: Neptune DB instance class that will be used for primary and all replicas. Changing this will affect the cost of running this solution.
-    Default: db.r7g.large
+    Description: Neptune DB instance class that will be used for primary and all replicas (ap-northeast-1 optimized). Development environment optimized for cost reduction. Changing this will affect the cost of running this solution.
+    Default: db.t4g.medium
     AllowedValues:
       - db.serverless
       - db.t3.medium
@@ -177,9 +177,9 @@ Parameters:
       If you would like a read replica creating in a separate AZ. Please select 'Yes'. This will increase the cost of 
       running the solution.
   OpensearchInstanceType:
-    Description: The instance type for OpenSearch data nodes
+    Description: The instance type for OpenSearch data nodes (ap-northeast-1 optimized). Development environment optimized for cost reduction.
     Type: String
-    Default: m6g.large.search
+    Default: t3.small.search
     AllowedValues:
       - t3.small.search
       - t3.medium.search
@@ -364,6 +364,9 @@ Parameters:
 
 Metadata:
   AWS::CloudFormation::Interface:
+    ParameterLabels:
+      AdminUserEmailAddress:
+        default: "Admin User Email Address (Tokyo Region Only)"
     ParameterGroups:
       - Label:
           default: User Configuration
@@ -374,14 +377,14 @@ Metadata:
         Parameters:
           - AlreadyHaveConfigSetup
       - Label:
-          default: Neptune Configuration
+          default: Neptune Configuration (Cost Optimized for Development)
         Parameters:
           - NeptuneInstanceClass
           - CreateNeptuneReplica
           - MinNCUs
           - MaxNCUs
       - Label:
-          default: OpenSearch Configuration
+          default: OpenSearch Configuration (Cost Optimized for Development)
         Parameters:
           - CreateOpensearchServiceRole
           - OpensearchInstanceType
@@ -394,7 +397,7 @@ Metadata:
           - PrivateSubnet0
           - PrivateSubnet1
       - Label:
-          default: Discovery Configuration
+          default: Discovery Configuration (Cost Optimized for Development)
         Parameters:
           - CpuUnits
           - Memory
@@ -432,6 +435,13 @@ Metadata:
           - OIDCAttributeRequestMethod
 
 Rules:
+
+  RegionRule:
+    Assertions:
+      - Assert: !Equals [!Ref 'AWS::Region', 'ap-northeast-1']
+        AssertDescription: |
+          This template can only be deployed in ap-northeast-1 (Tokyo) region.
+          AWS Workload Discovery on AWS is only supported in specific regions.
 
   OrganizationsRule:
     RuleCondition: !Equals [!Ref CrossAccountDiscovery, AWS_ORGANIZATIONS]
