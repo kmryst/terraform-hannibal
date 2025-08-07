@@ -90,8 +90,8 @@ Parameters:
       - FARGATE_SPOT
   DiscoveryTaskFrequency:
     Type: String
-    Description: The time interval between every run of the discovery process ECS task (development environment optimized)
-    Default: 24hrs
+    Description: The time interval between every run of the discovery process ECS task (optimized for immediate use)
+    Default: 15mins
     AllowedValues:
       - 15mins
       - 1hr
@@ -112,7 +112,7 @@ Parameters:
     ConstraintDescription: Please specify if this account has the OpenSearch service role created (Yes / No)
   NeptuneInstanceClass:
     Type: String
-    Description: Neptune DB instance class that will be used for primary and all replicas (ap-northeast-1 optimized). Development environment optimized for cost reduction. Changing this will affect the cost of running this solution.
+    Description: Neptune DB instance class that will be used for primary and all replicas (ap-northeast-1 optimized). Cost-optimized for short-term usage. Changing this will affect the cost of running this solution.
     Default: db.t4g.medium
     AllowedValues:
       - db.serverless
@@ -177,7 +177,7 @@ Parameters:
       If you would like a read replica creating in a separate AZ. Please select 'Yes'. This will increase the cost of 
       running the solution.
   OpensearchInstanceType:
-    Description: The instance type for OpenSearch data nodes (ap-northeast-1 optimized). Development environment optimized for cost reduction.
+    Description: The instance type for OpenSearch data nodes (ap-northeast-1 optimized). Cost-optimized for short-term usage.
     Type: String
     Default: t3.small.search
     AllowedValues:
