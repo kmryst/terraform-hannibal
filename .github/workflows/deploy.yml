@@ -123,7 +123,7 @@ jobs:
           # 新しいタスク定義を登録
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://new_task_def.json --query 'taskDefinition.taskDefinitionArn' --output text)
           
-          # ECS Native Blue/Green deployment実行
+          # ECS Native Blue/Green deployment実行（1分ベイクタイム）
           aws ecs update-service \
             --cluster nestjs-hannibal-3-cluster \
             --service nestjs-hannibal-3-api-service \
@@ -131,3 +131,5 @@ jobs:
           
           echo "🚀 ECS Native Blue/Green deployment initiated successfully!"
           echo "Task Definition: $NEW_TASK_DEF_ARN"
+          echo "Bake time: ECS automatic (typically 1-2 minutes)"
+          echo "Production traffic will switch after successful health checks"

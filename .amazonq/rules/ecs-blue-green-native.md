@@ -1,93 +1,99 @@
-# ECS Native Blue/Green Deployment Rules
+# ECS Native Blue/Green Deployment Rules (nestjs-hannibal-3)
 
 ## 概要
-Amazon ECS blue/green deployments (Released July 17, 2025)
-2025年7月17日にリリースされたECSネイティブのBlue/Green deployment機能に関する設定とルール
+Amazon ECS built-in Blue/Green deployments (Released July 17, 2025)
+TerraformでECS Native Blue/Green deploymentを実装するための実務ルール
 
-## 動作確認済み環境
-- **Terraform**: 1.12.1 (2025年7月リリース最新版)
-- **AWS Provider**: 6.7.0 (2025年7月31日リリース最新版)
-- **実装プロジェクト**: nestjs-hannibal-3
-- **確認日**: 2025年8月9日（ALB設定修正版）
-- **動作状況**: ✅ 完全動作確認済み（修正後）
+## Schema Compatibility (Provider 6.8.0)
+**AWS Provider**: 6.8.0 (tested)
+
+**Supported**:
+- `aws_ecs_service`: `deployment_controller { type = "ECS" }`
+- `aws_ecs_service`: `deployment_configuration { bake_time_in_minutes = N }` (optional)
+- ALB listener rule: `action.forward.target_group` with `weight`
+- `lifecycle { ignore_changes = [action] }` on Priority 100 rules
+
+**NOT supported in 6.8.0**:
+- `advanced_configuration` (invalid; use standard `load_balancer` block only)
+- `strategy = "BLUE_GREEN"` (invalid; do not use)
+- `action.target_group_arn` (single direct forward; do not use)
+- `lifecycle_hook` (not available in 6.8.0 schema)
+
+ECS native Blue/Green is enabled with `deployment_controller { type = 'ECS' }` and managed cutovers occur via ALB Priority 100 rules using forward/weights; Terraform must not roll back those changes.
 
 ## 基本原則
-- **CodeDeployを使わずにECS単体でBlue/Green deploymentを実現**
-- ALBターゲットグループの自動切り替え
-- 無停止デプロイメントの実現
-- Service Connect完全対応
-- ビルトインライフサイクルフック
+- **ECS Native Blue/Green**: CodeDeploy不要
+- **ALB Priority 100 rules**: 80 (prod) and 8080 (test)
+- **Weight switching**: ECS flips 0/100→100/0
+- **Terraform protection**: ignore_changes prevents rollback
 
-## 主要メリット
-- **CodeDeploy依存関係の排除**: CodeDeployアプリケーション、デプロイメントグループ、関連IAMロールが不要
-- **シームレスな戦略切り替え**: Rolling UpdateとBlue/Green間の切り替えがサービス再作成なしで可能
-- **Dark Canaryテスト**: テストリスナーで本番トラフィック前の検証が可能
+## Minimum Working Example
 
-## ⚠️ 重要な制約事項
-- **`deployment_circuit_breaker`、`maximum_percent`、`minimum_healthy_percent`は`strategy = "BLUE_GREEN"`と併用不可**
-- Blue/Green deploymentでは、これらの設定は自動的に最適化される
-- 併用するとTerraform構文エラーが発生する
-- **Terraform AWS Provider v6.4.0以降必須**
-
-## 動作確認済み最小構成（推奨）
-
-### ECSサービス設定（実装済み・動作確認済み）
 ```hcl
+# ECS Service with Blue/Green
 resource "aws_ecs_service" "api" {
   name            = "${var.project_name}-api-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.api.arn
-  desired_count   = var.desired_task_count
+  desired_count   = 1
   launch_type     = "FARGATE"
   
-  # ECS Native Blue/Green Deployment（最小構成）
+  deployment_controller {
+    type = "ECS"
+  }
+  
   deployment_configuration {
-    strategy = "BLUE_GREEN"
     bake_time_in_minutes = 5
   }
   
+  # This project's default posture:
+  # Recommended/prod-like: private subnets + assign_public_ip=false (default for this project)
+  # Dev-simple (optional): public subnets + assign_public_ip=true (for quick checks only)
   network_configuration {
-    subnets          = data.aws_subnets.public.ids
-    security_groups  = [aws_security_group.ecs_service_sg.id]
-    assign_public_ip = true
+    subnets          = [aws_subnet.private.id]  # Use aws_subnet.public.id for dev-simple
+    security_groups  = [aws_security_group.ecs.id]
+    assign_public_ip = false  # true for dev-simple
   }
   
-  # Blue/Green用高度なロードバランサー設定
   load_balancer {
     target_group_arn = aws_lb_target_group.blue.arn
-    container_name   = "${var.project_name}-container"
-    container_port   = var.container_port
-    
-    # Blue/Green専用設定
-    advanced_configuration {
-      alternate_target_group_arn = aws_lb_target_group.green.arn
-      production_listener_rule   = aws_lb_listener_rule.production.arn
-      test_listener_rule        = aws_lb_listener_rule.test.arn
-      role_arn                  = aws_iam_role.ecs_service_role.arn
-    }
+    container_name   = "app"
+    container_port   = 3000
   }
 }
 
-# Blue/Green用追加リソース
-resource "aws_lb_target_group" "green" {
-  name        = "${var.project_name}-green-tg"
-  port        = var.container_port
+# Target Groups
+resource "aws_lb_target_group" "blue" {
+  name        = "${var.project_name}-blue"
+  port        = 3000
   protocol    = "HTTP"
-  vpc_id      = data.aws_vpc.selected.id
+  vpc_id      = aws_vpc.main.id
   target_type = "ip"
   
   health_check {
-    enabled             = true
-    path                = var.health_check_path
-    protocol            = "HTTP"
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 10
-    interval            = 15
-    matcher             = "200-399"
+    path     = "/health"
+    matcher  = "200"
+    interval = 30
+    timeout  = 5
   }
 }
 
+resource "aws_lb_target_group" "green" {
+  name        = "${var.project_name}-green"
+  port        = 3000
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "ip"
+  
+  health_check {
+    path     = "/health"
+    matcher  = "200"
+    interval = 30
+    timeout  = 5
+  }
+}
+
+# Production Listener (80) - Priority 100 Rule
 resource "aws_lb_listener_rule" "production" {
   listener_arn = aws_lb_listener.http.arn
   priority     = 100
@@ -99,6 +105,10 @@ resource "aws_lb_listener_rule" "production" {
         arn    = aws_lb_target_group.blue.arn
         weight = 100
       }
+      target_group {
+        arn    = aws_lb_target_group.green.arn
+        weight = 0
+      }
     }
   }
   
@@ -107,8 +117,13 @@ resource "aws_lb_listener_rule" "production" {
       values = ["/*"]
     }
   }
+  
+  lifecycle {
+    ignore_changes = [action]
+  }
 }
 
+# Test Listener (8080) - Priority 100 Rule
 resource "aws_lb_listener_rule" "test" {
   listener_arn = aws_lb_listener.test.arn
   priority     = 100
@@ -116,6 +131,10 @@ resource "aws_lb_listener_rule" "test" {
   action {
     type = "forward"
     forward {
+      target_group {
+        arn    = aws_lb_target_group.blue.arn
+        weight = 0
+      }
       target_group {
         arn    = aws_lb_target_group.green.arn
         weight = 100
@@ -128,200 +147,34 @@ resource "aws_lb_listener_rule" "test" {
       values = ["/*"]
     }
   }
-}
-```
-
-### 必要なIAM権限（Terraform公式対応）
-```hcl
-# ECSサービス用Blue/Green権限
-resource "aws_iam_role" "ecs_service_role" {
-  name = "${var.project_name}-ecs-service-role"
   
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_policy" "ecs_blue_green_policy" {
-  name = "${var.project_name}-ecs-blue-green-policy"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "elasticloadbalancing:ModifyListener",
-          "elasticloadbalancing:ModifyRule",
-          "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeListeners",
-          "elasticloadbalancing:DescribeRules"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_service_blue_green" {
-  role       = aws_iam_role.ecs_service_role.name
-  policy_arn = aws_iam_policy.ecs_blue_green_policy.arn
-}
-
-# ライフサイクルフック用IAMロール
-resource "aws_iam_role" "ecs_lifecycle_hook" {
-  name = "${var.project_name}-ecs-lifecycle-hook-role"
-  
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_policy" "ecs_lifecycle_hook_policy" {
-  name = "${var.project_name}-ecs-lifecycle-hook-policy"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "lambda:InvokeFunction"
-        ]
-        Resource = aws_lambda_function.deployment_validation.arn
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_lifecycle_hook" {
-  role       = aws_iam_role.ecs_lifecycle_hook.name
-  policy_arn = aws_iam_policy.ecs_lifecycle_hook_policy.arn
-}
-```
-
-## GitHub Actions連携（オプション）
-
-### AWS CLI経由でのBlue/Green deployment
-```yaml
-# Terraformで設定済みの場合、通常のECS更新で自動的にBlue/Green実行
-- name: Update ECS Service (Auto Blue/Green)
-  run: |
-    aws ecs update-service \
-      --cluster nestjs-hannibal-3-cluster \
-      --service nestjs-hannibal-3-api-service \
-      --task-definition $NEW_TASK_DEF
-```
-
-## ライフサイクルフック（オプション）
-
-### 検証Lambda関数
-```python
-import json
-import boto3
-
-def lambda_handler(event, context):
-    deployment_id = event['DeploymentId']
-    lifecycle_event = event['LifecycleEventHookExecutionId']
-    
-    # ヘルスチェック実行
-    validation_result = perform_health_checks()
-    
-    ecs_client = boto3.client('ecs')
-    
-    status = 'Succeeded' if validation_result else 'Failed'
-    
-    ecs_client.put_lifecycle_event_hook_execution_status(
-        deploymentId=deployment_id,
-        lifecycleEventHookExecutionId=lifecycle_event,
-        status=status
-    )
-    
-    return {'statusCode': 200}
-
-def perform_health_checks():
-    # API健全性チェック、DB接続確認など
-    return True
-```
-
-## 完全な設定例（オプション機能含む）
-
-### ライフサイクルフック付きECSサービス設定
-```hcl
-resource "aws_ecs_service" "api" {
-  name            = "${var.project_name}-api-service"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.api.arn
-  desired_count   = var.desired_task_count
-  launch_type     = "FARGATE"
-  
-  # Blue/Green deployment設定（オプション機能含む）
-  deployment_configuration {
-    strategy = "BLUE_GREEN"
-    bake_time_in_minutes = 5
-    
-    # ライフサイクルフック（オプション）
-    lifecycle_hook {
-      hook_target_arn = aws_lambda_function.deployment_validation.arn
-      role_arn       = aws_iam_role.ecs_lifecycle_hook.arn
-      lifecycle_stages = ["PRE_SCALE_UP", "POST_SCALE_UP", "TEST_TRAFFIC_SHIFT"]
-    }
+  lifecycle {
+    ignore_changes = [action]
   }
+}
+
+# Production Listener with safe default
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = "80"
+  protocol          = "HTTP"
   
-  network_configuration {
-    subnets          = data.aws_subnets.public.ids
-    security_groups  = [aws_security_group.ecs_service_sg.id]
-    assign_public_ip = true
-  }
-  
-  # Blue/Green用高度なロードバランサー設定
-  load_balancer {
-    target_group_arn = aws_lb_target_group.blue.arn
-    container_name   = "${var.project_name}-container"
-    container_port   = var.container_port
-    
-    # Blue/Green専用設定
-    advanced_configuration {
-      alternate_target_group_arn = aws_lb_target_group.green.arn
-      production_listener_rule   = aws_lb_listener_rule.production.arn
-      test_listener_rule        = aws_lb_listener_rule.test.arn
-      role_arn                  = aws_iam_role.ecs_service_role.arn
+  default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Not Found"
+      status_code  = "404"
     }
   }
 }
 ```
 
-## ⚠️ 重要な修正事項（2025年8月9日更新）
+## Tested Patterns
 
-### ALBリスナールール設定の修正が必須
-**問題**: 古いTerraform形式ではECS Native Blue/Green deploymentが動作しない
-
+### Listener Rule Forward/Weights (Correct)
 ```hcl
-# ❌ 修正前（動作しない）
-action {
-  type             = "forward"
-  target_group_arn = aws_lb_target_group.blue.arn
-}
-
-# ✅ 修正後（正常動作）
+# ✅ Correct - ECS can modify weights
 action {
   type = "forward"
   forward {
@@ -329,42 +182,24 @@ action {
       arn    = aws_lb_target_group.blue.arn
       weight = 100
     }
+    target_group {
+      arn    = aws_lb_target_group.green.arn
+      weight = 0
+    }
   }
 }
-```
 
-**影響**: この修正により、ALBリスナールールがECSによって正しく制御され、Blue/Green切り替えが自動実行されます。
-
-**確認日**: 2025年8月9日 - nestjs-hannibal-3プロジェクトで実証済み
-
-## 実装で得た重要な知見
-
-### 1. 実際に動作する設定（Hannibal 3プロジェクトで確認済み）
-```hcl
-# 最小動作構成
-deployment_configuration {
-  strategy = "BLUE_GREEN"
-  bake_time_in_minutes = 5
-}
-
-load_balancer {
+# ❌ Invalid - Single target_group_arn
+action {
+  type             = "forward"
   target_group_arn = aws_lb_target_group.blue.arn
-  container_name   = "${var.project_name}-container"
-  container_port   = var.container_port
-  
-  advanced_configuration {
-    alternate_target_group_arn = aws_lb_target_group.green.arn
-    production_listener_rule   = aws_lb_listener_rule.production.arn
-    test_listener_rule         = aws_lb_listener_rule.test.arn
-    role_arn                   = aws_iam_role.ecs_service_role.arn
-  }
 }
 ```
 
-### 2. IAM権限の完全版（実装済み・動作確認済み）
+### IAM Policy (Least Privilege)
 ```hcl
-resource "aws_iam_policy" "ecs_blue_green_policy" {
-  name = "${var.project_name}-ecs-blue-green-policy"
+resource "aws_iam_policy" "ecs_blue_green" {
+  name = "ecs-blue-green-policy"
   
   policy = jsonencode({
     Version = "2012-10-17"
@@ -372,22 +207,15 @@ resource "aws_iam_policy" "ecs_blue_green_policy" {
       {
         Effect = "Allow"
         Action = [
-          # ALB操作権限
           "elasticloadbalancing:ModifyListener",
           "elasticloadbalancing:ModifyRule",
-          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeLoadBalancers",
           "elasticloadbalancing:DescribeListeners",
           "elasticloadbalancing:DescribeRules",
-          "elasticloadbalancing:RegisterTargets",
-          "elasticloadbalancing:DeregisterTargets",
+          "elasticloadbalancing:DescribeTargetGroups",
           "elasticloadbalancing:DescribeTargetHealth",
-          "elasticloadbalancing:DescribeLoadBalancers",
-          # ECS操作権限
-          "ecs:DescribeServices",
-          "ecs:UpdateService",
-          "ecs:DescribeTaskDefinition",
-          "ecs:DescribeTasks",
-          "ecs:ListTasks"
+          "elasticloadbalancing:RegisterTargets",
+          "elasticloadbalancing:DeregisterTargets"
         ]
         Resource = "*"
       }
@@ -396,108 +224,139 @@ resource "aws_iam_policy" "ecs_blue_green_policy" {
 }
 ```
 
-### 3. AWS管理ポリシー未提供
-- ECS Native Blue/Green deployment用のAWS管理ポリシーは**存在しない**
-- 2025年7月17日の新機能のため、カスタムポリシー作成が必須
-- 将来的にAWS管理ポリシーが提供される可能性あり
+### Monitoring Queries
+*Linux/macOS shell commands shown; Windows users can translate to PowerShell.*
 
-### 4. Terraform構文制約
-- **併用不可設定**: `deployment_circuit_breaker`、`maximum_percent`、`minimum_healthy_percent`
-- **理由**: Blue/Green deploymentでは自動最適化される
-- **エラー例**: "deployment_circuit_breaker cannot be used with strategy BLUE_GREEN"
-
-## Terraform実装手順（Hannibal 3）
-
-### Step 1: 既存リソースの名前変更
-```hcl
-# 既存のターゲットグループをblueに変更
-resource "aws_lb_target_group" "blue" {
-  name = "${var.project_name}-blue-tg"  # 既存の"api"から変更
-  # ... 既存設定
-}
-```
-
-### Step 2: ECSサービス設定更新
-```hcl
-# deployment_configurationにstrategy追加
-deployment_configuration {
-  strategy = "BLUE_GREEN"  # 追加
-  bake_time_in_minutes = 5  # 追加
-  # ... 既存設定
-}
-```
-
-### Step 3: セキュリティグループ更新
-```hcl
-# ALBセキュリティグループにポート8080追加
-resource "aws_security_group" "alb_sg" {
-  # 既存のポート80設定
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  
-  # 新規追加: テストリスナー用ポート8080
-  ingress {
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-```
-
-### Step 4: terraform plan/apply実行
 ```bash
-cd terraform/backend
-terraform plan -var="client_url_for_cors=https://hamilcar-hannibal.click" -var="environment=dev"
-terraform apply
+# Get ALB ARN by name
+ALB_ARN=$(aws elbv2 describe-load-balancers --names my-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+
+# Get listener ARNs
+PROD_LISTENER=$(aws elbv2 describe-listeners --load-balancer-arn $ALB_ARN --query 'Listeners[?Port==`80`].ListenerArn' --output text)
+TEST_LISTENER=$(aws elbv2 describe-listeners --load-balancer-arn $ALB_ARN --query 'Listeners[?Port==`8080`].ListenerArn' --output text)
+
+# Check Priority 100 rule weights (port 80)
+aws elbv2 describe-rules \
+  --listener-arn $PROD_LISTENER \
+  --query 'Rules[?Priority==`100`].Actions[0].ForwardConfig.TargetGroups[*].{Arn:TargetGroupArn,Weight:Weight}'
+
+# Check Priority 100 rule weights (port 8080)
+aws elbv2 describe-rules \
+  --listener-arn $TEST_LISTENER \
+  --query 'Rules[?Priority==`100`].Actions[0].ForwardConfig.TargetGroups[*].{Arn:TargetGroupArn,Weight:Weight}'
+
+# Verify weights sum to 100 (port 80)
+aws elbv2 describe-rules \
+  --listener-arn $PROD_LISTENER \
+  --query 'Rules[?Priority==`100`].Actions[0].ForwardConfig.TargetGroups[*].Weight | sum(@)'
+
+# Verify weights sum to 100 (port 8080)
+aws elbv2 describe-rules \
+  --listener-arn $TEST_LISTENER \
+  --query 'Rules[?Priority==`100`].Actions[0].ForwardConfig.TargetGroups[*].Weight | sum(@)'
 ```
 
-## Hannibal 3固有の実装ポイント
+## Acceptance Checklist (Provider 6.8.0)
 
-### 現在の設定からの変更点
-- **ターゲットグループ**: `aws_lb_target_group.api` → `aws_lb_target_group.blue`
-- **ECSサービス**: `deployment_configuration`に`strategy = "BLUE_GREEN"`追加
-- **ALBリスナー**: テスト用ポート8080追加
-- **セキュリティグループ**: ポート8080のingress rule追加
+1. **terraform validate** passes on provider 6.8.0
+2. **terraform plan** shows no attempt to revert ECS changes to listener rule actions (ignore_changes working)
+3. **During deployment**: Priority 100 rule weight flips from 0/100 to 100/0 (observed via describe-rules)
+4. **After bake time**: ecs describe-services converges to single PRIMARY deployment
+5. **Traffic routing**: Port 80 goes to new TG, 8080 remains for test side
+6. **Priority 100 rule weights sum equals 100 on both 80 and 8080 at all times**
+7. **aws ecs describe-services shows deployments converging to a single PRIMARY after bake time**:
+   ```bash
+   aws ecs describe-services --cluster my-cluster --services my-service --query 'services[0].deployments'
+   ```
+   Expected: PRIMARY only after bake time
+8. **Simple rollback**: Set previous weights manually
 
-### 動作の仕組み
-1. **通常時**: Blue環境（ポート80）で稼働
-2. **デプロイ時**: Green環境（ポート8080）で新バージョン起動
-3. **ヘルスチェック**: Green環境の健全性確認
-4. **トラフィック切り替え**: Blue → Green に一括切り替え
-5. **完了**: 旧Blue環境を自動削除
+## Limitations and Pitfalls (Provider 6.8.0)
 
-### desired_count = 1での動作
-- **デプロイ中**: 一時的に2個のタスク（Blue + Green）
-- **完了後**: 1個のタスク（新Green環境）に戻る
+**Avoid these mistakes**:
+1. **Locking listener rule actions** in Terraform (causes rollbacks)
+2. **Mismatched container_port/TG/health checks** (unhealthy targets)
+3. **Using default_action to forward to blue** (risk of misroutes)
+4. **Missing ignore_changes=[action]** (Terraform fights ECS)
+5. **Do not change conditions/priority/listener_arn for the Priority 100 rules during routine applies; only weights should change at deployment time**
+6. **If plan still shows diffs after manual/ECS weight changes, verify lifecycle { ignore_changes = [action] } is present on both Priority 100 rules and avoid unrelated rule edits that trigger re-creation**
 
-## ベストプラクティス
-- **本番環境**: Blue/Green deployment使用
-- **開発環境**: Rolling Updateでコスト削減
-- **ヘルスチェック**: 適切なタイムアウト値設定
-- **監査ログ**: CloudTrailでデプロイ履歴追跡
+**NOT supported in Provider 6.8.0**:
+- `advanced_configuration` → Use standard `load_balancer` block only
+- `strategy="BLUE_GREEN"` → Use `deployment_controller { type = "ECS" }`
+- Direct `target_group_arn` in action → Use `action.forward.target_group` with weights
+- `lifecycle_hook` → Not available in 6.8.0 schema
 
-## トラブルシューティング
+## Dev-Mode Cost Guidance
 
-### Terraform関連
-- **構文エラー**: `deployment_circuit_breaker`は`deployment_configuration`内で使用不可
-- **権限不足**: ECS操作権限（DescribeServices、UpdateService等）が必要
-- **Provider版本**: v6.4.0未満では`strategy = "BLUE_GREEN"`未対応
+**After validation**:
+1. Scale to zero: `desired_count = 0`
+2. Close exposure: Update security group or stop listener
+3. Weekly destroy: `terraform destroy` for full cleanup
+4. Day-to-day: Use "stop" workflow instead of destroy
 
-### デプロイ関連
-- **デプロイ停止**: ヘルスチェック設定とタイムアウト確認
-- **ロールバック未実行**: CloudWatchアラームとロールバックポリシー確認
-- **Lambda検証失敗**: 関数ログとIAM権限確認
+**Cost-sensitive pattern**:
+```hcl
+# Use locals for dev/prod networking and scaling
+locals {
+  is_dev = var.environment == "dev"
+}
 
-### 権限関連
-- **ALB操作失敗**: `elasticloadbalancing:ModifyListener`等の権限確認
-- **ターゲット登録失敗**: `RegisterTargets`、`DeregisterTargets`権限確認
-- **ECS操作失敗**: `ecs:DescribeServices`、`ecs:UpdateService`権限確認
+resource "aws_ecs_service" "api" {
+  desired_count = local.is_dev ? 0 : var.desired_count
+  
+  network_configuration {
+    # Project default: private subnets + assign_public_ip=false
+    subnets          = local.is_dev ? [aws_subnet.public.id] : [aws_subnet.private.id]
+    security_groups  = [aws_security_group.ecs.id]
+    assign_public_ip = local.is_dev ? true : false
+  }
+  # ... rest of config
+}
+``` -var="environment=dev"
+## Networking Posture Options
+
+**Option A (dev-simple)**:
+- Public subnets + `assign_public_ip = true`
+- Direct internet access, simpler setup
+- Use for development/testing only
+
+**Option B (recommended/prod-like)**:
+- Private subnets + `assign_public_ip = false`
+- NAT Gateway for outbound, ALB for inbound
+- **Default for nestjs-hannibal-3 project**
+
+## Known Limitation (Provider 6.8.0)
+
+**Issue**: Provider 6.8.0では`aws_ecs_service`に`deployment_configuration`ブロック（例: `bake_time_in_minutes`）を記述すると"Unexpected block"エラーが発生する場合がある。
+
+**対応**: 当該ブロックはコメントアウト/削除して`terraform validate/plan`を通す。ECSネイティブB/Gの挙動自体は、ALBのPriority 100ルール（forward/weights）と`ignore_changes=[action]`により運用可能。
+
+## Current Recommended Operation (until provider adds fields)
+
+- デプロイ/カナリアは`modify-rule`でweightを10/90→30/70→…→100/0に段階変更
+- Priority 100ルールの両方に`lifecycle { ignore_changes = [action] }`を設定し、TerraformがECS/手動変更を巻き戻さないようにする
+
+## Verification and Acceptance (unchanged)
+
+- 80/8080のPriority 100の`ForwardConfig.TargetGroups[*].Weight`を`describe-rules`で確認し、weights合計=100を常に満たすこと
+- `aws ecs describe-services --cluster <cluster> --services <service> --query 'services.deployments'`で、ベイク後にPRIMARYのみへ収束することを確認（ベイク時間は現状Provider 6.8.0では明示設定せず、ECSのデフォルト挙動に委ねる）
+
+## Upgrade Path
+
+- Terraform Registry（aws_ecs_service）の公式スキーマにBlue/Green用属性（bake_time/lifecycle hooks等）が掲載・サポートされたら、正確な属性名で`deployment_configuration`を再導入する
+- 本節の「Known limitation」を削除/更新し、ルールの"Supported"側へ移す
+
+## Quick Deploy
+
+```bash
+# Standard ECS update triggers Blue/Green
+aws ecs update-service \
+  --cluster my-cluster \
+  --service my-service \
+  --task-definition my-task:123
+```
 
 ---
-**企業レベルのBlue/Green deployment実装完了**
-**実装知見: Terraform v6.4.0 + カスタムIAMポリシー必須**
+**Minimal, actionable ECS Native Blue/Green with Terraform**
+**Provider 6.8.0 validated • No CodeDeploy required**

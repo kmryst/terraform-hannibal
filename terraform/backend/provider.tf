@@ -9,7 +9,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 6.7.0" # 最新版（2025年7月31日リリース）
+      version = "~> 6.8.0" # ECS Native Blue/Green対応版
     }
   }
   required_version = ">= 1.0"

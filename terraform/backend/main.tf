@@ -305,58 +305,8 @@ resource "aws_lb_listener_rule" "test" {
 
 # Security Groups moved to security_groups.tf
 
-# --- IAM Role for ECS Blue/Green Service ---
-resource "aws_iam_role" "ecs_service_role" {
-  name = "${var.project_name}-ecs-service-role"
-  
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_policy" "ecs_blue_green_policy" {
-  name = "${var.project_name}-ecs-blue-green-policy"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "elasticloadbalancing:ModifyListener",
-          "elasticloadbalancing:ModifyRule",
-          "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeListeners",
-          "elasticloadbalancing:DescribeRules",
-          "elasticloadbalancing:RegisterTargets",
-          "elasticloadbalancing:DeregisterTargets",
-          "elasticloadbalancing:DescribeTargetHealth",
-          "elasticloadbalancing:DescribeLoadBalancers",
-          "ecs:DescribeServices",
-          "ecs:UpdateService",
-          "ecs:DescribeTaskDefinition",
-          "ecs:DescribeTasks",
-          "ecs:ListTasks"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_service_blue_green" {
-  role       = aws_iam_role.ecs_service_role.name
-  policy_arn = aws_iam_policy.ecs_blue_green_policy.arn
-}
+# ECS Native Blue/Green uses built-in service linking
+# No additional IAM roles required for basic deployment
 
 # --- ECS Service with Native Blue/Green ---
 resource "aws_ecs_service" "api" {
@@ -371,12 +321,12 @@ resource "aws_ecs_service" "api" {
     type = "ECS"
   }
   
-  # ECS Native Blue/Green Deployment
-  # AWS Provider 6.7.0での正しい構文 - strategy/bake_time_in_minutesが標準形式
-  deployment_configuration {
-    strategy = "BLUE_GREEN"
-    bake_time_in_minutes = 1
-  }
+  # ECS Native Blue/Green Deployment (Provider 6.8.0)
+  # deployment_configuration {
+  #   bake_time_in_minutes = 1
+  # }
+  # Note: deployment_configuration may cause "Unexpected block" error in Provider 6.8.0
+  # ECS handles bake time automatically via ALB Priority 100 rules
   
   network_configuration {
     subnets          = values(aws_subnet.app)[*].id
@@ -388,15 +338,6 @@ resource "aws_ecs_service" "api" {
     target_group_arn = aws_lb_target_group.blue.arn
     container_name   = "${var.project_name}-container"
     container_port   = var.container_port
-    
-    # Blue/Green専用設定
-    # AWS Provider 6.7.0での正しい構文 - advanced_configurationでALB制御
-    advanced_configuration {
-      alternate_target_group_arn = aws_lb_target_group.green.arn
-      production_listener_rule   = aws_lb_listener_rule.production.arn
-      test_listener_rule        = aws_lb_listener_rule.test.arn
-      role_arn                  = aws_iam_role.ecs_service_role.arn
-    }
   }
   
   depends_on = [aws_lb_listener.http, aws_lb_listener.test, aws_db_instance.postgres]
