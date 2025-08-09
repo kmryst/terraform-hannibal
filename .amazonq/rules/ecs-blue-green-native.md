@@ -8,8 +8,8 @@ Amazon ECS blue/green deployments (Released July 17, 2025)
 - **Terraform**: 1.12.1 (2025年7月リリース最新版)
 - **AWS Provider**: 6.7.0 (2025年7月31日リリース最新版)
 - **実装プロジェクト**: nestjs-hannibal-3
-- **確認日**: 2025年8月4日
-- **動作状況**: ✅ 完全動作確認済み
+- **確認日**: 2025年8月9日（ALB設定修正版）
+- **動作状況**: ✅ 完全動作確認済み（修正後）
 
 ## 基本原則
 - **CodeDeployを使わずにECS単体でBlue/Green deploymentを実現**
@@ -308,6 +308,34 @@ resource "aws_ecs_service" "api" {
   }
 }
 ```
+
+## ⚠️ 重要な修正事項（2025年8月9日更新）
+
+### ALBリスナールール設定の修正が必須
+**問題**: 古いTerraform形式ではECS Native Blue/Green deploymentが動作しない
+
+```hcl
+# ❌ 修正前（動作しない）
+action {
+  type             = "forward"
+  target_group_arn = aws_lb_target_group.blue.arn
+}
+
+# ✅ 修正後（正常動作）
+action {
+  type = "forward"
+  forward {
+    target_group {
+      arn    = aws_lb_target_group.blue.arn
+      weight = 100
+    }
+  }
+}
+```
+
+**影響**: この修正により、ALBリスナールールがECSによって正しく制御され、Blue/Green切り替えが自動実行されます。
+
+**確認日**: 2025年8月9日 - nestjs-hannibal-3プロジェクトで実証済み
 
 ## 実装で得た重要な知見
 
