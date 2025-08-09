@@ -28,13 +28,22 @@ while ($true) {
             Write-Host "Green TG not found or no targets" -ForegroundColor Yellow
         }
         
-        # ALB Listener Rules
-        Write-Host "`n--- ALB Listener Rules ---" -ForegroundColor Yellow
+        # ALB Listener Rules (Weight-based routing)
+        Write-Host "`n--- ALB Listener Rules (Production Port 80) ---" -ForegroundColor Yellow
         $albArn = aws elbv2 describe-load-balancers --names nestjs-hannibal-3-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text
         if ($albArn -and $albArn -ne "None") {
-            $listenerArn = aws elbv2 describe-listeners --load-balancer-arn $albArn --query 'Listeners[0].ListenerArn' --output text
+            $listenerArn = aws elbv2 describe-listeners --load-balancer-arn $albArn --query 'Listeners[?Port==`80`].ListenerArn' --output text
             if ($listenerArn -and $listenerArn -ne "None") {
-                aws elbv2 describe-rules --listener-arn $listenerArn --query 'Rules[*].{Priority:Priority,TargetGroup:Actions[0].TargetGroupArn}' --output table
+                aws elbv2 describe-rules --listener-arn $listenerArn --query 'Rules[?Priority==`100`].Actions[0].ForwardConfig.TargetGroups[*].{TargetGroup:TargetGroupArn,Weight:Weight}' --output table
+            }
+        }
+        
+        # Test Listener (Port 8080)
+        Write-Host "`n--- Test Listener (Port 8080) ---" -ForegroundColor Cyan
+        if ($albArn -and $albArn -ne "None") {
+            $testListenerArn = aws elbv2 describe-listeners --load-balancer-arn $albArn --query 'Listeners[?Port==`8080`].ListenerArn' --output text
+            if ($testListenerArn -and $testListenerArn -ne "None") {
+                aws elbv2 describe-rules --listener-arn $testListenerArn --query 'Rules[?Priority==`100`].Actions[0].ForwardConfig.TargetGroups[*].{TargetGroup:TargetGroupArn,Weight:Weight}' --output table
             }
         }
         

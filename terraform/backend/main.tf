@@ -53,58 +53,8 @@ resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
 
 # --- Application Resources (アプリケーションリソース) ---
 
-# --- IAM Role for ECS Service (Blue/Green) ---
-resource "aws_iam_role" "ecs_service_role" {
-  name = "${var.project_name}-ecs-service-role"
-  
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_policy" "ecs_blue_green_policy" {
-  name = "${var.project_name}-ecs-blue-green-policy"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "elasticloadbalancing:ModifyListener",
-          "elasticloadbalancing:ModifyRule",
-          "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeListeners",
-          "elasticloadbalancing:DescribeRules",
-          "elasticloadbalancing:RegisterTargets",
-          "elasticloadbalancing:DeregisterTargets",
-          "elasticloadbalancing:DescribeTargetHealth",
-          "elasticloadbalancing:DescribeLoadBalancers",
-          "ecs:DescribeServices",
-          "ecs:UpdateService",
-          "ecs:DescribeTaskDefinition",
-          "ecs:DescribeTasks",
-          "ecs:ListTasks"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_service_blue_green" {
-  role       = aws_iam_role.ecs_service_role.name
-  policy_arn = aws_iam_policy.ecs_blue_green_policy.arn
-}
+# Note: ECS service role removed - using standard ECS service linking
+# Blue/Green deployments will be handled via external deployment tools (CodeDeploy, etc.)
 
 # --- IAM Role for ECS Task ---
 # ECSタスクがAWSのサービス（例：ECRからイメージのpullなど）にアクセスするためのIAMロールを作成
@@ -267,12 +217,11 @@ resource "aws_lb_listener" "http" {
   port              = var.alb_listener_port
   protocol          = "HTTP"
   default_action {
-    type = "forward"
-    forward {
-      target_group {
-        arn    = aws_lb_target_group.blue.arn
-        weight = 100
-      }
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Not Found"
+      status_code  = "404"
     }
   }
 }
@@ -302,7 +251,12 @@ resource "aws_lb_listener_rule" "production" {
     type = "forward"
     forward {
       target_group {
-        arn = aws_lb_target_group.blue.arn
+        arn    = aws_lb_target_group.blue.arn
+        weight = 100
+      }
+      target_group {
+        arn    = aws_lb_target_group.green.arn
+        weight = 0
       }
     }
   }
@@ -311,6 +265,10 @@ resource "aws_lb_listener_rule" "production" {
     path_pattern {
       values = ["/*"]
     }
+  }
+  
+  lifecycle {
+    ignore_changes = [action]
   }
 }
 
@@ -322,7 +280,12 @@ resource "aws_lb_listener_rule" "test" {
     type = "forward"
     forward {
       target_group {
-        arn = aws_lb_target_group.green.arn
+        arn    = aws_lb_target_group.blue.arn
+        weight = 0
+      }
+      target_group {
+        arn    = aws_lb_target_group.green.arn
+        weight = 100
       }
     }
   }
@@ -331,6 +294,10 @@ resource "aws_lb_listener_rule" "test" {
     path_pattern {
       values = ["/*"]
     }
+  }
+  
+  lifecycle {
+    ignore_changes = [action]
   }
 }
 
@@ -351,11 +318,7 @@ resource "aws_ecs_service" "api" {
     type = "ECS"
   }
   
-  # ECS Native Blue/Green Deployment (2025年7月17日新機能・v6.4.0対応)
-  deployment_configuration {
-    strategy             = "BLUE_GREEN"
-    bake_time_in_minutes = 1
-  }
+
   
   network_configuration {
     subnets          = values(aws_subnet.app)[*].id
@@ -367,16 +330,8 @@ resource "aws_ecs_service" "api" {
     target_group_arn = aws_lb_target_group.blue.arn
     container_name   = "${var.project_name}-container"
     container_port   = var.container_port
-    
-    # Blue/Green専用設定 (v6.4.0対応)
-    # terraform-ignore: advanced_configuration is valid for ECS Native Blue/Green
-    advanced_configuration {
-      alternate_target_group_arn = aws_lb_target_group.green.arn
-      production_listener_rule   = aws_lb_listener_rule.production.arn
-      test_listener_rule         = aws_lb_listener_rule.test.arn
-      role_arn                   = aws_iam_role.ecs_service_role.arn
-    }
   }
+  
   depends_on = [aws_lb_listener.http, aws_lb_listener.test, aws_db_instance.postgres]
 }
 
