@@ -13,33 +13,9 @@ locals {
   deletion_protection    = var.environment == "prod"
 }
 
-# --- VPC Data Sources (既存のVPCとサブネットを使用する場合) ---
-# dataソースは、「AWS上にすでに存在するVPCの情報を自動で取得する」ためのものです
-# これにより、手動でVPC IDを指定する代わりに、Terraformが自動的にVPC情報を取得できます
-# provider.tf でリージョン指定している
-data "aws_vpc" "selected" { # AWSのVPC情報を取得して、selectedという名前でTerraform内から参照できるようにした
-  # id = var.vpc_id # vpc_id を直接指定する場合
-  default = true # デフォルトVPCを自動で探して、その情報（IDなど）を取得(なければエラー)
-  # デフォルトVPCは、AWSアカウント作成時に自動的に作成されるVPCです
-  # 通常、パブリックサブネットが含まれており、開発環境での使用に適しています
-  # 各リージョンにはデフォルトVPCが1つ自動で用意されています（削除も可能）
-  # それとは別に、1つのリージョン内で複数のVPCを自分で作成することも可能です
-}
-
-# これは「AWSにすでに存在するサブネットの情報のリストを、publicという名前で取得する」という宣言です
-# ALBやECSなどは、そのリスト全部を指定して「複数AZ分散」を自動的にやってくれる
-# 複数のAZにまたがることで、高可用性を確保できます
-data "aws_subnets" "public" {
-  filter {
-    name   = "vpc-id"                   # 任意の文字列ではなく、AWSが認識できる属性名のみが有効です
-    values = [data.aws_vpc.selected.id] # 先ほど取得したVPCのIDを使用
-  }
-  # 必要に応じてタグなどで絞り込み
-  # tags = {
-  #   Tier = "Public" # パブリックサブネットのみを取得する場合
-  # }
-}
-# data.aws_subnets.public.ids で[ "subnet-xxxx", "subnet-yyyy", ... ] のようなリストが取得できます
+# --- Three-tier VPC Architecture ---
+# VPC and subnets are now created in vpc.tf
+# Using new custom VPC instead of default VPC
 
 
 # ⭐️ --- ECR Repository (手動作成済み) --- ⭐️
@@ -240,8 +216,8 @@ resource "aws_lb" "main" {
   name                       = "${var.project_name}-alb"
   internal                   = false
   load_balancer_type         = "application"
-  security_groups            = [aws_security_group.alb_sg.id]
-  subnets                    = data.aws_subnets.public.ids
+  security_groups            = [aws_security_group.alb.id]
+  subnets                    = values(aws_subnet.public)[*].id
   enable_deletion_protection = false
 }
 
@@ -250,7 +226,7 @@ resource "aws_lb_target_group" "blue" {
   name        = "${var.project_name}-blue-tg"
   port        = var.container_port
   protocol    = "HTTP"
-  vpc_id      = data.aws_vpc.selected.id
+  vpc_id      = aws_vpc.main.id
   target_type = "ip"
   health_check {
     enabled             = true
@@ -270,7 +246,7 @@ resource "aws_lb_target_group" "green" {
   name        = "${var.project_name}-green-tg"
   port        = var.container_port
   protocol    = "HTTP"
-  vpc_id      = data.aws_vpc.selected.id
+  vpc_id      = aws_vpc.main.id
   target_type = "ip"
   health_check {
     enabled             = true
@@ -350,54 +326,7 @@ resource "aws_lb_listener_rule" "test" {
 
 
 
-# --- Security Group for ALB ---
-resource "aws_security_group" "alb_sg" {
-  name        = "${var.project_name}-alb-sg"
-  description = "Allow HTTP/HTTPS traffic to ALB"
-  vpc_id      = data.aws_vpc.selected.id
-  
-  # Production Listener (Port 80)
-  ingress {
-    from_port   = var.alb_listener_port
-    to_port     = var.alb_listener_port
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  
-  # Test Listener for Blue/Green Dark Canary (Port 8080)
-  ingress {
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-# --- Security Group for ECS Service ---
-resource "aws_security_group" "ecs_service_sg" {
-  name        = "${var.project_name}-ecs-service-sg"
-  description = "Allow traffic from ALB to ECS tasks"
-  vpc_id      = data.aws_vpc.selected.id
-  ingress {
-    from_port       = var.container_port
-    to_port         = var.container_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
-  }
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
+# Security Groups moved to security_groups.tf
 
 # --- ECS Service ---
 resource "aws_ecs_service" "api" {
@@ -419,9 +348,9 @@ resource "aws_ecs_service" "api" {
   }
   
   network_configuration {
-    subnets          = data.aws_subnets.public.ids
-    security_groups  = [aws_security_group.ecs_service_sg.id]
-    assign_public_ip = true
+    subnets          = values(aws_subnet.app)[*].id
+    security_groups  = [aws_security_group.ecs.id]
+    assign_public_ip = false
   }
   
   load_balancer {
@@ -444,37 +373,16 @@ resource "aws_ecs_service" "api" {
 # --- RDS Subnet Group ---
 resource "aws_db_subnet_group" "postgres" {
   name       = "${var.project_name}-db-subnet-group"
-  subnet_ids = data.aws_subnets.public.ids
+  subnet_ids = values(aws_subnet.data)[*].id
   
   tags = {
-    Name = "${var.project_name} DB subnet group"
+    Name        = "${var.project_name} DB subnet group"
+    project     = var.project_name
+    environment = var.environment
   }
 }
 
-# --- Security Group for RDS ---
-resource "aws_security_group" "rds_sg" {
-  name        = "${var.project_name}-rds-sg"
-  description = "Allow PostgreSQL traffic from ECS"
-  vpc_id      = data.aws_vpc.selected.id
-  
-  ingress {
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ecs_service_sg.id]
-  }
-  
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  
-  tags = {
-    Name = "${var.project_name}-rds-sg"
-  }
-}
+# RDS Security Group moved to security_groups.tf
 
 # --- RDS PostgreSQL Instance ---
 resource "aws_db_instance" "postgres" {
@@ -492,13 +400,13 @@ resource "aws_db_instance" "postgres" {
   username = var.db_username
   password = var.db_password
   
-  vpc_security_group_ids = [aws_security_group.rds_sg.id]
+  vpc_security_group_ids = [aws_security_group.rds.id]
   db_subnet_group_name   = aws_db_subnet_group.postgres.name
   
   # AWS Professional環境別設定（Netflix/Airbnb/Spotify標準）
   backup_retention_period = local.backup_retention_days
   multi_az               = local.enable_multi_az
-  publicly_accessible    = local.publicly_accessible
+  publicly_accessible    = false
   
   # 本番環境のみ有効
   backup_window      = local.enable_backup ? "03:00-04:00" : null

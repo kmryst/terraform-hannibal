@@ -1,9 +1,6 @@
 # terraform/backend/outputs.tf
 
-# Terraform apply後に「どのリソースがどんな値になったか」をすぐ確認できる
-# 他のTerraformプロジェクトや手作業で必要な値（例：ALBのDNS名、ECSクラスタ名など）をコピペしやすい
-# フロントエンドや他システムの設定で「APIのエンドポイント」などを指定する際に便利
-
+# --- ALB ---
 output "alb_dns_name" {
   description = "DNS name of the Application Load Balancer"
   value       = aws_lb.main.dns_name
@@ -19,9 +16,20 @@ output "alb_listener_arn" {
   value       = aws_lb_listener.http.arn
 }
 
+# --- ECS ---
 output "ecs_cluster_name" {
   description = "Name of the ECS cluster"
   value       = aws_ecs_cluster.main.name
+}
+
+output "ecs_service_name" {
+  description = "Name of the ECS service"
+  value       = aws_ecs_service.api.name
+}
+
+output "ecs_task_sg_id" {
+  description = "ECS Task Security Group ID"
+  value       = aws_security_group.ecs.id
 }
 
 output "ecr_repository_url" {
@@ -29,7 +37,7 @@ output "ecr_repository_url" {
   value       = var.ecr_repository_url
 }
 
-# --- Database Outputs ---
+# --- Database ---
 output "db_endpoint" {
   description = "RDS PostgreSQL endpoint"
   value       = aws_db_instance.postgres.endpoint
@@ -46,7 +54,45 @@ output "database_url" {
   sensitive   = true
 }
 
-# --- Monitoring Outputs ---
+# --- VPC ---
+output "vpc_id" {
+  description = "VPC ID"
+  value       = aws_vpc.main.id
+}
+
+# --- Subnet IDs ---
+output "public_subnet_ids" {
+  description = "Public subnet IDs"
+  value       = { for k, v in aws_subnet.public : k => v.id }
+}
+
+output "app_subnet_ids" {
+  description = "App subnet IDs"
+  value       = { for k, v in aws_subnet.app : k => v.id }
+}
+
+output "data_subnet_ids" {
+  description = "Data subnet IDs"
+  value       = { for k, v in aws_subnet.data : k => v.id }
+}
+
+# --- Route Table IDs ---
+output "public_route_table_id" {
+  description = "Public route table ID"
+  value       = aws_route_table.public.id
+}
+
+output "app_route_table_ids" {
+  description = "App route table IDs"
+  value       = { for k, v in aws_route_table.app : k => v.id }
+}
+
+output "data_route_table_id" {
+  description = "Data route table ID"
+  value       = aws_route_table.data.id
+}
+
+# --- Monitoring ---
 output "dashboard_url" {
   description = "CloudWatch Dashboard URL"
   value       = "https://${var.aws_region}.console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.main.dashboard_name}"
