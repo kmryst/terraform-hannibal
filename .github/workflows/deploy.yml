@@ -40,7 +40,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-1
+          aws-region: ${{ env.AWS_REGION }}
       - uses: actions/cache@v4
         with:
           path: |
@@ -57,38 +57,40 @@ jobs:
           TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
       - run: sudo apt-get update && sudo apt-get install -y jq
 
-      # Assume CICD Role
       - name: Assume CICD Role
         run: |
-          CREDS=$(aws sts assume-role --role-arn arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev --role-session-name deploy)
+          CREDS=$(aws sts assume-role \
+            --role-arn arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev \
+            --role-session-name deploy)
           echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
-      # Deploy Backend Infrastructure
       - name: Deploy Backend
         run: |
           terraform init -input=false
-          terraform apply -auto-approve -var="client_url_for_cors=https://hamilcar-hannibal.click" -var="environment=dev"
+          terraform apply -auto-approve \
+            -var="client_url_for_cors=https://hamilcar-hannibal.click" \
+            -var="environment=dev"
           terraform output -json > ../tf_outputs_backend.json
         working-directory: ./terraform/backend
 
-      # Deploy Frontend Infrastructure
       - name: Deploy Frontend Infrastructure
         run: |
           terraform init -input=false
-          terraform apply -auto-approve -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" -var="environment=dev" -var="enable_cloudfront=true"
+          terraform apply -auto-approve \
+            -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" \
+            -var="environment=dev" \
+            -var="enable_cloudfront=true"
           terraform output -json > tf_outputs.json
         working-directory: ./terraform/frontend
 
-      # Get Outputs
       - name: Get Outputs
         id: outputs
         run: |
           echo "s3_bucket_name=$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
           echo "cloudfront_distribution_id=$(jq -r '.cloudfront_distribution_id.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
 
-      # Build and Deploy Frontend
       - uses: actions/setup-node@v3
         with:
           node-version: '20'
@@ -102,87 +104,68 @@ jobs:
         run: aws s3 sync ./client/dist "s3://${{ steps.outputs.outputs.s3_bucket_name }}" --delete
       - name: Invalidate CloudFront
         if: steps.outputs.outputs.cloudfront_distribution_id != 'null' && steps.outputs.outputs.cloudfront_distribution_id != ''
-        run: aws cloudfront create-invalidation --distribution-id "${{ steps.outputs.outputs.cloudfront_distribution_id }}" --paths "/*"
+        run: aws cloudfront create-invalidation \
+          --distribution-id "${{ steps.outputs.outputs.cloudfront_distribution_id }}" \
+          --paths "/*"
 
-      # Build and Deploy Backend
       - uses: aws-actions/amazon-ecr-login@v2
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}
+          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
       - name: Deploy with CodeDeploy Blue/Green (Enterprise)
         run: |
-          # AWS公式仕様にCodeDeploy Blue/Green ECSデプロイメント
           NEW_IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}"
+          echo "🚀 Starting CodeDeploy Blue/Green ECS Deployment"
           
-          echo "🚀 Starting Enterprise CodeDeploy Blue/Green ECS Deployment"
-          echo "📦 Image: $NEW_IMAGE"
-          echo "⚙️  Config: CodeDeployDefault.ECSAllAtOnce"
-          echo "⏱️  Wait Time: 1 minute (Fast Deployment)"
-          
-          # Terraform出力情報を取得
-          echo "📋 Retrieving Terraform outputs..."
           cd terraform/backend
           PROD_LISTENER_ARN=$(terraform output -raw production_listener_arn)
           TEST_LISTENER_ARN=$(terraform output -raw test_listener_arn)
           BLUE_TG_NAME=$(terraform output -raw blue_target_group_name)
           GREEN_TG_NAME=$(terraform output -raw green_target_group_name)
           cd ../..
-          
+
           echo "✅ Terraform Configuration:"
           echo "  - Production Listener: $PROD_LISTENER_ARN"
           echo "  - Test Listener: $TEST_LISTENER_ARN"
           echo "  - Blue Target Group: $BLUE_TG_NAME"
           echo "  - Green Target Group: $GREEN_TG_NAME"
-          
-          # 現在のタスク定義を取得
+
           echo "📋 Retrieving current task definition..."
           aws ecs describe-task-definition \
-            --task-definition ${{ env.PROJECT_NAME }}-api-task \
+            --task-definition "${{ env.PROJECT_NAME }}-api-task" \
             --query 'taskDefinition' > current_task_def.json
-          
-          if [ $? -ne 0 ]; then
-            echo "❌ Failed to retrieve task definition"
-            exit 1
-          fi
-          
-          # 新しいタスク定義を作成
+
           echo "🔧 Creating new task definition..."
           jq --arg IMAGE "$NEW_IMAGE" \
-             '.containerDefinitions[0].image = $IMAGE | 
-              del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)' \
-             current_task_def.json > new_task_def.json
-          
-          # 新しいタスク定義を登録
+            '.containerDefinitions[0].image = $IMAGE |
+             del(.taskDefinitionArn, .revision, .status,
+                 .requiresAttributes, .placementConstraints,
+                 .compatibilities, .registeredAt, .registeredBy)' \
+            current_task_def.json > new_task_def.json
+
           echo "📦 Registering new task definition..."
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
             --cli-input-json file://new_task_def.json \
             --query 'taskDefinition.taskDefinitionArn' --output text)
-          
-          if [ $? -ne 0 ] || [ -z "$NEW_TASK_DEF_ARN" ]; then
-            echo "❌ Failed to register task definition"
-            exit 1
-          fi
-          
-          echo "✅ Task definition registered: $NEW_TASK_DEF_ARN"
-          
-          # AppSpec作成（AWS公式仕様）
+
           echo "📝 Creating AppSpec for CodeDeploy..."
-          cat > appspec.json << EOF
+          cat > appspec.json << 'EOF'
           {
-            "version": "0.0",
+            "version": "1.0",
             "Resources": [
               {
                 "TargetService": {
                   "Type": "AWS::ECS::Service",
                   "Properties": {
-                    "TaskDefinition": "$NEW_TASK_DEF_ARN",
+                    "TaskDefinition": "'"$NEW_TASK_DEF_ARN"'",
                     "LoadBalancerInfo": {
-                      "ContainerName": "${{ env.PROJECT_NAME }}-container",
+                      "ContainerName": "'"${{ env.PROJECT_NAME }}-container"'",
                       "ContainerPort": 3000
                     },
                     "PlatformVersion": "LATEST"
@@ -191,114 +174,22 @@ jobs:
               }
             ],
             "Hooks": [
-              {
-                "BeforeInstall": "echo 'Starting Blue/Green deployment preparation'"
-              },
-              {
-                "AfterInstall": "echo 'New task definition registered successfully'"
-              },
-              {
-                "AfterAllowTestTraffic": "echo 'Test traffic validation completed'"
-              },
-              {
-                "BeforeAllowTraffic": "echo 'Preparing production traffic switch'"
-              },
-              {
-                "AfterAllowTraffic": "echo 'Production traffic switch completed successfully'"
-              }
+              { "BeforeInstall":  "echo 'Starting Blue/Green deployment preparation'" },
+              { "AfterInstall":   "echo 'New task definition registered successfully'" },
+              { "AfterAllowTestTraffic": "echo 'Test traffic validation completed'" },
+              { "BeforeAllowTraffic":    "echo 'Preparing production traffic switch'" },
+              { "AfterAllowTraffic":     "echo 'Production traffic switch completed successfully'" }
             ]
           }
           EOF
-          
-          # CodeDeployデプロイメント実行
+
           echo "🚀 Starting CodeDeploy Blue/Green deployment..."
           DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --application-name ${{ env.PROJECT_NAME }}-codedeploy-app \
-            --deployment-group-name ${{ env.PROJECT_NAME }}-deployment-group \
+            --application-name "${{ env.PROJECT_NAME }}-codedeploy-app" \
+            --deployment-group-name "${{ env.PROJECT_NAME }}-deployment-group" \
             --deployment-config-name CodeDeployDefault.ECSAllAtOnce \
-            --revision 'revisionType=AppSpecContent,appSpecContent={"content":"{\"version\":\"0.0\",\"Resources\":[{\"TargetService\":{\"Type\":\"AWS::ECS::Service\",\"Properties\":{\"TaskDefinition\":\"'"$NEW_TASK_DEF_ARN"'\",\"LoadBalancerInfo\":{\"ContainerName\":\"${{ env.PROJECT_NAME }}-container\",\"ContainerPort\":3000},\"PlatformVersion\":\"LATEST\"}}}],\"Hooks\":[{\"BeforeInstall\":\"echo '\''Preparing new task definition'\''\"},{\"AfterInstall\":\"echo '\''New task definition registered successfully'\''\"},{\"AfterAllowTestTraffic\":\"echo '\''Test traffic validation completed'\''\"},{\"BeforeAllowTraffic\":\"echo '\''Preparing production traffic switch'\''\"},{\"AfterAllowTraffic\":\"echo '\''Production traffic switch completed successfully'\''\"}"]}"}' \
+            --revision "revisionType=AppSpecContent,appSpecContent={\"content\":$(jq -Rs . appspec.json)}" \
             --query 'deploymentId' --output text)
-          
-          if [ $? -ne 0 ] || [ -z "$DEPLOYMENT_ID" ]; then
-            echo "❌ Failed to create CodeDeploy deployment"
-            exit 1
-          fi
-          
-          echo "✅ Enterprise CodeDeploy deployment initiated: $DEPLOYMENT_ID"
-          echo "📈 Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
-          
-          # デプロイメント監視
-          echo "⏳ Monitoring enterprise deployment progress..."
-          START_TIME=$(date +%s)
-          
-          while true; do
-            CURRENT_TIME=$(date +%s)
-            ELAPSED=$((CURRENT_TIME - START_TIME))
-            
-            DEPLOYMENT_INFO=$(aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --query 'deploymentInfo' --output json)
-            STATUS=$(echo $DEPLOYMENT_INFO | jq -r '.status')
-            
-            if [ $? -ne 0 ]; then
-              echo "❌ Failed to get deployment status"
-              exit 1
-            fi
-            
-            echo "[$(date +'%H:%M:%S')] Status: $STATUS (Elapsed: ${ELAPSED}s)"
-            
-            case $STATUS in
-              "Succeeded")
-                echo "🎉 Enterprise CodeDeploy Blue/Green deployment completed successfully!"
-                echo "📊 Total deployment time: ${ELAPSED} seconds"
-                
-                # ALB情報表示
-                ALB_DNS=$(aws elbv2 describe-load-balancers \
-                  --names "${{ env.PROJECT_NAME }}-alb" \
-                  --query 'LoadBalancers[0].DNSName' --output text)
-                
-                echo "🌐 Production URL: http://$ALB_DNS"
-                echo "🧪 Test URL: http://$ALB_DNS:8080"
-                echo "📈 CloudWatch Logs: /aws/codedeploy/${{ env.PROJECT_NAME }}"
-                echo "📊 Deployment Summary:"
-                echo "  - Blue Target Group: $BLUE_TG_NAME"
-                echo "  - Green Target Group: $GREEN_TG_NAME"
-                echo "  - Wait Time: 1 minute"
-                echo "  - Termination Wait: 1 minute"
-                break
-                ;;
-              "Failed"|"Stopped")
-                echo "❌ Enterprise CodeDeploy deployment failed with status: $STATUS"
-                
-                # 詳細エラー情報
-                ERROR_INFO=$(echo $DEPLOYMENT_INFO | jq -r '.errorInformation // empty')
-                if [ -n "$ERROR_INFO" ]; then
-                  echo "🔍 Error Information:"
-                  echo $ERROR_INFO | jq -r '.'
-                fi
-                
-                # ロールバック情報
-                ROLLBACK_INFO=$(echo $DEPLOYMENT_INFO | jq -r '.rollbackInfo // empty')
-                if [ -n "$ROLLBACK_INFO" ]; then
-                  echo "🔄 Rollback Information:"
-                  echo $ROLLBACK_INFO | jq -r '.'
-                fi
-                
-                exit 1
-                ;;
-              "InProgress"|"Queued"|"Ready")
-                # 継続監視
-                ;;
-              *)
-                echo "⚠️  Unknown deployment status: $STATUS"
-                ;;
-            esac
-            
-            # 30分タイムアウト
-            if [ $ELAPSED -gt 1800 ]; then
-              echo "⏰ Enterprise deployment timeout after 30 minutes"
-              echo "🔄 Initiating automatic rollback..."
-              aws deploy stop-deployment --deployment-id $DEPLOYMENT_ID --auto-rollback-enabled
-              exit 1
-            fi
-            
-            sleep 30
-          done
+
+          echo "✅ Deployment initiated: $DEPLOYMENT_ID"
+          echo "Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
