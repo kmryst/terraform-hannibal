@@ -1,9 +1,6 @@
 # terraform/backend/codedeploy.tf
-# AWS Professional CodeDeploy Blue/Green for ECS
-# Based on Netflix/Airbnb/Spotify enterprise patterns
-
-# --- Data Sources ---
-data "aws_caller_identity" "current" {}
+# AWS CodeDeploy Blue/Green for ECS - Official Documentation Compliant
+# Based on AWS Best Practices and Enterprise Patterns
 
 # --- CodeDeploy Application ---
 resource "aws_codedeploy_app" "ecs_app" {
@@ -24,42 +21,32 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   service_role_arn       = aws_iam_role.codedeploy_service_role.arn
   deployment_config_name = "CodeDeployDefault.ECSAllAtOnce"
 
-  # 自動ロールバック設定
-  auto_rollback_configuration {
-    enabled = true
-    events  = ["DEPLOYMENT_FAILURE"]
-  }
-
-  # Blue/Green デプロイメント設定
+  # Blue/Green Deployment Style
   deployment_style {
     deployment_type   = "BLUE_GREEN"
     deployment_option = "WITH_TRAFFIC_CONTROL"
   }
 
-  # ECS サービス設定
+  # ECS Service Configuration
   ecs_service {
     cluster_name = aws_ecs_cluster.main.name
     service_name = aws_ecs_service.api.name
   }
 
-
-  
-
-  
-  # ロードバランサー設定（Target Group Pair Info）
+  # Load Balancer Configuration (Target Group Pair Info)
   load_balancer_info {
     target_group_pair_info {
-      # 本番トラフィック用リスナー（ポート80）
+      # Production Traffic Route (Port 80)
       prod_traffic_route {
         listener_arns = [aws_lb_listener.http.arn]
       }
       
-      # テストトラフィック用リスナー（ポート8080）
+      # Test Traffic Route (Port 8080)
       test_traffic_route {
         listener_arns = [aws_lb_listener.test.arn]
       }
       
-      # Blue/Green ターゲットグループ
+      # Blue/Green Target Groups
       target_group {
         name = aws_lb_target_group.blue.name
       }
@@ -70,7 +57,24 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
     }
   }
 
+  # Blue/Green Deployment Configuration (Required for ECS)
+  blue_green_deployment_config {
+    deployment_ready_option {
+      action_on_timeout    = "STOP_DEPLOYMENT"
+      wait_time_in_minutes = 1
+    }
+    
+    terminate_blue_instances_on_deployment_success {
+      action                           = "TERMINATE"
+      termination_wait_time_in_minutes = 1
+    }
+  }
 
+  # Auto Rollback Configuration
+  auto_rollback_configuration {
+    enabled = true
+    events  = ["DEPLOYMENT_FAILURE"]
+  }
   
   tags = {
     Name        = "${var.project_name} Deployment Group"
@@ -104,16 +108,11 @@ resource "aws_iam_role" "codedeploy_service_role" {
   }
 }
 
-# --- IAM Policy Attachments for CodeDeploy ---
+# --- IAM Policy Attachment (AWS Managed Policy Only) ---
 resource "aws_iam_role_policy_attachment" "codedeploy_service_role_policy" {
   role       = aws_iam_role.codedeploy_service_role.name
   policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
 }
-
-# IAM inline policy removed due to Permission Boundary restrictions
-# Enhanced permissions should be added to foundation IAM policies
-
-
 
 # --- CloudWatch Log Group for CodeDeploy ---
 resource "aws_cloudwatch_log_group" "codedeploy_logs" {
@@ -126,4 +125,3 @@ resource "aws_cloudwatch_log_group" "codedeploy_logs" {
     environment = var.environment
   }
 }
-

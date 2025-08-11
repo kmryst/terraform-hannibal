@@ -37,6 +37,38 @@
 - **Docker**: コンテナ化
 - **Terraform**: Infrastructure as Code
 
+## 🚀 CodeDeploy Blue/Green ECS デプロイメント
+
+### 主要設定
+- **Deployment Config**: `CodeDeployDefault.ECSAllAtOnce`
+- **Wait Time**: 1分（高速デプロイ）
+- **Auto Rollback**: 失敗時自動ロールバック
+- **Target Groups**: Blue/Green環境切り替え
+
+### リスナー設定
+- **Production Listener**: Port 80 (Blue Target Group)
+- **Test Listener**: Port 8080 (Green Target Group)
+- **Listener ARNs**: Terraformで自動取得
+
+### ターゲットグループ
+- **Blue Target Group**: `nestjs-hannibal-3-blue-tg`
+- **Green Target Group**: `nestjs-hannibal-3-green-tg`
+- **Health Check**: `/` パスでHTTP 200レスポンス
+
+### 手動デプロイ
+```powershell
+# PowerShellスクリプトでデプロイ
+.\scripts\deployment\deploy-codedeploy.ps1 -ImageTag "v1.2.3"
+
+# 環境指定
+.\scripts\deployment\deploy-codedeploy.ps1 -ImageTag "v1.2.3" -Environment "staging"
+```
+
+### 監視URL
+- **Production**: `http://<ALB-DNS>`
+- **Test**: `http://<ALB-DNS>:8080`
+- **CloudWatch Logs**: `/aws/codedeploy/nestjs-hannibal-3`
+
 ## 🔐 AWS Professional設計
 
 ### 設計原則
@@ -50,3 +82,4 @@
 - **CloudTrail監査**: 全API呼び出しの記録・分析
 - **AssumeRole**: 環境別権限分離
 - **CodeDeploy Blue/Green**: 自動ロールバック機能
+- **IAM最小権限**: AWS管理ポリシーのみ使用

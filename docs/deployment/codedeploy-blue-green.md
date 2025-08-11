@@ -1,16 +1,16 @@
 # CodeDeploy Blue/Green Deployment for ECS
 
-企業レベルのCodeDeploy Blue/Green デプロイメント設定とベストプラクティス
+AWS公式ドキュメントに準拠したCodeDeploy Blue/Green ECSデプロイメント実装
 
 ## 📋 概要
 
-Netflix、Airbnb、Spotifyなどの企業レベル設計に基づいたCodeDeploy Blue/Green デプロイメントを実装。
+AWS公式ドキュメントとベストプラクティスに基づいたCodeDeploy Blue/Green ECSデプロイメントを実装。
 
 ### 主要機能
 - **無停止デプロイメント**: Blue/Green環境での安全な切り替え
 - **自動ロールバック**: 失敗時の自動復旧
-- **企業レベル監視**: CloudWatch Alarms + SNS通知
-- **カスタムデプロイ設定**: Bake time 1分の高速デプロイ
+- **AWS管理ポリシー**: 最小権限原則に準拠
+- **高速デプロイ**: 1分のWait Timeで迅速切り替え
 
 ## 🏗️ アーキテクチャ
 
@@ -47,7 +47,7 @@ resource "aws_codedeploy_app" "ecs_app" {
 }
 ```
 
-#### Deployment Group（企業レベル設定）
+#### Deployment Group（AWS公式仕様）
 ```hcl
 resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   app_name               = aws_codedeploy_app.ecs_app.name
@@ -55,10 +55,10 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   service_role_arn       = aws_iam_role.codedeploy_service_role.arn
   deployment_config_name = aws_codedeploy_deployment_config.ecs_custom_config.deployment_config_name
 
-  # 企業レベル自動ロールバック設定
+  # 自動ロールバック設定
   auto_rollback_configuration {
     enabled = true
-    events  = ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM"]
+    events  = ["DEPLOYMENT_FAILURE"]
   }
 
   # Target Group Pair Info（正しい構文）
