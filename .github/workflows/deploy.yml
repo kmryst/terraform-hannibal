@@ -153,12 +153,11 @@ jobs:
 
       - name: Create CodeDeploy Deployment
         run: |
-          REV_JSON=$(jq -c . appspec.json)
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name "${{ env.PROJECT_NAME }}-codedeploy-app" \
             --deployment-group-name "${{ env.PROJECT_NAME }}-deployment-group" \
             --deployment-config-name CodeDeployDefault.ECSAllAtOnce \
-            --revision "revisionType=AppSpecContent,appSpecContent=$REV_JSON" \
+            --revision file://appspec.json \
             --query 'deploymentId' --output text)
           echo "✅ Deployment initiated: $DEPLOYMENT_ID"
           echo "📈 Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
