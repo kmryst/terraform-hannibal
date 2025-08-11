@@ -216,7 +216,7 @@ jobs:
             --application-name ${{ env.PROJECT_NAME }}-codedeploy-app \
             --deployment-group-name ${{ env.PROJECT_NAME }}-deployment-group \
             --deployment-config-name CodeDeployDefault.ECSAllAtOnce \
-            --revision '{"revisionType":"AppSpecContent","appSpecContent":{"content":"'$(cat appspec.json | jq -c . | sed 's/"/\\"/g')'"}}'  \
+            --revision 'revisionType=AppSpecContent,appSpecContent={"content":"{\"version\":\"0.0\",\"Resources\":[{\"TargetService\":{\"Type\":\"AWS::ECS::Service\",\"Properties\":{\"TaskDefinition\":\"'"$NEW_TASK_DEF_ARN"'\",\"LoadBalancerInfo\":{\"ContainerName\":\"${{ env.PROJECT_NAME }}-container\",\"ContainerPort\":3000},\"PlatformVersion\":\"LATEST\"}}}],\"Hooks\":[{\"BeforeInstall\":\"echo '\''Preparing new task definition'\''\"},{\"AfterInstall\":\"echo '\''New task definition registered successfully'\''\"},{\"AfterAllowTestTraffic\":\"echo '\''Test traffic validation completed'\''\"},{\"BeforeAllowTraffic\":\"echo '\''Preparing production traffic switch'\''\"},{\"AfterAllowTraffic\":\"echo '\''Production traffic switch completed successfully'\''\"}"]}"}' \
             --query 'deploymentId' --output text)
           
           if [ $? -ne 0 ] || [ -z "$DEPLOYMENT_ID" ]; then
