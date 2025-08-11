@@ -12,8 +12,8 @@ output "codedeploy_deployment_group_name" {
 }
 
 output "codedeploy_deployment_config_name" {
-  description = "CodeDeploy custom deployment config name"
-  value       = aws_codedeploy_deployment_config.ecs_custom_config.deployment_config_name
+  description = "CodeDeploy deployment config name"
+  value       = "CodeDeployDefault.ECSAllAtOnce"
 }
 
 output "codedeploy_service_role_arn" {
@@ -135,31 +135,7 @@ output "data_route_table_id" {
   value       = aws_route_table.data.id
 }
 
-# --- CodeDeploy ---
-output "codedeploy_app_name" {
-  description = "CodeDeploy application name"
-  value       = aws_codedeploy_app.ecs_app.name
-}
 
-output "codedeploy_deployment_group_name" {
-  description = "CodeDeploy deployment group name"
-  value       = aws_codedeploy_deployment_group.ecs_deployment_group.deployment_group_name
-}
-
-output "blue_target_group_arn" {
-  description = "Blue target group ARN"
-  value       = aws_lb_target_group.blue.arn
-}
-
-output "green_target_group_arn" {
-  description = "Green target group ARN"
-  value       = aws_lb_target_group.green.arn
-}
-
-output "test_listener_arn" {
-  description = "Test listener ARN (port 8080)"
-  value       = aws_lb_listener.test.arn
-}
 
 # --- Monitoring ---
 output "dashboard_url" {
