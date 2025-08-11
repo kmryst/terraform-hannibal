@@ -109,13 +109,17 @@ jobs:
 
       - name: Register New Task Definition
         run: |
-          NEW_TASK_DEF_ARN=$(jq --arg IMAGE "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}" \
+          # Write modified task definition JSON to a file
+          jq --arg IMAGE "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}" \
             '.containerDefinitions[0].image = $IMAGE |
              del(.taskDefinitionArn, .revision, .status,
                  .requiresAttributes, .placementConstraints,
                  .compatibilities, .registeredAt, .registeredBy)' \
-            current_task_def.json | \
-            aws ecs register-task-definition --cli-input-json file:///dev/stdin \
+            current_task_def.json > new_task_def.json
+
+          # Register using file reference
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://new_task_def.json \
             --query 'taskDefinition.taskDefinitionArn' --output text)
           echo "NEW_TASK_DEF_ARN=$NEW_TASK_DEF_ARN" >> $GITHUB_ENV
 
