@@ -311,19 +311,12 @@ jobs:
             exit 1
           fi
           
-          # Create revision JSON with proper escaping
-          REV_JSON=$(jq -c . appspec.json)
-          if [ $? -ne 0 ] || [ -z "$REV_JSON" ]; then
-            echo "❌ Failed to compress AppSpec JSON"
-            exit 1
-          fi
-          
-          echo "📋 Creating deployment with revision..."
+          echo "📋 Creating deployment..."
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name "${{ env.PROJECT_NAME }}-codedeploy-app" \
             --deployment-group-name "${{ env.PROJECT_NAME }}-deployment-group" \
             --deployment-config-name "CodeDeployDefault.ECSAllAtOnce" \
-            --revision "{\"revisionType\":\"AppSpecContent\",\"appSpecContent\":{\"content\":\"$REV_JSON\"}}" \
+            --revision revisionType=AppSpecContent,appSpecContent="{\"content\":\"$(jq -c . appspec.json | sed 's/"/\\"/g')\"}" \
             --query 'deploymentId' --output text)
           
           if [ $? -ne 0 ] || [ -z "$DEPLOYMENT_ID" ]; then
