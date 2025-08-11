@@ -33,11 +33,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
       - run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Assume CICD Role
@@ -50,25 +52,23 @@ jobs:
           echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
       - name: Deploy Backend Infrastructure
+        working-directory: ./terraform/backend
         run: |
-          cd terraform/backend
           terraform init -input=false
           terraform apply -auto-approve \
             -var="client_url_for_cors=https://hamilcar-hannibal.click" \
             -var="environment=dev"
           terraform output -json > ../../tf_outputs_backend.json
-        working-directory: ./terraform/backend
 
       - name: Deploy Frontend Infrastructure
+        working-directory: ./terraform/frontend
         run: |
-          cd terraform/frontend
           terraform init -input=false
           terraform apply -auto-approve \
             -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../../tf_outputs_backend.json)" \
             -var="environment=dev" \
             -var="enable_cloudfront=true"
           terraform output -json > ../../tf_outputs_frontend.json
-        working-directory: ./terraform/frontend
 
       - name: Build and Push ECS Image
         run: |
@@ -78,8 +78,8 @@ jobs:
           docker push $NEW_IMAGE
 
       - name: Retrieve Terraform Outputs for CodeDeploy
+        working-directory: ./terraform/backend
         run: |
-          cd terraform/backend
           PROD_LISTENER_ARN=$(terraform output -raw production_listener_arn)
           TEST_LISTENER_ARN=$(terraform output -raw test_listener_arn)
           BLUE_TG_NAME=$(terraform output -raw blue_target_group_name)
@@ -88,7 +88,6 @@ jobs:
           echo "::set-output name=test_listener::$TEST_LISTENER_ARN"
           echo "::set-output name=blue_tg::$BLUE_TG_NAME"
           echo "::set-output name=green_tg::$GREEN_TG_NAME"
-          cd ../..
 
       - name: Describe Current Task Definition
         run: |
