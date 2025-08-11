@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: Deploy NestJS Hannibal (Fast)
 
 env:
@@ -12,29 +13,49 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js (server)
+        uses: actions/setup-node@v3
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: package-lock.json
-      - run: npm ci
-      - run: npm test
-      - uses: actions/setup-node@v3
+
+      - name: Install server dependencies
+        run: npm ci
+        shell: bash
+
+      - name: Run server tests
+        run: npm test
+        shell: bash
+
+      - name: Setup Node.js (client)
+        uses: actions/setup-node@v3
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
-      - run: npm ci
+
+      - name: Install client dependencies
+        run: npm ci
+        shell: bash
         working-directory: ./client
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -44,11 +65,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
+        shell: bash
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.12.1
+          terraform_version: '1.12.1'
         env:
           TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
 
@@ -60,6 +82,7 @@ jobs:
           echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+        shell: bash
 
       - name: Deploy Backend Infrastructure
         working-directory: ./terraform/backend
@@ -69,6 +92,7 @@ jobs:
             -var="client_url_for_cors=https://hamilcar-hannibal.click" \
             -var="environment=dev"
           terraform output -json > ../../tf_outputs_backend.json
+        shell: bash
 
       - name: Deploy Frontend Infrastructure
         working-directory: ./terraform/frontend
@@ -79,6 +103,7 @@ jobs:
             -var="environment=dev" \
             -var="enable_cloudfront=true"
           terraform output -json > ../../tf_outputs_frontend.json
+        shell: bash
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
@@ -88,6 +113,7 @@ jobs:
           NEW_IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}"
           docker build -t $NEW_IMAGE .
           docker push $NEW_IMAGE
+        shell: bash
 
       - name: Retrieve Terraform Outputs for CodeDeploy
         working-directory: ./terraform/backend
@@ -96,16 +122,18 @@ jobs:
           TEST_LISTENER_ARN=$(terraform output -raw test_listener_arn)
           BLUE_TG_NAME=$(terraform output -raw blue_target_group_name)
           GREEN_TG_NAME=$(terraform output -raw green_target_group_name)
-          echo "::set-output name=prod_listener::$PROD_LISTENER_ARN"
-          echo "::set-output name=test_listener::$TEST_LISTENER_ARN"
-          echo "::set-output name=blue_tg::$BLUE_TG_NAME"
-          echo "::set-output name=green_tg::$GREEN_TG_NAME"
+          echo "prod_listener=$PROD_LISTENER_ARN" >> $GITHUB_OUTPUT
+          echo "test_listener=$TEST_LISTENER_ARN" >> $GITHUB_OUTPUT
+          echo "blue_tg=$BLUE_TG_NAME" >> $GITHUB_OUTPUT
+          echo "green_tg=$GREEN_TG_NAME" >> $GITHUB_OUTPUT
+        shell: bash
 
       - name: Describe Current Task Definition
         run: |
           aws ecs describe-task-definition \
             --task-definition "${{ env.PROJECT_NAME }}-api-task" \
             --query 'taskDefinition' > current_task_def.json
+        shell: bash
 
       - name: Register New Task Definition
         run: |
@@ -115,41 +143,42 @@ jobs:
                  .requiresAttributes, .placementConstraints,
                  .compatibilities, .registeredAt, .registeredBy)' \
             current_task_def.json > new_task_def.json
-
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
             --cli-input-json file://new_task_def.json \
             --query 'taskDefinition.taskDefinitionArn' --output text)
           echo "NEW_TASK_DEF_ARN=$NEW_TASK_DEF_ARN" >> $GITHUB_ENV
+        shell: bash
 
       - name: Generate appspec.json
         run: |
-          cat > appspec.json << 'EOF'
-          {
-            "version": "1.0",
-            "Resources": [
-              {
-                "TargetService": {
-                  "Type": "AWS::ECS::Service",
-                  "Properties": {
-                    "TaskDefinition": "'"$NEW_TASK_DEF_ARN"'",
-                    "LoadBalancerInfo": {
-                      "ContainerName": "'"${{ env.PROJECT_NAME }}-container"'",
-                      "ContainerPort": 3000
-                    },
-                    "PlatformVersion": "LATEST"
-                  }
-                }
-              }
-            ],
-            "Hooks": [
-              { "BeforeInstall":  "echo 'Starting Blue/Green deployment preparation'" },
-              { "AfterInstall":   "echo 'New task definition registered successfully'" },
-              { "AfterAllowTestTraffic": "echo 'Test traffic validation completed'" },
-              { "BeforeAllowTraffic":    "echo 'Preparing production traffic switch'" },
-              { "AfterAllowTraffic":     "echo 'Production traffic switch completed successfully'" }
-            ]
-          }
-          EOF
+          cat > appspec.json <<EOF
+{
+  "version": "1.0",
+  "Resources": [
+    {
+      "TargetService": {
+        "Type": "AWS::ECS::Service",
+        "Properties": {
+          "TaskDefinition": "$NEW_TASK_DEF_ARN",
+          "LoadBalancerInfo": {
+            "ContainerName": "${{ env.PROJECT_NAME }}-container",
+            "ContainerPort": 3000
+          },
+          "PlatformVersion": "LATEST"
+        }
+      }
+    }
+  ],
+  "Hooks": [
+    { "BeforeInstall":  "echo 'Starting Blue/Green deployment preparation'" },
+    { "AfterInstall":   "echo 'New task definition registered successfully'" },
+    { "AfterAllowTestTraffic": "echo 'Test traffic validation completed'" },
+    { "BeforeAllowTraffic":    "echo 'Preparing production traffic switch'" },
+    { "AfterAllowTraffic":     "echo 'Production traffic switch completed successfully'" }
+  ]
+}
+EOF
+        shell: bash
 
       - name: Create CodeDeploy Deployment
         run: |
@@ -161,3 +190,4 @@ jobs:
             --query 'deploymentId' --output text)
           echo "✅ Deployment initiated: $DEPLOYMENT_ID"
           echo "📈 Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
+        shell: bash
