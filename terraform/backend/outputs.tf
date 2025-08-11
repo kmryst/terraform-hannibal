@@ -16,6 +16,37 @@ output "codedeploy_deployment_config_name" {
   value       = "CodeDeployDefault.ECSAllAtOnce"
 }
 
+# --- CodeDeploy Blue/Green Configuration Outputs ---
+output "production_listener_arn" {
+  description = "Production listener ARN (Port 80)"
+  value       = aws_lb_listener.http.arn
+}
+
+output "test_listener_arn" {
+  description = "Test listener ARN (Port 8080)"
+  value       = aws_lb_listener.test.arn
+}
+
+output "blue_target_group_name" {
+  description = "Blue target group name"
+  value       = aws_lb_target_group.blue.name
+}
+
+output "green_target_group_name" {
+  description = "Green target group name"
+  value       = aws_lb_target_group.green.name
+}
+
+output "codedeploy_wait_time_minutes" {
+  description = "CodeDeploy wait time in minutes"
+  value       = 1
+}
+
+output "codedeploy_termination_wait_time_minutes" {
+  description = "CodeDeploy termination wait time in minutes"
+  value       = 1
+}
+
 output "codedeploy_service_role_arn" {
   description = "CodeDeploy service role ARN"
   value       = aws_iam_role.codedeploy_service_role.arn
@@ -33,15 +64,7 @@ output "green_target_group_arn" {
 }
 
 # --- ALB Listeners ---
-output "production_listener_arn" {
-  description = "Production listener ARN (port 80)"
-  value       = aws_lb_listener.http.arn
-}
 
-output "test_listener_arn" {
-  description = "Test listener ARN (port 8080)"
-  value       = aws_lb_listener.test.arn
-}
 
 # --- ALB ---
 output "alb_dns_name" {

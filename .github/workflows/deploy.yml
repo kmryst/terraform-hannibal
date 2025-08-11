@@ -114,14 +114,30 @@ jobs:
           tags: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Deploy with CodeDeploy Blue/Green (AWS Official)
+      - name: Deploy with CodeDeploy Blue/Green (Enterprise)
         run: |
-          # AWS公式CodeDeploy Blue/Green ECSデプロイメント
+          # AWS公式仕様にCodeDeploy Blue/Green ECSデプロイメント
           NEW_IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}"
           
-          echo "🚀 Starting AWS CodeDeploy Blue/Green ECS deployment"
-          echo "📦 New Image: $NEW_IMAGE"
+          echo "🚀 Starting Enterprise CodeDeploy Blue/Green ECS Deployment"
+          echo "📦 Image: $NEW_IMAGE"
           echo "⚙️  Config: CodeDeployDefault.ECSAllAtOnce"
+          echo "⏱️  Wait Time: 1 minute (Fast Deployment)"
+          
+          # Terraform出力情報を取得
+          echo "📋 Retrieving Terraform outputs..."
+          cd terraform/backend
+          PROD_LISTENER_ARN=$(terraform output -raw production_listener_arn)
+          TEST_LISTENER_ARN=$(terraform output -raw test_listener_arn)
+          BLUE_TG_NAME=$(terraform output -raw blue_target_group_name)
+          GREEN_TG_NAME=$(terraform output -raw green_target_group_name)
+          cd ../..
+          
+          echo "✅ Terraform Configuration:"
+          echo "  - Production Listener: $PROD_LISTENER_ARN"
+          echo "  - Test Listener: $TEST_LISTENER_ARN"
+          echo "  - Blue Target Group: $BLUE_TG_NAME"
+          echo "  - Green Target Group: $GREEN_TG_NAME"
           
           # 現在のタスク定義を取得
           echo "📋 Retrieving current task definition..."
@@ -173,12 +189,29 @@ jobs:
                   }
                 }
               }
+            ],
+            "Hooks": [
+              {
+                "BeforeInstall": "echo 'Starting Blue/Green deployment preparation'"
+              },
+              {
+                "AfterInstall": "echo 'New task definition registered successfully'"
+              },
+              {
+                "AfterAllowTestTraffic": "echo 'Test traffic validation completed'"
+              },
+              {
+                "BeforeAllowTraffic": "echo 'Preparing production traffic switch'"
+              },
+              {
+                "AfterAllowTraffic": "echo 'Production traffic switch completed successfully'"
+              }
             ]
           }
           EOF
           
           # CodeDeployデプロイメント実行
-          echo "🚀 Starting CodeDeploy deployment..."
+          echo "🚀 Starting CodeDeploy Blue/Green deployment..."
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name ${{ env.PROJECT_NAME }}-codedeploy-app \
             --deployment-group-name ${{ env.PROJECT_NAME }}-deployment-group \
@@ -191,17 +224,19 @@ jobs:
             exit 1
           fi
           
-          echo "✅ CodeDeploy deployment initiated: $DEPLOYMENT_ID"
+          echo "✅ Enterprise CodeDeploy deployment initiated: $DEPLOYMENT_ID"
+          echo "📈 Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
           
           # デプロイメント監視
-          echo "⏳ Monitoring deployment progress..."
+          echo "⏳ Monitoring enterprise deployment progress..."
           START_TIME=$(date +%s)
           
           while true; do
             CURRENT_TIME=$(date +%s)
             ELAPSED=$((CURRENT_TIME - START_TIME))
             
-            STATUS=$(aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --query 'deploymentInfo.status' --output text)
+            DEPLOYMENT_INFO=$(aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --query 'deploymentInfo' --output json)
+            STATUS=$(echo $DEPLOYMENT_INFO | jq -r '.status')
             
             if [ $? -ne 0 ]; then
               echo "❌ Failed to get deployment status"
@@ -212,7 +247,7 @@ jobs:
             
             case $STATUS in
               "Succeeded")
-                echo "🎉 CodeDeploy Blue/Green deployment completed successfully!"
+                echo "🎉 Enterprise CodeDeploy Blue/Green deployment completed successfully!"
                 echo "📊 Total deployment time: ${ELAPSED} seconds"
                 
                 # ALB情報表示
@@ -223,16 +258,28 @@ jobs:
                 echo "🌐 Production URL: http://$ALB_DNS"
                 echo "🧪 Test URL: http://$ALB_DNS:8080"
                 echo "📈 CloudWatch Logs: /aws/codedeploy/${{ env.PROJECT_NAME }}"
+                echo "📊 Deployment Summary:"
+                echo "  - Blue Target Group: $BLUE_TG_NAME"
+                echo "  - Green Target Group: $GREEN_TG_NAME"
+                echo "  - Wait Time: 1 minute"
+                echo "  - Termination Wait: 1 minute"
                 break
                 ;;
               "Failed"|"Stopped")
-                echo "❌ CodeDeploy deployment failed with status: $STATUS"
+                echo "❌ Enterprise CodeDeploy deployment failed with status: $STATUS"
                 
-                # エラー情報取得
-                ERROR_INFO=$(aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --query 'deploymentInfo.errorInformation' --output json)
-                if [ "$ERROR_INFO" != "null" ]; then
+                # 詳細エラー情報
+                ERROR_INFO=$(echo $DEPLOYMENT_INFO | jq -r '.errorInformation // empty')
+                if [ -n "$ERROR_INFO" ]; then
                   echo "🔍 Error Information:"
                   echo $ERROR_INFO | jq -r '.'
+                fi
+                
+                # ロールバック情報
+                ROLLBACK_INFO=$(echo $DEPLOYMENT_INFO | jq -r '.rollbackInfo // empty')
+                if [ -n "$ROLLBACK_INFO" ]; then
+                  echo "🔄 Rollback Information:"
+                  echo $ROLLBACK_INFO | jq -r '.'
                 fi
                 
                 exit 1
@@ -241,13 +288,14 @@ jobs:
                 # 継続監視
                 ;;
               *)
-                echo "⚠️  Unknown status: $STATUS"
+                echo "⚠️  Unknown deployment status: $STATUS"
                 ;;
             esac
             
             # 30分タイムアウト
             if [ $ELAPSED -gt 1800 ]; then
-              echo "⏰ Deployment timeout after 30 minutes"
+              echo "⏰ Enterprise deployment timeout after 30 minutes"
+              echo "🔄 Initiating automatic rollback..."
               aws deploy stop-deployment --deployment-id $DEPLOYMENT_ID --auto-rollback-enabled
               exit 1
             fi

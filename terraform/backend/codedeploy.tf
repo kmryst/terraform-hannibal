@@ -1,6 +1,6 @@
 # terraform/backend/codedeploy.tf
-# AWS CodeDeploy Blue/Green for ECS - Official Documentation Compliant
-# Based on AWS Best Practices and Enterprise Patterns
+# AWS Official CodeDeploy Blue/Green for ECS Implementation
+# Compliant with AWS Documentation and Best Practices
 
 # --- CodeDeploy Application ---
 resource "aws_codedeploy_app" "ecs_app" {
@@ -21,19 +21,19 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   service_role_arn       = aws_iam_role.codedeploy_service_role.arn
   deployment_config_name = "CodeDeployDefault.ECSAllAtOnce"
 
-  # Blue/Green Deployment Style
+  # Blue/Green Deployment Style (Required)
   deployment_style {
     deployment_type   = "BLUE_GREEN"
     deployment_option = "WITH_TRAFFIC_CONTROL"
   }
 
-  # ECS Service Configuration
+  # ECS Service Configuration (Required)
   ecs_service {
     cluster_name = aws_ecs_cluster.main.name
     service_name = aws_ecs_service.api.name
   }
 
-  # Load Balancer Configuration (Target Group Pair Info)
+  # Load Balancer Configuration (Required for ECS Blue/Green)
   load_balancer_info {
     target_group_pair_info {
       # Production Traffic Route (Port 80)
@@ -108,10 +108,31 @@ resource "aws_iam_role" "codedeploy_service_role" {
   }
 }
 
-# --- IAM Policy Attachment (AWS Managed Policy Only) ---
+# --- IAM Policy Attachment (AWS Managed Policy) ---
 resource "aws_iam_role_policy_attachment" "codedeploy_service_role_policy" {
   role       = aws_iam_role.codedeploy_service_role.name
   policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
+}
+
+# --- Additional IAM Policy for PassRole (Required for ECS Task Execution Role) ---
+resource "aws_iam_role_policy" "codedeploy_passrole_policy" {
+  name = "${var.project_name}-codedeploy-passrole-policy"
+  role = aws_iam_role.codedeploy_service_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:PassRole"
+        ]
+        Resource = [
+          aws_iam_role.ecs_task_execution_role.arn
+        ]
+      }
+    ]
+  })
 }
 
 # --- CloudWatch Log Group for CodeDeploy ---

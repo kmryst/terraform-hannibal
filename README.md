@@ -42,32 +42,64 @@
 ### 主要設定
 - **Deployment Config**: `CodeDeployDefault.ECSAllAtOnce`
 - **Wait Time**: 1分（高速デプロイ）
+- **Termination Wait**: 1分（高速終了）
 - **Auto Rollback**: 失敗時自動ロールバック
 - **Target Groups**: Blue/Green環境切り替え
 
 ### リスナー設定
 - **Production Listener**: Port 80 (Blue Target Group)
 - **Test Listener**: Port 8080 (Green Target Group)
-- **Listener ARNs**: Terraformで自動取得
+- **Listener ARNs**: Terraform Outputで取得
+  ```bash
+  terraform output production_listener_arn
+  terraform output test_listener_arn
+  ```
 
 ### ターゲットグループ
 - **Blue Target Group**: `nestjs-hannibal-3-blue-tg`
 - **Green Target Group**: `nestjs-hannibal-3-green-tg`
 - **Health Check**: `/` パスでHTTP 200レスポンス
+- **Target Group Names**: Terraform Outputで取得
+  ```bash
+  terraform output blue_target_group_name
+  terraform output green_target_group_name
+  ```
 
 ### 手動デプロイ
 ```powershell
-# PowerShellスクリプトでデプロイ
+# 基本デプロイ
 .\scripts\deployment\deploy-codedeploy.ps1 -ImageTag "v1.2.3"
 
 # 環境指定
 .\scripts\deployment\deploy-codedeploy.ps1 -ImageTag "v1.2.3" -Environment "staging"
+
+# Terraformスキップ（インフラ変更なし）
+.\scripts\deployment\deploy-codedeploy.ps1 -ImageTag "v1.2.3" -SkipTerraform
+
+# タイムアウト設定
+.\scripts\deployment\deploy-codedeploy.ps1 -ImageTag "v1.2.3" -TimeoutMinutes 45
 ```
 
 ### 監視URL
 - **Production**: `http://<ALB-DNS>`
 - **Test**: `http://<ALB-DNS>:8080`
 - **CloudWatch Logs**: `/aws/codedeploy/nestjs-hannibal-3`
+- **AWS Console**: `https://console.aws.amazon.com/codesuite/codedeploy/deployments/<DEPLOYMENT-ID>`
+
+### Terraform出力情報
+```bash
+# CodeDeploy設定情報
+terraform output codedeploy_application_name
+terraform output codedeploy_deployment_group_name
+terraform output codedeploy_wait_time_minutes
+terraform output codedeploy_termination_wait_time_minutes
+
+# ネットワーク設定
+terraform output production_listener_arn
+terraform output test_listener_arn
+terraform output blue_target_group_name
+terraform output green_target_group_name
+```
 
 ## 🔐 AWS Professional設計
 
@@ -83,3 +115,4 @@
 - **AssumeRole**: 環境別権限分離
 - **CodeDeploy Blue/Green**: 自動ロールバック機能
 - **IAM最小権限**: AWS管理ポリシーのみ使用
+- **PassRole権限**: ECS Task Execution Roleへの適切な権限委譲
