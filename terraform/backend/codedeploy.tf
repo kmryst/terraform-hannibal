@@ -21,15 +21,11 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
     events  = ["DEPLOYMENT_FAILURE"]
   }
 
-  blue_green_deployment_config {
-    terminate_blue_instances_on_deployment_success {
-      action                         = "TERMINATE"
-      termination_wait_time_in_minutes = 5
-    }
 
-    deployment_ready_option {
-      action_on_timeout = "STOP_DEPLOYMENT"
-    }
+  
+  deployment_style {
+    deployment_type   = "BLUE_GREEN"
+    deployment_option = "WITH_TRAFFIC_CONTROL"
   }
 
   ecs_service {
@@ -37,6 +33,21 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
     service_name = aws_ecs_service.api.name
   }
 
+  blue_green_deployment_config {
+    deployment_ready_option {
+      action_on_timeout = "STOP_DEPLOYMENT"
+    }
+    
+    green_fleet_provisioning_option {
+      action = "COPY_AUTO_SCALING_GROUP"
+    }
+    
+    terminate_blue_instances_on_deployment_success {
+      action                         = "TERMINATE"
+      termination_wait_time_in_minutes = 1
+    }
+  }
+  
   load_balancer_info {
     target_group_info {
       name = aws_lb_target_group.blue.name
@@ -81,6 +92,11 @@ resource "aws_iam_role_policy_attachment" "codedeploy_service_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
 }
 
+resource "aws_iam_role_policy_attachment" "codedeploy_service_role_policy_elb" {
+  role       = aws_iam_role.codedeploy_service_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECSLimitedAccess"
+}
+
 # --- SNS Topic for Deployment Notifications ---
 resource "aws_sns_topic" "deployment_notifications" {
   name              = "${var.project_name}-deployment-notifications"
@@ -97,7 +113,7 @@ resource "aws_sns_topic" "deployment_notifications" {
 resource "aws_cloudwatch_log_group" "codedeploy_logs" {
   name              = "/aws/codedeploy/${var.project_name}"
   retention_in_days = local.enable_backup ? 30 : 7
-  kms_key_id        = "arn:aws:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:alias/aws/logs"
+  # kms_key_id        = "arn:aws:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:alias/aws/logs"
   
   tags = {
     Name        = "${var.project_name} CodeDeploy Logs"

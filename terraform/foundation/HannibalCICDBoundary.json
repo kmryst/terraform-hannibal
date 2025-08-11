@@ -45,7 +45,9 @@
         "iam:RemoveRoleFromInstanceProfile",
         "iam:ListInstanceProfilesForRole",
         "cloudfront:*",
-        "route53:*"
+        "route53:*",
+        "codedeploy:*",
+        "codedeploy:*"
       ],
       "Resource": "*"
     },
