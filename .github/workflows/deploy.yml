@@ -114,22 +114,36 @@ jobs:
           tags: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Deploy with CodeDeploy Blue/Green
+      - name: Deploy with CodeDeploy Blue/Green (Enterprise)
         run: |
-          # 新しいコンテナイメージ
+          # 企業レベルCodeDeploy Blue/Green デプロイメント
           NEW_IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}"
           
-          # 現在のタスク定義を取得してファイルに保存
-          aws ecs describe-task-definition --task-definition ${{ env.PROJECT_NAME }}-api-task --query 'taskDefinition' > current_task_def.json
+          echo "🏢 Starting enterprise-level CodeDeploy Blue/Green deployment"
+          echo "📦 Image: $NEW_IMAGE"
           
-          # 新しいタスク定義を作成（イメージのみ更新）
-          jq --arg IMAGE "$NEW_IMAGE" '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)' current_task_def.json > new_task_def.json
+          # 現在のタスク定義を取得
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.PROJECT_NAME }}-api-task \
+            --query 'taskDefinition' > current_task_def.json
+          
+          # 新しいタスク定義を作成（企業レベル設定）
+          jq --arg IMAGE "$NEW_IMAGE" \
+             --arg DB_URL "postgresql://hannibal_user:$(aws secretsmanager get-secret-value --secret-id ${{ env.PROJECT_NAME }}/db/password --query SecretString --output text 2>/dev/null || echo 'hannibal_password')@${{ env.PROJECT_NAME }}-postgres.cluster-xyz.ap-northeast-1.rds.amazonaws.com:5432/hannibal_db?sslmode=require" \
+             '.containerDefinitions[0].image = $IMAGE | 
+              .containerDefinitions[0].environment |= map(if .name == "DATABASE_URL" then .value = $DB_URL else . end) |
+              del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)' \
+             current_task_def.json > new_task_def.json
           
           # 新しいタスク定義を登録
-          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://new_task_def.json --query 'taskDefinition.taskDefinitionArn' --output text)
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://new_task_def.json \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
           
-          # CodeDeploy Blue/Green deployment実行
-          cat > appspec.json << EOF
+          echo "✅ Task definition registered: $NEW_TASK_DEF_ARN"
+          
+          # 企業レベルAppSpec作成
+          cat > appspec.json << 'EOF'
           {
             "version": "0.0",
             "Resources": [
@@ -137,9 +151,9 @@ jobs:
                 "TargetService": {
                   "Type": "AWS::ECS::Service",
                   "Properties": {
-                    "TaskDefinition": "$NEW_TASK_DEF_ARN",
+                    "TaskDefinition": "TASK_DEF_PLACEHOLDER",
                     "LoadBalancerInfo": {
-                      "ContainerName": "${{ env.PROJECT_NAME }}-container",
+                      "ContainerName": "PROJECT_NAME_PLACEHOLDER-container",
                       "ContainerPort": 3000
                     },
                     "PlatformVersion": "LATEST"
@@ -149,47 +163,90 @@ jobs:
             ],
             "Hooks": [
               {
-                "BeforeInstall": "echo 'Preparing for deployment'"
+                "BeforeInstall": "echo '🔧 準備フェーズ：新しいタスク定義の登録を準備'"
               },
               {
-                "AfterInstall": "echo 'New task definition registered'"
+                "AfterInstall": "echo '📦 インストール完了：新しいタスク定義が登録されました'"
               },
               {
-                "AfterAllowTestTraffic": "echo 'Test traffic validation complete'"
+                "AfterAllowTestTraffic": "echo '🧪 テストトラフィック許可：動作検証を実施中'"
               },
               {
-                "BeforeAllowTraffic": "echo 'Switching to production traffic'"
+                "BeforeAllowTraffic": "echo '🚦 プロダクショントラフィック切り替え前アクション'"
               },
               {
-                "AfterAllowTraffic": "echo 'Deployment completed successfully'"
+                "AfterAllowTraffic": "echo '🎉 プロダクショントラフィックへ切り替え完了'"
               }
             ]
           }
           EOF
           
-          # CodeDeploy デプロイメント実行
+          # プレースホルダーを実際の値に置換
+          sed -i "s/TASK_DEF_PLACEHOLDER/$NEW_TASK_DEF_ARN/g" appspec.json
+          sed -i "s/PROJECT_NAME_PLACEHOLDER/${{ env.PROJECT_NAME }}/g" appspec.json
+          
+          # CodeDeploy デプロイメント実行（ルール準拠）
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name ${{ env.PROJECT_NAME }}-codedeploy-app \
             --deployment-group-name ${{ env.PROJECT_NAME }}-deployment-group \
+            --deployment-config-name CodeDeployDefault.ECSAllAtOnce \
             --revision '{"revisionType":"AppSpecContent","appSpecContent":{"content":"'$(cat appspec.json | jq -c . | sed 's/"/\\"/g')'"}}'  \
             --query 'deploymentId' --output text)
           
-          echo "🚀 CodeDeploy Blue/Green deployment initiated!"
-          echo "Deployment ID: $DEPLOYMENT_ID"
-          echo "Task Definition: $NEW_TASK_DEF_ARN"
+          echo "🚀 Enterprise CodeDeploy Blue/Green deployment initiated!"
+          echo "📋 Deployment ID: $DEPLOYMENT_ID"
+          echo "📦 Task Definition: $NEW_TASK_DEF_ARN"
+          echo "⚙️  Deployment Config: ${{ env.PROJECT_NAME }}-ECSCustomConfig"
           
-          # デプロイメント状況監視
-          echo "⏳ Monitoring deployment progress..."
+          # 企業レベル監視とログ出力
+          echo "⏳ Monitoring enterprise deployment progress..."
+          START_TIME=$(date +%s)
+          
           while true; do
-            STATUS=$(aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --query 'deploymentInfo.status' --output text)
-            echo "Status: $STATUS"
+            CURRENT_TIME=$(date +%s)
+            ELAPSED=$((CURRENT_TIME - START_TIME))
+            
+            DEPLOYMENT_INFO=$(aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --query 'deploymentInfo')
+            STATUS=$(echo $DEPLOYMENT_INFO | jq -r '.status')
+            
+            echo "[$(date +'%H:%M:%S')] Status: $STATUS (Elapsed: ${ELAPSED}s)"
+            
             if [ "$STATUS" = "Succeeded" ]; then
-              echo "🎉 Deployment completed successfully!"
+              echo "🎉 Enterprise deployment completed successfully!"
+              echo "📊 Total deployment time: ${ELAPSED} seconds"
+              
+              # ALB情報表示
+              ALB_DNS=$(aws elbv2 describe-load-balancers \
+                --names "${{ env.PROJECT_NAME }}-alb" \
+                --query 'LoadBalancers[0].DNSName' --output text)
+              
+              echo "🌐 Production URL: http://$ALB_DNS"
+              echo "🧪 Test URL: http://$ALB_DNS:8080"
+              echo "📈 CloudWatch Logs: /aws/codedeploy/${{ env.PROJECT_NAME }}"
               break
+              
             elif [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Stopped" ]; then
-              echo "❌ Deployment failed with status: $STATUS"
-              aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --query 'deploymentInfo.errorInformation'
+              echo "❌ Enterprise deployment failed with status: $STATUS"
+              echo "🔍 Error details:"
+              echo $DEPLOYMENT_INFO | jq -r '.errorInformation // "No error information available"'
+              
+              # 詳細ログ取得
+              aws logs describe-log-streams \
+                --log-group-name "/aws/codedeploy/${{ env.PROJECT_NAME }}" \
+                --order-by LastEventTime --descending --max-items 1 \
+                --query 'logStreams[0].logStreamName' --output text | \
+              xargs -I {} aws logs get-log-events \
+                --log-group-name "/aws/codedeploy/${{ env.PROJECT_NAME }}" \
+                --log-stream-name {} --limit 10
+              
               exit 1
             fi
+            
+            # タイムアウト設定（30分）
+            if [ $ELAPSED -gt 1800 ]; then
+              echo "⏰ Deployment timeout after 30 minutes"
+              exit 1
+            fi
+            
             sleep 30
           done

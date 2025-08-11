@@ -1,3 +1,4 @@
+
 # CodeDeploy Blue/Green for ECS Rules
 
 # q-developer-rules.yml
@@ -23,11 +24,11 @@ blueGreen:
   prodTrafficRoute:
     listenerArn: arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:listener/app/nestjs-hannibal-3-alb/80
     targetGroupArns:
-      - arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:targetgroup/nestjs-hannibal-3-blue-tg/…
+      - arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:targetgroup/nestjs-hannibal-3-blue-tg/abc123
   testTrafficRoute:
     listenerArn: arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:listener/app/nestjs-hannibal-3-alb/8080
     targetGroupArns:
-      - arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:targetgroup/nestjs-hannibal-3-green-tg/…
+      - arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:targetgroup/nestjs-hannibal-3-green-tg/def456
 
 # デプロイフェーズごとのコマンド
 phases:
@@ -62,6 +63,9 @@ iam:
         - ecs:UpdateService
         - ecs:DescribeServices
         - ecs:RegisterTaskDefinition
+        - ecs:CreateTaskSet
+        - ecs:UpdateServicePrimaryTaskSet
+        - ecs:DeleteTaskSet
       Resource:
         - arn:aws:ecs:ap-northeast-1:258632448142:service/nestjs-hannibal-3-cluster/nestjs-hannibal-3-api-service
         - arn:aws:ecs:ap-northeast-1:258632448142:task-definition/nestjs-hannibal-3-api-task*
@@ -70,11 +74,60 @@ iam:
         - elasticloadbalancing:ModifyListener
         - elasticloadbalancing:DescribeListeners
         - elasticloadbalancing:DescribeTargetGroups
+        - elasticloadbalancing:DescribeRules
+        - elasticloadbalancing:ModifyRule
       Resource: "*"
     - Effect: Allow
       Action:
         - iam:PassRole
       Resource: arn:aws:iam::258632448142:role/HannibalCICDRole-Dev
+    - Effect: Allow
+      Action:
+        - cloudwatch:DescribeAlarms
+      Resource: "*"
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource: arn:aws:sns:ap-northeast-1:258632448142:nestjs-hannibal-3-alerts
+
+# Terraform 実装設定
+terraform:
+  load_balancer_info:
+    # ECS Blue/Green デプロイメント用の正しい構文
+    target_group_pair_info:
+      # 本番トラフィック用リスナー（ポート80）
+      prod_traffic_route:
+        listener_arns:
+          - arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:listener/app/nestjs-hannibal-3-alb/80
+      # テストトラフィック用リスナー（ポート8080）
+      test_traffic_route:
+        listener_arns:
+          - arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:listener/app/nestjs-hannibal-3-alb/8080
+      # Blue/Green ターゲットグループ
+      target_group:
+        - name: nestjs-hannibal-3-blue-tg
+        - name: nestjs-hannibal-3-green-tg
+
+  blue_green_deployment_config:
+    # デプロイ準備オプション
+    deployment_ready_option:
+      action_on_timeout: "STOP_DEPLOYMENT"
+      wait_time_in_minutes: 5
+    # Blue環境の終了設定
+    terminate_blue_instances_on_deployment_success:
+      action: "TERMINATE"
+      termination_wait_time_in_minutes: 5
+    # グリーン環境プロビジョニング設定
+    green_fleet_provisioning_option:
+      action: "COPY_AUTO_SCALING_GROUP"
+
+  deployment_style:
+    deployment_type: "BLUE_GREEN"
+    deployment_option: "WITH_TRAFFIC_CONTROL"
+
+  ecs_service:
+    cluster_name: "nestjs-hannibal-3-cluster"
+    service_name: "nestjs-hannibal-3-api-service"
 
 # モニタリング & ログ
 monitoring:

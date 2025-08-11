@@ -33,6 +33,7 @@
 
 ### CI/CD
 - **GitHub Actions**: 自動化パイプライン
+- **CodeDeploy Blue/Green**: 無停止デプロイメント
 - **Docker**: コンテナ化
 - **Terraform**: Infrastructure as Code
 
@@ -48,3 +49,4 @@
 - **Permission Boundary**: 最大権限の制限
 - **CloudTrail監査**: 全API呼び出しの記録・分析
 - **AssumeRole**: 環境別権限分離
+- **CodeDeploy Blue/Green**: 自動ロールバック機能
