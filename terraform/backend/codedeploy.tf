@@ -114,11 +114,11 @@ resource "aws_iam_role_policy_attachment" "codedeploy_service_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
 }
 
-# --- Custom Managed Policy for PassRole (Minimal Permissions) ---
-resource "aws_iam_policy" "codedeploy_passrole_policy" {
-  name        = "${var.project_name}-codedeploy-passrole-policy"
-  description = "Minimal PassRole permissions for CodeDeploy ECS Blue/Green deployment"
-
+# --- Inline Policy for PassRole (AWS Professional/Specialty Best Practice) ---
+resource "aws_iam_role_policy" "codedeploy_passrole" {
+  name = "${var.project_name}-codedeploy-passrole"
+  role = aws_iam_role.codedeploy_service_role.name
+  
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -128,23 +128,11 @@ resource "aws_iam_policy" "codedeploy_passrole_policy" {
           "iam:PassRole"
         ]
         Resource = [
-          aws_iam_role.ecs_task_execution_role.arn
+          "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/nestjs-hannibal-3-ecs-task-execution-role"
         ]
       }
     ]
   })
-  
-  tags = {
-    Name        = "${var.project_name} CodeDeploy PassRole Policy"
-    project     = var.project_name
-    environment = var.environment
-  }
-}
-
-# --- Attach Custom PassRole Policy to CodeDeploy Service Role ---
-resource "aws_iam_role_policy_attachment" "codedeploy_passrole_policy_attachment" {
-  role       = aws_iam_role.codedeploy_service_role.name
-  policy_arn = aws_iam_policy.codedeploy_passrole_policy.arn
 }
 
 # --- CloudWatch Log Group for CodeDeploy ---
