@@ -44,6 +44,22 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
 
 
   
+  # Blue/Green設定（必須）
+  blue_green_deployment_config {
+    deployment_ready_option {
+      action_on_timeout = "STOP_DEPLOYMENT"
+    }
+    
+    green_fleet_provisioning_option {
+      action = "COPY_AUTO_SCALING_GROUP"
+    }
+    
+    terminate_blue_instances_on_deployment_success {
+      action = "TERMINATE"
+      termination_wait_time_in_minutes = 5
+    }
+  }
+  
   # ロードバランサー設定（Target Group Pair Info）
   load_balancer_info {
     target_group_pair_info {
