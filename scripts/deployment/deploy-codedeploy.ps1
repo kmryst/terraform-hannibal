@@ -99,7 +99,8 @@ Resources:
           ContainerPort: 3000
 "@
     
-    $APPSPEC_CONTENT | Out-File -FilePath "appspec.yaml" -Encoding UTF8
+    # BOMなしUTF8で出力（CodeDeploy要件）
+    [System.IO.File]::WriteAllText("appspec.yaml", $APPSPEC_CONTENT, [System.Text.UTF8Encoding]::new(`$false))
     
     # S3にアップロード
     $S3_BUCKET = "$PROJECT_NAME-codedeploy-artifacts"

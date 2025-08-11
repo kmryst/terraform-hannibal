@@ -177,9 +177,9 @@ jobs:
           echo "🚀 Starting CodeDeploy Blue/Green deployment..."
           
           # Get current task definition
-          TASK_DEF=$(aws ecs describe-task-definition \
+          aws ecs describe-task-definition \
             --task-definition "${{ env.PROJECT_NAME }}-api-task" \
-            --query 'taskDefinition')
+            --query 'taskDefinition' > current_task_def.json
           
           if [ $? -ne 0 ]; then
             echo "❌ Failed to retrieve current task definition"
@@ -187,14 +187,15 @@ jobs:
           fi
           
           # Update image and register new task definition
-          NEW_TASK_DEF=$(echo "$TASK_DEF" | jq --arg IMAGE "$NEW_IMAGE" \
+          jq --arg IMAGE "$NEW_IMAGE" \
             '.containerDefinitions[0].image = $IMAGE |
              del(.taskDefinitionArn, .revision, .status,
                  .requiresAttributes, .placementConstraints,
-                 .compatibilities, .registeredAt, .registeredBy)')
+                 .compatibilities, .registeredAt, .registeredBy)' \
+            current_task_def.json > new_task_def.json
           
-          NEW_TASK_DEF_ARN=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition \
-            --cli-input-json file:///dev/stdin \
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://new_task_def.json \
             --query 'taskDefinition.taskDefinitionArn' --output text)
           
           if [ $? -ne 0 ] || [ -z "$NEW_TASK_DEF_ARN" ]; then
@@ -205,17 +206,20 @@ jobs:
           echo "✅ New task definition registered: $NEW_TASK_DEF_ARN"
           
           # Create appspec.yaml for CodeDeploy
-          cat > appspec.yaml << EOF
-          version: 0.0
-          Resources:
-            - TargetService:
-                Type: AWS::ECS::Service
-                Properties:
-                  TaskDefinition: "$NEW_TASK_DEF_ARN"
-                  LoadBalancerInfo:
-                    ContainerName: "${{ env.PROJECT_NAME }}-container"
-                    ContainerPort: 3000
-          EOF
+          cat > appspec.yaml << 'EOF'
+version: 0.0
+Resources:
+  - TargetService:
+      Type: AWS::ECS::Service
+      Properties:
+        TaskDefinition: <TASK_DEFINITION>
+        LoadBalancerInfo:
+          ContainerName: "nestjs-hannibal-3-container"
+          ContainerPort: 3000
+EOF
+          
+          # Replace placeholder with actual task definition ARN
+          sed -i "s|<TASK_DEFINITION>|$NEW_TASK_DEF_ARN|g" appspec.yaml
           
           # Upload appspec to S3
           S3_BUCKET="${{ env.PROJECT_NAME }}-codedeploy-artifacts"
