@@ -85,8 +85,7 @@ jobs:
           docker build -t $NEW_IMAGE .
           docker push $NEW_IMAGE
 
-      - name: Register New Task Definition
-        run: |
+      - run: |
           aws ecs describe-task-definition \
             --task-definition "${{ env.PROJECT_NAME }}-api-task" \
             --query 'taskDefinition' > current_task_def.json
