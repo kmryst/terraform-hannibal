@@ -1,87 +1,63 @@
 name: Deploy NestJS Hannibal (Fast)
 
+on:
+  workflow_dispatch:
+
 env:
   AWS_ACCOUNT_ID: "258632448142"
   PROJECT_NAME: "nestjs-hannibal-3"
   AWS_REGION: "ap-northeast-1"
 
-on:
-  workflow_dispatch:
-
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js (server)
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      - name: Install server dependencies
-        run: npm ci
-        shell: bash
+      - run: npm ci
 
-      - name: Run server tests
-        run: npm test
-        shell: bash
+      - run: npm test
 
-      - name: Setup Node.js (client)
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
 
-      - name: Install client dependencies
-        run: npm ci
+      - run: npm ci
         working-directory: ./client
-        shell: bash
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Install prerequisites
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
-        shell: bash
+      - run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: '1.12.1'
-        env:
-          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
 
-      - name: Assume CICD Role
-        run: |
+      - run: |
           CREDS=$(aws sts assume-role \
             --role-arn arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev \
             --role-session-name deploy)
           echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
-        shell: bash
 
       - name: Deploy Backend Infrastructure
         working-directory: ./terraform/backend
@@ -91,7 +67,6 @@ jobs:
             -var="client_url_for_cors=https://hamilcar-hannibal.click" \
             -var="environment=dev"
           terraform output -json > ../../tf_outputs_backend.json
-        shell: bash
 
       - name: Deploy Frontend Infrastructure
         working-directory: ./terraform/frontend
@@ -102,54 +77,33 @@ jobs:
             -var="environment=dev" \
             -var="enable_cloudfront=true"
           terraform output -json > ../../tf_outputs_frontend.json
-        shell: bash
 
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
+      - uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and Push ECS Image
-        run: |
+      - run: |
           NEW_IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}"
           docker build -t $NEW_IMAGE .
           docker push $NEW_IMAGE
-        shell: bash
 
-      - name: Retrieve Terraform Outputs for CodeDeploy
-        working-directory: ./terraform/backend
-        run: |
-          PROD_LISTENER_ARN=$(terraform output -raw production_listener_arn)
-          TEST_LISTENER_ARN=$(terraform output -raw test_listener_arn)
-          BLUE_TG_NAME=$(terraform output -raw blue_target_group_name)
-          GREEN_TG_NAME=$(terraform output -raw green_target_group_name)
-          echo "prod_listener=$PROD_LISTENER_ARN" >> $GITHUB_OUTPUT
-          echo "test_listener=$TEST_LISTENER_ARN" >> $GITHUB_OUTPUT
-          echo "blue_tg=$BLUE_TG_NAME" >> $GITHUB_OUTPUT
-          echo "green_tg=$GREEN_TG_NAME" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Describe Current Task Definition
+      - name: Register New Task Definition
         run: |
           aws ecs describe-task-definition \
             --task-definition "${{ env.PROJECT_NAME }}-api-task" \
             --query 'taskDefinition' > current_task_def.json
-        shell: bash
 
-      - name: Register New Task Definition
-        run: |
           jq --arg IMAGE "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}" \
             '.containerDefinitions[0].image = $IMAGE |
              del(.taskDefinitionArn, .revision, .status,
                  .requiresAttributes, .placementConstraints,
                  .compatibilities, .registeredAt, .registeredBy)' \
             current_task_def.json > new_task_def.json
+
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
             --cli-input-json file://new_task_def.json \
             --query 'taskDefinition.taskDefinitionArn' --output text)
           echo "NEW_TASK_DEF_ARN=$NEW_TASK_DEF_ARN" >> $GITHUB_ENV
-        shell: bash
 
-      - name: Generate appspec.json
-        run: |
+      - run: |
           cat > appspec.json <<EOF
 {
   "version": "1.0",
@@ -177,13 +131,13 @@ jobs:
   ]
 }
 EOF
-        shell: bash
 
-      - name: Create CodeDeploy Deployment
-        run: |
+      - run: |
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name "${{ env.PROJECT_NAME }}-codedeploy-app" \
             --deployment-group-name "${{ env.PROJECT_NAME }}-deployment-group" \
             --deployment-config-name CodeDeployDefault.ECSAllAtOnce \
             --revision file://appspec.json \
-            --query 'deploymentId' --output
+            --query 'deploymentId' --output text)
+          echo "✅ Deployment initiated: $DEPLOYMENT_ID"
+          echo "📈 Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
