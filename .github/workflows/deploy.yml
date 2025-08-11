@@ -171,70 +171,30 @@ jobs:
           echo "NEW_IMAGE=$NEW_IMAGE" >> $GITHUB_ENV
           echo "✅ Docker image built and pushed successfully"
 
-      - name: Retrieve Terraform Outputs for CodeDeploy
-        working-directory: ./terraform/backend
+      - name: Deploy with CodeDeploy Blue/Green
         run: |
           set -e
-          echo "📋 Retrieving Terraform outputs for CodeDeploy..."
+          echo "🚀 Starting CodeDeploy Blue/Green deployment..."
           
-          PROD_LISTENER_ARN=$(terraform output -raw production_listener_arn 2>/dev/null || echo "")
-          TEST_LISTENER_ARN=$(terraform output -raw test_listener_arn 2>/dev/null || echo "")
-          BLUE_TG_NAME=$(terraform output -raw blue_target_group_name 2>/dev/null || echo "")
-          GREEN_TG_NAME=$(terraform output -raw green_target_group_name 2>/dev/null || echo "")
-          
-          # Validate required outputs
-          if [ -z "$PROD_LISTENER_ARN" ] || [ -z "$TEST_LISTENER_ARN" ] || [ -z "$BLUE_TG_NAME" ] || [ -z "$GREEN_TG_NAME" ]; then
-            echo "❌ Missing required Terraform outputs for CodeDeploy"
-            echo "Production Listener: $PROD_LISTENER_ARN"
-            echo "Test Listener: $TEST_LISTENER_ARN"
-            echo "Blue Target Group: $BLUE_TG_NAME"
-            echo "Green Target Group: $GREEN_TG_NAME"
-            exit 1
-          fi
-          
-          echo "PROD_LISTENER_ARN=$PROD_LISTENER_ARN" >> $GITHUB_ENV
-          echo "TEST_LISTENER_ARN=$TEST_LISTENER_ARN" >> $GITHUB_ENV
-          echo "BLUE_TG_NAME=$BLUE_TG_NAME" >> $GITHUB_ENV
-          echo "GREEN_TG_NAME=$GREEN_TG_NAME" >> $GITHUB_ENV
-          echo "✅ CodeDeploy outputs retrieved successfully"
-
-      - name: Describe Current Task Definition
-        run: |
-          set -e
-          echo "📋 Retrieving current ECS task definition..."
-          
-          aws ecs describe-task-definition \
+          # Get current task definition
+          TASK_DEF=$(aws ecs describe-task-definition \
             --task-definition "${{ env.PROJECT_NAME }}-api-task" \
-            --query 'taskDefinition' > current_task_def.json
+            --query 'taskDefinition')
           
-          if [ $? -ne 0 ] || [ ! -f "current_task_def.json" ]; then
-            echo "❌ Failed to retrieve task definition"
+          if [ $? -ne 0 ]; then
+            echo "❌ Failed to retrieve current task definition"
             exit 1
           fi
           
-          echo "✅ Current task definition retrieved successfully"
-
-      - name: Register New Task Definition
-        run: |
-          set -e
-          echo "🔄 Creating new task definition with image: $NEW_IMAGE"
-          
-          # Create new task definition with updated image
-          jq --arg IMAGE "$NEW_IMAGE" \
+          # Update image and register new task definition
+          NEW_TASK_DEF=$(echo "$TASK_DEF" | jq --arg IMAGE "$NEW_IMAGE" \
             '.containerDefinitions[0].image = $IMAGE |
              del(.taskDefinitionArn, .revision, .status,
                  .requiresAttributes, .placementConstraints,
-                 .compatibilities, .registeredAt, .registeredBy)' \
-            current_task_def.json > new_task_def.json
+                 .compatibilities, .registeredAt, .registeredBy)')
           
-          if [ $? -ne 0 ] || [ ! -f "new_task_def.json" ]; then
-            echo "❌ Failed to create new task definition JSON"
-            exit 1
-          fi
-          
-          echo "📝 Registering new task definition..."
-          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
-            --cli-input-json file://new_task_def.json \
+          NEW_TASK_DEF_ARN=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition \
+            --cli-input-json file:///dev/stdin \
             --query 'taskDefinition.taskDefinitionArn' --output text)
           
           if [ $? -ne 0 ] || [ -z "$NEW_TASK_DEF_ARN" ]; then
@@ -242,74 +202,36 @@ jobs:
             exit 1
           fi
           
-          echo "NEW_TASK_DEF_ARN=$NEW_TASK_DEF_ARN" >> $GITHUB_ENV
           echo "✅ New task definition registered: $NEW_TASK_DEF_ARN"
-
-      - name: Generate appspec.json
-        run: |
-          set -e
-          echo "📝 Generating AppSpec for CodeDeploy..."
           
-          # Validate required environment variables
-          if [ -z "$NEW_TASK_DEF_ARN" ]; then
-            echo "❌ NEW_TASK_DEF_ARN is not set"
+          # Create appspec.yaml for CodeDeploy
+          cat > appspec.yaml << EOF
+          version: 0.0
+          Resources:
+            - TargetService:
+                Type: AWS::ECS::Service
+                Properties:
+                  TaskDefinition: "$NEW_TASK_DEF_ARN"
+                  LoadBalancerInfo:
+                    ContainerName: "${{ env.PROJECT_NAME }}-container"
+                    ContainerPort: 3000
+          EOF
+          
+          # Upload appspec to S3
+          S3_BUCKET="${{ env.PROJECT_NAME }}-codedeploy-artifacts"
+          S3_KEY="appspec-${{ github.sha }}.yaml"
+          aws s3 cp appspec.yaml "s3://$S3_BUCKET/$S3_KEY"
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Failed to upload appspec to S3"
             exit 1
           fi
           
-          # Generate minimal AppSpec JSON
-          cat > appspec.json << EOF
-{
-  "version": "1.0",
-  "Resources": [
-    {
-      "TargetService": {
-        "Type": "AWS::ECS::Service",
-        "Properties": {
-          "TaskDefinition": "$NEW_TASK_DEF_ARN",
-          "LoadBalancerInfo": {
-            "ContainerName": "${{ env.PROJECT_NAME }}-container",
-            "ContainerPort": 3000
-          }
-        }
-      }
-    }
-  ]
-}
-EOF
-          
-          # Validate JSON syntax
-          if ! jq empty appspec.json 2>/dev/null; then
-            echo "❌ Generated AppSpec JSON is invalid"
-            cat appspec.json
-            exit 1
-          fi
-          
-          echo "✅ AppSpec generated successfully"
-          jq . appspec.json
-
-      - name: Create CodeDeploy Deployment
-        run: |
-          set -e
-          echo "🚀 Initiating CodeDeploy Blue/Green deployment..."
-          
-          # Validate AppSpec exists and is valid JSON
-          if [ ! -f "appspec.json" ]; then
-            echo "❌ AppSpec file not found"
-            exit 1
-          fi
-          
-          if ! jq empty appspec.json 2>/dev/null; then
-            echo "❌ AppSpec JSON is invalid"
-            exit 1
-          fi
-          
-          echo "📋 Creating deployment..."
-          APPSPEC_CONTENT=$(jq -c . appspec.json | sed 's/"/\\"/g')
+          # Start CodeDeploy deployment
           DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --application-name "${{ env.PROJECT_NAME }}-codedeploy-app" \
-            --deployment-group-name "${{ env.PROJECT_NAME }}-deployment-group" \
-            --deployment-config-name "CodeDeployDefault.ECSAllAtOnce" \
-            --revision "{\"revisionType\":\"AppSpecContent\",\"appSpecContent\":{\"content\":\"$APPSPEC_CONTENT\"}}" \
+            --application-name "${{ env.PROJECT_NAME }}-app" \
+            --deployment-group-name "${{ env.PROJECT_NAME }}-dg" \
+            --s3-location bucket="$S3_BUCKET",key="$S3_KEY",bundleType="YAML" \
             --query 'deploymentId' --output text)
           
           if [ $? -ne 0 ] || [ -z "$DEPLOYMENT_ID" ]; then
@@ -317,47 +239,21 @@ EOF
             exit 1
           fi
           
-          echo "DEPLOYMENT_ID=$DEPLOYMENT_ID" >> $GITHUB_ENV
-          echo "✅ Deployment initiated: $DEPLOYMENT_ID"
-          echo "📈 Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
-
-      - name: Monitor Deployment Status
-        run: |
-          set -e
-          echo "⏳ Monitoring deployment status..."
+          echo "🚀 CodeDeploy deployment started: $DEPLOYMENT_ID"
+          echo "📊 Monitor deployment: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
           
-          TIMEOUT=1800  # 30 minutes
-          ELAPSED=0
-          INTERVAL=30
+          # Wait for deployment to complete
+          echo "⏳ Waiting for Blue/Green deployment to complete..."
+          aws deploy wait deployment-successful --deployment-id "$DEPLOYMENT_ID"
           
-          while [ $ELAPSED -lt $TIMEOUT ]; do
-            STATUS=$(aws deploy get-deployment \
-              --deployment-id "$DEPLOYMENT_ID" \
-              --query 'deploymentInfo.status' --output text)
+          if [ $? -eq 0 ]; then
+            echo "✅ CodeDeploy Blue/Green deployment completed successfully!"
+            echo "🌐 Production URL: http://$(jq -r '.alb_dns_name.value' tf_outputs_backend.json)"
+            echo "🧪 Test URL: http://$(jq -r '.alb_dns_name.value' tf_outputs_backend.json):8080"
+          else
+            echo "❌ CodeDeploy deployment failed or timed out"
             
-            echo "[$(date '+%H:%M:%S')] Deployment status: $STATUS"
-            
-            case "$STATUS" in
-              "Succeeded")
-                echo "✅ Deployment completed successfully!"
-                exit 0
-                ;;
-              "Failed"|"Stopped")
-                echo "❌ Deployment failed with status: $STATUS"
-                aws deploy get-deployment --deployment-id "$DEPLOYMENT_ID" --query 'deploymentInfo.errorInformation'
-                exit 1
-                ;;
-              "InProgress"|"Queued"|"Ready")
-                echo "⏳ Deployment in progress..."
-                ;;
-              *)
-                echo "⚠️ Unknown deployment status: $STATUS"
-                ;;
-            esac
-            
-            sleep $INTERVAL
-            ELAPSED=$((ELAPSED + INTERVAL))
-          done
-          
-          echo "❌ Deployment timed out after $((TIMEOUT/60)) minutes"
-          exit 1
+            # Get deployment status for debugging
+            aws deploy get-deployment --deployment-id "$DEPLOYMENT_ID" --query 'deploymentInfo.errorInformation'
+            exit 1
+          fi

@@ -3,12 +3,17 @@
 # --- CodeDeploy Outputs ---
 output "codedeploy_application_name" {
   description = "CodeDeploy application name"
-  value       = aws_codedeploy_app.ecs_app.name
+  value       = aws_codedeploy_app.main.name
 }
 
 output "codedeploy_deployment_group_name" {
   description = "CodeDeploy deployment group name"
-  value       = aws_codedeploy_deployment_group.ecs_deployment_group.deployment_group_name
+  value       = aws_codedeploy_deployment_group.main.deployment_group_name
+}
+
+output "codedeploy_s3_bucket" {
+  description = "CodeDeploy S3 bucket name"
+  value       = aws_s3_bucket.codedeploy_artifacts.bucket
 }
 
 output "codedeploy_deployment_config_name" {

@@ -172,45 +172,7 @@ resource "aws_lb" "main" {
   drop_invalid_header_fields = true
 }
 
-# --- ALB Target Group (Blue Environment) ---
-resource "aws_lb_target_group" "blue" {
-  name        = "${var.project_name}-blue-tg"
-  port        = var.container_port
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
-  target_type = "ip"
-  health_check {
-    enabled             = true
-    path                = var.health_check_path
-    protocol            = "HTTP"
-    port                = "traffic-port"
-    healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
-    interval            = 30
-    matcher             = "200"
-  }
-}
-
-# --- ALB Target Group (Green Environment) ---
-resource "aws_lb_target_group" "green" {
-  name        = "${var.project_name}-green-tg"
-  port        = var.container_port
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
-  target_type = "ip"
-  health_check {
-    enabled             = true
-    path                = var.health_check_path
-    protocol            = "HTTP"
-    port                = "traffic-port"
-    healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
-    interval            = 30
-    matcher             = "200"
-  }
-}
+# Blue/Green Target Groups are defined in codedeploy.tf
 
 # --- ALB Listener (Production) ---
 resource "aws_lb_listener" "http" {
