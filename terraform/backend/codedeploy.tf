@@ -47,7 +47,8 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   # Blue/Green設定（必須）
   blue_green_deployment_config {
     deployment_ready_option {
-      action_on_timeout = "STOP_DEPLOYMENT"
+      action_on_timeout    = "STOP_DEPLOYMENT"
+      wait_time_in_minutes = 1
     }
     
     green_fleet_provisioning_option {
