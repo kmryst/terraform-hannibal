@@ -1,35 +1,30 @@
 name: Deploy NestJS Hannibal (Fast)
 
-on:
-  workflow_dispatch:
-
 env:
   AWS_ACCOUNT_ID: "258632448142"
   PROJECT_NAME: "nestjs-hannibal-3"
   AWS_REGION: "ap-northeast-1"
+
+on:
+  workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v3
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: package-lock.json
-
       - run: npm ci
-
       - run: npm test
-
       - uses: actions/setup-node@v3
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
-
       - run: npm ci
         working-directory: ./client
 
@@ -45,13 +40,20 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Install prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
 
-      - uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: '1.12.1'
+          terraform_version: 1.12.1
+        env:
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
 
-      - run: |
+      - name: Assume CICD Role
+        run: |
           CREDS=$(aws sts assume-role \
             --role-arn arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev \
             --role-session-name deploy)
@@ -78,18 +80,35 @@ jobs:
             -var="enable_cloudfront=true"
           terraform output -json > ../../tf_outputs_frontend.json
 
-      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - run: |
+      - name: Build and Push ECS Image
+        run: |
           NEW_IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}"
           docker build -t $NEW_IMAGE .
           docker push $NEW_IMAGE
 
-      - run: |
+      - name: Retrieve Terraform Outputs for CodeDeploy
+        working-directory: ./terraform/backend
+        run: |
+          PROD_LISTENER_ARN=$(terraform output -raw production_listener_arn)
+          TEST_LISTENER_ARN=$(terraform output -raw test_listener_arn)
+          BLUE_TG_NAME=$(terraform output -raw blue_target_group_name)
+          GREEN_TG_NAME=$(terraform output -raw green_target_group_name)
+          echo "::set-output name=prod_listener::$PROD_LISTENER_ARN"
+          echo "::set-output name=test_listener::$TEST_LISTENER_ARN"
+          echo "::set-output name=blue_tg::$BLUE_TG_NAME"
+          echo "::set-output name=green_tg::$GREEN_TG_NAME"
+
+      - name: Describe Current Task Definition
+        run: |
           aws ecs describe-task-definition \
             --task-definition "${{ env.PROJECT_NAME }}-api-task" \
             --query 'taskDefinition' > current_task_def.json
 
+      - name: Register New Task Definition
+        run: |
           jq --arg IMAGE "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}" \
             '.containerDefinitions[0].image = $IMAGE |
              del(.taskDefinitionArn, .revision, .status,
@@ -102,41 +121,44 @@ jobs:
             --query 'taskDefinition.taskDefinitionArn' --output text)
           echo "NEW_TASK_DEF_ARN=$NEW_TASK_DEF_ARN" >> $GITHUB_ENV
 
-      - run: |
-          cat > appspec.json <<EOF
-{
-  "version": "1.0",
-  "Resources": [
-    {
-      "TargetService": {
-        "Type": "AWS::ECS::Service",
-        "Properties": {
-          "TaskDefinition": "$NEW_TASK_DEF_ARN",
-          "LoadBalancerInfo": {
-            "ContainerName": "${{ env.PROJECT_NAME }}-container",
-            "ContainerPort": 3000
-          },
-          "PlatformVersion": "LATEST"
-        }
-      }
-    }
-  ],
-  "Hooks": [
-    { "BeforeInstall":  "echo 'Starting Blue/Green deployment preparation'" },
-    { "AfterInstall":   "echo 'New task definition registered successfully'" },
-    { "AfterAllowTestTraffic": "echo 'Test traffic validation completed'" },
-    { "BeforeAllowTraffic":    "echo 'Preparing production traffic switch'" },
-    { "AfterAllowTraffic":     "echo 'Production traffic switch completed successfully'" }
-  ]
-}
-EOF
+      - name: Generate appspec.json
+        run: |
+          cat > appspec.json << 'EOF'
+          {
+            "version": "1.0",
+            "Resources": [
+              {
+                "TargetService": {
+                  "Type": "AWS::ECS::Service",
+                  "Properties": {
+                    "TaskDefinition": "'"$NEW_TASK_DEF_ARN"'",
+                    "LoadBalancerInfo": {
+                      "ContainerName": "'"${{ env.PROJECT_NAME }}-container"'",
+                      "ContainerPort": 3000
+                    },
+                    "PlatformVersion": "LATEST"
+                  }
+                }
+              }
+            ],
+            "Hooks": [
+              { "BeforeInstall":  "echo 'Starting Blue/Green deployment preparation'" },
+              { "AfterInstall":   "echo 'New task definition registered successfully'" },
+              { "AfterAllowTestTraffic": "echo 'Test traffic validation completed'" },
+              { "BeforeAllowTraffic":    "echo 'Preparing production traffic switch'" },
+              { "AfterAllowTraffic":     "echo 'Production traffic switch completed successfully'" }
+            ]
+          }
+          EOF
 
-      - run: |
+      - name: Create CodeDeploy Deployment
+        run: |
+          REV_JSON=$(jq -c . appspec.json)
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name "${{ env.PROJECT_NAME }}-codedeploy-app" \
             --deployment-group-name "${{ env.PROJECT_NAME }}-deployment-group" \
             --deployment-config-name CodeDeployDefault.ECSAllAtOnce \
-            --revision file://appspec.json \
+            --revision "revisionType=AppSpecContent,appSpecContent=$REV_JSON" \
             --query 'deploymentId' --output text)
           echo "✅ Deployment initiated: $DEPLOYMENT_ID"
           echo "📈 Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
