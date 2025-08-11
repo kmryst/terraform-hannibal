@@ -9,16 +9,6 @@ env:
 
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment environment'
-        required: true
-        default: 'dev'
-        type: choice
-        options:
-        - dev
-        - staging
-        - prod
 
 jobs:
   test:
@@ -107,7 +97,7 @@ jobs:
           echo "📋 Planning Terraform changes..."
           terraform plan \
             -var="client_url_for_cors=https://hamilcar-hannibal.click" \
-            -var="environment=${{ github.event.inputs.environment || 'dev' }}" \
+            -var="environment=dev" \
             -out=tfplan
           
           echo "🏗️ Applying Terraform changes..."
@@ -145,7 +135,7 @@ jobs:
           echo "📋 Planning frontend changes with ALB: $ALB_DNS"
           terraform plan \
             -var="api_alb_dns_name=$ALB_DNS" \
-            -var="environment=${{ github.event.inputs.environment || 'dev' }}" \
+            -var="environment=dev" \
             -var="enable_cloudfront=true" \
             -out=tfplan
           
