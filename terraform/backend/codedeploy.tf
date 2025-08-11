@@ -44,7 +44,17 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
     
     terminate_blue_instances_on_deployment_success {
       action                         = "TERMINATE"
-      termination_wait_time_in_minutes = 1
+      termination_wait_time_in_minutes = 5
+    }
+    
+    # Production Traffic Route (80番リスナー → Blue TG)
+    prod_traffic_route {
+      listener_arns = [aws_lb_listener.http.arn]
+    }
+    
+    # Test Traffic Route (8080番リスナー → Green TG)
+    test_traffic_route {
+      listener_arns = [aws_lb_listener.test.arn]
     }
   }
   
@@ -92,10 +102,11 @@ resource "aws_iam_role_policy_attachment" "codedeploy_service_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
 }
 
-resource "aws_iam_role_policy_attachment" "codedeploy_service_role_policy_elb" {
-  role       = aws_iam_role.codedeploy_service_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECSLimitedAccess"
-}
+# Removed - Policy does not exist
+# resource "aws_iam_role_policy_attachment" "codedeploy_service_role_policy_elb" {
+#   role       = aws_iam_role.codedeploy_service_role.name
+#   policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECSLimitedAccess"
+# }
 
 # --- SNS Topic for Deployment Notifications ---
 resource "aws_sns_topic" "deployment_notifications" {
