@@ -256,34 +256,26 @@ jobs:
             exit 1
           fi
           
-          # Generate AppSpec JSON with proper escaping
+          # Generate minimal AppSpec JSON
           cat > appspec.json << EOF
-          {
-            "version": "1.0",
-            "Resources": [
-              {
-                "TargetService": {
-                  "Type": "AWS::ECS::Service",
-                  "Properties": {
-                    "TaskDefinition": "$NEW_TASK_DEF_ARN",
-                    "LoadBalancerInfo": {
-                      "ContainerName": "${{ env.PROJECT_NAME }}-container",
-                      "ContainerPort": 3000
-                    },
-                    "PlatformVersion": "LATEST"
-                  }
-                }
-              }
-            ],
-            "Hooks": [
-              { "BeforeInstall": "echo 'Starting Blue/Green deployment preparation'" },
-              { "AfterInstall": "echo 'New task definition registered successfully'" },
-              { "AfterAllowTestTraffic": "echo 'Test traffic validation completed'" },
-              { "BeforeAllowTraffic": "echo 'Preparing production traffic switch'" },
-              { "AfterAllowTraffic": "echo 'Production traffic switch completed successfully'" }
-            ]
+{
+  "version": "1.0",
+  "Resources": [
+    {
+      "TargetService": {
+        "Type": "AWS::ECS::Service",
+        "Properties": {
+          "TaskDefinition": "$NEW_TASK_DEF_ARN",
+          "LoadBalancerInfo": {
+            "ContainerName": "${{ env.PROJECT_NAME }}-container",
+            "ContainerPort": 3000
           }
-          EOF
+        }
+      }
+    }
+  ]
+}
+EOF
           
           # Validate JSON syntax
           if ! jq empty appspec.json 2>/dev/null; then
@@ -312,11 +304,12 @@ jobs:
           fi
           
           echo "📋 Creating deployment..."
+          APPSPEC_CONTENT=$(jq -c . appspec.json | sed 's/"/\\"/g')
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name "${{ env.PROJECT_NAME }}-codedeploy-app" \
             --deployment-group-name "${{ env.PROJECT_NAME }}-deployment-group" \
             --deployment-config-name "CodeDeployDefault.ECSAllAtOnce" \
-            --revision revisionType=AppSpecContent,appSpecContent="{\"content\":\"$(jq -c . appspec.json | sed 's/"/\\"/g')\"}" \
+            --revision "{\"revisionType\":\"AppSpecContent\",\"appSpecContent\":{\"content\":\"$APPSPEC_CONTENT\"}}" \
             --query 'deploymentId' --output text)
           
           if [ $? -ne 0 ] || [ -z "$DEPLOYMENT_ID" ]; then
