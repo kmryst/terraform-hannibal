@@ -117,10 +117,10 @@ resource "aws_iam_role_policy_attachment" "codedeploy_service_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
 }
 
-# --- Inline Policy for PassRole (AWS Professional/Specialty Best Practice) ---
-resource "aws_iam_role_policy" "codedeploy_passrole" {
-  name = "${var.project_name}-codedeploy-passrole"
-  role = aws_iam_role.codedeploy_service_role.name
+# --- Custom Managed Policy for PassRole (AWS Professional/Specialty Best Practice) ---
+resource "aws_iam_policy" "codedeploy_passrole_policy" {
+  name        = "${var.project_name}-codedeploy-passrole-policy"
+  description = "Minimal PassRole permissions for CodeDeploy ECS Blue/Green deployment"
   
   policy = jsonencode({
     Version = "2012-10-17"
@@ -133,9 +133,23 @@ resource "aws_iam_role_policy" "codedeploy_passrole" {
         Resource = [
           "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project_name}-ecs-task-execution-role"
         ]
+        Condition = {
+          StringEquals = {
+            "iam:PassedToService" = "ecs-tasks.amazonaws.com"
+          }
+        }
       }
     ]
   })
+  
+  # No tags to avoid Permissions Boundary TagPolicy restrictions
+  tags = {}
+}
+
+# --- Attach Custom PassRole Policy to CodeDeploy Service Role ---
+resource "aws_iam_role_policy_attachment" "codedeploy_passrole_policy_attachment" {
+  role       = aws_iam_role.codedeploy_service_role.name
+  policy_arn = aws_iam_policy.codedeploy_passrole_policy.arn
 }
 
 # --- CloudWatch Log Group for CodeDeploy ---
