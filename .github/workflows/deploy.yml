@@ -80,10 +80,12 @@ jobs:
             -var="enable_cloudfront=true"
           terraform output -json > ../../tf_outputs_frontend.json
 
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Build and Push ECS Image
         run: |
           NEW_IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}"
-          aws-actions/amazon-ecr-login@v2 >/dev/null
           docker build -t $NEW_IMAGE .
           docker push $NEW_IMAGE
 
