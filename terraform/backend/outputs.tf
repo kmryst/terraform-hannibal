@@ -148,7 +148,3 @@ output "sns_topic_arn" {
   value       = aws_sns_topic.alerts.arn
 }
 
-output "deployment_notifications_topic_arn" {
-  description = "SNS Topic ARN for deployment notifications"
-  value       = aws_sns_topic.deployment_notifications.arn
-}
