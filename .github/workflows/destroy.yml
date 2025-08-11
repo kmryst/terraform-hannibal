@@ -56,15 +56,37 @@ jobs:
           # 本番用: -var="environment=prod" -var="enable_cloudfront=true"
         working-directory: ./terraform/frontend
 
-      # Stop CodeDeploy Deployments (if any)
+      # Stop CodeDeploy Deployments and Clean Resources
       - name: Stop Active Deployments
         run: |
           # 進行中のデプロイメントを停止
-          DEPLOYMENTS=$(aws deploy list-deployments --application-name ${{ env.PROJECT_NAME }}-codedeploy-app --include-only-statuses InProgress Queued Ready 2>/dev/null || echo '{"deployments":[]}'
+          DEPLOYMENTS=$(aws deploy list-deployments --application-name ${{ env.PROJECT_NAME }}-app --include-only-statuses InProgress Queued Ready 2>/dev/null || echo '{"deployments":[]}') 
           for deployment_id in $(echo $DEPLOYMENTS | jq -r '.deployments[]?'); do
             echo "Stopping deployment: $deployment_id"
             aws deploy stop-deployment --deployment-id $deployment_id --auto-rollback-enabled || true
           done
+        continue-on-error: true
+
+      # Clean S3 CodeDeploy Artifacts
+      - name: Empty S3 Buckets
+        run: |
+          # CodeDeploy artifacts bucket
+          aws s3 rm s3://${{ env.PROJECT_NAME }}-codedeploy-artifacts --recursive || true
+          # Frontend S3 bucket (if exists)
+          FRONTEND_BUCKET=$(aws s3api list-buckets --query "Buckets[?contains(Name, '${{ env.PROJECT_NAME }}-frontend')].Name" --output text 2>/dev/null || echo "")
+          if [ ! -z "$FRONTEND_BUCKET" ]; then
+            aws s3 rm s3://$FRONTEND_BUCKET --recursive || true
+          fi
+        continue-on-error: true
+
+      # Clean ECR Images
+      - name: Clean ECR Repository
+        run: |
+          aws ecr batch-delete-image --repository-name ${{ env.PROJECT_NAME }} --image-ids imageTag=latest || true
+          aws ecr list-images --repository-name ${{ env.PROJECT_NAME }} --query 'imageIds[*]' --output json | \
+            jq '.[] | select(.imageTag != null)' | \
+            jq -s '.' | \
+            aws ecr batch-delete-image --repository-name ${{ env.PROJECT_NAME }} --image-ids file:///dev/stdin || true
         continue-on-error: true
 
       # Destroy Backend (Complete Infrastructure)
