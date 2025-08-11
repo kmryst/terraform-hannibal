@@ -2,6 +2,9 @@
 # AWS Official CodeDeploy Blue/Green for ECS Implementation
 # Compliant with AWS Documentation and Best Practices
 
+# --- AWS アカウント情報取得用データソース ---
+data "aws_caller_identity" "current" {}
+
 # --- CodeDeploy Application ---
 resource "aws_codedeploy_app" "ecs_app" {
   compute_platform = "ECS"
