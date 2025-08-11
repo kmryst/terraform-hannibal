@@ -128,7 +128,7 @@ resource "aws_iam_role_policy" "codedeploy_passrole" {
           "iam:PassRole"
         ]
         Resource = [
-          "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/nestjs-hannibal-3-ecs-task-execution-role"
+          "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project_name}-ecs-task-execution-role"
         ]
       }
     ]
