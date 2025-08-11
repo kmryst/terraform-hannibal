@@ -41,8 +41,8 @@ jobs:
 
       - name: Install client dependencies
         run: npm ci
-        shell: bash
         working-directory: ./client
+        shell: bash
 
   deploy:
     needs: test
@@ -186,7 +186,4 @@ EOF
             --deployment-group-name "${{ env.PROJECT_NAME }}-deployment-group" \
             --deployment-config-name CodeDeployDefault.ECSAllAtOnce \
             --revision file://appspec.json \
-            --query 'deploymentId' --output text)
-          echo "✅ Deployment initiated: $DEPLOYMENT_ID"
-          echo "📈 Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
-        shell: bash
+            --query 'deploymentId' --output
