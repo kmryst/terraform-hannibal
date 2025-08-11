@@ -31,9 +31,6 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    outputs:
-      s3_bucket_name: ${{ steps.outputs.outputs.s3_bucket_name }}
-      cloudfront_distribution_id: ${{ steps.outputs.outputs.cloudfront_distribution_id || 'null' }}
     steps:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
@@ -41,20 +38,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.terraform.d/plugin-cache
-            terraform/backend/.terraform
-            terraform/frontend/.terraform
-          key: ${{ runner.os }}-terraform-v2-${{ hashFiles('**/.terraform.lock.hcl') }}
-          restore-keys: |
-            ${{ runner.os }}-terraform-v2-
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.12.1
-        env:
-          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
       - run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Assume CICD Role
@@ -66,95 +49,67 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
-      - name: Deploy Backend
+      - name: Deploy Backend Infrastructure
         run: |
+          cd terraform/backend
           terraform init -input=false
           terraform apply -auto-approve \
             -var="client_url_for_cors=https://hamilcar-hannibal.click" \
             -var="environment=dev"
-          terraform output -json > ../tf_outputs_backend.json
+          terraform output -json > ../../tf_outputs_backend.json
         working-directory: ./terraform/backend
 
       - name: Deploy Frontend Infrastructure
         run: |
+          cd terraform/frontend
           terraform init -input=false
           terraform apply -auto-approve \
-            -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../tf_outputs_backend.json)" \
+            -var="api_alb_dns_name=$(jq -r '.alb_dns_name.value' ../../tf_outputs_backend.json)" \
             -var="environment=dev" \
             -var="enable_cloudfront=true"
-          terraform output -json > tf_outputs.json
+          terraform output -json > ../../tf_outputs_frontend.json
         working-directory: ./terraform/frontend
 
-      - name: Get Outputs
-        id: outputs
-        run: |
-          echo "s3_bucket_name=$(jq -r '.s3_bucket_name.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
-          echo "cloudfront_distribution_id=$(jq -r '.cloudfront_distribution_id.value' ./terraform/frontend/tf_outputs.json)" >> $GITHUB_OUTPUT
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: client/package-lock.json
-      - run: npm ci
-        working-directory: ./client
-      - run: npm run build
-        working-directory: ./client
-      - name: Deploy to S3
-        run: aws s3 sync ./client/dist "s3://${{ steps.outputs.outputs.s3_bucket_name }}" --delete
-      - name: Invalidate CloudFront
-        if: steps.outputs.outputs.cloudfront_distribution_id != 'null' && steps.outputs.outputs.cloudfront_distribution_id != ''
-        run: aws cloudfront create-invalidation \
-          --distribution-id "${{ steps.outputs.outputs.cloudfront_distribution_id }}" \
-          --paths "/*"
-
-      - uses: aws-actions/amazon-ecr-login@v2
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Deploy with CodeDeploy Blue/Green (Enterprise)
+      - name: Build and Push ECS Image
         run: |
           NEW_IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}"
-          echo "🚀 Starting CodeDeploy Blue/Green ECS Deployment"
-          
+          aws-actions/amazon-ecr-login@v2 >/dev/null
+          docker build -t $NEW_IMAGE .
+          docker push $NEW_IMAGE
+
+      - name: Retrieve Terraform Outputs for CodeDeploy
+        run: |
           cd terraform/backend
           PROD_LISTENER_ARN=$(terraform output -raw production_listener_arn)
           TEST_LISTENER_ARN=$(terraform output -raw test_listener_arn)
           BLUE_TG_NAME=$(terraform output -raw blue_target_group_name)
           GREEN_TG_NAME=$(terraform output -raw green_target_group_name)
+          echo "::set-output name=prod_listener::$PROD_LISTENER_ARN"
+          echo "::set-output name=test_listener::$TEST_LISTENER_ARN"
+          echo "::set-output name=blue_tg::$BLUE_TG_NAME"
+          echo "::set-output name=green_tg::$GREEN_TG_NAME"
           cd ../..
 
-          echo "✅ Terraform Configuration:"
-          echo "  - Production Listener: $PROD_LISTENER_ARN"
-          echo "  - Test Listener: $TEST_LISTENER_ARN"
-          echo "  - Blue Target Group: $BLUE_TG_NAME"
-          echo "  - Green Target Group: $GREEN_TG_NAME"
-
-          echo "📋 Retrieving current task definition..."
+      - name: Describe Current Task Definition
+        run: |
           aws ecs describe-task-definition \
             --task-definition "${{ env.PROJECT_NAME }}-api-task" \
             --query 'taskDefinition' > current_task_def.json
 
-          echo "🔧 Creating new task definition..."
-          jq --arg IMAGE "$NEW_IMAGE" \
+      - name: Register New Task Definition
+        run: |
+          NEW_TASK_DEF_ARN=$(jq --arg IMAGE "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}" \
             '.containerDefinitions[0].image = $IMAGE |
              del(.taskDefinitionArn, .revision, .status,
                  .requiresAttributes, .placementConstraints,
                  .compatibilities, .registeredAt, .registeredBy)' \
-            current_task_def.json > new_task_def.json
-
-          echo "📦 Registering new task definition..."
-          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
-            --cli-input-json file://new_task_def.json \
+            current_task_def.json | \
+            aws ecs register-task-definition --cli-input-json file:///dev/stdin \
             --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "NEW_TASK_DEF_ARN=$NEW_TASK_DEF_ARN" >> $GITHUB_ENV
 
-          echo "📝 Creating AppSpec for CodeDeploy..."
+      - name: Generate appspec.json
+        run: |
           cat > appspec.json << 'EOF'
           {
             "version": "1.0",
@@ -183,13 +138,13 @@ jobs:
           }
           EOF
 
-          echo "🚀 Starting CodeDeploy Blue/Green deployment..."
+      - name: Create CodeDeploy Deployment
+        run: |
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name "${{ env.PROJECT_NAME }}-codedeploy-app" \
             --deployment-group-name "${{ env.PROJECT_NAME }}-deployment-group" \
             --deployment-config-name CodeDeployDefault.ECSAllAtOnce \
             --revision "revisionType=AppSpecContent,appSpecContent={\"content\":$(jq -Rs . appspec.json)}" \
             --query 'deploymentId' --output text)
-
           echo "✅ Deployment initiated: $DEPLOYMENT_ID"
-          echo "Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
+          echo "📈 Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
