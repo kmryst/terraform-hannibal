@@ -52,7 +52,7 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
     }
     
     green_fleet_provisioning_option {
-      action = "COPY_AUTO_SCALING_GROUP"
+      action = "DISCOVER_EXISTING"
     }
     
     terminate_blue_instances_on_deployment_success {
