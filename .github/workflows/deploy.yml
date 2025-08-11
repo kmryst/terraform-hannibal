@@ -109,7 +109,6 @@ jobs:
 
       - name: Register New Task Definition
         run: |
-          # Write modified task definition JSON to a file
           jq --arg IMAGE "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}" \
             '.containerDefinitions[0].image = $IMAGE |
              del(.taskDefinitionArn, .revision, .status,
@@ -117,7 +116,6 @@ jobs:
                  .compatibilities, .registeredAt, .registeredBy)' \
             current_task_def.json > new_task_def.json
 
-          # Register using file reference
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
             --cli-input-json file://new_task_def.json \
             --query 'taskDefinition.taskDefinitionArn' --output text)
@@ -155,11 +153,12 @@ jobs:
 
       - name: Create CodeDeploy Deployment
         run: |
+          REV_JSON=$(jq -c . appspec.json)
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name "${{ env.PROJECT_NAME }}-codedeploy-app" \
             --deployment-group-name "${{ env.PROJECT_NAME }}-deployment-group" \
             --deployment-config-name CodeDeployDefault.ECSAllAtOnce \
-            --revision "revisionType=AppSpecContent,appSpecContent={\"content\":$(jq -Rs . appspec.json)}" \
+            --revision "revisionType=AppSpecContent,appSpecContent=$REV_JSON" \
             --query 'deploymentId' --output text)
           echo "✅ Deployment initiated: $DEPLOYMENT_ID"
           echo "📈 Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
