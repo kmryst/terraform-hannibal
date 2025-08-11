@@ -169,6 +169,7 @@ resource "aws_lb" "main" {
   security_groups            = [aws_security_group.alb.id]
   subnets                    = values(aws_subnet.public)[*].id
   enable_deletion_protection = false
+  drop_invalid_header_fields = true
 }
 
 # --- ALB Target Group (Blue Environment) ---
@@ -308,7 +309,7 @@ resource "aws_lb_listener_rule" "test" {
 # ECS Native Blue/Green uses built-in service linking
 # No additional IAM roles required for basic deployment
 
-# --- ECS Service with Native Blue/Green ---
+# --- ECS Service with CodeDeploy Blue/Green ---
 resource "aws_ecs_service" "api" {
   name                              = "${var.project_name}-api-service"
   cluster                           = aws_ecs_cluster.main.id
@@ -318,15 +319,8 @@ resource "aws_ecs_service" "api" {
   health_check_grace_period_seconds = 60
   
   deployment_controller {
-    type = "ECS"
+    type = "CODE_DEPLOY"
   }
-  
-  # ECS Native Blue/Green Deployment (Provider 6.8.0)
-  # deployment_configuration {
-  #   bake_time_in_minutes = 1
-  # }
-  # Note: deployment_configuration may cause "Unexpected block" error in Provider 6.8.0
-  # ECS handles bake time automatically via ALB Priority 100 rules
   
   network_configuration {
     subnets          = values(aws_subnet.app)[*].id
@@ -341,6 +335,10 @@ resource "aws_ecs_service" "api" {
   }
   
   depends_on = [aws_lb_listener.http, aws_lb_listener.test, aws_db_instance.postgres]
+  
+  lifecycle {
+    ignore_changes = [task_definition, load_balancer]
+  }
 }
 
 # --- RDS Subnet Group ---
@@ -375,6 +373,8 @@ resource "aws_db_instance" "postgres" {
   
   vpc_security_group_ids = [aws_security_group.rds.id]
   db_subnet_group_name   = aws_db_subnet_group.postgres.name
+  
+  iam_database_authentication_enabled = true
   
   # AWS Professional環境別設定（Netflix/Airbnb/Spotify標準）
   backup_retention_period = local.backup_retention_days

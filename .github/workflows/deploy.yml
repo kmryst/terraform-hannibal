@@ -1,5 +1,10 @@
 name: Deploy NestJS Hannibal (Fast)
 
+env:
+  AWS_ACCOUNT_ID: "258632448142"
+  PROJECT_NAME: "nestjs-hannibal-3"
+  AWS_REGION: "ap-northeast-1"
+
 on:
   workflow_dispatch:
 
@@ -55,7 +60,7 @@ jobs:
       # Assume CICD Role
       - name: Assume CICD Role
         run: |
-          CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --role-session-name deploy)
+          CREDS=$(aws sts assume-role --role-arn arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev --role-session-name deploy)
           echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
@@ -109,13 +114,13 @@ jobs:
           tags: 258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Deploy with ECS Native Blue/Green
+      - name: Deploy with CodeDeploy Blue/Green
         run: |
           # 新しいコンテナイメージ
-          NEW_IMAGE="258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:${{ github.sha }}"
+          NEW_IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}"
           
           # 現在のタスク定義を取得してファイルに保存
-          aws ecs describe-task-definition --task-definition nestjs-hannibal-3-api-task --query 'taskDefinition' > current_task_def.json
+          aws ecs describe-task-definition --task-definition ${{ env.PROJECT_NAME }}-api-task --query 'taskDefinition' > current_task_def.json
           
           # 新しいタスク定義を作成（イメージのみ更新）
           jq --arg IMAGE "$NEW_IMAGE" '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)' current_task_def.json > new_task_def.json
@@ -123,13 +128,68 @@ jobs:
           # 新しいタスク定義を登録
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://new_task_def.json --query 'taskDefinition.taskDefinitionArn' --output text)
           
-          # ECS Native Blue/Green deployment実行（1分ベイクタイム）
-          aws ecs update-service \
-            --cluster nestjs-hannibal-3-cluster \
-            --service nestjs-hannibal-3-api-service \
-            --task-definition $NEW_TASK_DEF_ARN
+          # CodeDeploy Blue/Green deployment実行
+          cat > appspec.json << EOF
+          {
+            "version": "0.0",
+            "Resources": [
+              {
+                "TargetService": {
+                  "Type": "AWS::ECS::Service",
+                  "Properties": {
+                    "TaskDefinition": "$NEW_TASK_DEF_ARN",
+                    "LoadBalancerInfo": {
+                      "ContainerName": "${{ env.PROJECT_NAME }}-container",
+                      "ContainerPort": 3000
+                    },
+                    "PlatformVersion": "LATEST"
+                  }
+                }
+              }
+            ],
+            "Hooks": [
+              {
+                "BeforeInstall": "echo 'Preparing for deployment'"
+              },
+              {
+                "AfterInstall": "echo 'New task definition registered'"
+              },
+              {
+                "AfterAllowTestTraffic": "echo 'Test traffic validation complete'"
+              },
+              {
+                "BeforeAllowTraffic": "echo 'Switching to production traffic'"
+              },
+              {
+                "AfterAllowTraffic": "echo 'Deployment completed successfully'"
+              }
+            ]
+          }
+          EOF
           
-          echo "🚀 ECS Native Blue/Green deployment initiated successfully!"
+          # CodeDeploy デプロイメント実行
+          DEPLOYMENT_ID=$(aws deploy create-deployment \
+            --application-name ${{ env.PROJECT_NAME }}-codedeploy-app \
+            --deployment-group-name ${{ env.PROJECT_NAME }}-deployment-group \
+            --revision '{"revisionType":"AppSpecContent","appSpecContent":{"content":"'$(cat appspec.json | jq -c . | sed 's/"/\\"/g')'"}}'  \
+            --query 'deploymentId' --output text)
+          
+          echo "🚀 CodeDeploy Blue/Green deployment initiated!"
+          echo "Deployment ID: $DEPLOYMENT_ID"
           echo "Task Definition: $NEW_TASK_DEF_ARN"
-          echo "Bake time: ECS automatic (typically 1-2 minutes)"
-          echo "Production traffic will switch after successful health checks"
+          
+          # デプロイメント状況監視
+          echo "⏳ Monitoring deployment progress..."
+          while true; do
+            STATUS=$(aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --query 'deploymentInfo.status' --output text)
+            echo "Status: $STATUS"
+            if [ "$STATUS" = "Succeeded" ]; then
+              echo "🎉 Deployment completed successfully!"
+              break
+            elif [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Stopped" ]; then
+              echo "❌ Deployment failed with status: $STATUS"
+              aws deploy get-deployment --deployment-id $DEPLOYMENT_ID --query 'deploymentInfo.errorInformation'
+              exit 1
+            fi
+            sleep 30
+          done

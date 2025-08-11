@@ -71,6 +71,26 @@
       "Resource": "arn:aws:rds-db:ap-northeast-1:258632448142:dbuser:nestjs-hannibal-3-*/*"
     },
     {
+      "Sid": "CodeDeployECS",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:CreateTaskSet",
+        "ecs:DeleteTaskSet",
+        "ecs:DescribeServices",
+        "ecs:UpdateServicePrimaryTaskSet",
+        "elasticloadbalancing:DescribeTargetGroups",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:ModifyListener",
+        "elasticloadbalancing:DescribeRules",
+        "elasticloadbalancing:ModifyRule",
+        "lambda:InvokeFunction",
+        "cloudwatch:DescribeAlarms",
+        "sns:Publish",
+        "s3:GetObject"
+      ],
+      "Resource": "*"
+    },
+    {
       "Sid": "DenyDangerousActions",
       "Effect": "Deny",
       "Action": [
@@ -80,8 +100,7 @@
         "rds:*",
         "s3:Delete*",
         "s3:Put*",
-        "cloudformation:*",
-        "lambda:*"
+        "cloudformation:*"
       ],
       "Resource": "*"
     }

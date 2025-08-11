@@ -1,5 +1,10 @@
 name: Destroy AWS Infrastructure (Fast)
 
+env:
+  AWS_ACCOUNT_ID: "258632448142"
+  PROJECT_NAME: "nestjs-hannibal-3"
+  AWS_REGION: "ap-northeast-1"
+
 # 本番用設定（コメントアウト）
 # on:
 #   workflow_dispatch:
@@ -38,7 +43,7 @@ jobs:
       # Assume CICD Role
       - name: Assume CICD Role
         run: |
-          CREDS=$(aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalCICDRole-Dev --role-session-name destroy)
+          CREDS=$(aws sts assume-role --role-arn arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev --role-session-name destroy)
           echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
@@ -50,6 +55,17 @@ jobs:
           terraform destroy -auto-approve -var="api_alb_dns_name=dummy.elb.amazonaws.com" -var="environment=dev" -var="enable_cloudfront=true"
           # 本番用: -var="environment=prod" -var="enable_cloudfront=true"
         working-directory: ./terraform/frontend
+
+      # Stop CodeDeploy Deployments (if any)
+      - name: Stop Active Deployments
+        run: |
+          # 進行中のデプロイメントを停止
+          DEPLOYMENTS=$(aws deploy list-deployments --application-name ${{ env.PROJECT_NAME }}-codedeploy-app --include-only-statuses InProgress Queued Ready 2>/dev/null || echo '{"deployments":[]}'
+          for deployment_id in $(echo $DEPLOYMENTS | jq -r '.deployments[]?'); do
+            echo "Stopping deployment: $deployment_id"
+            aws deploy stop-deployment --deployment-id $deployment_id --auto-rollback-enabled || true
+          done
+        continue-on-error: true
 
       # Destroy Backend (Complete Infrastructure)
       - name: Destroy Backend
