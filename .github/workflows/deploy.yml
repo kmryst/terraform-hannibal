@@ -320,7 +320,7 @@ EOF
           echo "DEPLOYMENT_ID=$DEPLOYMENT_ID" >> $GITHUB_ENV
           echo "✅ Deployment initiated: $DEPLOYMENT_ID"
           echo "📈 Monitor at: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
-          
+
       - name: Monitor Deployment Status
         run: |
           set -e
