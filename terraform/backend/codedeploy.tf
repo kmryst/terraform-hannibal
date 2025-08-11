@@ -84,7 +84,7 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   # CloudWatch アラーム設定（企業レベル監視）
   alarm_configuration {
     enabled = true
-    alarms  = [aws_cloudwatch_metric_alarm.ecs_green_health_check_failed.name]
+    alarms  = [aws_cloudwatch_metric_alarm.ecs_green_health_check_failed.alarm_name]
   }
   
   tags = {
