@@ -54,7 +54,8 @@ resource "aws_lb_target_group" "green" {
 
 # S3 Bucket for CodeDeploy artifacts
 resource "aws_s3_bucket" "codedeploy_artifacts" {
-  bucket = "${var.project_name}-codedeploy-artifacts"
+  bucket        = "${var.project_name}-codedeploy-artifacts"
+  force_destroy = true
 
   tags = {
     Name        = "${var.project_name}-codedeploy-artifacts"
