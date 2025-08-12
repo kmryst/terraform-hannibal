@@ -1,9 +1,9 @@
 # 全リージョンの課金リソース確認スクリプト
 
 $regions = @(
-    "us-east-1",      # バージニア北部（グローバルサービス用）
-    "ap-northeast-1",  # 東京（メイン）
-    "ap-northeast-3"   # 大阪（災害対策）
+    "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+    "ap-northeast-1", "ap-northeast-2", "ap-northeast-3", "ap-southeast-1", "ap-southeast-2",
+    "eu-west-1", "eu-west-2", "eu-central-1"
 )
 
 Write-Host "=== 全リージョン課金リソース確認 ===" -ForegroundColor Yellow
