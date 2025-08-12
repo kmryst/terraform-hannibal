@@ -8,11 +8,10 @@
 - **blue-green-monitor.ps1** - Blue/Green Deployment監視スクリプト
 - **README.md** - 監視スクリプトの使用方法
 
-## 🚀 今後の拡張予定
-
 ### deployment/
-- デプロイメント支援スクリプト
-- ロールバックスクリプト
+- **deploy-codedeploy.ps1** - CodeDeploy Blue/Greenデプロイメントスクリプト
+
+## 🚀 今後の拡張予定
 
 ### setup/
 - 環境セットアップスクリプト

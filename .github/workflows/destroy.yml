@@ -67,6 +67,23 @@ jobs:
           done
         continue-on-error: true
 
+      # Clean Target Groups (Fix deletion error)
+      - name: Clean Target Groups
+        run: |
+          # Green Target Group削除
+          GREEN_TG_ARN=$(aws elbv2 describe-target-groups --names ${{ env.PROJECT_NAME }}-green-tg --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
+          if [ "$GREEN_TG_ARN" != "None" ]; then
+            echo "Deleting Green Target Group: $GREEN_TG_ARN"
+            aws elbv2 delete-target-group --target-group-arn $GREEN_TG_ARN || true
+          fi
+          # Blue Target Group削除
+          BLUE_TG_ARN=$(aws elbv2 describe-target-groups --names ${{ env.PROJECT_NAME }}-blue-tg --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
+          if [ "$BLUE_TG_ARN" != "None" ]; then
+            echo "Deleting Blue Target Group: $BLUE_TG_ARN"
+            aws elbv2 delete-target-group --target-group-arn $BLUE_TG_ARN || true
+          fi
+        continue-on-error: true
+
       # Clean S3 CodeDeploy Artifacts
       - name: Empty S3 Buckets
         run: |
