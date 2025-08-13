@@ -25,7 +25,7 @@ import { Route } from './entities';
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       typePaths: ['./**/*.graphql'],
-      path: '/api/graphql',
+      path: '/graphql',
       definitions: {
         path: join(process.cwd(), 'src/graphql/graphql.schema.ts'),
       },
