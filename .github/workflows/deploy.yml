@@ -1,3 +1,5 @@
+# .github\workflows\deploy.yml
+
 name: Deploy NestJS Hannibal (Enterprise)
 
 env:
@@ -205,8 +207,11 @@ jobs:
           
           echo "✅ New task definition registered: $NEW_TASK_DEF_ARN"
           
-          # Create appspec.yaml for CodeDeploy
-          cat > appspec.yaml << 'EOF'
+          # Create appspec.yaml for CodeDeploy with dynamic container info
+          CONTAINER_NAME=$(jq -r '.containerDefinitions[0].name' current_task_def.json)
+          CONTAINER_PORT=$(jq -r '.containerDefinitions[0].portMappings[0].containerPort' current_task_def.json)
+          
+          cat > appspec.yaml << EOF
           version: 0.0
           Resources:
             - TargetService:
@@ -214,8 +219,8 @@ jobs:
                 Properties:
                   TaskDefinition: <TASK_DEFINITION>
                   LoadBalancerInfo:
-                    ContainerName: "nestjs-hannibal-3-container"
-                    ContainerPort: 3000
+                    ContainerName: "$CONTAINER_NAME"
+                    ContainerPort: $CONTAINER_PORT
           EOF
           
           # Replace placeholder with actual task definition ARN

@@ -46,11 +46,11 @@ resource "aws_security_group" "ecs" {
   description = "ECS security group for three-tier architecture"
   vpc_id      = aws_vpc.main.id
   
-  # Ingress from ALB only
+  # Ingress from ALB only - container_portを動的に許可
   ingress {
-    description     = "From ALB"
-    from_port       = 3000
-    to_port         = 3000
+    description     = "From ALB to container port"
+    from_port       = var.container_port
+    to_port         = var.container_port
     protocol        = "tcp"
     security_groups = [aws_security_group.alb.id]
   }

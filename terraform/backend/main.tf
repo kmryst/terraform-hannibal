@@ -208,6 +208,7 @@ resource "aws_lb_listener" "test" {
 }
 
 # --- ALB Listener Rules for Blue/Green ---
+# 初期状態でBlue環境に100%トラフィックを送信、CodeDeployの動的切替と競合しない構成
 resource "aws_lb_listener_rule" "production" {
   listener_arn = aws_lb_listener.http.arn
   priority     = 100
@@ -217,11 +218,11 @@ resource "aws_lb_listener_rule" "production" {
     forward {
       target_group {
         arn    = aws_lb_target_group.blue.arn
-        weight = 100
+        weight = 100  # 初期状態でBlueに100%トラフィック
       }
       target_group {
         arn    = aws_lb_target_group.green.arn
-        weight = 0
+        weight = 0    # 初期状態でGreenは0%
       }
     }
   }
@@ -233,7 +234,7 @@ resource "aws_lb_listener_rule" "production" {
   }
   
   lifecycle {
-    ignore_changes = [action]
+    ignore_changes = [action]  # CodeDeployの動的変更を許可
   }
 }
 
@@ -280,7 +281,7 @@ resource "aws_ecs_service" "api" {
   task_definition                   = aws_ecs_task_definition.api.arn
   desired_count                     = var.desired_task_count
   launch_type                       = "FARGATE"
-  health_check_grace_period_seconds = 60
+  health_check_grace_period_seconds = 180  # ヘルスチェック猶予期間を延長
   
   deployment_controller {
     type = "CODE_DEPLOY"

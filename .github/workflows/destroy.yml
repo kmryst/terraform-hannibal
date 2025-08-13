@@ -1,3 +1,5 @@
+# .github\workflows\destroy.yml
+
 name: Destroy AWS Infrastructure (Fast)
 
 env:
