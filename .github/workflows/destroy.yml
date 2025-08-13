@@ -1,23 +1,10 @@
-# .github\workflows\destroy.yml
-
-name: Destroy AWS Infrastructure (Fast)
+name: Destroy AWS Infrastructure (Reliable)
 
 env:
   AWS_ACCOUNT_ID: "258632448142"
   PROJECT_NAME: "nestjs-hannibal-3"
   AWS_REGION: "ap-northeast-1"
-
-# 本番用設定（コメントアウト）
-# on:
-#   workflow_dispatch:
-#     inputs:
-#       environment:
-#         type: choice
-#         options: [frontend, backend, all]
-#       confirm:
-#         description: 'Type "DESTROY" to confirm'
-#       double_confirm:
-#         description: 'Type project name to double confirm'
+  TERRAFORM_VERSION: "1.12.1"
 
 on:
   workflow_dispatch:
@@ -33,94 +20,132 @@ jobs:
     if: github.event.inputs.confirm == 'DESTROY'
     steps:
       - uses: actions/checkout@v4
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-1
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install prerequisites
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq unzip
+
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.12.1
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
 
-      # Assume CICD Role
       - name: Assume CICD Role
         run: |
-          CREDS=$(aws sts assume-role --role-arn arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev --role-session-name destroy)
+          set -e
+          CREDS=$(aws sts assume-role \
+            --role-arn arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev \
+            --role-session-name destroy-$(date +%s))
           echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+          echo "✅ Assumed CICD role"
 
-      # Destroy Frontend First (CloudFront dependency)
-      - name: Destroy Frontend
+      - name: Stop active CodeDeploy deployments
         run: |
-          terraform init -input=false
-          terraform destroy -auto-approve -var="api_alb_dns_name=dummy.elb.amazonaws.com" -var="environment=dev" -var="enable_cloudfront=true"
-          # 本番用: -var="environment=prod" -var="enable_cloudfront=true"
-        working-directory: ./terraform/frontend
-
-      # Stop CodeDeploy Deployments and Clean Resources
-      - name: Stop Active Deployments
-        run: |
-          # 進行中のデプロイメントを停止
-          DEPLOYMENTS=$(aws deploy list-deployments --application-name ${{ env.PROJECT_NAME }}-app --include-only-statuses InProgress Queued Ready 2>/dev/null || echo '{"deployments":[]}') 
-          for deployment_id in $(echo $DEPLOYMENTS | jq -r '.deployments[]?'); do
-            echo "Stopping deployment: $deployment_id"
-            aws deploy stop-deployment --deployment-id $deployment_id --auto-rollback-enabled || true
-          done
-          
-          # ECSサービスを停止してTarget Groupから切り離し
-          aws ecs update-service --cluster ${{ env.PROJECT_NAME }}-cluster --service ${{ env.PROJECT_NAME }}-api-service --desired-count 0 || true
-          sleep 30
-        continue-on-error: true
-
-      # Clean Listener Rules and Target Groups
-      - name: Clean ALB Dependencies
-        run: |
-          # ALB ARN取得
-          ALB_ARN=$(aws elbv2 describe-load-balancers --names ${{ env.PROJECT_NAME }}-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "None")
-          if [ "$ALB_ARN" != "None" ]; then
-            # Listener削除
-            aws elbv2 describe-listeners --load-balancer-arn $ALB_ARN --query 'Listeners[*].ListenerArn' --output text | xargs -n1 aws elbv2 delete-listener --listener-arn || true
-            # ALB削除
-            aws elbv2 delete-load-balancer --load-balancer-arn $ALB_ARN || true
-            sleep 30
+          set -e
+          APP_NAME="${{ env.PROJECT_NAME }}-app"
+          echo "🔎 Listing active deployments for $APP_NAME"
+          DEPLOYMENTS=$(aws deploy list-deployments \
+            --application-name "$APP_NAME" \
+            --include-only-statuses InProgress Queued Ready \
+            2>/dev/null || echo '{"deployments":[]}')
+          CNT=$(echo "$DEPLOYMENTS" | jq -r '.deployments | length')
+          if [ "$CNT" -gt 0 ]; then
+            for id in $(echo "$DEPLOYMENTS" | jq -r '.deployments[]'); do
+              echo "🛑 Stopping deployment: $id"
+              aws deploy stop-deployment --deployment-id "$id" --auto-rollback-enabled || true
+            done
+          else
+            echo "✅ No active deployments"
           fi
-          
-          # Target Group削除
-          for tg_name in "${{ env.PROJECT_NAME }}-blue-tg" "${{ env.PROJECT_NAME }}-green-tg"; do
-            TG_ARN=$(aws elbv2 describe-target-groups --names $tg_name --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
-            if [ "$TG_ARN" != "None" ]; then
-              echo "Deleting Target Group: $tg_name"
-              aws elbv2 delete-target-group --target-group-arn $TG_ARN || true
+
+      - name: Scale down ECS service and wait stable
+        run: |
+          set -e
+          CLUSTER="${{ env.PROJECT_NAME }}-cluster"
+          SERVICE="${{ env.PROJECT_NAME }}-api-service"
+          echo "🔧 Scaling down ECS service $SERVICE in $CLUSTER to 0"
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --desired-count 0 || true
+
+          echo "⏳ Waiting for ECS service to become stable (0 desired)..."
+          ATTEMPTS=10
+          for i in $(seq 1 $ATTEMPTS); do
+            STATUS=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+              --query 'services[].deployments[].desiredCount' --output text 2>/dev/null || echo "Unknown")
+            echo "Attempt $i/$ATTEMPTS: desiredCount=$STATUS"
+            if [ "$STATUS" = "0" ] || [ "$STATUS" = "None" ] || [ "$STATUS" = "Unknown" ]; then
+              break
             fi
+            sleep 30
           done
-        continue-on-error: true
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE" || true
+          echo "✅ ECS service scaled down or stable"
 
-      # Clean S3 CodeDeploy Artifacts
-      - name: Empty S3 Buckets
+      - name: Destroy Backend (Terraform)
+        working-directory: ./terraform/backend
         run: |
-          # CodeDeploy artifacts bucket
-          aws s3 rm s3://${{ env.PROJECT_NAME }}-codedeploy-artifacts --recursive || true
-          # Frontend S3 bucket (if exists)
-          FRONTEND_BUCKET=$(aws s3api list-buckets --query "Buckets[?contains(Name, '${{ env.PROJECT_NAME }}-frontend')].Name" --output text 2>/dev/null || echo "")
-          if [ ! -z "$FRONTEND_BUCKET" ]; then
-            aws s3 rm s3://$FRONTEND_BUCKET --recursive || true
-          fi
-        continue-on-error: true
-
-      # Clean ECR Images
-      - name: Clean ECR Repository
-        run: |
-          aws ecr batch-delete-image --repository-name ${{ env.PROJECT_NAME }} --image-ids imageTag=latest || true
-          aws ecr list-images --repository-name ${{ env.PROJECT_NAME }} --query 'imageIds[*]' --output json | \
-            jq '.[] | select(.imageTag != null)' | \
-            jq -s '.' | \
-            aws ecr batch-delete-image --repository-name ${{ env.PROJECT_NAME }} --image-ids file:///dev/stdin || true
-        continue-on-error: true
-
-      # Destroy Backend (Complete Infrastructure)
-      - name: Destroy Backend
-        run: |
+          set -e
           terraform init -input=false
           terraform destroy -auto-approve -var="client_url_for_cors=" -var="environment=dev"
-        working-directory: ./terraform/backend
+
+      - name: Destroy Frontend (Terraform)
+        working-directory: ./terraform/frontend
+        run: |
+          set -e
+          terraform init -input=false
+          terraform destroy -auto-approve -var="api_alb_dns_name=dummy.elb.amazonaws.com" -var="environment=dev" -var="enable_cloudfront=true" || true
+
+      - name: Cleanup S3 buckets (best-effort)
+        run: |
+          set -e
+          aws s3 rm s3://${{ env.PROJECT_NAME }}-codedeploy-artifacts --recursive || true
+          FRONTEND_BUCKET=$(aws s3api list-buckets --query "Buckets[?contains(Name, '${{ env.PROJECT_NAME }}-frontend')].Name" --output text 2>/dev/null || echo "")
+          if [ -n "$FRONTEND_BUCKET" ]; then
+            aws s3 rm s3://$FRONTEND_BUCKET --recursive || true
+          fi
+
+      - name: Cleanup ECR images (best-effort)
+        run: |
+          set -e
+          REPO="${{ env.PROJECT_NAME }}"
+          aws ecr batch-delete-image --repository-name "$REPO" --image-ids imageTag=latest || true
+          IDS=$(aws ecr list-images --repository-name "$REPO" --query 'imageIds' --output json 2>/dev/null || echo "[]")
+          if [ "$(echo "$IDS" | jq 'length')" -gt 0 ]; then
+            echo "$IDS" | aws ecr batch-delete-image --repository-name "$REPO" --image-ids file:///dev/stdin || true
+          fi
+
+      - name: Final ELB/TG cleanup (best-effort)
+        run: |
+          set -e
+          ALB_ARN=$(aws elbv2 describe-load-balancers --names ${{ env.PROJECT_NAME }}-alb \
+            --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "None")
+          if [ "$ALB_ARN" != "None" ]; then
+            aws elbv2 describe-listeners --load-balancer-arn "$ALB_ARN" \
+              --query 'Listeners[*].ListenerArn' --output text 2>/dev/null | \
+              xargs -n1 aws elbv2 delete-listener --listener-arn || true
+            aws elbv2 delete-load-balancer --load-balancer-arn "$ALB_ARN" || true
+            sleep 20
+          fi
+          for tg in "${{ env.PROJECT_NAME }}-blue-tg" "${{ env.PROJECT_NAME }}-green-tg"; do
+            TG_ARN=$(aws elbv2 describe-target-groups --names "$tg" \
+              --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "None")
+            if [ "$TG_ARN" != "None" ]; then
+              aws elbv2 delete-target-group --target-group-arn "$TG_ARN" || true
+            fi
+          done
+
+      - name: Summary
+        run: |
+          echo "✅ Destroy workflow completed."
+          echo "- CodeDeploy deployments stopped"
+          echo "- ECS service scaled down and waited stable"
+          echo "- Terraform destroy (backend -> frontend) executed"
+          echo "- Best-effort cleanup for S3/ECR/ELB/TG finished"
