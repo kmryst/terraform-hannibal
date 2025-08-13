@@ -24,6 +24,15 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   
+  # HTTPS Listener (Port 443)
+  ingress {
+    description = "HTTPS from internet"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
   # Allow all outbound traffic
   egress {
     description = "All outbound traffic"

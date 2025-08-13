@@ -166,41 +166,39 @@ resource "aws_cloudfront_distribution" "main" {
   ordered_cache_behavior { # APIリクエストのルーティング
     path_pattern    = "/api/*"
     allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-
     cached_methods = ["GET", "HEAD", "OPTIONS"]
-    # GET(データ取得)、HEAD(メタデータ確認)、OPTIONS(同じドメインでも、複雑なリクエストにはCORSチェックが入るため)
-
-    target_origin_id = "ALB-${var.project_name}-API" # APIオリジンへ
-
+    target_origin_id = "ALB-${var.project_name}-API"
     viewer_protocol_policy = "redirect-to-https"
-    compress               = true
-    min_ttl                = 0
-    default_ttl            = 0 # APIレスポンスは基本キャッシュしない
-    max_ttl                = 0
+    compress = true
+    min_ttl = 0
+    default_ttl = 0
+    max_ttl = 0
 
-
-
-    # AWSが事前に作成したマネージドポリシーを使用する場合は、UUID形式で指定します
-    # cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"  # CachingDisabled
-    # origin_request_policy_id = "88a5eaf4-2fd4-4709-b370-b4c650ea3fcf"  # Managed-AllViewer
-
-    # APIリクエストに必要なヘッダー、クッキー、クエリ文字列を転送するポリシー
-    forwarded_values { # CachingDisabled を使わない場合は手動で設定 # 転送された値
-
+    forwarded_values {
       query_string = true
-      # S3へのリクエストにクエリは不要だが、APIへのリクエストにクエリは必要
-
-      # クライアントから送信されるすべてのHTTPクッキーをオリジンに転送する
-      # 認証トークンやセッションIDがクッキーに保存される
       cookies {
-        forward = "all" # または "none", "whitelist"
+        forward = "all"
       }
+      headers = ["Authorization", "Content-Type", "Origin", "Referer", "User-Agent"]
+    }
+  }
 
-      # - "Authorization": 認証情報を含むヘッダー。API認証などで使用
-      # - "Content-Type": リクエストやレスポンスのデータ形式を指定するヘッダー
-      # - "Origin": リクエスト元のオリジン（スキーム、ホスト、ポート）を示すヘッダー。CORS制御で利用
-      # - "Referer": リクエスト元のページURLを示すヘッダー。リファラ情報の送信に使用
-      # - "User-Agent": クライアントのソフトウェア情報（ブラウザやアプリなど）を示すヘッダー
+  ordered_cache_behavior { # GraphQLエンドポイント用
+    path_pattern    = "/graphql"
+    allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods = ["GET", "HEAD", "OPTIONS"]
+    target_origin_id = "ALB-${var.project_name}-API"
+    viewer_protocol_policy = "redirect-to-https"
+    compress = true
+    min_ttl = 0
+    default_ttl = 0
+    max_ttl = 0
+
+    forwarded_values {
+      query_string = true
+      cookies {
+        forward = "all"
+      }
       headers = ["Authorization", "Content-Type", "Origin", "Referer", "User-Agent"]
     }
   }

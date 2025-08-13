@@ -113,6 +113,24 @@ jobs:
           terraform apply -auto-approve tfplan
           terraform output -json > ../../tf_outputs_frontend.json
 
+      - name: Build and Deploy Frontend
+        run: |
+          set -e
+          ALB_DNS=$(jq -r '.alb_dns_name.value' tf_outputs_backend.json)
+          S3_BUCKET=$(jq -r '.s3_bucket_name.value' tf_outputs_frontend.json)
+          
+          cd client
+          echo "VITE_GRAPHQL_ENDPOINT=/graphql" > .env.production
+          npm ci
+          npm run build
+          
+          aws s3 sync dist/ s3://$S3_BUCKET/ --delete
+          
+          CLOUDFRONT_ID=$(jq -r '.cloudfront_distribution_id.value' ../tf_outputs_frontend.json)
+          if [ "$CLOUDFRONT_ID" != "null" ]; then
+            aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths "/*"
+          fi
+
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
