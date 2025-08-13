@@ -11,7 +11,7 @@ resource "aws_lb_target_group" "blue" {
   target_type = "ip"
   health_check {
     enabled             = true
-    path                = "/health"  # ヘルスチェックエンドポイントを/healthに統一
+    path                = "/health"   # readinessエンドポイント
     protocol            = "HTTP"
     port                = "traffic-port"
     healthy_threshold   = 2
@@ -37,7 +37,7 @@ resource "aws_lb_target_group" "green" {
   target_type = "ip"
   health_check {
     enabled             = true
-    path                = "/health"  # ヘルスチェックエンドポイントを/healthに統一
+    path                = "/health"   # readinessエンドポイント
     protocol            = "HTTP"
     port                = "traffic-port"
     healthy_threshold   = 2

@@ -218,11 +218,11 @@ resource "aws_lb_listener_rule" "production" {
     forward {
       target_group {
         arn    = aws_lb_target_group.blue.arn
-        weight = 100  # 初期状態でBlueに100%トラフィック
+        weight = 100  # 初期Blue 100%
       }
       target_group {
         arn    = aws_lb_target_group.green.arn
-        weight = 0    # 初期状態でGreenは0%
+        weight = 0    # 初期Green 0%
       }
     }
   }
@@ -234,7 +234,8 @@ resource "aws_lb_listener_rule" "production" {
   }
   
   lifecycle {
-    ignore_changes = [action]  # CodeDeployの動的変更を許可
+    # CodeDeployによる動的切替を許容
+    ignore_changes = [action]
   }
 }
 
@@ -281,7 +282,8 @@ resource "aws_ecs_service" "api" {
   task_definition                   = aws_ecs_task_definition.api.arn
   desired_count                     = var.desired_task_count
   launch_type                       = "FARGATE"
-  health_check_grace_period_seconds = 180  # ヘルスチェック猶予期間を延長
+  # Blue初期Healthy化のため猶予延長
+  health_check_grace_period_seconds = 180
   
   deployment_controller {
     type = "CODE_DEPLOY"
@@ -295,8 +297,9 @@ resource "aws_ecs_service" "api" {
   
   load_balancer {
     target_group_arn = aws_lb_target_group.blue.arn
-    container_name   = "${var.project_name}-container"
-    container_port   = var.container_port
+    # コンテナ名とポートはタスク定義と一致させる必要がある
+    container_name   = "${var.project_name}-container"  # タスク定義のcontainerDefinitions[0].name
+    container_port   = var.container_port                # タスク定義のportMappings[0].containerPort
   }
   
 

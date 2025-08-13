@@ -73,7 +73,7 @@ async function bootstrap() {
     // trueにすると、フロントエンドからのログイン状態の維持などが可能になります
   });
 
-  // Enterprise health check endpoint
+  // Readiness health check endpoint for ALB (DB接続や認証とは無関係に200を返す)
   app.use('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });

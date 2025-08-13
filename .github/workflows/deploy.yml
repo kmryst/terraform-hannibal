@@ -217,14 +217,11 @@ jobs:
             - TargetService:
                 Type: AWS::ECS::Service
                 Properties:
-                  TaskDefinition: <TASK_DEFINITION>
+                  TaskDefinition: $NEW_TASK_DEF_ARN
                   LoadBalancerInfo:
                     ContainerName: "$CONTAINER_NAME"
                     ContainerPort: $CONTAINER_PORT
           EOF
-          
-          # Replace placeholder with actual task definition ARN
-          sed -i "s|<TASK_DEFINITION>|$NEW_TASK_DEF_ARN|g" appspec.yaml
           
           # Upload appspec to S3
           S3_BUCKET="${{ env.PROJECT_NAME }}-codedeploy-artifacts"
