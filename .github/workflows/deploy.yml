@@ -116,13 +116,28 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
+      # 方式A: SHAタグとlatestタグの両方をPush（0回目でもlatestをPull可能にする）
       - name: Build and Push ECS Image
         run: |
           set -e
-          NEW_IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}"
-          docker build -t "$NEW_IMAGE" .
-          docker push "$NEW_IMAGE"
-          echo "NEW_IMAGE=$NEW_IMAGE" >> $GITHUB_ENV
+          REPO="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}"
+          IMAGE_SHA_TAG="$REPO:${{ github.sha }}"
+          IMAGE_LATEST_TAG="$REPO:latest"
+
+          echo "🐳 Building Docker image: $IMAGE_SHA_TAG"
+          docker build -t "$IMAGE_SHA_TAG" .
+
+          echo "🔖 Tagging also as: $IMAGE_LATEST_TAG"
+          docker tag "$IMAGE_SHA_TAG" "$IMAGE_LATEST_TAG"
+
+          echo "📤 Pushing SHA tag..."
+          docker push "$IMAGE_SHA_TAG"
+
+          echo "📤 Pushing latest tag..."
+          docker push "$IMAGE_LATEST_TAG"
+
+          echo "NEW_IMAGE=$IMAGE_SHA_TAG" >> $GITHUB_ENV
+          echo "✅ Docker image pushed with SHA and latest tags"
 
       - name: Generate AppSpec for ECS CodeDeploy
         run: |
