@@ -160,9 +160,11 @@ resource "aws_codedeploy_deployment_group" "main" {
       test_traffic_route {
         listener_arns = [aws_lb_listener.test.arn]
       }
+      # Original(Blue)を最初に定義
       target_group {
         name = aws_lb_target_group.blue.name
       }
+      # Replacement(Green)を二番目に定義
       target_group {
         name = aws_lb_target_group.green.name
       }
