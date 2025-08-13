@@ -1,3 +1,5 @@
+# terraform\backend\codedeploy.tf
+
 # CodeDeploy Blue/Green Deployment Resources
 
 # --- ALB Target Group (Blue Environment) ---
@@ -159,10 +161,10 @@ resource "aws_codedeploy_deployment_group" "main" {
         listener_arns = [aws_lb_listener.test.arn]
       }
       target_group {
-        name = aws_lb_target_group.green.name
+        name = aws_lb_target_group.blue.name
       }
       target_group {
-        name = aws_lb_target_group.blue.name
+        name = aws_lb_target_group.green.name
       }
     }
   }

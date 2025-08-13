@@ -65,6 +65,10 @@ jobs:
             echo "Stopping deployment: $deployment_id"
             aws deploy stop-deployment --deployment-id $deployment_id --auto-rollback-enabled || true
           done
+          
+          # ECSサービスを停止してTarget Groupから切り離し
+          aws ecs update-service --cluster ${{ env.PROJECT_NAME }}-cluster --service ${{ env.PROJECT_NAME }}-api-service --desired-count 0 || true
+          sleep 30
         continue-on-error: true
 
       # Clean Target Groups (Fix deletion error)

@@ -126,10 +126,20 @@ function Get-TrafficDistribution {
         }
         
         # Application URLs
-        $albDns = aws elbv2 describe-load-balancers --names "$ProjectName-alb" --region $Region --query 'LoadBalancers[0].DNSName' --output text
         Write-Host "`n🌐 Application URLs:" -ForegroundColor Yellow
-        Write-Host "  Production: http://$albDns" -ForegroundColor White
-        Write-Host "  Test: http://$albDns:8080" -ForegroundColor White
+        try {
+            $albDns = aws elbv2 describe-load-balancers --names "$ProjectName-alb" --region $Region --query 'LoadBalancers[0].DNSName' --output text 2>$null
+            if ($albDns -and $albDns -ne "None" -and $albDns -ne "") {
+                Write-Host "  Production: http://$albDns" -ForegroundColor White
+                Write-Host "  Test: http://$albDns:8080" -ForegroundColor White
+            } else {
+                Write-Host "  Production: http://" -ForegroundColor Red
+                Write-Host "  Test: http://" -ForegroundColor Red
+            }
+        } catch {
+            Write-Host "  Production: http://" -ForegroundColor Red
+            Write-Host "  Test: http://" -ForegroundColor Red
+        }
         
     } catch {
         Write-Host "❌ ALB not found" -ForegroundColor Red

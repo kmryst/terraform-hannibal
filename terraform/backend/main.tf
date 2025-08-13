@@ -1,3 +1,5 @@
+# terraform\backend\main.tf
+
 # amazonq-ignore-file
 
 
@@ -295,6 +297,8 @@ resource "aws_ecs_service" "api" {
     container_name   = "${var.project_name}-container"
     container_port   = var.container_port
   }
+  
+
   
   depends_on = [aws_lb_listener.http, aws_lb_listener.test, aws_db_instance.postgres]
   
