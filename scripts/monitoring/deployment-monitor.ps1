@@ -154,13 +154,18 @@ function Get-TrafficDistribution {
                         # Multiple target groups (Blue/Green or Canary)
                         foreach ($tg in $action.ForwardConfig.TargetGroups) {
                             $tgName = aws elbv2 describe-target-groups --target-group-arns $tg.TargetGroupArn --region $Region --query 'TargetGroups[0].TargetGroupName' --output text
-                            $weight = $tg.Weight
+                            # AWS ALB Weight=1 means 100% when single target group
+                            $weight = if ($action.ForwardConfig.TargetGroups.Count -eq 1 -and $tg.Weight -eq 1) { 100 } else { $tg.Weight }
                             $totalWeight += $weight
                             
                             if ($tgName -like "*blue*") { $blueWeight = $weight }
                             if ($tgName -like "*green*") { $greenWeight = $weight }
                             
-                            $color = if ($weight -gt 0) { "Green" } else { "Gray" }
+                            # Color based on environment type, not weight
+                            $color = if ($tgName -like "*blue*") { "Blue" } 
+                                    elseif ($tgName -like "*green*") { "Green" } 
+                                    elseif ($weight -gt 0) { "White" } 
+                                    else { "Gray" }
                             Write-Host "  $tgName - Weight: $weight%" -ForegroundColor $color
                         }
                     } elseif ($action.TargetGroupArn) {
@@ -172,7 +177,9 @@ function Get-TrafficDistribution {
                         if ($tgName -like "*blue*") { $blueWeight = 100 }
                         if ($tgName -like "*green*") { $greenWeight = 100 }
                         
-                        Write-Host "  $tgName - Weight: 100%" -ForegroundColor Green
+                        # Color based on environment type
+                        $color = if ($tgName -like "*blue*") { "Blue" } else { "Green" }
+                        Write-Host "  $tgName - Weight: 100%" -ForegroundColor $color
                     }
                 }
             }
