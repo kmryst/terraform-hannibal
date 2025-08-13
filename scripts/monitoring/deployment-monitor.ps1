@@ -103,6 +103,35 @@ function Get-EnvironmentHealth {
     Write-Host ""
 }
 
+function Get-CodeDeployDeploymentStatus {
+    Write-Host "🚀 Active CodeDeploy Status" -ForegroundColor Blue
+    
+    try {
+        $deployments = aws deploy list-deployments --application-name "$ProjectName-app" --deployment-group-name "$ProjectName-dg" --include-only-statuses "InProgress" "Queued" "Ready" --region $Region | ConvertFrom-Json
+        
+        if ($deployments.deployments.Count -gt 0) {
+            foreach ($deploymentId in $deployments.deployments) {
+                $deployment = aws deploy get-deployment --deployment-id $deploymentId --region $Region | ConvertFrom-Json
+                $info = $deployment.deploymentInfo
+                
+                Write-Host "📋 Deployment: $($info.deploymentId)" -ForegroundColor White
+                Write-Host "   Status: $($info.status)" -ForegroundColor Yellow
+                Write-Host "   Config: $($info.deploymentConfigName)" -ForegroundColor Gray
+                Write-Host "   Started: $($info.createTime)" -ForegroundColor Gray
+                
+                if ($info.status -eq "InProgress") {
+                    Write-Host "   ⏳ Deployment in progress..." -ForegroundColor Yellow
+                }
+            }
+        } else {
+            Write-Host "✅ No active deployments" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "❌ CodeDeploy status unavailable" -ForegroundColor Red
+    }
+    Write-Host ""
+}
+
 function Get-TrafficDistribution {
     Write-Host "🔀 Traffic Distribution" -ForegroundColor Blue
     
@@ -113,16 +142,55 @@ function Get-TrafficDistribution {
         $rules = aws elbv2 describe-rules --listener-arn $prodListenerArn --region $Region | ConvertFrom-Json
         
         Write-Host "Production Listener (Port 80):" -ForegroundColor Yellow
+        
+        $totalWeight = 0
+        $blueWeight = 0
+        $greenWeight = 0
+        
         foreach ($rule in $rules.Rules | Where-Object { $_.Priority -ne "default" }) {
             foreach ($action in $rule.Actions) {
-                if ($action.Type -eq "forward" -and $action.ForwardConfig) {
-                    foreach ($tg in $action.ForwardConfig.TargetGroups) {
-                        $tgName = aws elbv2 describe-target-groups --target-group-arns $tg.TargetGroupArn --region $Region --query 'TargetGroups[0].TargetGroupName' --output text
-                        $color = if ($tg.Weight -gt 0) { "Green" } else { "Gray" }
-                        Write-Host "  $tgName - Weight: $($tg.Weight)%" -ForegroundColor $color
+                if ($action.Type -eq "forward") {
+                    if ($action.ForwardConfig -and $action.ForwardConfig.TargetGroups) {
+                        # Multiple target groups (Blue/Green or Canary)
+                        foreach ($tg in $action.ForwardConfig.TargetGroups) {
+                            $tgName = aws elbv2 describe-target-groups --target-group-arns $tg.TargetGroupArn --region $Region --query 'TargetGroups[0].TargetGroupName' --output text
+                            $weight = $tg.Weight
+                            $totalWeight += $weight
+                            
+                            if ($tgName -like "*blue*") { $blueWeight = $weight }
+                            if ($tgName -like "*green*") { $greenWeight = $weight }
+                            
+                            $color = if ($weight -gt 0) { "Green" } else { "Gray" }
+                            Write-Host "  $tgName - Weight: $weight%" -ForegroundColor $color
+                        }
+                    } elseif ($action.TargetGroupArn) {
+                        # Single target group (100% traffic)
+                        $tgName = aws elbv2 describe-target-groups --target-group-arns $action.TargetGroupArn --region $Region --query 'TargetGroups[0].TargetGroupName' --output text
+                        $weight = 100
+                        $totalWeight = 100
+                        
+                        if ($tgName -like "*blue*") { $blueWeight = 100 }
+                        if ($tgName -like "*green*") { $greenWeight = 100 }
+                        
+                        Write-Host "  $tgName - Weight: 100%" -ForegroundColor Green
                     }
                 }
             }
+        }
+        
+        # Deployment Type Detection
+        if ($blueWeight -gt 0 -and $greenWeight -gt 0) {
+            if ($blueWeight -eq $greenWeight) {
+                Write-Host "📊 Deployment Type: A/B Testing (50/50)" -ForegroundColor Cyan
+            } elseif ($blueWeight -lt 10 -or $greenWeight -lt 10) {
+                Write-Host "📊 Deployment Type: Canary ($blueWeight% Blue, $greenWeight% Green)" -ForegroundColor Yellow
+            } else {
+                Write-Host "📊 Deployment Type: Linear ($blueWeight% Blue, $greenWeight% Green)" -ForegroundColor Magenta
+            }
+        } elseif ($blueWeight -eq 100) {
+            Write-Host "📊 Deployment Type: Blue Environment (100%)" -ForegroundColor Blue
+        } elseif ($greenWeight -eq 100) {
+            Write-Host "📊 Deployment Type: Green Environment (100%)" -ForegroundColor Green
         }
         
         # Application URLs
@@ -168,6 +236,7 @@ function Get-ECSServiceStatus {
 switch ($Mode) {
     "Status" {
         Get-CodeDeployStatus
+        Get-CodeDeployDeploymentStatus
         Get-ECSServiceStatus
         Get-EnvironmentHealth
         Get-TrafficDistribution
@@ -183,6 +252,7 @@ switch ($Mode) {
         while ($true) {
             Write-Host "==================== UPDATE #$iteration - $(Get-Date) ====================" -ForegroundColor Green
             
+            Get-CodeDeployDeploymentStatus
             Get-EnvironmentHealth
             Get-TrafficDistribution
             
@@ -202,6 +272,7 @@ switch ($Mode) {
     
     "Summary" {
         Get-CodeDeployStatus
+        Get-CodeDeployDeploymentStatus
         Get-EnvironmentHealth
         Get-TrafficDistribution
         
