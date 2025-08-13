@@ -1,5 +1,3 @@
-# .github\workflows\deploy.yml
-
 name: Deploy NestJS Hannibal (Enterprise)
 
 env:
@@ -11,6 +9,12 @@ env:
 
 on:
   workflow_dispatch:
+    inputs:
+      run_codedeploy:
+        description: "CodeDeployを実行するか (true=Blue/Greenデプロイ, false=0回目はBlueのみ稼働)"
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   test:
@@ -173,44 +177,40 @@ jobs:
           echo "NEW_IMAGE=$NEW_IMAGE" >> $GITHUB_ENV
           echo "✅ Docker image built and pushed successfully"
 
-      - name: Deploy with CodeDeploy Blue/Green
+      # appspec.yaml生成までは常に実行（検証にも活用可能）
+      - name: Generate AppSpec for ECS CodeDeploy (dynamic)
         run: |
           set -e
-          echo "🚀 Starting CodeDeploy Blue/Green deployment..."
-          
-          # Get current task definition
+          echo "📝 Generating appspec.yaml dynamically..."
           aws ecs describe-task-definition \
             --task-definition "${{ env.PROJECT_NAME }}-api-task" \
             --query 'taskDefinition' > current_task_def.json
           
-          if [ $? -ne 0 ]; then
-            echo "❌ Failed to retrieve current task definition"
+          CONTAINER_NAME=$(jq -r '.containerDefinitions[0].name' current_task_def.json)
+          CONTAINER_PORT=$(jq -r '.containerDefinitions[0].portMappings[0].containerPort' current_task_def.json)
+
+          if [ -z "$CONTAINER_NAME" ] || [ -z "$CONTAINER_PORT" ] || [ "$CONTAINER_NAME" = "null" ] || [ "$CONTAINER_PORT" = "null" ]; then
+            echo "❌ Failed to parse container name/port from task definition"
             exit 1
           fi
-          
-          # Update image and register new task definition
+
+          # 新しいタスク定義も先に登録（CodeDeployを実行しない場合でも検証用途で可）
           jq --arg IMAGE "$NEW_IMAGE" \
             '.containerDefinitions[0].image = $IMAGE |
              del(.taskDefinitionArn, .revision, .status,
                  .requiresAttributes, .placementConstraints,
                  .compatibilities, .registeredAt, .registeredBy)' \
             current_task_def.json > new_task_def.json
-          
+
           NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
             --cli-input-json file://new_task_def.json \
             --query 'taskDefinition.taskDefinitionArn' --output text)
-          
-          if [ $? -ne 0 ] || [ -z "$NEW_TASK_DEF_ARN" ]; then
+
+          if [ -z "$NEW_TASK_DEF_ARN" ]; then
             echo "❌ Failed to register new task definition"
             exit 1
           fi
-          
-          echo "✅ New task definition registered: $NEW_TASK_DEF_ARN"
-          
-          # Create appspec.yaml for CodeDeploy with dynamic container info
-          CONTAINER_NAME=$(jq -r '.containerDefinitions[0].name' current_task_def.json)
-          CONTAINER_PORT=$(jq -r '.containerDefinitions[0].portMappings[0].containerPort' current_task_def.json)
-          
+
           cat > appspec.yaml << EOF
           version: 0.0
           Resources:
@@ -222,6 +222,21 @@ jobs:
                     ContainerName: "$CONTAINER_NAME"
                     ContainerPort: $CONTAINER_PORT
           EOF
+
+          echo "✅ appspec.yaml generated and task definition registered."
+          echo "NEW_TASK_DEF_ARN=$NEW_TASK_DEF_ARN" >> $GITHUB_ENV
+
+      # 1回目以降のみCodeDeployを実行（0回目はスキップ）
+      - name: Deploy with CodeDeploy Blue/Green
+        if: ${{ inputs.run_codedeploy == true }}
+        run: |
+          set -e
+          echo "🚀 Starting CodeDeploy Blue/Green deployment..."
+
+          if [ -z "${{ env.NEW_TASK_DEF_ARN }}" ]; then
+            echo "❌ NEW_TASK_DEF_ARN is not set"
+            exit 1
+          fi
           
           # Upload appspec to S3
           S3_BUCKET="${{ env.PROJECT_NAME }}-codedeploy-artifacts"
@@ -258,8 +273,6 @@ jobs:
             echo "🧪 Test URL: http://$(jq -r '.alb_dns_name.value' tf_outputs_backend.json):8080"
           else
             echo "❌ CodeDeploy deployment failed or timed out"
-            
-            # Get deployment status for debugging
             aws deploy get-deployment --deployment-id "$DEPLOYMENT_ID" --query 'deploymentInfo.errorInformation'
             exit 1
           fi
