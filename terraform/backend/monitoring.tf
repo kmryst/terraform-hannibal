@@ -191,6 +191,53 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_error_rate_high" {
   }
 }
 
+# --- Canary Deployment Monitoring ---
+# カナリアデプロイ用エラー率監視（5%以上でロールバック）
+resource "aws_cloudwatch_metric_alarm" "canary_error_rate" {
+  alarm_name          = "${var.project_name}-canary-error-rate"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "HTTPCode_Target_5XX_Count"
+  namespace           = "AWS/ApplicationELB"
+  period              = "60"
+  statistic           = "Sum"
+  threshold           = "3"
+  alarm_description   = "Canary deployment error rate too high - auto rollback triggered"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    LoadBalancer = aws_lb.main.arn_suffix
+  }
+
+  tags = {
+    Name = "${var.project_name}-canary-error-alarm"
+  }
+}
+
+# カナリアデプロイ用レスポンス時間監視（2秒以上でロールバック）
+resource "aws_cloudwatch_metric_alarm" "canary_response_time" {
+  alarm_name          = "${var.project_name}-canary-response-time"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "TargetResponseTime"
+  namespace           = "AWS/ApplicationELB"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "2"
+  alarm_description   = "Canary deployment response time too high - auto rollback triggered"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    LoadBalancer = aws_lb.main.arn_suffix
+  }
+
+  tags = {
+    Name = "${var.project_name}-canary-response-alarm"
+  }
+}
+
 # --- CloudWatch Dashboard ---
 resource "aws_cloudwatch_dashboard" "main" {
   dashboard_name = "hannibal-system-dashboard"

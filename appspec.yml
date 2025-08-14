@@ -1,0 +1,25 @@
+version: 0.0
+Resources:
+  - TargetService:
+      Type: AWS::ECS::Service
+      Properties:
+        TaskDefinition: <TASK_DEFINITION>
+        LoadBalancerInfo:
+          ContainerName: "nestjs-hannibal-3"
+          ContainerPort: 3000
+Hooks:
+  BeforeInstall:
+    - location: scripts/hooks/before_install.sh
+      timeout: 300
+  AfterInstall:
+    - location: scripts/hooks/after_install.sh
+      timeout: 300
+  AfterAllowTestTraffic:
+    - location: scripts/hooks/validate_service.sh
+      timeout: 300
+  BeforeAllowTraffic:
+    - location: scripts/hooks/before_traffic.sh
+      timeout: 300
+  AfterAllowTraffic:
+    - location: scripts/hooks/after_traffic.sh
+      timeout: 300

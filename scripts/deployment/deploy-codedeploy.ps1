@@ -19,7 +19,7 @@ $PROJECT_NAME = "nestjs-hannibal-3"
 $AWS_REGION = "ap-northeast-1"
 $AWS_ACCOUNT_ID = "258632448142"
 
-Write-Host "🚀 Starting CodeDeploy Blue/Green Deployment" -ForegroundColor Green
+Write-Host "🚀 Starting CodeDeploy Canary Deployment" -ForegroundColor Green
 Write-Host "📋 Configuration:" -ForegroundColor Cyan
 Write-Host "  - Project: $PROJECT_NAME" -ForegroundColor White
 Write-Host "  - Environment: $Environment" -ForegroundColor White
@@ -119,7 +119,9 @@ Resources:
     Write-Host "📊 Monitor deployment: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID" -ForegroundColor Cyan
     
     # デプロイ完了待機
-    Write-Host "⏳ Waiting for Blue/Green deployment to complete (timeout: $TimeoutMinutes minutes)..." -ForegroundColor Yellow
+    Write-Host "⏳ Waiting for Canary deployment to complete (timeout: $TimeoutMinutes minutes)..." -ForegroundColor Yellow
+    Write-Host "  🔍 Phase 1: 10% traffic to new version (5 minutes)" -ForegroundColor Cyan
+    Write-Host "  🔍 Phase 2: 100% traffic if no alarms triggered" -ForegroundColor Cyan
     
     $timeout = (Get-Date).AddMinutes($TimeoutMinutes)
     do {
@@ -128,7 +130,9 @@ Resources:
         Write-Host "  Status: $status" -ForegroundColor White
         
         if ($status -eq "Succeeded") {
-            Write-Host "✅ CodeDeploy Blue/Green deployment completed successfully!" -ForegroundColor Green
+            Write-Host "✅ CodeDeploy Canary deployment completed successfully!" -ForegroundColor Green
+            Write-Host "  ✅ Phase 1: 10% traffic completed without issues" -ForegroundColor Green
+            Write-Host "  ✅ Phase 2: 100% traffic switched successfully" -ForegroundColor Green
             break
         }
         elseif ($status -eq "Failed" -or $status -eq "Stopped") {
@@ -152,7 +156,7 @@ Resources:
         Write-Host "  Test: http://$ALB_DNS`:8080" -ForegroundColor Yellow
     }
     
-    Write-Host "🎉 CodeDeploy Blue/Green deployment completed successfully!" -ForegroundColor Green
+    Write-Host "🎉 CodeDeploy Canary deployment completed successfully!" -ForegroundColor Green
     
 } catch {
     Write-Host "❌ Deployment failed: $($_.Exception.Message)" -ForegroundColor Red

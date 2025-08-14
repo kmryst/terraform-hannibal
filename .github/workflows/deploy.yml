@@ -13,11 +13,12 @@ on:
       deployment_mode:
         description: "デプロイモードを選択"
         required: true
-        default: "provisioning"
+        default: "canary"
         type: choice
         options:
+          - canary         # 1回目以降（Canary段階的切替）- 推奨
+          - bluegreen      # 1回目以降（Blue/Green切替）- 緊急時
           - provisioning   # 0回目（初期構築・Blueのみ）
-          - bluegreen      # 1回目以降（Blue/Green切替）
 
 jobs:
   test:
@@ -92,9 +93,17 @@ jobs:
         run: |
           set -e
           terraform init -input=false
+          
+          # deployment_typeを設定（provisioningの場合はcanaryをデフォルト使用）
+          DEPLOYMENT_TYPE="${{ inputs.deployment_mode }}"
+          if [ "$DEPLOYMENT_TYPE" = "provisioning" ]; then
+            DEPLOYMENT_TYPE="canary"
+          fi
+          
           terraform plan \
             -var="client_url_for_cors=https://hamilcar-hannibal.click" \
             -var="environment=dev" \
+            -var="deployment_type=$DEPLOYMENT_TYPE" \
             -out=tfplan
           terraform apply -auto-approve tfplan
           terraform output -json > ../../tf_outputs_backend.json
@@ -199,6 +208,25 @@ jobs:
             --deployment-group-name "${{ env.PROJECT_NAME }}-dg" \
             --s3-location bucket="$S3_BUCKET",key="$S3_KEY",bundleType="YAML" \
             --query 'deploymentId' --output text)
-          echo "🚀 CodeDeploy deployment started: $DEPLOYMENT_ID"
+          echo "🚀 CodeDeploy Blue/Green deployment started: $DEPLOYMENT_ID"
           aws deploy wait deployment-successful --deployment-id "$DEPLOYMENT_ID"
-          echo "✅ Deployment finished"
+          echo "✅ Blue/Green deployment finished"
+
+      - name: Deploy with CodeDeploy Canary
+        if: ${{ inputs.deployment_mode == 'canary' }}
+        run: |
+          set -e
+          S3_BUCKET="${{ env.PROJECT_NAME }}-codedeploy-artifacts"
+          S3_KEY="appspec-${{ github.sha }}.yaml"
+          aws s3 cp appspec.yaml "s3://$S3_BUCKET/$S3_KEY"
+          DEPLOYMENT_ID=$(aws deploy create-deployment \
+            --application-name "${{ env.PROJECT_NAME }}-app" \
+            --deployment-group-name "${{ env.PROJECT_NAME }}-dg" \
+            --s3-location bucket="$S3_BUCKET",key="$S3_KEY",bundleType="YAML" \
+            --query 'deploymentId' --output text)
+          echo "🔍 CodeDeploy Canary deployment started: $DEPLOYMENT_ID"
+          echo "📊 Phase 1: 10% traffic to new version (5 minutes monitoring)"
+          echo "📊 Phase 2: 100% traffic if no alarms triggered"
+          echo "📊 Monitor: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
+          aws deploy wait deployment-successful --deployment-id "$DEPLOYMENT_ID"
+          echo "✅ Canary deployment finished successfully!"

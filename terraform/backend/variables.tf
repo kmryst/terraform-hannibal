@@ -158,3 +158,14 @@ variable "environment" {
     error_message = "Environment must be dev, staging, or prod."
   }
 }
+
+# --- Deployment Configuration ---
+variable "deployment_type" {
+  description = "Deployment type (canary/bluegreen)"
+  type        = string
+  default     = "canary"
+  validation {
+    condition     = contains(["canary", "bluegreen"], var.deployment_type)
+    error_message = "Deployment type must be canary or bluegreen."
+  }
+}

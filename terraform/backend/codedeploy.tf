@@ -129,7 +129,7 @@ resource "aws_codedeploy_deployment_group" "main" {
   app_name               = aws_codedeploy_app.main.name
   deployment_group_name  = "${var.project_name}-dg"
   service_role_arn       = aws_iam_role.codedeploy_service_role.arn
-  deployment_config_name = "CodeDeployDefault.ECSAllAtOnce"
+  deployment_config_name = var.deployment_type == "canary" ? "CodeDeployDefault.ECSCanary10Percent5Minutes" : "CodeDeployDefault.ECSAllAtOnce"
 
   deployment_style {
     deployment_type   = "BLUE_GREEN"
@@ -173,7 +173,15 @@ resource "aws_codedeploy_deployment_group" "main" {
 
   auto_rollback_configuration {
     enabled = true
-    events  = ["DEPLOYMENT_FAILURE"]
+    events  = ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM"]
+  }
+
+  alarm_configuration {
+    enabled = true
+    alarms  = [
+      aws_cloudwatch_metric_alarm.canary_error_rate.alarm_name,
+      aws_cloudwatch_metric_alarm.canary_response_time.alarm_name
+    ]
   }
 
   tags = {

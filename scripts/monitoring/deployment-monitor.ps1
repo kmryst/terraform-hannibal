@@ -1,4 +1,4 @@
-# Enterprise-level Blue/Green Deployment Monitor
+# Enterprise-level Blue/Green & Canary Deployment Monitor
 # Based on Netflix/Airbnb/Spotify monitoring patterns
 # AWS Certified Professional/Specialty standard implementation
 
@@ -23,7 +23,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # --- Enterprise Header ---
-Write-Host "🏢 Enterprise Blue/Green Deployment Monitor" -ForegroundColor Green
+Write-Host "🏢 Enterprise Blue/Green & Canary Deployment Monitor" -ForegroundColor Green
 Write-Host "📊 Project: $ProjectName | Region: $Region | Mode: $Mode" -ForegroundColor Cyan
 Write-Host ""
 
@@ -120,7 +120,13 @@ function Get-CodeDeployDeploymentStatus {
                 Write-Host "   Started: $($info.createTime)" -ForegroundColor Gray
                 
                 if ($info.status -eq "InProgress") {
+                    # Canaryデプロイの場合は段階表示
+                if ($info.deploymentConfigName -like "*Canary*") {
+                    Write-Host "   🔍 Canary deployment in progress..." -ForegroundColor Yellow
+                    Write-Host "   📊 Phase: 10% traffic → monitoring → 100% traffic" -ForegroundColor Cyan
+                } else {
                     Write-Host "   ⏳ Deployment in progress..." -ForegroundColor Yellow
+                }
                 }
             }
         } else {
@@ -222,6 +228,44 @@ function Get-TrafficDistribution {
     Write-Host ""
 }
 
+function Get-CanaryAlarmStatus {
+    Write-Host "🚨 Canary Deployment Alarms" -ForegroundColor Blue
+    
+    try {
+        # カナリア用アラーム状態確認
+        $errorAlarm = aws cloudwatch describe-alarms --alarm-names "$ProjectName-canary-error-rate" --region $Region --query 'MetricAlarms[0].StateValue' --output text 2>$null
+        $responseAlarm = aws cloudwatch describe-alarms --alarm-names "$ProjectName-canary-response-time" --region $Region --query 'MetricAlarms[0].StateValue' --output text 2>$null
+        
+        if ($errorAlarm -and $errorAlarm -ne "None") {
+            $color = switch ($errorAlarm) {
+                "OK" { "Green" }
+                "ALARM" { "Red" }
+                "INSUFFICIENT_DATA" { "Yellow" }
+                default { "Gray" }
+            }
+            Write-Host "  Error Rate Alarm: $errorAlarm" -ForegroundColor $color
+        }
+        
+        if ($responseAlarm -and $responseAlarm -ne "None") {
+            $color = switch ($responseAlarm) {
+                "OK" { "Green" }
+                "ALARM" { "Red" }
+                "INSUFFICIENT_DATA" { "Yellow" }
+                default { "Gray" }
+            }
+            Write-Host "  Response Time Alarm: $responseAlarm" -ForegroundColor $color
+        }
+        
+        if (-not $errorAlarm -and -not $responseAlarm) {
+            Write-Host "  ⚠️ No canary alarms configured" -ForegroundColor Yellow
+        }
+        
+    } catch {
+        Write-Host "  ⚠️ Alarm status unavailable" -ForegroundColor Yellow
+    }
+    Write-Host ""
+}
+
 function Get-ECSServiceStatus {
     Write-Host "🐳 ECS Service Status" -ForegroundColor Blue
     
@@ -247,6 +291,8 @@ switch ($Mode) {
         Get-ECSServiceStatus
         Get-EnvironmentHealth
         Get-TrafficDistribution
+        # CloudWatchアラーム状態確認
+        Get-CanaryAlarmStatus
         Write-Host "✅ Status check completed" -ForegroundColor Green
     }
     
