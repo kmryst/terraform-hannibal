@@ -35,6 +35,8 @@ lerna-debug.log*
 !.vscode/extensions.json
 
 .terraform/
+*.tfvars
+*.tfvars.json
 
 # Build analysis
 stats.html
