@@ -1,5 +1,9 @@
 # NestJS Hannibal 3
 
+<div align="center">
+  <img src="docs/architecture/cacoo/architecture.svg" alt="AWS Architecture" width="800">
+</div>
+
 企業レベルのNestJS + AWS ECS Fargateアプリケーション
 
 ## 📋 ドキュメント
