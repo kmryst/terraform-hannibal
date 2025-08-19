@@ -1,7 +1,7 @@
 ## 🏗️ AWS Architecture Diagram
 
 <div align="center">
-  <a href="docs/architecture/cacoo/architecture.svg">
+  <a href="https://github.com/kmryst/terraform-hannibal/blob/feature/automation/docs/architecture/cacoo/architecture.svg">
     <img src="docs/architecture/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="800">
   </a>
 </div>
