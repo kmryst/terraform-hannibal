@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Architecture Diagram - NestJS Hannibal 3</title>
+    <style>
+        body { margin: 0; padding: 20px; background: #f5f5f5; font-family: Arial, sans-serif; }
+        .container { max-width: 1200px; margin: 0 auto; text-align: center; }
+        .svg-container { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 20px; cursor: pointer; transition: all 0.3s; }
+        .svg-container:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.15); transform: scale(1.02); }
+        .fullscreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .fullscreen img { max-width: 95vw; max-height: 95vh; border-radius: 8px; }
+        h1 { color: #333; margin-bottom: 10px; }
+        .instructions { color: #666; margin-bottom: 20px; font-size: 14px; }
+        .close-hint { position: absolute; top: 20px; right: 20px; color: white; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ AWS Architecture Diagram</h1>
+        <p class="instructions">クリックして全画面表示 | ESCキーまたはクリックで閉じる</p>
+        <div class="svg-container" onclick="openFullscreen()">
+            <img src="architecture.svg" alt="AWS Architecture Diagram" style="width: 100%; height: auto;">
+        </div>
+    </div>
+
+    <script>
+        function openFullscreen() {
+            const fullscreen = document.createElement('div');
+            fullscreen.className = 'fullscreen';
+            fullscreen.innerHTML = `
+                <div class="close-hint">✕ クリックまたはESCで閉じる</div>
+                <img src="architecture.svg" alt="AWS Architecture Diagram">
+            `;
+            fullscreen.onclick = closeFullscreen;
+            document.body.appendChild(fullscreen);
+            
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') closeFullscreen();
+            });
+            
+            function closeFullscreen() {
+                if (document.body.contains(fullscreen)) {
+                    document.body.removeChild(fullscreen);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
