@@ -1,4 +1,4 @@
-## 🏗️ AWS Architecture Diagram
+## AWS Architecture Diagram
 
 <div align="center">
   <a href="https://kmryst.github.io/terraform-hannibal/docs/architecture/cacoo/viewer.html" target="_blank">
