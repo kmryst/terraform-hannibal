@@ -1,10 +1,6 @@
-# NestJS Hannibal 3
-
 <div align="center">
-  <img src="docs/architecture/cacoo/architecture.svg" alt="AWS Architecture" width="800">
+  <img src="docs/architecture/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="800">
 </div>
-
-企業レベルのNestJS + AWS ECS Fargateアプリケーション
 
 ## 📋 ドキュメント
 
@@ -12,7 +8,7 @@
 - [運用ガイド](./docs/operations/README.md) - IAM管理・監視・分析
 - [アーキテクチャ](./docs/architecture/mermaid/README.md) - システム構成図
 
-## 🏗️ AWSアーキテクチャ
+## 🏗️ AWS Architecture Diagram
 
 <div align="center">
   <img src="docs/architecture/diagrams/latest.png?v=20250806165536" alt="AWS Architecture" width="600">
