@@ -1,7 +1,9 @@
 ## 🏗️ AWS Architecture Diagram
 
 <div align="center">
-  <img src="docs/architecture/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="800">
+  <a href="docs/architecture/cacoo/architecture.svg">
+    <img src="docs/architecture/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="800">
+  </a>
 </div>
 
 ## 📋 ドキュメント
