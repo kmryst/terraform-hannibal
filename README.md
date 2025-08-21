@@ -1,11 +1,7 @@
 ## AWS Architecture Diagram
 
 <div align="center">
-  <a href="https://kmryst.github.io/terraform-hannibal/docs/architecture/cacoo/viewer.html" target="_blank">
-    <img src="docs/architecture/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="800">
-  </a>
-  <br>
-  <small>📱 <a href="https://kmryst.github.io/terraform-hannibal/docs/architecture/cacoo/viewer.html" target="_blank">クリックして全画面表示</a></small>
+  <img src="docs/architecture/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="800">
 </div>
 
 ## 📋 ドキュメント
