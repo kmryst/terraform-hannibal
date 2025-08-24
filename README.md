@@ -6,8 +6,14 @@
 
 ## AWS Architecture Diagram
 
+### 手動作成版（Cacoo）
 <div align="center">
   <img src="docs/architecture/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="800">
+</div>
+
+### 自動生成版（Python diagrams）
+<div align="center">
+  <img src="docs/architecture/diagrams/latest.png?v=20250806165536" alt="AWS Architecture" width="600">
 </div>
 
 ## 📋 ドキュメント
@@ -16,9 +22,12 @@
 - [運用ガイド](./docs/operations/README.md) - IAM管理・監視・分析
 - [アーキテクチャ](./docs/architecture/mermaid/README.md) - システム構成図
 
-<div align="center">
-  <img src="docs/architecture/diagrams/latest.png?v=20250806165536" alt="AWS Architecture" width="600">
-</div>
+## 🚀 完全自動化デプロイメント
+
+- **Infrastructure as Code**: Terraform完全管理
+- **GitHub Actions**: プッシュ時自動デプロイ
+- **Blue/Green + Canary**: 無停止デプロイ
+- **自動ロールバック**: 失敗時即座復旧
 
 ## 🔧 技術スタック
 
@@ -42,19 +51,6 @@
 - CodeDeploy Blue/Green
 - Docker
 - Terraform
-
-## 🚀 Amazon ECS 用の CodeDeploy デプロイメント
-
-### デプロイモード
-- **Canary**: 10%→100%段階的切替
-- **Blue/Green**: 即座切替
-- **Provisioning**: 初期構築
-
-### 主要機能
-- 1分高速デプロイ
-- 失敗時自動ロールバック
-- Production/Test環境切り替え
-- GitHub Actions自動化
 
 詳細は[デプロイメントガイド](./docs/deployment/codedeploy-blue-green.md)を参照
 
