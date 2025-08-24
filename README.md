@@ -35,6 +35,7 @@
 - React + TypeScript
 - GraphQL
 - Vite
+- Mapbox
 
 ### バックエンド
 - NestJS
