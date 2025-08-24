@@ -341,7 +341,43 @@ resource "aws_iam_role_policy_attachment" "hannibal_developer_policy_attachment"
 
 resource "aws_iam_role_policy_attachment" "hannibal_cicd_policy_attachment" {
   role       = aws_iam_role.hannibal_cicd_role.name
-  policy_arn = aws_iam_policy.hannibal_cicd_policy_minimal.arn
+  policy_arn = aws_iam_policy.hannibal_cicd_policy.arn
+}
+
+# --- 実際に使用中のポリシー（手動管理・記録用） ---
+resource "aws_iam_policy" "hannibal_cicd_policy" {
+  name        = "HannibalCICDPolicy-Dev"
+  description = "CI/CD automation permissions - ECR push, ECS update, limited operations (段階的縮小予定)"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "access-analyzer:*",
+          "cloudtrail:*",
+          "ec2:*",
+          "ecr:*",
+          "ecs:*",
+          "elasticloadbalancing:*",
+          "logs:*",
+          "cloudwatch:*",
+          "rds:*",
+          "s3:*",
+          "sns:*",
+          "sts:*",
+          "kms:*",
+          "iam:*",
+          "cloudfront:*",
+          "route53:*",
+          "codedeploy:*",
+          "dynamodb:*"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
 
 # --- 実装後の管理方針 ---
