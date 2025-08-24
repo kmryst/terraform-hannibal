@@ -1,5 +1,9 @@
 # NestJS Hannibal 3 - ハンニバルのアルプス越えルート
 
+<div align="center">
+  <img src="docs/screenshots/hannibal-route.png" alt="ハンニバルのアルプス越えルート" width="800">
+</div>
+
 ## AWS Architecture Diagram
 
 <div align="center">
