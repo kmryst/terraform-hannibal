@@ -1,15 +1,20 @@
-# CodeDeploy Blue/Green Deployment for ECS
+# CodeDeploy デプロイメント for ECS
 
-AWS公式ドキュメントに準拠したCodeDeploy Blue/Green ECSデプロイメント実装
+nestjs-hannibal-3プロジェクトのCodeDeployデプロイメント実装
 
 ## 📋 概要
 
-AWS公式ドキュメントとベストプラクティスに基づいたCodeDeploy Blue/Green ECSデプロイメントを実装。
+AWS CodeDeployを使用したECSサービスのデプロイメント。3つのモードに対応。
+
+### デプロイモード
+- **Canary**: 10%→100%段階的切替
+- **Blue/Green**: 即座切替
+- **Provisioning**: 初期構築
 
 ### 主要機能
 - **無停止デプロイメント**: Blue/Green環境での安全な切り替え
 - **自動ロールバック**: 失敗時の自動復旧
-- **AWS管理ポリシー**: 最小権限原則に準拠
+- **GitHub Actions統合**: 自動化されたCI/CDパイプライン
 - **高速デプロイ**: 1分のWait Timeで迅速切り替え
 
 ## 🏗️ アーキテクチャ
@@ -43,17 +48,17 @@ AWS公式ドキュメントとベストプラクティスに基づいたCodeDepl
 ```hcl
 resource "aws_codedeploy_app" "ecs_app" {
   compute_platform = "ECS"
-  name             = "${var.project_name}-codedeploy-app"
+  name             = "${var.project_name}-app"
 }
 ```
 
-#### Deployment Group（AWS公式仕様）
+#### Deployment Group
 ```hcl
 resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
   app_name               = aws_codedeploy_app.ecs_app.name
-  deployment_group_name  = "${var.project_name}-deployment-group"
+  deployment_group_name  = "${var.project_name}-dg"
   service_role_arn       = aws_iam_role.codedeploy_service_role.arn
-  deployment_config_name = aws_codedeploy_deployment_config.ecs_custom_config.deployment_config_name
+  deployment_config_name = "CodeDeployDefault.ECSAllAtOnce"
 
   # 自動ロールバック設定
   auto_rollback_configuration {
@@ -87,25 +92,11 @@ resource "aws_codedeploy_deployment_group" "ecs_deployment_group" {
 }
 ```
 
-#### カスタムデプロイ設定
-```hcl
-resource "aws_codedeploy_deployment_config" "ecs_custom_config" {
-  deployment_config_name = "${var.project_name}-ECSCustomConfig"
-  compute_platform       = "ECS"
-  
-  blue_green_deployment_config {
-    deployment_ready_option {
-      action_on_timeout    = "STOP_DEPLOYMENT"
-      wait_time_in_minutes = 1  # Bake time
-    }
-    
-    terminate_blue_instances_on_deployment_success {
-      action                           = "TERMINATE"
-      termination_wait_time_in_minutes = 5
-    }
-  }
-}
-```
+#### デプロイ設定
+- **Canary**: `CodeDeployDefault.ECSCanary10Percent5Minutes`
+- **Blue/Green**: `CodeDeployDefault.ECSAllAtOnce`
+- **Bake Time**: 1分
+- **Termination Wait**: 5分
 
 ### IAM権限（最小権限原則）
 
@@ -141,24 +132,38 @@ resource "aws_iam_role_policy" "codedeploy_enhanced_policy" {
 
 ### 1. GitHub Actions（自動デプロイ）
 
+#### Canaryデプロイ
 ```yaml
-- name: Deploy with CodeDeploy Blue/Green (Enterprise)
+- name: Deploy with CodeDeploy Canary
+  if: ${{ inputs.deployment_mode == 'canary' }}
   run: |
-    # 企業レベルCodeDeploy Blue/Green デプロイメント
-    NEW_IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}:${{ github.sha }}"
-    
-    # 新しいタスク定義を作成
-    aws ecs describe-task-definition \
-      --task-definition ${{ env.PROJECT_NAME }}-api-task \
-      --query 'taskDefinition' > current_task_def.json
-    
-    # CodeDeploy デプロイメント実行
+    S3_BUCKET="${{ env.PROJECT_NAME }}-codedeploy-artifacts"
+    S3_KEY="appspec-${{ github.sha }}.yaml"
+    aws s3 cp appspec.yaml "s3://$S3_BUCKET/$S3_KEY"
     DEPLOYMENT_ID=$(aws deploy create-deployment \
-      --application-name ${{ env.PROJECT_NAME }}-codedeploy-app \
-      --deployment-group-name ${{ env.PROJECT_NAME }}-deployment-group \
-      --deployment-config-name ${{ env.PROJECT_NAME }}-ECSCustomConfig \
-      --revision '{"revisionType":"AppSpecContent","appSpecContent":{"content":"..."}}' \
+      --application-name "${{ env.PROJECT_NAME }}-app" \
+      --deployment-group-name "${{ env.PROJECT_NAME }}-dg" \
+      --s3-location bucket="$S3_BUCKET",key="$S3_KEY",bundleType="YAML" \
       --query 'deploymentId' --output text)
+    echo "🔍 CodeDeploy Canary deployment started: $DEPLOYMENT_ID"
+    aws deploy wait deployment-successful --deployment-id "$DEPLOYMENT_ID"
+```
+
+#### Blue/Greenデプロイ
+```yaml
+- name: Deploy with CodeDeploy Blue/Green
+  if: ${{ inputs.deployment_mode == 'bluegreen' }}
+  run: |
+    S3_BUCKET="${{ env.PROJECT_NAME }}-codedeploy-artifacts"
+    S3_KEY="appspec-${{ github.sha }}.yaml"
+    aws s3 cp appspec.yaml "s3://$S3_BUCKET/$S3_KEY"
+    DEPLOYMENT_ID=$(aws deploy create-deployment \
+      --application-name "${{ env.PROJECT_NAME }}-app" \
+      --deployment-group-name "${{ env.PROJECT_NAME }}-dg" \
+      --s3-location bucket="$S3_BUCKET",key="$S3_KEY",bundleType="YAML" \
+      --query 'deploymentId' --output text)
+    echo "🚀 CodeDeploy Blue/Green deployment started: $DEPLOYMENT_ID"
+    aws deploy wait deployment-successful --deployment-id "$DEPLOYMENT_ID"
 ```
 
 ### 2. PowerShellスクリプト（手動デプロイ）
@@ -265,15 +270,15 @@ Auto rollback failed
 ```bash
 # 前のデプロイメントIDを取得
 PREV_DEPLOYMENT=$(aws deploy list-deployments \
-  --application-name nestjs-hannibal-3-codedeploy-app \
-  --deployment-group-name nestjs-hannibal-3-deployment-group \
+  --application-name nestjs-hannibal-3-app \
+  --deployment-group-name nestjs-hannibal-3-dg \
   --query 'deployments[1]' --output text)
 
 # ロールバック実行
 aws deploy create-deployment \
-  --application-name nestjs-hannibal-3-codedeploy-app \
-  --deployment-group-name nestjs-hannibal-3-deployment-group \
-  --revision "revisionType=S3,s3Location={bucket=codedeploy-bucket,key=previous-version.zip}"
+  --application-name nestjs-hannibal-3-app \
+  --deployment-group-name nestjs-hannibal-3-dg \
+  --revision "revisionType=S3,s3Location={bucket=nestjs-hannibal-3-codedeploy-artifacts,key=previous-version.yaml}"
 ```
 
 ## 📈 パフォーマンス最適化

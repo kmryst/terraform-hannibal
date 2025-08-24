@@ -1,3 +1,5 @@
+# NestJS Hannibal 3 - ハンニバルのアルプス越えルート
+
 ## AWS Architecture Diagram
 
 <div align="center">
@@ -17,102 +19,45 @@
 ## 🔧 技術スタック
 
 ### フロントエンド
-- **React + TypeScript**: モダンなUI開発
-- **GraphQL**: 効率的なデータ取得
-- **Vite**: 高速ビルドツール
+- React + TypeScript
+- GraphQL
+- Vite
 
 ### バックエンド
-- **NestJS**: エンタープライズ級Node.jsフレームワーク
-- **GraphQL + REST**: ハイブリッドAPI設計
-- **PostgreSQL**: リレーショナルデータベース
+- NestJS
+- GraphQL + REST
+- PostgreSQL
 
 ### インフラストラクチャ
-- **AWS ECS Fargate**: サーバーレスコンテナ
-- **CloudFront + S3**: グローバルCDN
-- **Application Load Balancer**: 高可用性ロードバランシング
+- AWS ECS Fargate
+- CloudFront + S3
+- Application Load Balancer
 
 ### CI/CD
-- **GitHub Actions**: 自動化パイプライン
-- **CodeDeploy Blue/Green**: 無停止デプロイメント
-- **Docker**: コンテナ化
-- **Terraform**: Infrastructure as Code
+- GitHub Actions
+- CodeDeploy Blue/Green
+- Docker
+- Terraform
 
-## 🚀 CodeDeploy Blue/Green ECS デプロイメント
+## 🚀 Amazon ECS 用の CodeDeploy デプロイメント
 
-### 主要設定
-- **Deployment Config**: `CodeDeployDefault.ECSAllAtOnce`
-- **Wait Time**: 1分（高速デプロイ）
-- **Termination Wait**: 1分（高速終了）
-- **Auto Rollback**: 失敗時自動ロールバック
-- **Target Groups**: Blue/Green環境切り替え
+### デプロイモード
+- **Canary**: 10%→100%段階的切替
+- **Blue/Green**: 即座切替
+- **Provisioning**: 初期構築
 
-### リスナー設定
-- **Production Listener**: Port 80 (Blue Target Group)
-- **Test Listener**: Port 8080 (Green Target Group)
-- **Listener ARNs**: Terraform Outputで取得
-  ```bash
-  terraform output production_listener_arn
-  terraform output test_listener_arn
-  ```
+### 主要機能
+- 1分高速デプロイ
+- 失敗時自動ロールバック
+- Production/Test環境切り替え
+- GitHub Actions自動化
 
-### ターゲットグループ
-- **Blue Target Group**: `nestjs-hannibal-3-blue-tg`
-- **Green Target Group**: `nestjs-hannibal-3-green-tg`
-- **Health Check**: `/` パスでHTTP 200レスポンス
-- **Target Group Names**: Terraform Outputで取得
-  ```bash
-  terraform output blue_target_group_name
-  terraform output green_target_group_name
-  ```
+詳細は[デプロイメントガイド](./docs/deployment/codedeploy-blue-green.md)を参照
 
-### 手動デプロイ
-```powershell
-# 基本デプロイ
-.\scripts\deployment\deploy-codedeploy.ps1 -ImageTag "v1.2.3"
+## 🔐 セキュリティ
 
-# 環境指定
-.\scripts\deployment\deploy-codedeploy.ps1 -ImageTag "v1.2.3" -Environment "staging"
-
-# Terraformスキップ（インフラ変更なし）
-.\scripts\deployment\deploy-codedeploy.ps1 -ImageTag "v1.2.3" -SkipTerraform
-
-# タイムアウト設定
-.\scripts\deployment\deploy-codedeploy.ps1 -ImageTag "v1.2.3" -TimeoutMinutes 45
-```
-
-### 監視URL
-- **Production**: `http://<ALB-DNS>`
-- **Test**: `http://<ALB-DNS>:8080`
-- **CloudWatch Logs**: `/aws/codedeploy/nestjs-hannibal-3`
-- **AWS Console**: `https://console.aws.amazon.com/codesuite/codedeploy/deployments/<DEPLOYMENT-ID>`
-
-### Terraform出力情報
-```bash
-# CodeDeploy設定情報
-terraform output codedeploy_application_name
-terraform output codedeploy_deployment_group_name
-terraform output codedeploy_wait_time_minutes
-terraform output codedeploy_termination_wait_time_minutes
-
-# ネットワーク設定
-terraform output production_listener_arn
-terraform output test_listener_arn
-terraform output blue_target_group_name
-terraform output green_target_group_name
-```
-
-## 🔐 AWS Professional設計
-
-### 設計原則
-- **基盤とアプリケーションの分離**: IAMユーザー・基本ロールは永続化
-- **最小権限原則**: CloudTrail分析による権限最適化（160個→76個、52%削減）
-- **Infrastructure as Code**: Terraformによる完全なインフラ管理
-- **無停止デプロイメント**: ECS Native Blue/Green Deployment
-
-### セキュリティ
-- **Permission Boundary**: 最大権限の制限
-- **CloudTrail監査**: 全API呼び出しの記録・分析
-- **AssumeRole**: 環境別権限分離
-- **CodeDeploy Blue/Green**: 自動ロールバック機能
-- **IAM最小権限**: AWS管理ポリシーのみ使用
-- **PassRole権限**: ECS Task Execution Roleへの適切な権限委譲
+- Permission Boundary
+- CloudTrail監査
+- AssumeRole権限分離
+- 最小権限原則
+- Infrastructure as Code
