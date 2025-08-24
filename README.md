@@ -58,6 +58,5 @@
 
 - Permission Boundary
 - CloudTrail監査
+- **Athena分析**: CloudTrail権限最適化
 - AssumeRole権限分離
-- 最小権限原則
-- Infrastructure as Code
