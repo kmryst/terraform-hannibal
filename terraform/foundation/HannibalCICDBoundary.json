@@ -47,7 +47,7 @@
         "cloudfront:*",
         "route53:*",
         "codedeploy:*",
-        "codedeploy:*"
+        "dynamodb:*"
       ],
       "Resource": "*"
     },
