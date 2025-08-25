@@ -39,19 +39,8 @@
 
 ### バックエンド
 - NestJS
-- GraphQL + REST
+- GraphQL
 - PostgreSQL
-
-### インフラストラクチャ
-- AWS ECS Fargate
-- CloudFront + S3
-- Application Load Balancer
-
-### CI/CD
-- GitHub Actions
-- CodeDeploy Blue/Green
-- Docker
-- Terraform
 
 詳細は[デプロイメントガイド](./docs/deployment/codedeploy-blue-green.md)を参照
 
