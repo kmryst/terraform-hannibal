@@ -25,7 +25,7 @@
 ## 🚀 完全自動化デプロイメント
 
 <div align="center">
-  <img src="docs/screenshots/github-actions-demo.gif?v=20250108" alt="GitHub Actions Demo" width="800">
+  <img src="docs/screenshots/github-actions-demo.gif?v=20250108165536" alt="GitHub Actions Demo" width="800">
 </div>
 
 - **Infrastructure as Code**: Terraform完全管理
