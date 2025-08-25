@@ -50,3 +50,5 @@
 - CloudTrail監査
 - **Athena分析**: CloudTrail権限最適化
 - AssumeRole権限分離
+- CloudWatch監視
+- GuardDuty脅威検知
