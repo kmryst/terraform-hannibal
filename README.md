@@ -4,6 +4,10 @@
   <img src="docs/screenshots/hannibal-route.png" alt="ハンニバルのアルプス越えルート" width="800">
 </div>
 
+<div align="center">
+  <img src="docs/screenshots/hannibal.gif" alt="ハンニバルデモ" width="720">
+</div>
+
 ## AWS Architecture Diagram
 
 ### 手動作成版（Cacoo）
