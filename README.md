@@ -25,7 +25,7 @@
 ## 🚀 完全自動化デプロイメント
 
 - **Infrastructure as Code**: Terraform完全管理
-- **GitHub Actions**: プッシュ時自動デプロイ
+- **GitHub Actions**: ワンクリックデプロイ
 - **Blue/Green + Canary**: 無停止デプロイ
 - **自動ロールバック**: 失敗時即座復旧
 
