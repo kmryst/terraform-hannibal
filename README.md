@@ -5,7 +5,7 @@
 </div>
 
 <div align="center">
-  <img src="docs/screenshots/hannibal.gif" alt="ハンニバルデモ" width="720">
+  <img src="docs/screenshots/hannibal.gif" alt="ハンニバルデモ" width="800">
 </div>
 
 ## AWS Architecture Diagram
