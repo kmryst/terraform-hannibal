@@ -17,7 +17,7 @@
 
 ### 自動生成版（Python diagrams）
 <div align="center">
-  <img src="docs/architecture/diagrams/latest.png?v=20250806165536" alt="AWS Architecture" width="600">
+  <img src="docs/architecture/diagrams/latest.png?v=20250806165536" alt="AWS Architecture" width="800">
 </div>
 
 ## 📋 ドキュメント
