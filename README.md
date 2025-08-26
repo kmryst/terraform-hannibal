@@ -15,8 +15,7 @@
 コスト効率化のためGitHub Actionsで、Terraform管理しているAWSリソースを一括で自動デストロイ・デプロイしています。  
 デモをご覧になりたい場合はお気軽にお声がけください😊
 
-
-
+<br>
 
 ## AWS Architecture Diagram
 
