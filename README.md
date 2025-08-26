@@ -1,4 +1,4 @@
-# NestJS Hannibal 3 - ハンニバルのアルプス越えルート
+# ハンニバルのアルプス越えルートアプリケーション
 
 <div align="center">
   <img src="docs/screenshots/hannibal-route.png" alt="ハンニバルのアルプス越えルート" width="800">
