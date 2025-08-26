@@ -8,6 +8,8 @@
   <img src="docs/screenshots/hannibal.gif" alt="ハンニバルデモ" width="800">
 </div>
 
+<br>
+
 ## 🌐 デモサイト
 
 [hamilcar-hannibal.click](https://hamilcar-hannibal.click) でライブデモをご覧いただけます。
