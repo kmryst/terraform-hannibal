@@ -12,7 +12,8 @@
 
 [hamilcar-hannibal.click](https://hamilcar-hannibal.click) でライブデモをご覧いただけます。
 
-**運用方針**: コスト効率化のためGitHub Actionsでデストロイ・デプロイを自動化しています。デモをご覧になりたい場合はお気軽にお声がけください😊
+**運用方針**: コスト効率化のためGitHub Actionsでデストロイ・デプロイを自動化しています。  
+デモをご覧になりたい場合はお気軽にお声がけください😊
 
 ## AWS Architecture Diagram
 
