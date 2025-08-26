@@ -37,6 +37,8 @@
 - [運用ガイド](./docs/operations/README.md) - IAM管理・監視・分析
 - [アーキテクチャ](./docs/architecture/mermaid/README.md) - システム構成図
 
+<br>
+
 ## 🚀 完全自動化デプロイメント
 
 <div align="center">
@@ -47,6 +49,8 @@
 - **GitHub Actions**: ワンクリックデプロイ
 - **Blue/Green + Canary**: 無停止デプロイ
 - **自動ロールバック**: 失敗時即座復旧
+
+<br>
 
 ## 🔧 技術スタック
 
