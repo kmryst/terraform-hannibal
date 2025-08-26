@@ -12,7 +12,7 @@
 
 [hamilcar-hannibal.click](https://hamilcar-hannibal.click) でライブデモをご覧いただけます。
 
-**運用方針**: コスト効率化のためGitHub Actionsで、Terraform管理しているAWSリソースを一括で自動デストロイ・デプロイしています。  
+コスト効率化のためGitHub Actionsで、Terraform管理しているAWSリソースを一括で自動デストロイ・デプロイしています。  
 デモをご覧になりたい場合はお気軽にお声がけください😊
 
 ## AWS Architecture Diagram
