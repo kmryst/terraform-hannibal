@@ -5,7 +5,7 @@
 </div>
 
 <div align="center">
-  <img src="docs/screenshots/hannibal.gif" alt="ハンニバルデモ" width="800">
+  <img src="docs/screenshots/hannibal_1.gif" alt="ハンニバルデモ" width="800">
 </div>
 
 <br>
