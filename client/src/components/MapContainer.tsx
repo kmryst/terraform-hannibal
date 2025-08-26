@@ -94,10 +94,7 @@ const MapContainer: React.FC = () => {
     }
   }, [data]);
 
-  // エラーハンドリング関数
-  const handleError = (message: string, details?: Record<string, unknown>) => {
-    console.error(message, details);
-  };
+
 
   // マップ初期化処理
   useEffect(() => {
@@ -122,7 +119,6 @@ const MapContainer: React.FC = () => {
           console.log("Map layers added successfully.");
         } catch (e) {
           console.error("Error adding layers:", e);
-          handleError(`Map layer error: ${e}`);
         }
       });
 
@@ -131,7 +127,6 @@ const MapContainer: React.FC = () => {
       };
     } catch (e) {
       console.error("Map Initialization Failed:", e);
-      handleError(`Map Initialization Failed: ${e}`);
     }
   }, [data, isMapboxLoading]);
 
@@ -154,33 +149,7 @@ const MapContainer: React.FC = () => {
         </div>
       )}
 
-      <div
-        id="error-log"
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: "rgba(255,255,255,0.95)",
-          color: "red",
-          zIndex: 9999,
-          maxHeight: "30vh",
-          overflowY: "auto",
-          padding: "15px",
-          borderTop: "1px solid #ddd",
-          boxShadow: "0 -2px 10px rgba(0,0,0,0.05)",
-          fontSize: "0.85em",
-        }}
-      >
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "10px",
-        }}>
-          <h4 style={{ margin: 0 }}>システムログ</h4>
-        </div>
-      </div>
+
     </>
   );
 };
