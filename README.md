@@ -14,8 +14,9 @@
 
 [hamilcar-hannibal.click](https://hamilcar-hannibal.click) でライブデモをご覧いただけます。
 
-コスト効率化のためGitHub Actionsで、Terraform管理しているAWSリソースを一括で自動デストロイ・デプロイしています。  
-デモをご覧になりたい場合はお気軽にお声がけください😊
+**現在停止中** - コスト効率化のため、通常時はAWSリソースを停止しています。  
+GitHub Actionsでワンクリック**デプロイ・デストロイ**が可能です。
+デモご希望の際はお声がけください😊
 
 <br>
 
