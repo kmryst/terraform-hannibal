@@ -11,15 +11,12 @@ variable "project_name" {
   default     = "nestjs-hannibal-3"
 }
 
-# Virtual Private Cloud
-# main.tfの data.aws_vpc.selected で default = true を指定しているため、
-# デフォルトVPCを自動的に取得します。
-# デフォルトVPCが存在しない場合は、この変数にVPC IDを指定する必要があります。
-variable "vpc_id" {
-  description = "ID of the VPC for deploying resources. If not specified, the default VPC will be used."
-  type        = string
-  default     = "" # 空文字列をデフォルト値として設定し、オプショナルにする
-}
+# 今は使ってない
+# variable "vpc_id" {
+#   description = "ID of the VPC for deploying resources. If not specified, the default VPC will be used."
+#   type        = string
+#   default     = ""
+# }
 
 # variable "public_subnet_ids" {
 #   description = "List of public subnet IDs for ALB and Fargate tasks (at least 2 in different AZs)"
@@ -28,17 +25,14 @@ variable "vpc_id" {
 #   # default     = ["subnet-xxxxxxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyyyyyy"] # 指定必須
 # }
 
-variable "private_subnet_ids" {
-  description = "List of private subnet IDs for Fargate tasks if using private subnets"
-  type        = list(string)
-  default     = [] # ALBをパブリックに置く場合は空でも良いが、Fargateはプライベート推奨
-}
+# 今は使ってない
+# variable "private_subnet_ids" {
+#   description = "List of private subnet IDs for Fargate tasks if using private subnets"
+#   type        = list(string)
+#   default     = []
+# }
 
-variable "container_image_uri" {
-  description = "ECR URI of the Docker image for the NestJS API"
-  type        = string
-  default     = "258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3:latest" # 事前にECRにpushしたイメージURI
-}
+
 
 variable "ecr_repository_url" {
   description = "ECR repository URL (manually created)"
@@ -76,12 +70,12 @@ variable "alb_listener_port" {
   default     = 80 # HTTP. HTTPSの場合は443とACM証明書ARNが必要
 }
 
-variable "health_check_path" {
-  description = "Path for ALB health check"
-  type        = string
-  default     = "/health" # 専用ヘルスチェックエンドポイント
-
-}
+# 今は使ってない
+# variable "health_check_path" {
+#   description = "Path for ALB health check"
+#   type        = string
+#   default     = "/health"
+# }
 
 variable "client_url_for_cors" {
   description = "Frontend CloudFront URL for CORS configuration (e.g., https://dXXXXXXXXXXXXX.cloudfront.net)"
@@ -89,12 +83,7 @@ variable "client_url_for_cors" {
   default     = "" # フロントエンドデプロイ後に設定するか、固定ドメインを指定
 }
 
-variable "database_url" {
-  description = "Database connection URL for application"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
+
 
 # (オプション) ACM証明書ARN (HTTPS化する場合)
 # variable "certificate_arn" {
