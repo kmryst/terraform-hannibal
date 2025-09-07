@@ -70,12 +70,11 @@ variable "alb_listener_port" {
   default     = 80 # HTTP. HTTPSの場合は443とACM証明書ARNが必要
 }
 
-# 今は使ってない
-# variable "health_check_path" {
-#   description = "Path for ALB health check"
-#   type        = string
-#   default     = "/health"
-# }
+variable "health_check_path" {
+  description = "Path for ALB health check"
+  type        = string
+  default     = "/health"
+}
 
 variable "client_url_for_cors" {
   description = "Frontend CloudFront URL for CORS configuration (e.g., https://dXXXXXXXXXXXXX.cloudfront.net)"
