@@ -1,9 +1,29 @@
 # terraform/frontend/main.tf
 
-# --- AWS Professional Environment Configuration ---
+
+# 環境別CloudFront最適化
 locals {
-  # 環境別CloudFront最適化（Netflix/Airbnb/Spotify標準）
   enable_cloudfront_computed = var.enable_cloudfront
+  
+  # API用キャッシュ動作の共通設定
+  api_cache_behavior_defaults = {
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods         = ["GET", "HEAD", "OPTIONS"]
+    viewer_protocol_policy = "redirect-to-https"
+    compress              = true
+    min_ttl               = 0
+    default_ttl           = 0
+    max_ttl               = 0
+    target_origin_id      = "ALB-${var.project_name}-API"
+    
+    forwarded_values = {
+      query_string = true
+      cookies = {
+        forward = "all"
+      }
+      headers = ["Authorization", "Content-Type", "Origin", "Referer", "User-Agent"]
+    }
+  }
 }
 
 # --- S3 Bucket for Frontend Static Files ---
@@ -164,42 +184,42 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   ordered_cache_behavior { # APIリクエストのルーティング
-    path_pattern    = "/api/*"
-    allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id = "ALB-${var.project_name}-API"
-    viewer_protocol_policy = "redirect-to-https"
-    compress = true
-    min_ttl = 0
-    default_ttl = 0
-    max_ttl = 0
+    path_pattern           = "/api/*"
+    allowed_methods        = local.api_cache_behavior_defaults.allowed_methods
+    cached_methods         = local.api_cache_behavior_defaults.cached_methods
+    target_origin_id       = local.api_cache_behavior_defaults.target_origin_id
+    viewer_protocol_policy = local.api_cache_behavior_defaults.viewer_protocol_policy
+    compress              = local.api_cache_behavior_defaults.compress
+    min_ttl               = local.api_cache_behavior_defaults.min_ttl
+    default_ttl           = local.api_cache_behavior_defaults.default_ttl
+    max_ttl               = local.api_cache_behavior_defaults.max_ttl
 
     forwarded_values {
-      query_string = true
+      query_string = local.api_cache_behavior_defaults.forwarded_values.query_string
       cookies {
-        forward = "all"
+        forward = local.api_cache_behavior_defaults.forwarded_values.cookies.forward
       }
-      headers = ["Authorization", "Content-Type", "Origin", "Referer", "User-Agent"]
+      headers = local.api_cache_behavior_defaults.forwarded_values.headers
     }
   }
 
   ordered_cache_behavior { # GraphQLエンドポイント用
-    path_pattern    = "/graphql"
-    allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id = "ALB-${var.project_name}-API"
-    viewer_protocol_policy = "redirect-to-https"
-    compress = true
-    min_ttl = 0
-    default_ttl = 0
-    max_ttl = 0
+    path_pattern           = "/graphql"
+    allowed_methods        = local.api_cache_behavior_defaults.allowed_methods
+    cached_methods         = local.api_cache_behavior_defaults.cached_methods
+    target_origin_id       = local.api_cache_behavior_defaults.target_origin_id
+    viewer_protocol_policy = local.api_cache_behavior_defaults.viewer_protocol_policy
+    compress              = local.api_cache_behavior_defaults.compress
+    min_ttl               = local.api_cache_behavior_defaults.min_ttl
+    default_ttl           = local.api_cache_behavior_defaults.default_ttl
+    max_ttl               = local.api_cache_behavior_defaults.max_ttl
 
     forwarded_values {
-      query_string = true
+      query_string = local.api_cache_behavior_defaults.forwarded_values.query_string
       cookies {
-        forward = "all"
+        forward = local.api_cache_behavior_defaults.forwarded_values.cookies.forward
       }
-      headers = ["Authorization", "Content-Type", "Origin", "Referer", "User-Agent"]
+      headers = local.api_cache_behavior_defaults.forwarded_values.headers
     }
   }
 
