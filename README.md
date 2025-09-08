@@ -24,19 +24,19 @@ GitHub Actionsでワンクリック**デプロイ・デストロイ**が可能�
 
 ### 手動作成版（Cacoo）
 <div align="center">
-  <img src="docs/architecture/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="800">
+  <img src="docs/architecture/aws/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="800">
 </div>
 
 ### 自動生成版（Python diagrams）
 <div align="center">
-  <img src="docs/architecture/diagrams/latest.png?v=20250806165536" alt="AWS Architecture" width="800">
+  <img src="docs/architecture/aws/diagrams/latest.png?v=20250806165536" alt="AWS Architecture" width="800">
 </div>
 
 ## 📋 ドキュメント
 
 - [セットアップガイド](./docs/setup/README.md) - 環境構築・事前準備
 - [運用ガイド](./docs/operations/README.md) - IAM管理・監視・分析
-- [アーキテクチャ](./docs/architecture/mermaid/README.md) - システム構成図
+- [アーキテクチャ](./docs/architecture/aws/mermaid/README.md) - システム構成図
 
 <br>
 
