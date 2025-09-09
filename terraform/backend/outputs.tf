@@ -1,21 +1,8 @@
 # terraform/backend/outputs.tf
-/**
- * Terraform アウトプット定義ファイル
- * 
- * ハンニバルのアルプス越えルートアプリケーションの
- * インフラストラクチャ情報を外部に公開するためのアウトプット定義。
- * 
- * 主要用途:
- * - CI/CD パイプラインでのリソース情報参照
- * - 他の Terraform モジュールとの連携
- * - アプリケーション設定でのエンドポイント情報取得
- * - 監視・デバッグ用のリソース識別子
- */
 
-# --- CodeDeploy Blue/Green デプロイメント関連 ---
-# CodeDeploy アプリケーション名: GitHub Actions でのデプロイメント実行時に使用
+# --- CodeDeploy Outputs ---
 output "codedeploy_application_name" {
-  description = "CodeDeploy application name for Blue/Green deployment"
+  description = "CodeDeploy application name"
   value       = aws_codedeploy_app.main.name
 }
 
@@ -84,10 +71,9 @@ output "green_target_group_arn" {
 # --- ALB Listeners ---
 
 
-# --- Application Load Balancer (ALB) 情報 ---
-# ALB DNS名: フロントエンドからの API アクセス用エンドポイント
+# --- ALB ---
 output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer for API access"
+  description = "DNS name of the Application Load Balancer"
   value       = aws_lb.main.dns_name
 }
 
@@ -101,10 +87,9 @@ output "alb_listener_arn" {
   value       = aws_lb_listener.http.arn
 }
 
-# --- Amazon ECS (Elastic Container Service) 情報 ---
-# ECS クラスター名: コンテナアプリケーションの実行環境識別子
+# --- ECS ---
 output "ecs_cluster_name" {
-  description = "Name of the ECS cluster running the Hannibal application"
+  description = "Name of the ECS cluster"
   value       = aws_ecs_cluster.main.name
 }
 
@@ -123,10 +108,9 @@ output "ecr_repository_url" {
   value       = var.ecr_repository_url
 }
 
-# --- Amazon RDS PostgreSQL データベース情報 ---
-# RDS エンドポイント: アプリケーションからのデータベース接続用
+# --- Database ---
 output "db_endpoint" {
-  description = "RDS PostgreSQL endpoint for application database connection"
+  description = "RDS PostgreSQL endpoint"
   value       = aws_db_instance.postgres.endpoint
 }
 
@@ -141,10 +125,9 @@ output "database_url" {
   sensitive   = true
 }
 
-# --- Amazon VPC (Virtual Private Cloud) ネットワーク情報 ---
-# VPC ID: 3層アーキテクチャのメインネットワーク識別子
+# --- VPC ---
 output "vpc_id" {
-  description = "VPC ID for the three-tier architecture network"
+  description = "VPC ID"
   value       = aws_vpc.main.id
 }
 

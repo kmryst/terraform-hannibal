@@ -1,11 +1,5 @@
 
-/**
- * ハンニバルルートサービス
- * 
- * ルートデータのビジネスロジックを担当するサービスクラス。
- * PostgreSQL データベースとのデータ操作、ビジネスルールの適用、
- * レガシーデータとの互換性維持を行う。
- */
+// C:\code\javascript\nestjs-hannibal-3\src\modules\route\route.service.ts
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -14,64 +8,37 @@ import { Route } from '../../entities';
 import { hannibalRoute } from '../../geojson_data/hannibalRoute';
 import { pointRoute } from '../../geojson_data/pointRoute';
 
-// NestJS の依存性注入コンテナに登録するサービスクラス
 @Injectable()
 export class RouteService {
-  /**
-   * コンストラクタ
-   * TypeORM Repository を依存性注入で取得
-   */
   constructor(
-    @InjectRepository(Route) // Route エンティティ用の Repository を注入
+    @InjectRepository(Route)
     private routeRepository: Repository<Route>,
   ) {}
 
-  /**
-   * 全ルート取得
-   * データベースから全てのルートデータを取得する
-   */
+  // データベースからルート取得
   async findAll(): Promise<Route[]> {
     return this.routeRepository.find();
   }
 
-  /**
-   * 特定ルート取得
-   * ID を指定して特定のルートデータを取得する
-   */
   async findOne(id: number): Promise<Route | null> {
     return this.routeRepository.findOne({ where: { id } });
   }
 
-  /**
-   * ルート作成
-   * 新しいルートデータをデータベースに保存する
-   */
   async create(routeData: Partial<Route>): Promise<Route> {
     const route = this.routeRepository.create(routeData);
     return this.routeRepository.save(route);
   }
 
-  /**
-   * ルート更新
-   * 指定されたIDのルートデータを更新する
-   */
   async update(id: number, routeData: Partial<Route>): Promise<Route | null> {
     await this.routeRepository.update(id, routeData);
     return this.findOne(id);
   }
 
-  /**
-   * ルート削除
-   * 指定されたIDのルートデータを削除する
-   */
   async remove(id: number): Promise<void> {
     await this.routeRepository.delete(id);
   }
 
-  /**
-   * 初期データ投入
-   * データベースが空の場合、ハンニバルのアルプス越えルートを投入する
-   */
+  // 初期データ投入用（後で削除予定）
   async seedInitialData(): Promise<void> {
     const existingRoutes = await this.routeRepository.count();
     if (existingRoutes === 0) {
@@ -84,11 +51,7 @@ export class RouteService {
     }
   }
 
-  /**
-   * ハンニバルルート取得（レガシー）
-   * 旧フロントエンドとの互換性のために GeoJSON 形式で返却
-   * @deprecated 新しい findAll() メソッドを使用してください
-   */
+  // 後方互換性のため残す（段階的に削除）
   getHannibalRoute() {
     return {
       ...hannibalRoute,
@@ -105,11 +68,6 @@ export class RouteService {
     };
   }
 
-  /**
-   * ポイントルート取得（レガシー）
-   * 旧フロントエンドとの互換性のために GeoJSON 形式で返却
-   * @deprecated 新しい findAll() メソッドを使用してください
-   */
   getPointRoute() {
     return pointRoute;
   }
