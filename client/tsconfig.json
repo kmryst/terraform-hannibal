@@ -15,8 +15,8 @@
       "isolatedModules": true,
       "noEmit": true,
       "jsx": "react-jsx",
-      "moduleDetection": "force", // 追加
-      "types": ["vite/client"]    // 追加
+      "moduleDetection": "force", 
+      "types": ["vite/client"] 
     },
     "include": ["src"],
     "references": [{ "path": "./tsconfig.node.json" }]
