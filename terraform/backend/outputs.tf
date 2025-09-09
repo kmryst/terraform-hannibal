@@ -1,8 +1,21 @@
 # terraform/backend/outputs.tf
+/**
+ * Terraform アウトプット定義ファイル
+ * 
+ * ハンニバルのアルプス越えルートアプリケーションの
+ * インフラストラクチャ情報を外部に公開するためのアウトプット定義。
+ * 
+ * 主要用途:
+ * - CI/CD パイプラインでのリソース情報参照
+ * - 他の Terraform モジュールとの連携
+ * - アプリケーション設定でのエンドポイント情報取得
+ * - 監視・デバッグ用のリソース識別子
+ */
 
-# --- CodeDeploy Outputs ---
+# --- CodeDeploy Blue/Green デプロイメント関連 ---
+# CodeDeploy アプリケーション名: GitHub Actions でのデプロイメント実行時に使用
 output "codedeploy_application_name" {
-  description = "CodeDeploy application name"
+  description = "CodeDeploy application name for Blue/Green deployment"
   value       = aws_codedeploy_app.main.name
 }
 
@@ -71,9 +84,10 @@ output "green_target_group_arn" {
 # --- ALB Listeners ---
 
 
-# --- ALB ---
+# --- Application Load Balancer (ALB) 情報 ---
+# ALB DNS名: フロントエンドからの API アクセス用エンドポイント
 output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
+  description = "DNS name of the Application Load Balancer for API access"
   value       = aws_lb.main.dns_name
 }
 
@@ -87,9 +101,10 @@ output "alb_listener_arn" {
   value       = aws_lb_listener.http.arn
 }
 
-# --- ECS ---
+# --- Amazon ECS (Elastic Container Service) 情報 ---
+# ECS クラスター名: コンテナアプリケーションの実行環境識別子
 output "ecs_cluster_name" {
-  description = "Name of the ECS cluster"
+  description = "Name of the ECS cluster running the Hannibal application"
   value       = aws_ecs_cluster.main.name
 }
 
@@ -108,9 +123,10 @@ output "ecr_repository_url" {
   value       = var.ecr_repository_url
 }
 
-# --- Database ---
+# --- Amazon RDS PostgreSQL データベース情報 ---
+# RDS エンドポイント: アプリケーションからのデータベース接続用
 output "db_endpoint" {
-  description = "RDS PostgreSQL endpoint"
+  description = "RDS PostgreSQL endpoint for application database connection"
   value       = aws_db_instance.postgres.endpoint
 }
 
@@ -125,9 +141,10 @@ output "database_url" {
   sensitive   = true
 }
 
-# --- VPC ---
+# --- Amazon VPC (Virtual Private Cloud) ネットワーク情報 ---
+# VPC ID: 3層アーキテクチャのメインネットワーク識別子
 output "vpc_id" {
-  description = "VPC ID"
+  description = "VPC ID for the three-tier architecture network"
   value       = aws_vpc.main.id
 }
 
