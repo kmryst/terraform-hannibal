@@ -54,7 +54,10 @@ resource "aws_lb_target_group" "green" {
   }
 }
 
-# S3 Bucket for CodeDeploy artifacts
+
+# GitHub Actions: appspec.yamlを生成・アップロード
+# S3バケット: appspec.yamlを保存
+# CodeDeploy: S3からappspec.yamlを読み取って実行
 resource "aws_s3_bucket" "codedeploy_artifacts" {
   bucket        = "${var.project_name}-codedeploy-artifacts"
   force_destroy = true
@@ -93,8 +96,8 @@ resource "aws_iam_role" "codedeploy_service_role" {
       {
         Action = "sts:AssumeRole"
         Effect = "Allow"
-        Principal = {
-          Service = "codedeploy.amazonaws.com"
+        Principal = { # 主体
+          Service = "codedeploy.amazonaws.com" # CodeDeployサービスがassumeする主体
         }
       }
     ]

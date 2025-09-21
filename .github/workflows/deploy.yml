@@ -16,8 +16,8 @@ on:
         default: "canary"
         type: choice
         options:
-          - canary         # 1回目以降（Canary段階的切替）- 推奨
-          - bluegreen      # 1回目以降（Blue/Green切替）- 緊急時
+          - canary         # 1回目以降（Canary段階的切替）
+          - bluegreen      # 1回目以降（Blue/Green切替）
           - provisioning   # 0回目（初期構築・Blueのみ）
 
 jobs:
