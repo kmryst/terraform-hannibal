@@ -54,10 +54,9 @@ resource "aws_lb_target_group" "green" {
   }
 }
 
-
-# GitHub Actions: appspec.yamlを生成・アップロード
-# S3バケット: appspec.yamlを保存
-# CodeDeploy: S3からappspec.yamlを読み取って実行
+# GitHub Actions → appspec.yaml作成 → S3にアップロード → CodeDeployが読み取り
+# artifact: デプロイに必要な成果物・ファイル群
+# 語源: Art(技術) + Fact(作られたもの) = 人工物・工芸品、自然物の対義語
 resource "aws_s3_bucket" "codedeploy_artifacts" {
   bucket        = "${var.project_name}-codedeploy-artifacts"
   force_destroy = true
