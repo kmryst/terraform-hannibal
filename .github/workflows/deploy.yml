@@ -107,24 +107,24 @@ jobs:
             -var="enable_cloudfront=true" \
             -out=tfplan
           terraform apply -auto-approve tfplan
-          terraform output -json > ../../tf_outputs.json
+          
+          # Environment Variables方式でTerraform出力を設定
+          echo "ALB_DNS=$(terraform output -raw alb_dns_name)" >> $GITHUB_ENV
+          echo "S3_BUCKET=$(terraform output -raw s3_bucket_name)" >> $GITHUB_ENV
+          echo "CLOUDFRONT_ARN=$(terraform output -raw cloudfront_distribution_arn)" >> $GITHUB_ENV
 
       - name: Build and Deploy Frontend
         run: |
           set -e
-          ALB_DNS=$(jq -r '.alb_dns_name.value' ../../tf_outputs.json)
-          S3_BUCKET=$(jq -r '.s3_bucket_name.value' ../../tf_outputs.json)
-          
           cd client
           echo "VITE_GRAPHQL_ENDPOINT=/graphql" > .env.production
           npm ci
           npm run build
           
-          aws s3 sync dist/ s3://$S3_BUCKET/ --delete
+          aws s3 sync dist/ s3://${{ env.S3_BUCKET }}/ --delete
           
-          CLOUDFRONT_ARN=$(jq -r '.cloudfront_distribution_arn.value' ../../tf_outputs.json)
-          if [ "$CLOUDFRONT_ARN" != "null" ]; then
-            CLOUDFRONT_ID=$(echo $CLOUDFRONT_ARN | cut -d'/' -f2)
+          if [ "${{ env.CLOUDFRONT_ARN }}" != "" ]; then
+            CLOUDFRONT_ID=$(echo ${{ env.CLOUDFRONT_ARN }} | cut -d'/' -f2)
             aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths "/*"
           fi
 
