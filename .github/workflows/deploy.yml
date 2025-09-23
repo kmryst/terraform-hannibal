@@ -88,8 +88,8 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=$(echo "$CREDS" | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo "$CREDS" | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
-      - name: Deploy Backend Infrastructure
-        working-directory: ./terraform/backend
+      - name: Deploy Infrastructure (Modularized)
+        working-directory: ./terraform/environments/dev
         run: |
           set -e
           terraform init -input=false
@@ -104,29 +104,16 @@ jobs:
             -var="client_url_for_cors=https://hamilcar-hannibal.click" \
             -var="environment=dev" \
             -var="deployment_type=$DEPLOYMENT_TYPE" \
-            -out=tfplan
-          terraform apply -auto-approve tfplan
-          terraform output -json > ../../tf_outputs_backend.json
-
-      - name: Deploy Frontend Infrastructure
-        working-directory: ./terraform/frontend
-        run: |
-          set -e
-          terraform init -input=false
-          ALB_DNS=$(jq -r '.alb_dns_name.value' ../../tf_outputs_backend.json)
-          terraform plan \
-            -var="api_alb_dns_name=$ALB_DNS" \
-            -var="environment=dev" \
             -var="enable_cloudfront=true" \
             -out=tfplan
           terraform apply -auto-approve tfplan
-          terraform output -json > ../../tf_outputs_frontend.json
+          terraform output -json > ../../tf_outputs.json
 
       - name: Build and Deploy Frontend
         run: |
           set -e
-          ALB_DNS=$(jq -r '.alb_dns_name.value' tf_outputs_backend.json)
-          S3_BUCKET=$(jq -r '.s3_bucket_name.value' tf_outputs_frontend.json)
+          ALB_DNS=$(jq -r '.alb_dns_name.value' ../../tf_outputs.json)
+          S3_BUCKET=$(jq -r '.s3_bucket_name.value' ../../tf_outputs.json)
           
           cd client
           echo "VITE_GRAPHQL_ENDPOINT=/graphql" > .env.production
@@ -135,8 +122,9 @@ jobs:
           
           aws s3 sync dist/ s3://$S3_BUCKET/ --delete
           
-          CLOUDFRONT_ID=$(jq -r '.cloudfront_distribution_id.value' ../tf_outputs_frontend.json)
-          if [ "$CLOUDFRONT_ID" != "null" ]; then
+          CLOUDFRONT_ARN=$(jq -r '.cloudfront_distribution_arn.value' ../../tf_outputs.json)
+          if [ "$CLOUDFRONT_ARN" != "null" ]; then
+            CLOUDFRONT_ID=$(echo $CLOUDFRONT_ARN | cut -d'/' -f2)
             aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths "/*"
           fi
 

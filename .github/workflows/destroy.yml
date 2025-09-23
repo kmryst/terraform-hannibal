@@ -89,25 +89,22 @@ jobs:
           aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE" || true
           echo "✅ ECS service scaled down or stable"
 
-      - name: Destroy Backend (Terraform)
-        working-directory: ./terraform/backend
+      - name: Destroy Infrastructure (Modularized)
+        working-directory: ./terraform/environments/dev
         run: |
           set -e
           terraform init -input=false
-          terraform destroy -auto-approve -var="client_url_for_cors=" -var="environment=dev"
-
-      - name: Destroy Frontend (Terraform)
-        working-directory: ./terraform/frontend
-        run: |
-          set -e
-          terraform init -input=false
-          terraform destroy -auto-approve -var="api_alb_dns_name=dummy.elb.amazonaws.com" -var="environment=dev" -var="enable_cloudfront=true" || true
+          terraform destroy -auto-approve \
+            -var="client_url_for_cors=" \
+            -var="environment=dev" \
+            -var="deployment_type=canary" \
+            -var="enable_cloudfront=true"
 
       - name: Cleanup S3 buckets (best-effort)
         run: |
           set -e
           aws s3 rm s3://${{ env.PROJECT_NAME }}-codedeploy-artifacts --recursive || true
-          FRONTEND_BUCKET=$(aws s3api list-buckets --query "Buckets[?contains(Name, '${{ env.PROJECT_NAME }}-frontend')].Name" --output text 2>/dev/null || echo "")
+          FRONTEND_BUCKET=$(jq -r '.s3_bucket_name.value' terraform/environments/dev/tf_outputs.json 2>/dev/null || echo "")
           if [ -n "$FRONTEND_BUCKET" ]; then
             aws s3 rm s3://$FRONTEND_BUCKET --recursive || true
           fi

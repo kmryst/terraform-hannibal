@@ -121,3 +121,46 @@ variable "deployment_type" {
     error_message = "Deployment type must be canary or bluegreen."
   }
 }
+
+# --- Frontend Variables ---
+variable "s3_bucket_name" {
+  description = "Unique S3 bucket name for frontend static files"
+  type        = string
+  default     = "nestjs-hannibal-3-frontend"
+}
+
+variable "frontend_build_path" {
+  description = "Path to the frontend build artifacts"
+  type        = string
+  default     = "../../../client/dist"
+}
+
+variable "api_alb_dns_name" {
+  description = "DNS name of the backend API's Application Load Balancer"
+  type        = string
+  default     = ""
+}
+
+variable "domain_name" {
+  description = "Your custom domain name (e.g., app.example.com)"
+  type        = string
+  default     = "hamilcar-hannibal.click"
+}
+
+variable "hosted_zone_id" {
+  description = "Route 53 Hosted Zone ID for the domain_name"
+  type        = string
+  default     = "Z06663901XRPJ5V5J5GIW"
+}
+
+variable "acm_certificate_arn_us_east_1" {
+  description = "ACM Certificate ARN for CloudFront (must be in us-east-1)"
+  type        = string
+  default     = "arn:aws:acm:us-east-1:258632448142:certificate/85268053-8bc9-4210-a855-50530d41116d"
+}
+
+variable "enable_cloudfront" {
+  description = "Enable CloudFront distribution (disable for dev to save time)"
+  type        = bool
+  default     = true
+}

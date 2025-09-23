@@ -87,3 +87,29 @@ output "sns_topic_arn" {
   description = "SNS Topic ARN for alerts"
   value       = module.monitoring.sns_topic_arn
 }
+
+# --- Frontend Outputs ---
+output "cloudfront_distribution_domain_name" {
+  description = "Domain name of the CloudFront distribution"
+  value       = module.cloudfront.distribution_domain_name
+}
+
+output "cloudfront_distribution_arn" {
+  description = "ARN of the CloudFront distribution"
+  value       = module.cloudfront.distribution_arn
+}
+
+output "s3_bucket_id" {
+  description = "ID of the S3 bucket for frontend"
+  value       = module.s3_frontend.bucket_id
+}
+
+output "cloudfront_distribution_id" {
+  description = "ID of the CloudFront distribution"
+  value       = module.cloudfront.distribution_arn != "" ? split("/", module.cloudfront.distribution_arn)[1] : ""
+}
+
+output "s3_bucket_name" {
+  description = "Name of the S3 bucket for frontend"
+  value       = module.s3_frontend.bucket_id
+}
