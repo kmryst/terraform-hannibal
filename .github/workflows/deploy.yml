@@ -1,4 +1,4 @@
-name: Deploy NestJS Hannibal (Enterprise)
+name: Deploy NestJS Hannibal
 
 env:
   AWS_ACCOUNT_ID: "258632448142"
@@ -88,7 +88,7 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=$(echo "$CREDS" | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$(echo "$CREDS" | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
-      - name: Deploy Infrastructure (Modularized)
+      - name: Deploy Infrastructure
         working-directory: ./terraform/environments/dev
         run: |
           set -e
