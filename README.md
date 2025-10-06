@@ -39,17 +39,20 @@ GitHub Actionsでワンクリック**デプロイ・デストロイ**が可能�
 ### Terraform 構成
 ```
 terraform/
-├── foundation/          # 基盤リソース（IAM、Athena、DynamoDB）
-│   ├── iam.tf          # Permission Boundary + AssumeRole設計
-│   └── athena.tf       # CloudTrail分析基盤
+├── foundation/          # 基盤リソース（IAM、Athena、Billing）
+│   ├── iam.tf          # Permission Boundary + AssumeRole
+│   ├── athena.tf       # CloudTrail分析
+│   └── billing.tf      # コスト監視
 ├── environments/dev/    # 環境別設定
 │   └── main.tf         # モジュール統合
 └── modules/            # 再利用可能なモジュール
+    ├── cdn/            # CloudFront
+    ├── cicd/           # CodeDeploy Blue/Green
     ├── compute/        # ECS Fargate + ALB
-    ├── networking/     # 3層VPC（Public/App/Data）
+    ├── networking/     # VPC + Route53
+    ├── observability/  # CloudWatch監視
     ├── security/       # Security Groups + IAM
-    ├── storage/        # RDS + S3
-    └── cicd/           # CodeDeploy Blue/Green
+    └── storage/        # RDS + S3
 ```
 
 <br>
