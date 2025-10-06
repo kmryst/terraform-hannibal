@@ -49,7 +49,7 @@ terraform/
     ├── cdn/            # CloudFront
     ├── cicd/           # CodeDeploy Blue/Green
     ├── compute/        # ECS Fargate + ALB
-    ├── networking/     # VPC + Route53
+    ├── networking/     # 3層VPC（Public/App/Data）+ Route53
     ├── observability/  # CloudWatch監視
     ├── security/       # Security Groups + IAM
     └── storage/        # RDS + S3
