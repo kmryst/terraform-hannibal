@@ -67,11 +67,6 @@ terraform/
   <img src="docs/screenshots/github-actions-demo.gif?v=20250108165536" alt="GitHub Actions Demo" width="800">
 </div>
 
-### 技術的工夫
-- **AssumeRole**: GitHub Actions は最小権限ユーザー、デプロイ時のみロール取得
-- **Permission Boundary**: CI/CDロールの権限上限を制限
-- **CloudTrail分析**: Athena で実際の権限使用を分析し、最小権限化
-
 <br>
 
 ## 🔧 技術スタック
