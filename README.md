@@ -42,7 +42,7 @@ GitHub Actionsでワンクリック**デプロイ・デストロイ**が可能�
 
 ## 🏗️ Infrastructure as Code
 
-### Terraform モジュール構成
+### Terraform 構成
 ```
 terraform/
 ├── foundation/          # 基盤リソース（IAM、Athena、DynamoDB）
