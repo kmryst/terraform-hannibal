@@ -79,6 +79,8 @@ terraform/
 ### アーキテクチャ図自動生成（architecture-diagram.yml）
 - Python diagramsで構成図を自動更新
 
+### デプロイ実行例（provisioningモード）
+
 <div align="center">
   <img src="docs/screenshots/github-actions-demo.gif?v=20250108165536" alt="GitHub Actions Demo" width="800">
 </div>
