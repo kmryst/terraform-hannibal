@@ -71,7 +71,7 @@ terraform/
 ### デストロイ（destroy.yml）
 - ワンクリックでAWSリソース削除
 
-### PR自動チェック（pr-check.yml）
+### プルリクエスト自動チェック（pr-check.yml）
 - Backend: ESLint + Build
 - Frontend: TypeScript + Build
 - Terraform: Format + Validate
