@@ -32,12 +32,6 @@ GitHub Actionsでワンクリック**デプロイ・デストロイ**が可能�
   <img src="docs/architecture/aws/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="800">
 </div>
 
-## 📋 ドキュメント
-
-- [セットアップガイド](./docs/setup/README.md) - 環境構築・事前準備
-- [運用ガイド](./docs/operations/README.md) - IAM管理・監視・分析
-- [アーキテクチャ](./docs/architecture/aws/mermaid/README.md) - システム構成図
-
 <br>
 
 ## 🏗️ Infrastructure as Code
@@ -103,6 +97,14 @@ terraform/
 - AssumeRole権限分離
 - CloudWatch監視
 - GuardDuty脅威検知
+
+<br>
+
+## 📋 ドキュメント
+
+- [セットアップガイド](./docs/setup/README.md) - 環境構築・事前準備
+- [運用ガイド](./docs/operations/README.md) - IAM管理・監視・分析
+- [アーキテクチャ](./docs/architecture/aws/mermaid/README.md) - システム構成図
 
 <br>
 
