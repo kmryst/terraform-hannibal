@@ -10,6 +10,12 @@
 
 <br>
 
+## 💡 プロジェクト概要
+
+歴史的ルートを可視化するWebアプリケーションを題材に、**実務で使われるAWSサービス構成で構築**。
+
+<br>
+
 ## 🌐 デモサイト
 
 [hamilcar-hannibal.click](https://hamilcar-hannibal.click) でライブデモをご覧いただけます。
