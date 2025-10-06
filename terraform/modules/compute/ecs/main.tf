@@ -1,11 +1,11 @@
 # --- AWS Professional Environment Configuration ---
 locals {
   # 環境別リソース最適化（Netflix/Airbnb/Spotify標準パターン）
-  enable_multi_az        = var.environment != "dev"
-  enable_backup          = var.environment != "dev"
-  backup_retention_days  = var.environment == "prod" ? 7 : 0
-  publicly_accessible    = var.environment == "dev"
-  deletion_protection    = var.environment == "prod"
+  enable_multi_az       = var.environment != "dev"
+  enable_backup         = var.environment != "dev"
+  backup_retention_days = var.environment == "prod" ? 7 : 0
+  publicly_accessible   = var.environment == "dev"
+  deletion_protection   = var.environment == "prod"
 }
 
 # ⭐️ --- ECR Repository (手動作成済み) --- ⭐️
@@ -48,13 +48,13 @@ resource "aws_ecs_cluster" "main" {    # main は Terraformリソースのロー
 # ECSタスクの定義（コンテナの設定、CPU、メモリ、環境変数など）
 # タスク定義は、コンテナの実行に必要な設定を定義します
 # タスク（Task）は、そのタスク定義をもとに実際に起動された「インスタンス」です
-resource "aws_ecs_task_definition" "api" {                            # APIサーバ用のコンテナなので
-  family                   = "${var.project_name}-api-task"           # タスク定義のファミリー名
-  requires_compatibilities = ["FARGATE"]                              # Fargateで実行することを指定（サーバーレスコンピューティング）
-  network_mode             = "awsvpc"                                 # Fargateではawsvpcモードが必須（AWS VPC CNIプラグインを使用）
-  cpu                      = var.cpu                                  # タスクに割り当てるCPUユニット 1024ユニット = 1vCPU = 1スレッド（論理コア）相当
-  memory                   = var.memory                               # タスクに割り当てるメモリ（MiB）
-  execution_role_arn       = var.ecs_task_execution_role_arn          # タスク実行用のIAMロール
+resource "aws_ecs_task_definition" "api" {                   # APIサーバ用のコンテナなので
+  family                   = "${var.project_name}-api-task"  # タスク定義のファミリー名
+  requires_compatibilities = ["FARGATE"]                     # Fargateで実行することを指定（サーバーレスコンピューティング）
+  network_mode             = "awsvpc"                        # Fargateではawsvpcモードが必須（AWS VPC CNIプラグインを使用）
+  cpu                      = var.cpu                         # タスクに割り当てるCPUユニット 1024ユニット = 1vCPU = 1スレッド（論理コア）相当
+  memory                   = var.memory                      # タスクに割り当てるメモリ（MiB）
+  execution_role_arn       = var.ecs_task_execution_role_arn # タスク実行用のIAMロール
   # IAMロールが付与されるのは、タスク定義から起動された「ECSタスク（コンテナ）」
   # ECSタスク　タスク定義（設計図）から実際に起動された「コンテナ群（1つ以上）」の実体 ＝ 実際に動いているアプリケーションのプロセス
   # ECS上で管理される　"arn:aws:ecs:ap-northeast-1:258632448142:task-definition/nestjs-hannibal-3-api-task:7"
@@ -66,11 +66,11 @@ resource "aws_ecs_task_definition" "api" {                            # APIサ�
   # コンテナは、アプリケーションの実行環境を提供します
   container_definitions = jsonencode([
     {
-      name      = "${var.project_name}-container" # コンテナ名
+      name      = "${var.project_name}-container"    # コンテナ名
       image     = "${var.ecr_repository_url}:latest" # ECRから取得するDockerイメージ（初期値）
-      cpu       = var.cpu                         # コンテナに割り当てるCPUユニット
-      memory    = var.memory                      # コンテナに割り当てるメモリ
-      essential = true                            # このコンテナが必須かどうか
+      cpu       = var.cpu                            # コンテナに割り当てるCPUユニット
+      memory    = var.memory                         # コンテナに割り当てるメモリ
+      essential = true                               # このコンテナが必須かどうか
       portMappings = [
         {
           containerPort = var.container_port # コンテナ内部でリッスンしているアプリのポート番号と揃える
@@ -86,7 +86,7 @@ resource "aws_ecs_task_definition" "api" {                            # APIサ�
         # 0.0.0.0 アプリケーションは「そのコンテナに割り当てられているすべてのネットワークインターフェース（IPアドレス）」でリッスン（待ち受け）するという意味になります
         # 127.0.0.1 コンテナの中からしかアクセスできなくなります
 
-        { name = "NODE_ENV", value = "production" },             # 本番環境
+        { name = "NODE_ENV", value = "production" },              # 本番環境
         { name = "CLIENT_URL", value = var.client_url_for_cors }, # CORS設定用のフロントエンドURL
         { name = "DATABASE_URL", value = "postgresql://${var.db_username}:${var.db_password}@${var.rds_endpoint}/${var.db_name}?sslmode=require&sslrootcert=/opt/rds-ca-2019-root.pem" }
         # 他に必要な環境変数があれば追加
@@ -117,33 +117,33 @@ resource "aws_cloudwatch_log_group" "ecs_api_task_logs" {
 
 # --- ECS Service with CodeDeploy Blue/Green ---
 resource "aws_ecs_service" "api" {
-  name                              = "${var.project_name}-api-service"
-  cluster                           = aws_ecs_cluster.main.id
-  task_definition                   = aws_ecs_task_definition.api.arn
-  desired_count                     = var.desired_task_count
-  launch_type                       = "FARGATE"
+  name            = "${var.project_name}-api-service"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.api.arn
+  desired_count   = var.desired_task_count
+  launch_type     = "FARGATE"
   # Blue初期Healthy化のため猶予延長
   health_check_grace_period_seconds = 180
-  
+
   deployment_controller {
     type = "CODE_DEPLOY"
   }
-  
+
   network_configuration {
     subnets          = var.app_subnet_ids
     security_groups  = [var.ecs_security_group_id]
     assign_public_ip = false
   }
-  
+
   load_balancer {
     target_group_arn = var.blue_target_group_arn
     # コンテナ名とポートはタスク定義と一致させる必要がある
-    container_name   = "${var.project_name}-container"  # タスク定義のcontainerDefinitions[0].name
-    container_port   = var.container_port                # タスク定義のportMappings[0].containerPort
+    container_name = "${var.project_name}-container" # タスク定義のcontainerDefinitions[0].name
+    container_port = var.container_port              # タスク定義のportMappings[0].containerPort
   }
-  
+
   depends_on = [var.alb_listener_http_arn, var.alb_listener_test_arn, var.rds_endpoint]
-  
+
   lifecycle {
     ignore_changes = [task_definition, load_balancer]
   }

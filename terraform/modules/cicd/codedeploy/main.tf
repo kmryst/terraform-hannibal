@@ -18,7 +18,7 @@ resource "aws_lb_target_group" "blue" {
     interval            = 30
     matcher             = "200"
   }
-  
+
   tags = {
     Name        = "${var.project_name}-blue-tg"
     Project     = var.project_name
@@ -44,7 +44,7 @@ resource "aws_lb_target_group" "green" {
     interval            = 30
     matcher             = "200"
   }
-  
+
   tags = {
     Name        = "${var.project_name}-green-tg"
     Project     = var.project_name
@@ -93,7 +93,7 @@ resource "aws_iam_role" "codedeploy_service_role" {
       {
         Action = "sts:AssumeRole"
         Effect = "Allow"
-        Principal = { # 主体
+        Principal = {                          # 主体
           Service = "codedeploy.amazonaws.com" # CodeDeployサービスがassumeする主体
         }
       }
@@ -138,7 +138,7 @@ resource "aws_codedeploy_deployment_group" "main" {
 
   blue_green_deployment_config {
     terminate_blue_instances_on_deployment_success {
-      action                         = "TERMINATE"
+      action                           = "TERMINATE"
       termination_wait_time_in_minutes = 1
     }
 
@@ -178,7 +178,7 @@ resource "aws_codedeploy_deployment_group" "main" {
 
   alarm_configuration {
     enabled = true
-    alarms  = [
+    alarms = [
       var.canary_error_rate_alarm_name,
       var.canary_response_time_alarm_name
     ]

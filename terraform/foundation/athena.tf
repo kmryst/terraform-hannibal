@@ -4,28 +4,28 @@
 # 専用ワークグループ（企業レベル設定）
 resource "aws_athena_workgroup" "hannibal_analysis" {
   name = "hannibal-cloudtrail-analysis"
-  
+
   configuration {
     result_configuration {
       output_location = "s3://nestjs-hannibal-3-athena-results/"
-      
+
       # 企業レベル暗号化設定
       encryption_configuration {
         encryption_option = "SSE_S3"
       }
     }
-    
+
     # コスト管理・ガバナンス
-    bytes_scanned_cutoff_per_query     = 1073741824  # 1GB制限
+    bytes_scanned_cutoff_per_query     = 1073741824 # 1GB制限
     enforce_workgroup_configuration    = true
     publish_cloudwatch_metrics_enabled = true
   }
-  
+
   # 永続化設定
   lifecycle {
     prevent_destroy = true
   }
-  
+
   tags = {
     Project     = "nestjs-hannibal-3"
     Purpose     = "CloudTrail権限分析"
@@ -38,7 +38,7 @@ resource "aws_athena_workgroup" "hannibal_analysis" {
 resource "aws_athena_database" "hannibal_logs" {
   name   = "hannibal_cloudtrail_db"
   bucket = "nestjs-hannibal-3-athena-results"
-  
+
   # 永続化設定
   lifecycle {
     prevent_destroy = true
@@ -50,7 +50,7 @@ resource "aws_athena_named_query" "create_partitioned_table" {
   name      = "create-partitioned-cloudtrail-table"
   database  = aws_athena_database.hannibal_logs.name
   workgroup = aws_athena_workgroup.hannibal_analysis.name
-  
+
   query = <<EOF
 CREATE EXTERNAL TABLE IF NOT EXISTS hannibal_cloudtrail_db.cloudtrail_logs_partitioned (
   Records array<struct<
@@ -92,7 +92,7 @@ resource "aws_athena_named_query" "analyze_cicd_permissions" {
   name      = "analyze-hannibal-cicd-permissions"
   database  = aws_athena_database.hannibal_logs.name
   workgroup = aws_athena_workgroup.hannibal_analysis.name
-  
+
   query = <<EOF
 SELECT 
   CONCAT(regexp_replace(record.eventSource, '\.amazonaws\.com$', ''), ':', record.eventName) as permission,
@@ -116,7 +116,7 @@ resource "aws_athena_named_query" "count_cicd_permissions" {
   name      = "count-hannibal-cicd-permissions"
   database  = aws_athena_database.hannibal_logs.name
   workgroup = aws_athena_workgroup.hannibal_analysis.name
-  
+
   query = <<EOF
 SELECT 
   COUNT(DISTINCT CONCAT(regexp_replace(record.eventSource, '\.amazonaws\.com$', ''), ':', record.eventName)) as total_permissions,
@@ -139,7 +139,7 @@ resource "aws_athena_named_query" "analyze_cicd_errors" {
   name      = "analyze-hannibal-cicd-errors"
   database  = aws_athena_database.hannibal_logs.name
   workgroup = aws_athena_workgroup.hannibal_analysis.name
-  
+
   query = <<EOF
 SELECT 
   record.errorCode,

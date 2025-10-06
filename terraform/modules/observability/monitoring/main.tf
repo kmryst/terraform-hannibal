@@ -4,9 +4,9 @@
 # --- SNS Topic for Alerts ---
 resource "aws_sns_topic" "alerts" {
   name = "${var.project_name}-alerts"
-  
+
   tags = {
-    Name = "${var.project_name} Alert Topic"
+    Name        = "${var.project_name} Alert Topic"
     Environment = "production"
   }
 }
@@ -317,9 +317,9 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
 
         properties = {
-          query   = "SOURCE '/ecs/${var.project_name}-api-task'\\n| fields @timestamp, @message\\n| filter @message like /ERROR/\\n| sort @timestamp desc\\n| limit 20"
-          region  = var.aws_region
-          title   = "Recent Error Logs"
+          query  = "SOURCE '/ecs/${var.project_name}-api-task'\\n| fields @timestamp, @message\\n| filter @message like /ERROR/\\n| sort @timestamp desc\\n| limit 20"
+          region = var.aws_region
+          title  = "Recent Error Logs"
         }
       }
     ]
