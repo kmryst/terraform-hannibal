@@ -39,7 +39,7 @@ GitHub Actionsでワンクリック**デプロイ・デストロイ**が可能�
 ### Terraform 構成
 ```
 terraform/
-├── foundation/          # 基盤リソース（IAM、Athena、Billing）
+├── foundation/          # 基盤リソース
 │   ├── iam.tf          # Permission Boundary + AssumeRole
 │   ├── athena.tf       # CloudTrail分析
 │   ├── billing.tf      # コスト監視
@@ -100,27 +100,9 @@ terraform/
 
 詳細は[デプロイメントガイド](./docs/deployment/codedeploy-blue-green.md)を参照
 
-## 🔐 セキュリティ
-
-- Permission Boundary
-- CloudTrail監査
-- **Athena分析**: CloudTrail権限最適化
-- AssumeRole権限分離
-- CloudWatch監視
-- GuardDuty脅威検知
-
-<br>
-
 ## 📋 ドキュメント
 
 - [セットアップガイド](./docs/setup/README.md) - 環境構築・事前準備
 - [運用ガイド](./docs/operations/README.md) - IAM管理・監視・分析
 - [アーキテクチャ](./docs/architecture/aws/mermaid/README.md) - システム構成図
 
-<br>
-
-## 📊 自動生成アーキテクチャ図
-
-<div align="center">
-  <img src="docs/architecture/aws/diagrams/latest.png?v=20250806165536" alt="AWS Architecture (Python diagrams)" width="800">
-</div>
