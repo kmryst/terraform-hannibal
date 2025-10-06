@@ -42,7 +42,8 @@ terraform/
 ├── foundation/          # 基盤リソース（IAM、Athena、Billing）
 │   ├── iam.tf          # Permission Boundary + AssumeRole
 │   ├── athena.tf       # CloudTrail分析
-│   └── billing.tf      # コスト監視
+│   ├── billing.tf      # コスト監視
+│   └── guardduty.tf    # 脅威検知（コスト削減のため無効化中）
 ├── environments/dev/    # 環境別設定
 │   └── main.tf         # モジュール統合
 └── modules/            # 再利用可能なモジュール
