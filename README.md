@@ -64,11 +64,6 @@ terraform/
     └── cicd/           # CodeDeploy Blue/Green
 ```
 
-### 設計のポイント
-- **基盤とアプリの分離**: IAM/Athenaは `foundation/`、アプリリソースは `environments/`
-- **State管理**: S3 + DynamoDB でリモートステート・ロック
-- **環境別最適化**: dev/staging/prod で Multi-AZ、バックアップ等を切り替え
-
 <br>
 
 ## 🚀 CI/CD パイプライン
