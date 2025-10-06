@@ -1,6 +1,15 @@
 # ハンニバルのアルプス越えルートアプリケーション
 
 <div align="center">
+  
+![Terraform](https://img.shields.io/badge/Terraform-1.9.0-purple?logo=terraform)
+![AWS](https://img.shields.io/badge/AWS-ECS%20%7C%20RDS%20%7C%20CloudFront-orange?logo=amazon-aws)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue?logo=typescript)
+![NestJS](https://img.shields.io/badge/NestJS-10.0-red?logo=nestjs)
+
+</div>
+
+<div align="center">
   <img src="docs/screenshots/hannibal-route.png" alt="ハンニバルのアルプス越えルート" width="800">
 </div>
 
