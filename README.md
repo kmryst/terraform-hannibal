@@ -79,17 +79,6 @@ terraform/
   <img src="docs/screenshots/github-actions-demo.gif?v=20250108165536" alt="GitHub Actions Demo" width="800">
 </div>
 
-```yaml
-# .github/workflows/deploy.yml
-1. Test → npm test（Backend + Frontend）
-2. Assume Role → HannibalCICDRole-Dev
-3. Terraform → Infrastructure更新
-4. Docker Build → ECR Push（SHA + latest）
-5. Task Definition → 新バージョン登録
-6. CodeDeploy → Blue/Green切替
-7. CloudWatch → アラーム監視
-```
-
 ### 技術的工夫
 - **AssumeRole**: GitHub Actions は最小権限ユーザー、デプロイ時のみロール取得
 - **Permission Boundary**: CI/CDロールの権限上限を制限
