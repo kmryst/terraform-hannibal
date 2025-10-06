@@ -60,14 +60,24 @@ terraform/
 
 <br>
 
-## 🚀 CI/CD パイプライン
+## 🤖 GitHub Actions ワークフロー
 
-### デプロイモード（GitHub Actionsで選択可能）
+### デプロイ（deploy.yml）
+モード選択可能：
 - **provisioning**: 初回構築（Blue環境のみ）
 - **bluegreen**: 0% → 100%（一括切替）
 - **canary**: 10% → 100%（5分間隔）
 
-### GitHub Actions ワークフロー
+### デストロイ（destroy.yml）
+- ワンクリックでAWSリソース削除
+
+### プルリクエスト自動チェック（pr-check.yml）
+- Backend: ESLint + Build
+- Frontend: TypeScript + Build
+- Terraform: Format + Validate
+
+### アーキテクチャ図自動生成（architecture-diagram.yml）
+- Python diagramsで構成図を自動更新
 
 <div align="center">
   <img src="docs/screenshots/github-actions-demo.gif?v=20250108165536" alt="GitHub Actions Demo" width="800">
