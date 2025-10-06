@@ -2,7 +2,7 @@
 
 <div align="center">
   
-![AWS](https://img.shields.io/badge/AWS-ECS%20%7C%20RDS%20%7C%20CloudFront-orange?logo=amazon-aws)
+![AWS](https://img.shields.io/badge/AWS-Route53%20%7C%20CloudFront%20%7C%20ALB%20%7C%20ECS%20%7C%20RDS%20%7C%20S3-orange?logo=amazon-aws)
 ![Terraform](https://img.shields.io/badge/Terraform-1.12.1-purple?logo=terraform)
 ![Docker](https://img.shields.io/badge/Docker-node:20--alpine-blue?logo=docker)
 ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?logo=github-actions)
