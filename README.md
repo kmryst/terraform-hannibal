@@ -46,16 +46,61 @@ GitHub Actionsでワンクリック**デプロイ・デストロイ**が可能�
 
 <br>
 
-## 🚀 完全自動化デプロイメント
+## 🏗️ Infrastructure as Code
+
+### Terraform モジュール構成
+```
+terraform/
+├── foundation/          # 基盤リソース（IAM、Athena、DynamoDB）
+│   ├── iam.tf          # Permission Boundary + AssumeRole設計
+│   └── athena.tf       # CloudTrail分析基盤
+├── environments/dev/    # 環境別設定
+│   └── main.tf         # モジュール統合
+└── modules/            # 再利用可能なモジュール
+    ├── compute/        # ECS Fargate + ALB
+    ├── networking/     # 3層VPC（Public/App/Data）
+    ├── security/       # Security Groups + IAM
+    ├── storage/        # RDS + S3
+    └── cicd/           # CodeDeploy Blue/Green
+```
+
+### 設計のポイント
+- **基盤とアプリの分離**: IAM/Athenaは `foundation/`、アプリリソースは `environments/`
+- **State管理**: S3 + DynamoDB でリモートステート・ロック
+- **環境別最適化**: dev/staging/prod で Multi-AZ、バックアップ等を切り替え
+
+<br>
+
+## 🚀 CI/CD パイプライン
+
+### デプロイモード
+| モード | 用途 | トラフィック切替 |
+|--------|------|------------------|
+| **provisioning** | 初回構築 | Blue環境のみ作成 |
+| **canary** | 段階的デプロイ | 10% → 100%（5分間隔） |
+| **bluegreen** | 即座切替 | 0% → 100%（即座） |
+
+### GitHub Actions ワークフロー
 
 <div align="center">
   <img src="docs/screenshots/github-actions-demo.gif?v=20250108165536" alt="GitHub Actions Demo" width="800">
 </div>
 
-- **Infrastructure as Code**: Terraform完全管理
-- **GitHub Actions**: ワンクリックデプロイ
-- **Blue/Green + Canary**: 無停止デプロイ
-- **自動ロールバック**: 失敗時即座復旧
+```yaml
+# .github/workflows/deploy.yml
+1. Test → npm test（Backend + Frontend）
+2. Assume Role → HannibalCICDRole-Dev
+3. Terraform → Infrastructure更新
+4. Docker Build → ECR Push（SHA + latest）
+5. Task Definition → 新バージョン登録
+6. CodeDeploy → Blue/Green切替
+7. CloudWatch → アラーム監視
+```
+
+### 技術的工夫
+- **AssumeRole**: GitHub Actions は最小権限ユーザー、デプロイ時のみロール取得
+- **Permission Boundary**: CI/CDロールの権限上限を制限
+- **CloudTrail分析**: Athena で実際の権限使用を分析し、最小権限化
 
 <br>
 
