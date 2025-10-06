@@ -70,8 +70,8 @@ terraform/
 
 ### デプロイモード
 - **provisioning**: 初回構築（Blue環境のみ）
-- **canary**: 10% → 100%（5分間隔）
 - **bluegreen**: 0% → 100%（即座切替）
+- **canary**: 10% → 100%（5分間隔）
 
 ### GitHub Actions ワークフロー
 
