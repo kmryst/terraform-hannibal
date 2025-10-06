@@ -6,7 +6,7 @@ resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
   enable_dns_support   = true
-  
+
   tags = {
     Name        = "${var.project_name}-vpc"
     project     = var.project_name
@@ -17,7 +17,7 @@ resource "aws_vpc" "main" {
 # --- Internet Gateway ---
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
-  
+
   tags = {
     Name        = "${var.project_name}-igw"
     project     = var.project_name
@@ -32,12 +32,12 @@ resource "aws_subnet" "public" {
     "1a" = { cidr = "10.0.1.0/24", az = "ap-northeast-1a" }
     "1c" = { cidr = "10.0.2.0/24", az = "ap-northeast-1c" }
   }
-  
+
   vpc_id                  = aws_vpc.main.id
   cidr_block              = each.value.cidr
   availability_zone       = each.value.az
   map_public_ip_on_launch = true
-  
+
   tags = {
     Name        = "${var.project_name}-public-${each.key}"
     project     = var.project_name
@@ -52,11 +52,11 @@ resource "aws_subnet" "app" {
     "1a" = { cidr = "10.0.11.0/24", az = "ap-northeast-1a" }
     "1c" = { cidr = "10.0.12.0/24", az = "ap-northeast-1c" }
   }
-  
+
   vpc_id            = aws_vpc.main.id
   cidr_block        = each.value.cidr
   availability_zone = each.value.az
-  
+
   tags = {
     Name        = "${var.project_name}-app-${each.key}"
     project     = var.project_name
@@ -71,11 +71,11 @@ resource "aws_subnet" "data" {
     "1a" = { cidr = "10.0.21.0/24", az = "ap-northeast-1a" }
     "1c" = { cidr = "10.0.22.0/24", az = "ap-northeast-1c" }
   }
-  
+
   vpc_id            = aws_vpc.main.id
   cidr_block        = each.value.cidr
   availability_zone = each.value.az
-  
+
   tags = {
     Name        = "${var.project_name}-data-${each.key}"
     project     = var.project_name

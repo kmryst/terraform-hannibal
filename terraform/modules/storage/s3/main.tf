@@ -70,6 +70,6 @@ data "aws_iam_policy_document" "s3_bucket_policy_for_cloudfront" {
 resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
   bucket = data.aws_s3_bucket.frontend_bucket.id
   policy = data.aws_iam_policy_document.s3_bucket_policy_for_cloudfront.json
-  
+
   depends_on = [var.cloudfront_distribution_arn]
 }

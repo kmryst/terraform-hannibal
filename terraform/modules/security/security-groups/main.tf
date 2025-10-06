@@ -5,7 +5,7 @@ resource "aws_security_group" "alb" {
   name        = "${var.project_name}-alb-sg"
   description = "ALB security group for three-tier architecture"
   vpc_id      = var.vpc_id
-  
+
   # Production Listener (Port 80)
   ingress {
     description = "HTTP from internet"
@@ -14,7 +14,7 @@ resource "aws_security_group" "alb" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
   # Test Listener for Blue/Green (Port 8080)
   ingress {
     description = "Test HTTP from internet"
@@ -23,7 +23,7 @@ resource "aws_security_group" "alb" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
   # HTTPS Listener (Port 443)
   ingress {
     description = "HTTPS from internet"
@@ -32,7 +32,7 @@ resource "aws_security_group" "alb" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
   # Allow all outbound traffic
   egress {
     description = "All outbound traffic"
@@ -41,7 +41,7 @@ resource "aws_security_group" "alb" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
   tags = {
     Name        = "${var.project_name}-alb-sg"
     project     = var.project_name
@@ -54,7 +54,7 @@ resource "aws_security_group" "ecs" {
   name        = "${var.project_name}-ecs-sg"
   description = "ECS security group for three-tier architecture"
   vpc_id      = var.vpc_id
-  
+
   # Ingress from ALB only - container_portを動的に許可
   ingress {
     description     = "From ALB to container port"
@@ -63,7 +63,7 @@ resource "aws_security_group" "ecs" {
     protocol        = "tcp"
     security_groups = [aws_security_group.alb.id]
   }
-  
+
   # Allow all outbound traffic (for RDS, ECR, CloudWatch, etc.)
   egress {
     description = "All outbound traffic"
@@ -72,7 +72,7 @@ resource "aws_security_group" "ecs" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
   tags = {
     Name        = "${var.project_name}-ecs-sg"
     project     = var.project_name
@@ -85,7 +85,7 @@ resource "aws_security_group" "rds" {
   name        = "${var.project_name}-rds-sg"
   description = "RDS security group for three-tier architecture"
   vpc_id      = var.vpc_id
-  
+
   # Ingress from ECS only
   ingress {
     description     = "From ECS"
@@ -94,7 +94,7 @@ resource "aws_security_group" "rds" {
     protocol        = "tcp"
     security_groups = [aws_security_group.ecs.id]
   }
-  
+
   tags = {
     Name        = "${var.project_name}-rds-sg"
     project     = var.project_name

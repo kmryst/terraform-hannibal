@@ -7,7 +7,7 @@
 # --- 1. HannibalDeveloperRole-Dev (統合開発ロール) ---
 resource "aws_iam_role" "hannibal_developer_role" {
   name = "HannibalDeveloperRole-Dev"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -29,9 +29,9 @@ resource "aws_iam_role" "hannibal_developer_role" {
 
 # --- 2. HannibalCICDRole-Dev (自動デプロイロール) ---
 resource "aws_iam_role" "hannibal_cicd_role" {
-  name = "HannibalCICDRole-Dev"
+  name                 = "HannibalCICDRole-Dev"
   permissions_boundary = "arn:aws:iam::258632448142:policy/HannibalCICDBoundary"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -404,7 +404,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
 # Cacoo AWS Integration Role (構成図自動生成サービス)
 resource "aws_iam_role" "cacoo_integration_role" {
   name = "CacooAWSIntegrationRole"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -422,7 +422,7 @@ resource "aws_iam_role" "cacoo_integration_role" {
 resource "aws_iam_policy" "cacoo_readonly_policy" {
   name        = "CacooReadOnlyPolicy"
   description = "Read-only permissions for Cacoo AWS diagram generation"
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [

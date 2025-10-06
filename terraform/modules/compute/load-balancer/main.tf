@@ -33,7 +33,7 @@ resource "aws_lb_listener" "https" {
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
   certificate_arn   = "arn:aws:acm:ap-northeast-1:258632448142:certificate/9ab350e8-1748-4e17-aa89-9db7c889b146"
-  
+
   default_action {
     type = "forward"
     forward {
@@ -66,27 +66,27 @@ resource "aws_lb_listener" "test" {
 resource "aws_lb_listener_rule" "production_http" {
   listener_arn = aws_lb_listener.http.arn
   priority     = 100
-  
+
   action {
     type = "forward"
     forward {
       target_group {
         arn    = var.blue_target_group_arn
-        weight = 100  # 初期Blue 100%
+        weight = 100 # 初期Blue 100%
       }
       target_group {
         arn    = var.green_target_group_arn
-        weight = 0    # 初期Green 0%
+        weight = 0 # 初期Green 0%
       }
     }
   }
-  
+
   condition {
     path_pattern {
       values = ["/*"]
     }
   }
-  
+
   lifecycle {
     # CodeDeployによる動的切替を許容
     ignore_changes = [action]
@@ -96,27 +96,27 @@ resource "aws_lb_listener_rule" "production_http" {
 resource "aws_lb_listener_rule" "production_https" {
   listener_arn = aws_lb_listener.https.arn
   priority     = 100
-  
+
   action {
     type = "forward"
     forward {
       target_group {
         arn    = var.blue_target_group_arn
-        weight = 100  # 初期Blue 100%
+        weight = 100 # 初期Blue 100%
       }
       target_group {
         arn    = var.green_target_group_arn
-        weight = 0    # 初期Green 0%
+        weight = 0 # 初期Green 0%
       }
     }
   }
-  
+
   condition {
     path_pattern {
       values = ["/*"]
     }
   }
-  
+
   lifecycle {
     # CodeDeployによる動的切替を許容
     ignore_changes = [action]
@@ -126,7 +126,7 @@ resource "aws_lb_listener_rule" "production_https" {
 resource "aws_lb_listener_rule" "test" {
   listener_arn = aws_lb_listener.test.arn
   priority     = 100
-  
+
   action {
     type = "forward"
     forward {
@@ -140,13 +140,13 @@ resource "aws_lb_listener_rule" "test" {
       }
     }
   }
-  
+
   condition {
     path_pattern {
       values = ["/*"]
     }
   }
-  
+
   lifecycle {
     ignore_changes = [action]
   }
