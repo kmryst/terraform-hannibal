@@ -2,10 +2,13 @@
 
 <div align="center">
   
-![Terraform](https://img.shields.io/badge/Terraform-1.9.0-purple?logo=terraform)
 ![AWS](https://img.shields.io/badge/AWS-ECS%20%7C%20RDS%20%7C%20CloudFront-orange?logo=amazon-aws)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue?logo=typescript)
+![Terraform](https://img.shields.io/badge/Terraform-1.12.1-purple?logo=terraform)
+![Docker](https://img.shields.io/badge/Docker-node:20--alpine-blue?logo=docker)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?logo=github-actions)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue?logo=typescript)
 ![NestJS](https://img.shields.io/badge/NestJS-10.0-red?logo=nestjs)
+![React](https://img.shields.io/badge/React-19.0-blue?logo=react)
 
 </div>
 
