@@ -55,6 +55,8 @@ terraform/
     └── storage/        # RDS + S3
 ```
 
+**State管理**: S3 + DynamoDB（Terraform State Lock）
+
 <br>
 
 ## 🚀 CI/CD パイプライン
