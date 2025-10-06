@@ -28,14 +28,8 @@ GitHub Actionsでワンクリック**デプロイ・デストロイ**が可能�
 
 ## AWS Architecture Diagram
 
-### 手動作成版（Cacoo）
 <div align="center">
   <img src="docs/architecture/aws/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="800">
-</div>
-
-### 自動生成版（Python diagrams）
-<div align="center">
-  <img src="docs/architecture/aws/diagrams/latest.png?v=20250806165536" alt="AWS Architecture" width="800">
 </div>
 
 ## 📋 ドキュメント
@@ -109,3 +103,11 @@ terraform/
 - AssumeRole権限分離
 - CloudWatch監視
 - GuardDuty脅威検知
+
+<br>
+
+## 📊 自動生成アーキテクチャ図
+
+<div align="center">
+  <img src="docs/architecture/aws/diagrams/latest.png?v=20250806165536" alt="AWS Architecture (Python diagrams)" width="800">
+</div>
