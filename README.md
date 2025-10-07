@@ -88,6 +88,14 @@ terraform/
 - Frontend: TypeScript + Build
 - Terraform: Format + Validate
 
+### セキュリティスキャン（security-scan.yml）
+- 依存関係の脆弱性スキャン（Trivy）
+- コンテナイメージスキャン（Trivy + Dockerキャッシュ）
+- SASTスキャン（CodeQL）
+- Terraformセキュリティスキャン（tfsec）
+- シークレット漏洩検出（Gitleaks）
+- 結果をGitHub Securityに統合
+
 ### アーキテクチャ図自動生成（architecture-diagram.yml）
 - Python diagramsで構成図を自動更新
 
