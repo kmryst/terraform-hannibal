@@ -4,7 +4,7 @@ name: Security Scan
 
 on:
   pull_request:
-    branches: [feature/automation, feature/develop] # PR作成時に全スキャン実行
+    branches: [main, feature/automation, feature/develop] # PR作成時に全スキャン実行
   schedule:
     - cron: "0 0 * * 1" # 毎週月曜0時に定期スキャン（新CVE対応）
   workflow_dispatch: # 手動実行可能（緊急時対応）
