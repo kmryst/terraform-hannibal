@@ -2,7 +2,7 @@ name: PR Check
 
 on:
   pull_request:
-    branches: [main, feature/automation, feature/develop]
+    branches: [main, feature/develop]
 
 jobs:
   backend-check:
