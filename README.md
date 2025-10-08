@@ -26,6 +26,11 @@
 
 歴史的ルートを可視化するWebアプリケーションを題材に、**実務で使われるAWSサービス構成で構築**。
 
+**設計方針**: 
+- 本番環境を想定したセキュアなネットワーク設計（3層VPC）
+- コスト効率を重視した適切なサービス選定（Fargate 0.25vCPU）
+- 完全自動化されたCI/CDパイプライン（Blue/Green + Canary対応）
+
 **個人開発**: インフラストラクチャー、バックエンド、フロントエンドまですべて一人で設計、開発、運用。
 
 <br>
@@ -34,9 +39,11 @@
 
 [hamilcar-hannibal.click](https://hamilcar-hannibal.click) でライブデモをご覧いただけます。
 
-**現在停止中** - コスト効率化のため、現在はAWSリソースを停止しています。  
-GitHub Actionsでワンクリック**デプロイ・デストロイ**が可能です。
-デモご希望の際はお声がけください😊
+**コスト最適化運用中** - アプリケーション層（ECS、RDS、ALB等）を停止することで、月額コストを約$30-50から**約$5以下**に削減。  
+GitHub Actionsで**ワンクリック起動/停止**が可能（約15分でフル稼働）。  
+デモご希望の際はお気軽にお声がけください😊
+
+※基盤リソース（S3 State管理、CloudTrail等）は常時稼働
 
 <br>
 
@@ -119,21 +126,6 @@ terraform/
 
 <br>
 
-## 🔧 技術スタック
-
-### フロントエンド
-- React + TypeScript
-- GraphQL
-- Vite
-- Mapbox
-
-### バックエンド
-- NestJS
-- GraphQL
-- PostgreSQL
-
-詳細は[デプロイメントガイド](./docs/deployment/codedeploy-blue-green.md)を参照
-
 ## 🔒 セキュリティ対策
 - **IAM**: Permission Boundary + AssumeRole（最小権限の原則を実装）
 - **ネットワーク**: 3層VPC + Private Subnet（DB層は外部非公開）
@@ -142,9 +134,39 @@ terraform/
 - **脆弱性**: SAST/SCA 週次スキャン（Trivy + CodeQL + tfsec + Gitleaks）
 - **WAF**: CloudFront + ALB対応（コスト削減のため無効化中）
 
+## 🔧 技術スタック
+
+### インフラストラクチャ
+- **IaC**: Terraform 1.12.1（モジュール化設計）
+- **AWS**: ECS Fargate, RDS PostgreSQL, CloudFront, Route53
+- **CI/CD**: GitHub Actions（Blue/Green + Canary対応）
+
+### バックエンド
+- **Framework**: NestJS 10.0 + TypeScript 5.8
+- **API**: GraphQL（Code First）
+- **Database**: PostgreSQL 15
+
+### フロントエンド
+- **Framework**: React 19.0 + TypeScript 5.8
+- **Build**: Vite
+- **Map**: Mapbox GL JS
+- **API**: Apollo Client（GraphQL）
+
+## 💪 技術的な挑戦と成果
+
+実務レベルのインフラ構築で直面した課題と、その解決を通じて得た学び：
+
+- **Blue/Greenデプロイメント**: IAM権限の段階的追加により5分以内の無停止切替を実現
+- **最小権限設計**: Permission Boundaryでセキュリティと自動化を両立
+- **3層VPCアーキテクチャ**: NAT Gateway設計でDB層を完全非公開化
+- **Terraform State管理**: S3 + DynamoDBでチーム開発に対応可能な基盤構築
+- **依存関係の最適化**: リソース削除順序の制御で安全な環境破棄を実現
+
 ## 📋 ドキュメント
 
 - [セットアップガイド](./docs/setup/README.md) - 環境構築・事前準備
+- [デプロイメントガイド](./docs/deployment/codedeploy-blue-green.md) - Blue/Green/Canaryデプロイ手順
 - [運用ガイド](./docs/operations/README.md) - IAM管理・監視・分析
 - [アーキテクチャ](./docs/architecture/aws/mermaid/README.md) - システム構成図
+- [トラブルシューティング](./docs/troubleshooting/README.md) - 実装時の課題と解決方法
 
