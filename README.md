@@ -85,12 +85,14 @@ terraform/
 ### デストロイ（destroy.yml）
 - ワンクリックでAWSリソース削除
 
-### プルリクエスト自動チェック（pr-check.yml）
+### 静的解析・ビルドチェック（pr-check.yml）
+**自動実行**: プルリクエスト作成・更新時
 - Backend: ESLint + Build
 - Frontend: TypeScript + Build
 - Terraform: Format + Validate
 
-### セキュリティスキャン（security-scan.yml）
+### SAST・SCAスキャン（security-scan.yml）
+**自動実行**: プルリクエスト作成・更新時 + 毎週月曜0時（定期スキャン）
 - 依存関係の脆弱性スキャン（Trivy）
 - コンテナイメージスキャン（Trivy + Dockerキャッシュ）
 - SASTスキャン（CodeQL）
