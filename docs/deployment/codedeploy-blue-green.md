@@ -316,12 +316,6 @@ aws deploy create-deployment \
 - [CodeDeploy Blue/Green Deployments](https://docs.aws.amazon.com/codedeploy/latest/userguide/applications-create-blue-green.html)
 - [ECS Blue/Green Deployments](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html)
 
-### 企業事例
-- **Netflix**: Spinnaker + CodeDeploy
-- **Airbnb**: 段階的権限管理
-- **Spotify**: チーム別 + 環境別分離
-
 ---
 
-**最終更新**: 2025年1月15日  
-**実装レベル**: 企業レベル（Netflix/Airbnb/Spotify標準）
+**最終更新**: 2025年1月15日

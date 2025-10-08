@@ -37,10 +37,11 @@
 
 ## 🚀 デプロイメント運用
 
-### Blue/Green Deployment
-- **ECS Native**: CodeDeploy不要のシンプル構成
+### CodeDeploy Blue/Green Deployment
+- **AWS CodeDeploy**: Terraformで完全サポート済み
 - **無停止デプロイ**: ユーザーへの影響なし
 - **自動ロールバック**: ヘルスチェック失敗時の自動復旧
+- **Canary対応**: 段階的トラフィック切替(10% → 100%)
 
 ### CI/CD パイプライン
 - **GitHub Actions**: 自動化されたビルド・デプロイ

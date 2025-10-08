@@ -21,11 +21,11 @@
 - CloudTrail監査ログ
 
 ### 無停止デプロイメント
-- ECS Native Blue/Green Deployment
+- CodeDeploy Blue/Green Deployment
 - ヘルスチェックによる自動切り替え
 - ロールバック機能
 
 ### 監査性・トレーサビリティ
 - 全API呼び出しの記録
 - 権限使用状況の分析
-- 企業レベルのガバナンス
+- CloudTrail + Athena分析
