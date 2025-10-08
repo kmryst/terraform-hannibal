@@ -126,14 +126,6 @@ terraform/
 
 <br>
 
-## 🔒 セキュリティ対策
-- **IAM**: Permission Boundary + AssumeRole（最小権限の原則を実装）
-- **ネットワーク**: 3層VPC + Private Subnet（DB層は外部非公開）
-- **暗号化**: RDS暗号化 + Secrets Manager（認証情報の安全管理）
-- **監査**: CloudTrail + Athena分析（全操作ログを90日間保持・分析可能）
-- **脆弱性**: SAST/SCA 週次スキャン（Trivy + CodeQL + tfsec + Gitleaks）
-- **WAF**: CloudFront + ALB対応（コスト削減のため無効化中）
-
 ## 🔧 技術スタック
 
 ### インフラストラクチャ
@@ -151,6 +143,14 @@ terraform/
 - **Build**: Vite
 - **Map**: Mapbox GL JS
 - **API**: Apollo Client（GraphQL）
+
+## 🔒 セキュリティ対策
+- **IAM**: Permission Boundary + AssumeRole（最小権限の原則を実装）
+- **ネットワーク**: 3層VPC + Private Subnet（DB層は外部非公開）
+- **暗号化**: RDS暗号化 + Secrets Manager（認証情報の安全管理）
+- **監査**: CloudTrail + Athena分析（全操作ログを90日間保持・分析可能）
+- **脆弱性**: SAST/SCA 週次スキャン（Trivy + CodeQL + tfsec + Gitleaks）
+- **WAF**: CloudFront + ALB対応（コスト削減のため無効化中）
 
 ## 💪 技術的な挑戦と成果
 
