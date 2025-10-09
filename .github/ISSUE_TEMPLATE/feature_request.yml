@@ -1,6 +1,6 @@
 name: Feature Request
 description: 新機能/改善の要望チケット
-title: '[Feature]: 短い要約（例: README.mdにGitHub運用セクション追加）'
+title: '[{type}] 短い要約（例: README.mdにGitHub運用セクション追加）'
 labels: ['type:feature', 'area:infra', 'risk:low', 'cost:none']
 body:
   - type: dropdown
