@@ -1,4 +1,4 @@
-name: Feature Request
+﻿name: Feature Request
 description: 新機能/改善の要望チケット
 title: '[Feature]: '
 labels: ['type:feature', 'area:infra']
