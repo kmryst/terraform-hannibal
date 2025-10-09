@@ -133,6 +133,7 @@ body:
       required: false
 
   - type: markdown
+    id: guide
     attributes:
       value: |
         ## 📝 入力ガイド
