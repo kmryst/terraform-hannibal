@@ -60,6 +60,14 @@ body:
     validations:
       required: true
 
+  - type: textarea
+    id: risk_reason
+    attributes:
+      label: リスク根拠（Medium/High時）
+      placeholder: 例) 本番ネットワーク経路変更
+    validations:
+      required: false
+
   - type: dropdown
     id: cost
     attributes:
