@@ -1,29 +1,14 @@
-name: Issue Request
-description: 新機能/修正/改善の要望チケット
-title: '[{type}] 短い要約（例: READMEにGitHub運用セクション追加）'
-labels: ['area:infra', 'risk:low', 'cost:none']
+name: Feature Request
+description: 新機能/改善の要望チケット
+title: '[Feature]: 短い要約（例: README.mdにGitHub運用セクション追加）'
+labels: ['type:feature', 'area:infra', 'risk:low', 'cost:none']
 body:
-  - type: dropdown
-    id: type
-    attributes:
-      label: 種別
-      description: Issue の種類を選択
-      options:
-        - Feature
-        - Fix
-        - Docs
-        - Infra
-        - Security
-        - Chore
-    validations:
-      required: true
-
   - type: textarea
     id: background
     attributes:
       label: 背景/目的
-      description: なぜ必要か（1-3行）
-      placeholder: 例) Issue駆動開発の実践とテンプレート動作確認
+      description: なぜ必要か
+      placeholder: 例) README.mdにGitHub運用セクション追加
     validations:
       required: true
 
@@ -31,8 +16,8 @@ body:
     id: scope
     attributes:
       label: 要件/スコープ
-      description: 対象/非対象を明記（1-3行）
-      placeholder: 例) 対象：README.md最後にセクション追加、非対象：既存セクション変更
+      description: 何を変えるか
+      placeholder: 例) README.mdの最後にGitHub運用セクション追加
     validations:
       required: true
 
@@ -40,12 +25,11 @@ body:
     id: acceptance
     attributes:
       label: 受け入れ条件
-      description: 該当するものを選択（いずれか必須）
       options:
         - label: テスト通過
         - label: ドキュメント更新
-        - label: 監視・アラート更新
-        - label: セキュリティ確認
+        - label: 監視/アラート更新
+        - label: セキュリティ/ポリシー確認
     validations:
       required: true
 
@@ -53,19 +37,17 @@ body:
     id: downtime
     attributes:
       label: ダウンタイム
-      description: サービス停止の有無
       options:
         - なし
-        - 計画あり
+        - あり
     validations:
       required: true
 
   - type: textarea
     id: downtime_detail
     attributes:
-      label: ダウンタイム詳細
-      description: 計画あり選択時は必須入力
-      placeholder: 例) メンテ窓 02:00-02:10（10分）
+      label: ダウンタイム詳細（必要時）
+      placeholder: 例) メンテ窓 02:00-02:10
     validations:
       required: false
 
@@ -73,7 +55,6 @@ body:
     id: risk
     attributes:
       label: リスクレベル
-      description: 変更の影響度
       options:
         - Low
         - Medium
@@ -84,9 +65,8 @@ body:
   - type: textarea
     id: risk_reason
     attributes:
-      label: リスク根拠
-      description: Medium/High選択時は必須入力
-      placeholder: 例) 本番ネットワーク経路変更、Blast radius広、ロールバック複雑
+      label: リスク根拠（Medium/High時）
+      placeholder: 例) 本番ネットワーク経路変更
     validations:
       required: false
 
@@ -94,7 +74,6 @@ body:
     id: cost
     attributes:
       label: コスト影響
-      description: 月額コストへの影響
       options:
         - なし
         - 小
@@ -106,9 +85,8 @@ body:
   - type: textarea
     id: cost_basis
     attributes:
-      label: コスト根拠
-      description: 小以上選択時は必須入力
-      placeholder: 例) NAT GW: $0.062/h × 720h → $44.6/月
+      label: コスト根拠（必要時）
+      placeholder: 例) NAT GW追加 0.062 USD/時
     validations:
       required: false
 
@@ -116,27 +94,16 @@ body:
     id: links
     attributes:
       label: 連携
-      description: GitHub運用との連携（推奨）
       options:
         - label: ブランチ命名にIssue番号を含める
         - label: PR本文にCloses記載
     validations:
-      required: false
+      required: true
 
   - type: textarea
     id: notes
     attributes:
       label: 補足
-      description: 既知の制約や代替案（任意）
       placeholder: 既知の制約や代替案
     validations:
       required: false
-
-  - type: markdown
-    id: guide
-    attributes:
-      value: |
-        ## 📝 入力ガイド
-        - **軽微な変更**: ダウンタイム=なし、リスク=Low、コスト=なしを選択で2-3分完了
-        - **Projects/Milestone**: 必要時に右側メタデータで選択
-        - **ラベル**: 種別選択により type:* が自動付与されます
