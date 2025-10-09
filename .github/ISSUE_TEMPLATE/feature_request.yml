@@ -1,4 +1,4 @@
-﻿name: Feature Request
+name: Feature Request
 description: 新機能/改善の要望チケット
 title: '[Feature]: '
 labels: ['type:feature', 'area:infra']
@@ -11,6 +11,7 @@ body:
       placeholder: 例) ECSサービスのスケール時にCPU 80%超が10分続く。自動スケールでSLOを守るため。
     validations:
       required: true
+
   - type: textarea
     id: scope
     attributes:
@@ -19,34 +20,7 @@ body:
       placeholder: 例) 対象: ecs_service/api のASG/TargetTracking。非対象: DB, VPC。
     validations:
       required: true
-  - type: checkboxes
-    id: acceptance
-    attributes:
-      label: 受け入れ条件（Doneの定義）
-      options:
-        - label: ユニット/統合テストが通過
-        - label: 監視/アラートが更新済み
-        - label: ドキュメント/Runbookが更新済み
-        - label: セキュリティ/ポリシー影響を確認
-        - label: リリースノートに項目を追加
-    validations:
-      required: true
-  - type: dropdown
-    id: downtime
-    attributes:
-      label: ダウンタイム
-      options:
-        - なし
-        - 計画あり（詳細下記）
-    validations:
-      required: true
-  - type: textarea
-    id: downtime_detail
-    attributes:
-      label: ダウンタイム詳細（必要時）
-      placeholder: 例) メンテ窓 02:00-02:10 / 代替手段: 一時的に旧ALBへトラフィック退避
-    validations:
-      required: false
+
   - type: dropdown
     id: risk
     attributes:
@@ -57,13 +31,7 @@ body:
         - High
     validations:
       required: true
-  - type: textarea
-    id: risk_reason
-    attributes:
-      label: リスク根拠（Medium/Highの場合）
-      placeholder: 例) 本番ネットワーク経路変更/Blast radius広/ロールバック複雑
-    validations:
-      required: false
+
   - type: dropdown
     id: cost
     attributes:
@@ -75,27 +43,3 @@ body:
         - 大（>¥10,000/月）
     validations:
       required: true
-  - type: textarea
-    id: cost_basis
-    attributes:
-      label: コスト根拠（必要時）
-      placeholder: 例) NAT GW追加: ¥0.062 USD/時 × 720h
-    validations:
-      required: false
-  - type: checkboxes
-    id: links
-    attributes:
-      label: 連携（自動化/追跡）
-      options:
-        - label: ブランチ命名にIssue番号を含める（feat/123-xxxx）
-        - label: PR本文に「Closes #このIssue番号」を記載
-        - label: ラベル/マイルストーン設定済み
-    validations:
-      required: true
-  - type: textarea
-    id: notes
-    attributes:
-      label: 補足/制約
-      placeholder: 既知の制約や代替案、検討メモ
-    validations:
-      required: false
