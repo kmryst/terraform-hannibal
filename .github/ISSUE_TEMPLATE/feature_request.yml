@@ -97,3 +97,11 @@ body:
         - label: PR本文にCloses記載
     validations:
       required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 補足
+      placeholder: 既知の制約や代替案
+    validations:
+      required: false
