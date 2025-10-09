@@ -32,6 +32,16 @@ body:
       required: true
 
   - type: dropdown
+    id: downtime
+    attributes:
+      label: ダウンタイム
+      options:
+        - なし
+        - あり
+    validations:
+      required: true
+
+  - type: dropdown
     id: risk
     attributes:
       label: リスクレベル
