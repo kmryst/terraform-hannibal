@@ -21,6 +21,16 @@ body:
     validations:
       required: true
 
+  - type: checkboxes
+    id: acceptance
+    attributes:
+      label: 受け入れ条件
+      options:
+        - label: テスト通過
+        - label: ドキュメント更新
+    validations:
+      required: true
+
   - type: dropdown
     id: risk
     attributes:
