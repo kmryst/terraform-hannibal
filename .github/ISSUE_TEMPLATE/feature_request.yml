@@ -41,6 +41,14 @@ body:
     validations:
       required: true
 
+  - type: textarea
+    id: downtime_detail
+    attributes:
+      label: ダウンタイム詳細（必要時）
+      placeholder: 例) メンテ窓 02:00-02:10
+    validations:
+      required: false
+
   - type: dropdown
     id: risk
     attributes:
