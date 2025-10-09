@@ -79,3 +79,11 @@ body:
         - 大
     validations:
       required: true
+
+  - type: textarea
+    id: cost_basis
+    attributes:
+      label: コスト根拠（必要時）
+      placeholder: 例) NAT GW追加 0.062 USD/時
+    validations:
+      required: false
