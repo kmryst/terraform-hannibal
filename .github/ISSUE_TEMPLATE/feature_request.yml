@@ -87,3 +87,13 @@ body:
       placeholder: 例) NAT GW追加 0.062 USD/時
     validations:
       required: false
+
+  - type: checkboxes
+    id: links
+    attributes:
+      label: 連携
+      options:
+        - label: ブランチ命名にIssue番号を含める
+        - label: PR本文にCloses記載
+    validations:
+      required: true
