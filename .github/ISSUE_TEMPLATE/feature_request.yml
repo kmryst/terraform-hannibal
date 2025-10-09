@@ -1,7 +1,7 @@
 name: Feature Request
 description: 新機能/改善の要望チケット
-title: '[Feature]: '
-labels: ['type:feature', 'area:infra']
+title: '[Feature]: 短い要約（例: README.mdにGitHub運用セクション追加）'
+labels: ['type:feature', 'area:infra', 'risk:low', 'cost:none']
 body:
   - type: textarea
     id: background
@@ -28,6 +28,8 @@ body:
       options:
         - label: テスト通過
         - label: ドキュメント更新
+        - label: 監視/アラート更新
+        - label: セキュリティ/ポリシー確認
     validations:
       required: true
 
