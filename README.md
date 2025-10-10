@@ -196,7 +196,7 @@ terraform/
 - ブランチ命名規則: `feature/#issue番号-説明`
 - コミットメッセージ: Conventional Commits形式
 - PR本文に`Closes #issue番号`を記載して自動クローズ
-- PRマージ後: `gh done XX` で自動的にmainに戻ってpull
+- PRマージ後: `gh done XX` で自動的にmainに戻ってpull（PRマージ + ブランチ切替 + 最新取得）
 
 ---
 **最終更新**: 2025年10月10日

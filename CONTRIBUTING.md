@@ -225,7 +225,7 @@ git checkout -b feature/#YY-next-task
 gh done XX
 
 # 設定方法
-gh alias set done 'pr merge $1 --merge && !git checkout main && git pull origin main'
+gh alias set done '!f() { gh pr merge "$1" --merge && git checkout main && git pull origin main; }; f'
 ```
 
 ---
