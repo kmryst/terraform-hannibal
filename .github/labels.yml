@@ -1,0 +1,148 @@
+# GitHub Labels Configuration
+# このファイルでラベルをコード管理します
+# 
+# 使い方:
+# 1. このファイルを編集してラベルを追加/変更
+# 2. git commit & push
+# 3. GitHub Actions が自動的に同期
+#
+# 手動同期: gh label sync -f .github/labels.yml
+
+# Type - 変更の種類
+- name: "type:feature"
+  color: "0075ca"
+  description: "新機能追加"
+
+- name: "type:bug"
+  color: "d73a4a"
+  description: "バグ修正"
+
+- name: "type:docs"
+  color: "0e8a16"
+  description: "ドキュメント修正"
+
+- name: "type:infra"
+  color: "fbca04"
+  description: "インフラ変更"
+
+- name: "type:refactor"
+  color: "5319e7"
+  description: "リファクタリング"
+
+- name: "type:test"
+  color: "bfdadc"
+  description: "テスト追加・修正"
+
+- name: "type:chore"
+  color: "fef2c0"
+  description: "その他雑務"
+
+# Area - 影響範囲
+- name: "area:frontend"
+  color: "1d76db"
+  description: "フロントエンド関連（React）"
+
+- name: "area:backend"
+  color: "5319e7"
+  description: "バックエンド関連（NestJS）"
+
+- name: "area:infra"
+  color: "fbca04"
+  description: "インフラ関連（AWS/Terraform）"
+
+- name: "area:ci-cd"
+  color: "d4c5f9"
+  description: "CI/CD関連（GitHub Actions）"
+
+- name: "area:docs"
+  color: "0e8a16"
+  description: "ドキュメント関連"
+
+- name: "area:database"
+  color: "bfdadc"
+  description: "データベース関連（PostgreSQL）"
+
+# Risk - リスクレベル（本番影響度）
+- name: "risk:low"
+  color: "28a745"
+  description: "低リスク・影響範囲小・ロールバック容易"
+
+- name: "risk:medium"
+  color: "fbca04"
+  description: "中リスク・要注意・レビュー必須"
+
+- name: "risk:high"
+  color: "d73a4a"
+  description: "高リスク・本番影響大・慎重に"
+
+# Cost - コスト影響（AWS料金）
+- name: "cost:none"
+  color: "cccccc"
+  description: "コスト影響なし"
+
+- name: "cost:small"
+  color: "c2e0c6"
+  description: "小額（月$10以下）"
+
+- name: "cost:medium"
+  color: "ffd700"
+  description: "中額（月$10-50）"
+
+- name: "cost:large"
+  color: "ff6347"
+  description: "高額（月$50以上）"
+
+# Priority - 優先度
+- name: "priority:critical"
+  color: "d73a4a"
+  description: "緊急・即対応"
+
+- name: "priority:high"
+  color: "ff6347"
+  description: "高優先度・早急に対応"
+
+- name: "priority:medium"
+  color: "fbca04"
+  description: "中優先度・通常対応"
+
+- name: "priority:low"
+  color: "0e8a16"
+  description: "低優先度・余裕があれば"
+
+# Status - 状態管理
+- name: "status:wip"
+  color: "fbca04"
+  description: "作業中（Work In Progress）"
+
+- name: "status:review"
+  color: "0075ca"
+  description: "レビュー待ち"
+
+- name: "status:blocked"
+  color: "d73a4a"
+  description: "ブロックされている・依存関係待ち"
+
+- name: "status:ready"
+  color: "28a745"
+  description: "準備完了・マージ可能"
+
+# Special - 特殊用途
+- name: "good first issue"
+  color: "7057ff"
+  description: "初心者向け・簡単なタスク"
+
+- name: "help wanted"
+  color: "008672"
+  description: "協力者募集"
+
+- name: "duplicate"
+  color: "cfd3d7"
+  description: "重複Issue/PR"
+
+- name: "invalid"
+  color: "e4e669"
+  description: "無効・対応不要"
+
+- name: "wontfix"
+  color: "ffffff"
+  description: "対応しない・仕様"
