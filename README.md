@@ -171,6 +171,7 @@ terraform/
 - [運用ガイド](./docs/operations/README.md) - IAM管理・監視・分析
 - [アーキテクチャ](./docs/architecture/aws/mermaid/README.md) - システム構成図
 - [トラブルシューティング](./docs/troubleshooting/README.md) - 実装時の課題と解決方法
+- **[Contributing Guide](./CONTRIBUTING.md)** - Issue駆動開発フロー・貢献ガイド
 
 ## 🔧 GitHub運用
 
@@ -178,15 +179,24 @@ terraform/
 - Issue作成 → ブランチ作成 → 実装 → PR → マージの一連フロー
 - Issueテンプレートで背景・要件・リスク・コストを記録
 - PRテンプレートで変更内容・影響範囲を明確化
+- 詳細は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照
 
 ### テンプレート活用
 - **Issueテンプレート**: 背景/目的、要件/スコープ、受け入れ条件、ダウンタイム、リスクレベル、コスト影響
 - **PRテンプレート**: 目的、変更内容、影響範囲、影響チェック、ロールバック手順
+- **Web UI / CLI 両対応**: GitHub Web UIとGitHub CLIのどちらでも起票可能
+
+### ラベル管理
+- **コード管理**: `.github/labels.yml` でラベルをInfrastructure as Code化
+- **自動同期**: GitHub Actionsで自動的にラベルを同期
+- **体系的な分類**: Type/Area/Risk/Cost/Priority/Statusの6カテゴリで整理
+- **39個のラベル**: type:feature, area:infra, risk:low, cost:none など
 
 ### チーム開発フロー
 - ブランチ命名規則: `feature/#issue番号-説明`
 - コミットメッセージ: Conventional Commits形式
 - PR本文に`Closes #issue番号`を記載して自動クローズ
+- PRマージ後: `gh done XX` で自動的にmainに戻ってpull
 
 ---
 **最終更新**: 2025年10月10日
