@@ -188,3 +188,5 @@ terraform/
 - コミットメッセージ: Conventional Commits形式
 - PR本文に`Closes #issue番号`を記載して自動クローズ
 
+---
+**最終更新**: 2025年10月10日
