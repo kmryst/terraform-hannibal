@@ -5,23 +5,34 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - 対象ロール: SRE / プラットフォーム / インフラ（Terraform × AWS × GitHub Actions）
 
 **実績**
-- 無停止切替（Blue/Green）で[約5分のスイッチ](./docs/deployment/codedeploy-blue-green.md)
-- 段階配信（Canary）で10%→100%を段階展開
-- 停止運用により月額約$30-50→停止時約$5を実現（[コスト設計](./terraform/foundation/billing.tf)）
-- PRトリガー＋週次の脆弱性スキャンを継続運用
+- 無停止切替（Blue/Green）で[約5分のスイッチ](./docs/deployment/codedeploy-blue-green.md)を実現。
+- 段階配信（Canary）で10%→100%を段階展開。
+- 停止運用により月額約$30-50→[停止時約$5](./terraform/foundation/billing.tf)を実現（[コスト設計](./terraform/foundation/billing.tf)）。
+- PRトリガー＋週次の脆弱性スキャンを継続運用。
 
 **再現性**
-- S3+DynamoDBでState管理を実施
-- GitHub Actionsで[ワンクリック起動/停止](./.github/workflows/deploy.yml)に対応（[起動完了まで約15分](./.github/workflows/deploy.yml)）
-- IaC標準化（モジュール化・レビュー基準・運用SOP）
+- S3+DynamoDBでState管理を実施。
+- GitHub Actionsで[ワンクリック起動/停止](./.github/workflows/deploy.yml)に対応（[起動完了まで約15分](./.github/workflows/deploy.yml)）。
+- IaC標準化（モジュール化・レビュー基準・運用SOP）を実施。
 
 **デモ**
-- hamilcar-hannibal.click（現在は停止中。起動はGitHub Actionsから約15分・要依頼）
+- hamilcar-hannibal.click（現在は停止中。起動はGitHub Actionsから[約15分](./.github/workflows/deploy.yml)・要依頼）
 
-## 5分で確認（デモと証跡）
-- 起動依頼: Issuesテンプレート「デモ起動依頼」を使用（`.github/ISSUE_TEMPLATE/`配下、無い場合は下記依頼文例をコピー）
-- 起動: GitHub Actionsで[deploy.yml](./.github/workflows/deploy.yml)のprovisioningを実行（完了まで約15分）
-- 稼働確認: 起動完了後に [hamilcar-hannibal.click](https://hamilcar-hannibal.click) で確認
+## 採用担当者向け確認フロー（5分）
+- 起動依頼: `.github/ISSUE_TEMPLATE/demo-request.md` を使用（テンプレート不在時は下記をコピー）
+  
+  <details>
+  <summary>依頼文サンプル（3行）</summary>
+  
+  ```
+  タイトル: デモ起動依頼（希望日時: 2025年10月12日 10:00 JST / 確認観点: 切替・API・セキュリティ）。
+  本文: hamilcar-hannibal.click の起動をお願いします。希望開始 2025年10月12日 10:00 JST、確認観点は無停止切替（Blue/Green）履歴・セキュリティスキャン結果、連絡先は @YourGitHubID。
+  備考: 起動から確認まで約15分、終了後は停止運用を実施。
+  ```
+  </details>
+
+- 起動: GitHub Actionsで[deploy.yml](./.github/workflows/deploy.yml)のprovisioningを実行（[完了まで約15分](./.github/workflows/deploy.yml)）
+- 稼働確認: 起動後に [hamilcar-hannibal.click](https://hamilcar-hannibal.click) のURLで確認
 - 静的証跡: 起動前でも下記で確認可能（各フォルダに代表サンプルを配置）
   - 構成図: [docs/architecture/](./docs/architecture/)
   - セキュリティレポート: [docs/security/](./docs/security/)
@@ -34,18 +45,18 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - セキュリティ運用: PRトリガー＋週次のCodeQL/Trivy/tfsec/Gitleaksを継続し、検知から修正までのループを固定化。
 
 ## スクリーンショット
-- Actions実行履歴: docs/images/actions-deploy.png
-- Blue/Green切替履歴: docs/images/bluegreen-history.png
-- Securityレポート例: docs/images/security-report.png
-- アーキテクチャ図: docs/images/architecture-latest.png（GitHub Actionsで自動更新）
+- Actions実行履歴: docs/images/actions-deploy.png（provisioning成功の実行履歴）
+- Blue/Green切替履歴: docs/images/bluegreen-history.png（切替結果の履歴）
+- Securityレポート例: docs/images/security-report.png（検出→修正→再スキャン）
+- アーキテクチャ図: docs/images/architecture-latest.png（最新構成図・GitHub Actionsで自動更新）
 
-## インシデントノート（3件）
-- CodeDeploy権限不足 → 段階的拡張で無停止5分切替を安定化（[トラブルシュート](./docs/troubleshooting/README.md)）。
-- RDS削除順の依存性 → Destroy順制御でエラーなく破棄可能に。
-- NATコストとDB非公開 → 3層VPC/ルート最適化で整合。
+## 課題解決事例（3件）
+- CodeDeploy権限不足 → 段階的IAM拡張で無停止切替を安定化 → 切替約5分を安定運用（[トラブルシュート](./docs/troubleshooting/README.md)）。
+- RDS削除順の依存性 → Terraformの依存制御で安全破棄 → 破棄エラーをゼロ化。
+- NATコストとDB非公開 → 3層VPC/ルート最適化で整合 → 月額固定費を抑制。
 
 ## 詳細ドキュメント
-設計・手順・根拠・追加スクリーンショットは下記を参照。
+設計・手順・根拠・追加スクリーンショットは下記を参照。代表リンク: [構成図](./docs/architecture/) / [デプロイ手順](./docs/deployment/codedeploy-blue-green.md) / [セキュリティレポート](./docs/security/)
 
 <div align="center">
   
@@ -77,9 +88,9 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - 完全自動化されたCI/CDパイプライン（無停止切替（Blue/Green）と段階配信（Canary）に対応）
 
 **デモサイト**
-- [hamilcar-hannibal.click](https://hamilcar-hannibal.click) は通常停止中（起動はGitHub Actions経由で約15分・要依頼）
-- アプリケーション層を停止し月額コストを約$30-50から約$5以下に最適化
-- GitHub Actionsでワンクリック起動/停止（起動完了まで約15分）
+- [hamilcar-hannibal.click](https://hamilcar-hannibal.click) は通常停止中（起動はGitHub Actions経由で[約15分](./.github/workflows/deploy.yml)・要依頼）
+- アプリケーション層を停止し月額コストを約$30-50から[約$5以下](./terraform/foundation/billing.tf)に最適化
+- GitHub Actionsでワンクリック起動/停止（起動完了まで[約15分](./.github/workflows/deploy.yml)）
 - 基盤リソース（S3 State管理、CloudTrail等）は常時稼働
 
 **AWS Architecture Diagram**
@@ -140,7 +151,7 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - WAF: CloudFront + ALB対応（コスト最適化のため現在無効化）
 
 **技術的な挑戦と成果**
-- 無停止切替（Blue/Green）: IAM権限の段階的追加で並行環境から約5分の切替と即時ロールバックを実現
+- 無停止切替（Blue/Green）: IAM権限の段階的追加で並行環境から[約5分の切替](./docs/deployment/codedeploy-blue-green.md)と即時ロールバックを実現
 - 最小権限設計: Permission Boundaryでセキュリティと自動化を両立
 - 3層VPCアーキテクチャ: NAT Gateway設計でDB層を完全非公開化
 - Terraform State管理: S3 + DynamoDBでチーム開発に対応可能な基盤を構築
@@ -162,4 +173,4 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - `gh done XX` でPRマージ後にmainへ戻り最新を取得
 
 ---
-**最終更新**: 2025年10月11日 17:05 JST
+**最終更新**: 2025年10月11日 17:45 JST
