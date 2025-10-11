@@ -18,7 +18,7 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 **デモ**
 - hamilcar-hannibal.click（現在は停止中。起動はGitHub Actionsから[約15分](./.github/workflows/deploy.yml)・要依頼）
 
-## 5分で確認（デモと証跡）
+## 採用担当者向け確認フロー（5分）
 - 起動依頼: `.github/ISSUE_TEMPLATE/demo-request.md` を使用（テンプレート不在時は下記をコピー）
   
   <details>
@@ -50,10 +50,10 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - Securityレポート例: docs/images/security-report.png（検出→修正→再スキャン）
 - アーキテクチャ図: docs/images/architecture-latest.png（最新構成図・GitHub Actionsで自動更新）
 
-## インシデントノート（3件）
-- CodeDeploy権限不足 → 段階的拡張で無停止5分切替を安定化（[トラブルシュート](./docs/troubleshooting/README.md)）。
-- RDS削除順の依存性 → Destroy順制御でエラーなく破棄可能に。
-- NATコストとDB非公開 → 3層VPC/ルート最適化で整合。
+## 課題解決事例（3件）
+- CodeDeploy権限不足 → 段階的IAM拡張で無停止切替を安定化 → 切替約5分を安定運用（[トラブルシュート](./docs/troubleshooting/README.md)）。
+- RDS削除順の依存性 → Terraformの依存制御で安全破棄 → 破棄エラーをゼロ化。
+- NATコストとDB非公開 → 3層VPC/ルート最適化で整合 → 月額固定費を抑制。
 
 ## 詳細ドキュメント
 設計・手順・根拠・追加スクリーンショットは下記を参照。代表リンク: [構成図](./docs/architecture/) / [デプロイ手順](./docs/deployment/codedeploy-blue-green.md) / [セキュリティレポート](./docs/security/)
@@ -173,4 +173,4 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - `gh done XX` でPRマージ後にmainへ戻り最新を取得
 
 ---
-**最終更新**: 2025年10月11日 17:31 JST
+**最終更新**: 2025年10月11日 17:45 JST
