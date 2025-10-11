@@ -6,6 +6,26 @@
 
 **コード実装前に必ずGitHub Issueを作成または参照すること。**
 
+### Issue / PR テンプレートの強制使用
+
+❗ Issueは必ず既定のテンプレートを使用すること（Web UIのテンプレート選択、またはCLIの `--template` / `--body-file` を利用）。
+
+- CLI例（feature request テンプレート）:
+
+  ```bash
+  gh issue create --template feature_request.md --label "type:docs,area:docs,risk:low,cost:none"
+  ```
+
+❗ Pull Request も必ずテンプレートを適用すること（Web UIでのテンプレート選択、またはCLIで `--body-file .github/pull_request_template.md` を指定）。
+
+- CLI例:
+
+  ```bash
+  gh pr create --title "[Docs] 要約" --body-file .github/pull_request_template.md --base main
+  ```
+
+テンプレートを外した状態でのIssue/PR作成は禁止。例外が必要な場合は事前にオーナーへ相談し、承認を得ること。
+
 ### 禁止事項
 
 ❌ いきなりコードを書く  
@@ -255,4 +275,4 @@ terraform validate
 
 ---
 
-**最終更新**: 2025年10月10日
+**最終更新**: 2025年10月11日
