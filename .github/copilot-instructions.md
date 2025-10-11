@@ -92,6 +92,17 @@ Issue番号を常に意識してコードを書く。
 
 ### 4. PR作成
 
+**PowerShell環境での推奨方法（Issue番号自動埋め込み）:**
+
+```powershell
+# テンプレート内容を保持しつつ、Closes #XX を自動追記
+gh pr create --title "[Docs] 要約" `
+  --body "$(Get-Content .github/pull_request_template.md -Raw)`n`nCloses #XX" `
+  --label type:docs --label area:docs --label risk:low --label cost:none
+```
+
+**シンプルな方法（手動でIssue番号を指定）:**
+
 ```bash
 gh pr create --title "[Type] 要約" --body "Closes #XX" \
   --label "type:feature,area:infra,risk:low,cost:none"
@@ -99,6 +110,8 @@ gh pr create --title "[Type] 要約" --body "Closes #XX" \
 
 **必須事項:**
 - PR本文に `Closes #XX` を記載（Issueと自動連携）
+  - ⚠️ テンプレート使用時は `Closes #` のままになるので**必ずIssue番号を埋める**こと
+  - 推奨: PowerShell方式でテンプレート内容＋Issue番号を自動追記
 - Issueと同じラベルを付与
 - 変更内容の要約を記載
 - 影響範囲を明記
