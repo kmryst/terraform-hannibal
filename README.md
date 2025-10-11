@@ -16,28 +16,18 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - IaC標準化（モジュール化・レビュー基準・運用SOP）を実施
 
 **デモ**
-- hamilcar-hannibal.click（現在は停止中。起動はGitHub Actionsから約15分・要依頼）
+- hamilcar-hannibal.click（現在は停止中。起動はGitHub Actionsから[約15分](./.github/workflows/deploy.yml)・要依頼）
 
 ## 5分で確認（デモと証跡）
-- 起動依頼: `.github/ISSUE_TEMPLATE/demo-request.md` を使用（テンプレートが無い場合は下記依頼文例をコピー）
+- 起動依頼: `.github/ISSUE_TEMPLATE/demo-request.md` を使用（テンプレート不在時は下記をコピー）
   
   <details>
-  <summary>依頼文サンプル（テンプレート不在時に使用）</summary>
+  <summary>依頼文サンプル（3行）</summary>
   
   ```
-  ## デモ起動依頼
-  
-  hamilcar-hannibal.click のデモ環境起動をお願いします。
-  
-  **確認したい内容:**
-  - [ ] フロントエンド動作確認
-  - [ ] Blue/Green切替履歴
-  - [ ] セキュリティスキャン結果
-  
-  **起動希望時間:** [任意: 例 2025年10月12日 10:00 JST]
-  **確認完了予定:** [任意: 例 同日 11:00 JST]
-  
-  ※ 起動後は約15分で利用可能になります。
+  タイトル: デモ起動依頼（希望日時: 2025年10月12日 10:00 JST / 確認観点: 切替・API・セキュリティ）
+  本文: hamilcar-hannibal.click の起動をお願いします。希望開始 2025年10月12日 10:00 JST、確認観点は無停止切替（Blue/Green）履歴・セキュリティスキャン結果、連絡先は @YourGitHubID
+  備考: 起動から確認まで約15分、終了後は停止運用を実施
   ```
   </details>
 
@@ -98,9 +88,9 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - 完全自動化されたCI/CDパイプライン（無停止切替（Blue/Green）と段階配信（Canary）に対応）
 
 **デモサイト**
-- [hamilcar-hannibal.click](https://hamilcar-hannibal.click) は通常停止中（起動はGitHub Actions経由で約15分・要依頼）
-- アプリケーション層を停止し月額コストを約$30-50から約$5以下に最適化
-- GitHub Actionsでワンクリック起動/停止（起動完了まで約15分）
+- [hamilcar-hannibal.click](https://hamilcar-hannibal.click) は通常停止中（起動はGitHub Actions経由で[約15分](./.github/workflows/deploy.yml)・要依頼）
+- アプリケーション層を停止し月額コストを約$30-50から[約$5以下](./terraform/foundation/billing.tf)に最適化
+- GitHub Actionsでワンクリック起動/停止（起動完了まで[約15分](./.github/workflows/deploy.yml)）
 - 基盤リソース（S3 State管理、CloudTrail等）は常時稼働
 
 **AWS Architecture Diagram**
@@ -161,7 +151,7 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - WAF: CloudFront + ALB対応（コスト最適化のため現在無効化）
 
 **技術的な挑戦と成果**
-- 無停止切替（Blue/Green）: IAM権限の段階的追加で並行環境から約5分の切替と即時ロールバックを実現
+- 無停止切替（Blue/Green）: IAM権限の段階的追加で並行環境から[約5分の切替](./docs/deployment/codedeploy-blue-green.md)と即時ロールバックを実現
 - 最小権限設計: Permission Boundaryでセキュリティと自動化を両立
 - 3層VPCアーキテクチャ: NAT Gateway設計でDB層を完全非公開化
 - Terraform State管理: S3 + DynamoDBでチーム開発に対応可能な基盤を構築
@@ -183,4 +173,4 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - `gh done XX` でPRマージ後にmainへ戻り最新を取得
 
 ---
-**最終更新**: 2025年10月11日 17:16 JST
+**最終更新**: 2025年10月11日 17:23 JST
