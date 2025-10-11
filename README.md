@@ -3,22 +3,27 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 
 ## 採用向けサマリー（30秒）
 - 対象ロール: SRE / プラットフォーム / インフラ（Terraform × AWS × GitHub Actions）
-- 実績: 無停止リリース（Blue/Green/Canary）約5分切替、停止運用で月額約$30-50→停止時約$5、PRトリガー＋週次脆弱性スキャン運用
-- 再現性: S3+DynamoDBでState管理、ワンクリック起動/停止、IaC標準化（モジュール化・レビュー基準・運用SOP）
-- デモ: [hamilcar-hannibal.click](https://hamilcar-hannibal.click)
-- 起動目安: GitHub Actions経由で約15分（Blue/Green provisioning）
+- 実績: 無停止切替（Blue/Green）で約5分のスイッチ。
+- 実績: 段階配信（Canary）で10%→100%を段階展開。
+- 実績: 停止運用により月額約$30-50→停止時約$5を実現。
+- 実績: PRトリガー＋週次の脆弱性スキャンを継続運用。
+- 再現性: S3+DynamoDBでState管理を実施。
+- 再現性: GitHub Actionsでワンクリック起動/停止に対応。
+- 再現性: IaC標準化（モジュール化・レビュー基準・運用SOP）。
+- デモ: hamilcar-hannibal.click（現在は停止中。起動はGitHub Actionsから約15分・要依頼）
+- 起動目安: GitHub Actionsでdeploy.ymlのprovisioningを実行（完了まで約15分）
 
 ## 5分で確認（デモと証跡）
-- Actions: `deploy.yml` の provisioning モードで起動（完了まで約15分）
-- 稼働確認: CloudFront/アプリURL [hamilcar-hannibal.click](https://hamilcar-hannibal.click) で動作を確認
-- Blue/Green履歴: CodeDeployとGitHub Actionsログで切替結果を確認
-- セキュリティ検証: SecurityタブでCodeQL/Trivy/tfsec/Gitleaksの検出と修正履歴を確認
-- 補足: docs/architecture/ の図、docs/security/ のレポート、docs/troubleshooting/ のメモで静的成果物を参照
+- 起動依頼: Issuesテンプレート「デモ起動依頼」から申請（依頼例はREADME参照）
+- 起動: GitHub Actionsでdeploy.ymlのprovisioningを実行（完了まで約15分）
+- 稼働確認: 起動完了後に [hamilcar-hannibal.click](https://hamilcar-hannibal.click) で確認
+- 静的証跡: 起動前でも [docs/architecture/](./docs/architecture/) の構成図、[docs/security/](./docs/security/) のレポート例、[docs/troubleshooting/](./docs/troubleshooting/) のメモで確認可能
+- 補足: 停止前提でも静的成果物で価値が伝わるよう成果物を常時更新
 
 ## 設計判断の理由
-- コスト最適化: Fargate 0.25vCPUと停止運用で月額約$30-50→停止時約$5を実現
-- リリース戦略: Blue/Green/Canaryで段階的移行と即時ロールバックを両立し、約5分の無停止切替
-- セキュリティ運用: PRトリガーと週次でCodeQL/Trivy/tfsec/Gitleaksを自動実行し検知から修正まで継続
+- コスト最適化: Fargate 0.25vCPUと停止運用を組み合わせ、月額約$30-50→停止時約$5を維持。
+- リリース戦略: 無停止切替（Blue/Green）で並行環境の即時ロールバックを確保し、段階配信（Canary）で10%→100%の段階展開を採用。
+- セキュリティ運用: PRトリガー＋週次のCodeQL/Trivy/tfsec/Gitleaksを継続し、検知から修正までのループを固定化。
 
 ## スクリーンショット
 - Actions実行履歴: docs/images/actions-deploy.png
@@ -27,11 +32,11 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - アーキテクチャ図: docs/images/architecture-latest.png（GitHub Actionsで自動更新）
 
 ## インシデントノート（3件）
-- CodeDeploy権限不足 → 段階的拡張で無停止5分切替を安定化
-- RDS削除順の依存性 → Destroy順制御でエラーなく破棄可能に
-- NATコストとDB非公開 → 3層VPCとルート最適化で整合
+- CodeDeploy権限不足 → 段階的拡張で無停止5分切替を安定化。
+- RDS削除順の依存性 → Destroy順制御でエラーなく破棄可能に。
+- NATコストとDB非公開 → 3層VPC/ルート最適化で整合。
 
-## 既存ドキュメント（詳細）
+## 詳細ドキュメント
 
 <div align="center">
   
@@ -60,10 +65,10 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 **設計方針**
 - 本番環境を想定したセキュアなネットワーク設計（3層VPC）
 - コスト効率を重視したサービス選定（Fargate 0.25vCPU）
-- 完全自動化されたCI/CDパイプライン（Blue/Green + Canary対応）
+- 完全自動化されたCI/CDパイプライン（無停止切替（Blue/Green）と段階配信（Canary）に対応）
 
 **デモサイト**
-- [hamilcar-hannibal.click](https://hamilcar-hannibal.click) でライブデモを公開
+- [hamilcar-hannibal.click](https://hamilcar-hannibal.click) は通常停止中（起動はGitHub Actions経由で約15分・要依頼）
 - アプリケーション層を停止し月額コストを約$30-50から約$5以下に最適化
 - GitHub Actionsでワンクリック起動/停止（起動完了まで約15分）
 - 基盤リソース（S3 State管理、CloudTrail等）は常時稼働
@@ -77,7 +82,7 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 **Infrastructure as Code**
 - Terraformリソース数: 約50リソース
 - 月額コスト: 約$30-50（停止時約$5以下）
-- デプロイ時間: 約15分（Blue/Green切替5分）
+- デプロイ時間: 約15分（無停止切替（Blue/Green）は約5分で切替）
 - コード行数: Backend 5,000行 / Frontend 3,000行 / Terraform 2,000行
 
 ```
@@ -101,8 +106,7 @@ terraform/
 
 State管理: S3 + DynamoDB（Terraform State Lock）
 
-**GitHub Actions ワークフロー**
-- deploy.yml: provisioning / bluegreen / canary を選択可能
+- deploy.yml: provisioning / bluegreen / canary を選択可能（無停止切替（Blue/Green）と段階配信（Canary）を実装）
 - destroy.yml: ワンクリックでAWSリソース削除
 - pr-check.yml: Backend ESLint+Build、Frontend TypeScript+Build、Terraform Format+Validate
 - security-scan.yml: PR時と週次でCodeQL、Trivy、tfsec、Gitleaksを実行しGitHub Securityへ集約
@@ -114,7 +118,7 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 
 **技術スタック**
 - インフラ: Terraform 1.12.1、AWS（ECS Fargate / RDS PostgreSQL / CloudFront / Route53）
-- CI/CD: GitHub Actions（Blue/Green + Canary対応）
+- CI/CD: GitHub Actions（無停止切替（Blue/Green）と段階配信（Canary）に対応）
 - バックエンド: NestJS 10.0、TypeScript 5.8、GraphQL Code First、PostgreSQL 15
 - フロントエンド: React 19.0、TypeScript 5.8、Vite、Mapbox GL JS、Apollo Client
 
@@ -127,7 +131,7 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - WAF: CloudFront + ALB対応（コスト最適化のため現在無効化）
 
 **技術的な挑戦と成果**
-- Blue/Greenデプロイメント: IAM権限の段階的追加で5分以内の無停止切替を実現
+- 無停止切替（Blue/Green）: IAM権限の段階的追加で並行環境から約5分の切替と即時ロールバックを実現
 - 最小権限設計: Permission Boundaryでセキュリティと自動化を両立
 - 3層VPCアーキテクチャ: NAT Gateway設計でDB層を完全非公開化
 - Terraform State管理: S3 + DynamoDBでチーム開発に対応可能な基盤を構築
@@ -135,7 +139,7 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 
 **参考ドキュメント**
 - [docs/setup/README.md](./docs/setup/README.md): 環境構築・事前準備
-- [docs/deployment/codedeploy-blue-green.md](./docs/deployment/codedeploy-blue-green.md): Blue/Green/Canaryデプロイ手順
+- [docs/deployment/codedeploy-blue-green.md](./docs/deployment/codedeploy-blue-green.md): 無停止切替（Blue/Green）と段階配信（Canary）のデプロイ手順
 - [docs/operations/README.md](./docs/operations/README.md): IAM管理・監視・分析
 - [docs/architecture/aws/mermaid/README.md](./docs/architecture/aws/mermaid/README.md): システム構成図
 - [docs/troubleshooting/README.md](./docs/troubleshooting/README.md): 実装時の課題と解決方法
@@ -149,4 +153,4 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - `gh done XX` でPRマージ後にmainへ戻り最新を取得
 
 ---
-**最終更新**: 2025年10月11日 15:28 JST
+**最終更新**: 2025年10月11日 16:38 JST

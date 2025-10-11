@@ -16,7 +16,17 @@
   gh issue create --template feature_request.md --label "type:docs,area:docs,risk:low,cost:none"
   ```
 
+  CLI でテンプレ本文を扱う場合は `.github/tmp/` 配下に一時ファイルを作成し、起票後すぐ削除すること（例: `.github/tmp/issue-<summary>.md`）。
+
 ❗ Pull Request も必ずテンプレートを適用すること（Web UIでのテンプレート選択、またはCLIで `--body-file .github/pull_request_template.md` を指定）。
+
+- CLI例（Doc向けPR）:
+
+  ```bash
+  gh pr create --title "[Docs] 要約" --body-file .github/pull_request_template.md --base main --head feature/#XX-description --label type:docs --label area:docs --label risk:low --label cost:none
+  ```
+
+  既存PRにラベルを付ける場合は `gh pr edit <番号> --add-label ...` を使用すること。
 
 - CLI例:
 
