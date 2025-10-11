@@ -5,15 +5,15 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - 対象ロール: SRE / プラットフォーム / インフラ（Terraform × AWS × GitHub Actions）
 
 **実績**
-- 無停止切替（Blue/Green）で[約5分のスイッチ](./docs/deployment/codedeploy-blue-green.md)を実現
-- 段階配信（Canary）で10%→100%を段階展開
-- 停止運用により月額約$30-50→[停止時約$5](./terraform/foundation/billing.tf)を実現（[コスト設計](./terraform/foundation/billing.tf)）
-- PRトリガー＋週次の脆弱性スキャンを継続運用
+- 無停止切替（Blue/Green）で[約5分のスイッチ](./docs/deployment/codedeploy-blue-green.md)を実現。
+- 段階配信（Canary）で10%→100%を段階展開。
+- 停止運用により月額約$30-50→[停止時約$5](./terraform/foundation/billing.tf)を実現（[コスト設計](./terraform/foundation/billing.tf)）。
+- PRトリガー＋週次の脆弱性スキャンを継続運用。
 
 **再現性**
-- S3+DynamoDBでState管理を実施
-- GitHub Actionsで[ワンクリック起動/停止](./.github/workflows/deploy.yml)に対応（[起動完了まで約15分](./.github/workflows/deploy.yml)）
-- IaC標準化（モジュール化・レビュー基準・運用SOP）を実施
+- S3+DynamoDBでState管理を実施。
+- GitHub Actionsで[ワンクリック起動/停止](./.github/workflows/deploy.yml)に対応（[起動完了まで約15分](./.github/workflows/deploy.yml)）。
+- IaC標準化（モジュール化・レビュー基準・運用SOP）を実施。
 
 **デモ**
 - hamilcar-hannibal.click（現在は停止中。起動はGitHub Actionsから[約15分](./.github/workflows/deploy.yml)・要依頼）
@@ -25,9 +25,9 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
   <summary>依頼文サンプル（3行）</summary>
   
   ```
-  タイトル: デモ起動依頼（希望日時: 2025年10月12日 10:00 JST / 確認観点: 切替・API・セキュリティ）
-  本文: hamilcar-hannibal.click の起動をお願いします。希望開始 2025年10月12日 10:00 JST、確認観点は無停止切替（Blue/Green）履歴・セキュリティスキャン結果、連絡先は @YourGitHubID
-  備考: 起動から確認まで約15分、終了後は停止運用を実施
+  タイトル: デモ起動依頼（希望日時: 2025年10月12日 10:00 JST / 確認観点: 切替・API・セキュリティ）。
+  本文: hamilcar-hannibal.click の起動をお願いします。希望開始 2025年10月12日 10:00 JST、確認観点は無停止切替（Blue/Green）履歴・セキュリティスキャン結果、連絡先は @YourGitHubID。
+  備考: 起動から確認まで約15分、終了後は停止運用を実施。
   ```
   </details>
 
@@ -173,4 +173,4 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - `gh done XX` でPRマージ後にmainへ戻り最新を取得
 
 ---
-**最終更新**: 2025年10月11日 17:23 JST
+**最終更新**: 2025年10月11日 17:31 JST
