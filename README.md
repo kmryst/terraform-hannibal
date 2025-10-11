@@ -3,26 +3,34 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 
 ## 採用向けサマリー（30秒）
 - 対象ロール: SRE / プラットフォーム / インフラ（Terraform × AWS × GitHub Actions）
-- 実績: 無停止切替（Blue/Green）で約5分のスイッチ。
-- 実績: 段階配信（Canary）で10%→100%を段階展開。
-- 実績: 停止運用により月額約$30-50→停止時約$5を実現。
-- 実績: PRトリガー＋週次の脆弱性スキャンを継続運用。
-- 再現性: S3+DynamoDBでState管理を実施。
-- 再現性: GitHub Actionsでワンクリック起動/停止に対応。
-- 再現性: IaC標準化（モジュール化・レビュー基準・運用SOP）。
-- デモ: hamilcar-hannibal.click（現在は停止中。起動はGitHub Actionsから約15分・要依頼）
-- 起動目安: GitHub Actionsでdeploy.ymlのprovisioningを実行（完了まで約15分）
+
+**実績**
+- 無停止切替（Blue/Green）で[約5分のスイッチ](./docs/deployment/codedeploy-blue-green.md)
+- 段階配信（Canary）で10%→100%を段階展開
+- 停止運用により月額約$30-50→停止時約$5を実現（[コスト設計](./terraform/foundation/billing.tf)）
+- PRトリガー＋週次の脆弱性スキャンを継続運用
+
+**再現性**
+- S3+DynamoDBでState管理を実施
+- GitHub Actionsで[ワンクリック起動/停止](./.github/workflows/deploy.yml)に対応（[起動完了まで約15分](./.github/workflows/deploy.yml)）
+- IaC標準化（モジュール化・レビュー基準・運用SOP）
+
+**デモ**
+- hamilcar-hannibal.click（現在は停止中。起動はGitHub Actionsから約15分・要依頼）
 
 ## 5分で確認（デモと証跡）
-- 起動依頼: Issuesテンプレート「デモ起動依頼」から申請（依頼例はREADME参照）
-- 起動: GitHub Actionsでdeploy.ymlのprovisioningを実行（完了まで約15分）
+- 起動依頼: Issuesテンプレート「デモ起動依頼」を使用（`.github/ISSUE_TEMPLATE/`配下、無い場合は下記依頼文例をコピー）
+- 起動: GitHub Actionsで[deploy.yml](./.github/workflows/deploy.yml)のprovisioningを実行（完了まで約15分）
 - 稼働確認: 起動完了後に [hamilcar-hannibal.click](https://hamilcar-hannibal.click) で確認
-- 静的証跡: 起動前でも [docs/architecture/](./docs/architecture/) の構成図、[docs/security/](./docs/security/) のレポート例、[docs/troubleshooting/](./docs/troubleshooting/) のメモで確認可能
+- 静的証跡: 起動前でも下記で確認可能（各フォルダに代表サンプルを配置）
+  - 構成図: [docs/architecture/](./docs/architecture/)
+  - セキュリティレポート: [docs/security/](./docs/security/)
+  - トラブルシュート: [docs/troubleshooting/](./docs/troubleshooting/)
 - 補足: 停止前提でも静的成果物で価値が伝わるよう成果物を常時更新
 
 ## 設計判断の理由
-- コスト最適化: Fargate 0.25vCPUと停止運用を組み合わせ、月額約$30-50→停止時約$5を維持。
-- リリース戦略: 無停止切替（Blue/Green）で並行環境の即時ロールバックを確保し、段階配信（Canary）で10%→100%の段階展開を採用。
+- コスト最適化: Fargate 0.25vCPUと停止運用を組み合わせ、月額約$30-50→停止時約$5を維持（[billing.tf](./terraform/foundation/billing.tf)）。
+- リリース戦略: 無停止切替（Blue/Green）で並行環境の即時ロールバックを確保し、段階配信（Canary）で10%→100%の段階展開を採用（[デプロイ手順](./docs/deployment/codedeploy-blue-green.md)）。
 - セキュリティ運用: PRトリガー＋週次のCodeQL/Trivy/tfsec/Gitleaksを継続し、検知から修正までのループを固定化。
 
 ## スクリーンショット
@@ -32,11 +40,12 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - アーキテクチャ図: docs/images/architecture-latest.png（GitHub Actionsで自動更新）
 
 ## インシデントノート（3件）
-- CodeDeploy権限不足 → 段階的拡張で無停止5分切替を安定化。
+- CodeDeploy権限不足 → 段階的拡張で無停止5分切替を安定化（[トラブルシュート](./docs/troubleshooting/README.md)）。
 - RDS削除順の依存性 → Destroy順制御でエラーなく破棄可能に。
 - NATコストとDB非公開 → 3層VPC/ルート最適化で整合。
 
 ## 詳細ドキュメント
+設計・手順・根拠・追加スクリーンショットは下記を参照。
 
 <div align="center">
   
@@ -81,8 +90,8 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 
 **Infrastructure as Code**
 - Terraformリソース数: 約50リソース
-- 月額コスト: 約$30-50（停止時約$5以下）
-- デプロイ時間: 約15分（無停止切替（Blue/Green）は約5分で切替）
+- 月額コスト: 約$30-50（停止時約$5以下、[billing.tf](./terraform/foundation/billing.tf)）
+- デプロイ時間: [約15分](./.github/workflows/deploy.yml)（無停止切替（Blue/Green）は[約5分で切替](./docs/deployment/codedeploy-blue-green.md)）
 - コード行数: Backend 5,000行 / Frontend 3,000行 / Terraform 2,000行
 
 ```
@@ -153,4 +162,4 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - `gh done XX` でPRマージ後にmainへ戻り最新を取得
 
 ---
-**最終更新**: 2025年10月11日 16:38 JST
+**最終更新**: 2025年10月11日 17:05 JST
