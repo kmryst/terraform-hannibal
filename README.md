@@ -5,7 +5,7 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - 対象ロール: SRE / プラットフォーム / インフラ（Terraform × AWS × GitHub Actions）
 
 **実績**
-- 無停止切替（Blue/Green）で[約5分のスイッチ](./docs/deployment/codedeploy-blue-green.md)
+- 無停止切替（Blue/Green）で[約5分のスイッチ](./docs/deployment/codedeploy-blue-green.md)を実現
 - 段階配信（Canary）で10%→100%を段階展開
 - 停止運用により月額約$30-50→[停止時約$5](./terraform/foundation/billing.tf)を実現（[コスト設計](./terraform/foundation/billing.tf)）
 - PRトリガー＋週次の脆弱性スキャンを継続運用
@@ -13,13 +13,13 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 **再現性**
 - S3+DynamoDBでState管理を実施
 - GitHub Actionsで[ワンクリック起動/停止](./.github/workflows/deploy.yml)に対応（[起動完了まで約15分](./.github/workflows/deploy.yml)）
-- IaC標準化（モジュール化・レビュー基準・運用SOP）
+- IaC標準化（モジュール化・レビュー基準・運用SOP）を実施
 
 **デモ**
 - hamilcar-hannibal.click（現在は停止中。起動はGitHub Actionsから約15分・要依頼）
 
 ## 5分で確認（デモと証跡）
-- 起動依頼: Issuesテンプレート「デモ起動依頼」を使用（`.github/ISSUE_TEMPLATE/`配下、無い場合は下記依頼文例をコピー）
+- 起動依頼: `.github/ISSUE_TEMPLATE/demo-request.md` を使用（テンプレートが無い場合は下記依頼文例をコピー）
   
   <details>
   <summary>依頼文サンプル（テンプレート不在時に使用）</summary>
@@ -42,7 +42,7 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
   </details>
 
 - 起動: GitHub Actionsで[deploy.yml](./.github/workflows/deploy.yml)のprovisioningを実行（[完了まで約15分](./.github/workflows/deploy.yml)）
-- 稼働確認: 起動後に [hamilcar-hannibal.click](https://hamilcar-hannibal.click) で確認
+- 稼働確認: 起動後に [hamilcar-hannibal.click](https://hamilcar-hannibal.click) のURLで確認
 - 静的証跡: 起動前でも下記で確認可能（各フォルダに代表サンプルを配置）
   - 構成図: [docs/architecture/](./docs/architecture/)
   - セキュリティレポート: [docs/security/](./docs/security/)
@@ -55,10 +55,10 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - セキュリティ運用: PRトリガー＋週次のCodeQL/Trivy/tfsec/Gitleaksを継続し、検知から修正までのループを固定化。
 
 ## スクリーンショット
-- Actions実行履歴: docs/images/actions-deploy.png
-- Blue/Green切替履歴: docs/images/bluegreen-history.png
-- Securityレポート例: docs/images/security-report.png
-- アーキテクチャ図: docs/images/architecture-latest.png（GitHub Actionsで自動更新）
+- Actions実行履歴: docs/images/actions-deploy.png（provisioning成功の実行履歴）
+- Blue/Green切替履歴: docs/images/bluegreen-history.png（切替結果の履歴）
+- Securityレポート例: docs/images/security-report.png（検出→修正→再スキャン）
+- アーキテクチャ図: docs/images/architecture-latest.png（最新構成図・GitHub Actionsで自動更新）
 
 ## インシデントノート（3件）
 - CodeDeploy権限不足 → 段階的拡張で無停止5分切替を安定化（[トラブルシュート](./docs/troubleshooting/README.md)）。
@@ -66,7 +66,7 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - NATコストとDB非公開 → 3層VPC/ルート最適化で整合。
 
 ## 詳細ドキュメント
-設計・手順・根拠・追加スクリーンショットは下記を参照。
+設計・手順・根拠・追加スクリーンショットは下記を参照。代表リンク: [構成図](./docs/architecture/) / [デプロイ手順](./docs/deployment/codedeploy-blue-green.md) / [セキュリティレポート](./docs/security/)
 
 <div align="center">
   
@@ -183,4 +183,4 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - `gh done XX` でPRマージ後にmainへ戻り最新を取得
 
 ---
-**最終更新**: 2025年10月11日 17:10 JST
+**最終更新**: 2025年10月11日 17:16 JST
