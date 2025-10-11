@@ -7,7 +7,7 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 **実績**
 - 無停止切替（Blue/Green）で[約5分のスイッチ](./docs/deployment/codedeploy-blue-green.md)
 - 段階配信（Canary）で10%→100%を段階展開
-- 停止運用により月額約$30-50→停止時約$5を実現（[コスト設計](./terraform/foundation/billing.tf)）
+- 停止運用により月額約$30-50→[停止時約$5](./terraform/foundation/billing.tf)を実現（[コスト設計](./terraform/foundation/billing.tf)）
 - PRトリガー＋週次の脆弱性スキャンを継続運用
 
 **再現性**
@@ -20,8 +20,29 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 
 ## 5分で確認（デモと証跡）
 - 起動依頼: Issuesテンプレート「デモ起動依頼」を使用（`.github/ISSUE_TEMPLATE/`配下、無い場合は下記依頼文例をコピー）
-- 起動: GitHub Actionsで[deploy.yml](./.github/workflows/deploy.yml)のprovisioningを実行（完了まで約15分）
-- 稼働確認: 起動完了後に [hamilcar-hannibal.click](https://hamilcar-hannibal.click) で確認
+  
+  <details>
+  <summary>依頼文サンプル（テンプレート不在時に使用）</summary>
+  
+  ```
+  ## デモ起動依頼
+  
+  hamilcar-hannibal.click のデモ環境起動をお願いします。
+  
+  **確認したい内容:**
+  - [ ] フロントエンド動作確認
+  - [ ] Blue/Green切替履歴
+  - [ ] セキュリティスキャン結果
+  
+  **起動希望時間:** [任意: 例 2025年10月12日 10:00 JST]
+  **確認完了予定:** [任意: 例 同日 11:00 JST]
+  
+  ※ 起動後は約15分で利用可能になります。
+  ```
+  </details>
+
+- 起動: GitHub Actionsで[deploy.yml](./.github/workflows/deploy.yml)のprovisioningを実行（[完了まで約15分](./.github/workflows/deploy.yml)）
+- 稼働確認: 起動後に [hamilcar-hannibal.click](https://hamilcar-hannibal.click) で確認
 - 静的証跡: 起動前でも下記で確認可能（各フォルダに代表サンプルを配置）
   - 構成図: [docs/architecture/](./docs/architecture/)
   - セキュリティレポート: [docs/security/](./docs/security/)
@@ -162,4 +183,4 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - `gh done XX` でPRマージ後にmainへ戻り最新を取得
 
 ---
-**最終更新**: 2025年10月11日 17:05 JST
+**最終更新**: 2025年10月11日 17:10 JST
