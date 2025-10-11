@@ -153,4 +153,4 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - `gh done XX` でPRマージ後にmainへ戻り最新を取得
 
 ---
-**最終更新**: 2025年10月11日 15:28 JST
+**最終更新**: 2025年10月11日 16:38 JST

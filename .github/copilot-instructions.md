@@ -20,6 +20,14 @@
 
 ❗ Pull Request も必ずテンプレートを適用すること（Web UIでのテンプレート選択、またはCLIで `--body-file .github/pull_request_template.md` を指定）。
 
+- CLI例（Doc向けPR）:
+
+  ```bash
+  gh pr create --title "[Docs] 要約" --body-file .github/pull_request_template.md --base main --head feature/#XX-description --label type:docs --label area:docs --label risk:low --label cost:none
+  ```
+
+  既存PRにラベルを付ける場合は `gh pr edit <番号> --add-label ...` を使用すること。
+
 - CLI例:
 
   ```bash
