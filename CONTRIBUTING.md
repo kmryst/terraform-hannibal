@@ -79,11 +79,21 @@ git push -u origin feature/#XX-short-description
 
 PRテンプレートを使ってPRを作成します。
 
-```bash
-gh pr create --title "[Type] 短い要約" --body "..." --base main
+**PowerShell推奨例**（Issue番号自動埋め込み）:
+```powershell
+gh pr create --title "[Type] 短い要約" `
+  --body "$(Get-Content .github/pull_request_template.md -Raw)`n`nCloses #XX" `
+  --label type:feature --label area:backend --label risk:low --label cost:none
 ```
 
-**PRテンプレート項目**:
+**bash/zsh例**:
+```bash
+gh pr create --title "[Type] 短い要約" \
+  --body "$(cat .github/pull_request_template.md)"$'\n\n'"Closes #XX" \
+  --label type:feature --label area:backend --label risk:low --label cost:none
+```
+
+**PRテンプレート項目** (`.github/pull_request_template.md`):
 - 目的
 - 変更内容
 - 影響範囲
@@ -92,7 +102,11 @@ gh pr create --title "[Type] 短い要約" --body "..." --base main
 - ロールバック手順
 - `Closes #XX` （Issue自動クローズ）
 
-**PRテンプレート**: `.github/pull_request_template.md`
+**必須ラベル4種類**:
+- `type:*` - feature/bug/docs/infra/chore
+- `area:*` - frontend/backend/infra/ci-cd/docs
+- `risk:*` - low/medium/high
+- `cost:*` - none/small/medium/large
 
 ---
 
