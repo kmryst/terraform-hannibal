@@ -1,20 +1,40 @@
 # Security Design - NestJS Hannibal 3
 
 ## セキュリティ概要
-多層防御によるエンタープライズレベルのセキュリティ設計
+4層防御 + IAM最小権限によるDevSecOps実践
 
-## ネットワークセキュリティ
+## 実装済みセキュリティ対策
 
-### VPC設計
+### 1. 自動セキュリティスキャン（4層防御）
+
+**GitHub Actions: `security-scan.yml`**
+
+| スキャン種別 | ツール | 対象 | 実行タイミング |
+|-------------|--------|------|----------------|
+| **SAST** | CodeQL | ソースコード脆弱性 | PR + 週次 |
+| **SCA** | Trivy | 依存関係/コンテナ | PR + 週次 |
+| **IaC** | tfsec | Terraform設定ミス | PR + 週次 |
+| **Secrets** | Gitleaks | シークレット漏洩 | PR + 週次 |
+
+**統合管理**: 全結果を GitHub Security タブに集約
+
+### 2. ネットワークセキュリティ（実装済み）
+
+#### 3層VPCアーキテクチャ
 ```
 Internet Gateway
     ↓
-Public Subnet (ALB)
+Public Subnet (ALB) ← インターネット公開
     ↓
-Private Subnet (ECS)
+App Subnet (ECS) ← NAT Gateway経由でアウトバウンドのみ
     ↓
-Private Subnet (RDS)
+Data Subnet (RDS) ← 完全非公開（Public IP なし）
 ```
+
+**特徴:**
+- DB層は完全非公開（インターネットアクセス不可）
+- ECSはNAT Gateway経由でDockerイメージ取得
+- ALBのみがインターネットからアクセス可能
 
 ### セキュリティグループ
 ```hcl
@@ -79,6 +99,41 @@ resource "aws_security_group" "rds" {
 ### 認証・認可
 ```typescript
 // JWT認証 (将来実装)
+**入力検証** (実装済み)
+```typescript
+// GraphQL + class-validator による自動検証
+@InputType()
+export class CreateRouteInput {
+  @Field()
+  @IsString()
+  @Length(1, 100)
+  name: string;
+
+  @Field(() => [[Float]])
+  @IsArray()
+  coordinates: number[][];
+}
+```
+
+**CORS設定** (実装済み)
+```typescript
+// main.ts
+app.enableCors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.CLIENT_URL 
+    : ['http://localhost:5173'],
+  credentials: true,
+});
+```
+
+### 3. アプリケーションセキュリティ（将来実装予定）
+
+**認証・認可**
+- JWT/OAuth 2.0 認証（未実装）
+- 行レベルセキュリティ（未実装）
+
+```typescript
+// 将来実装例
 @UseGuards(JwtAuthGuard)
 @Resolver(() => Route)
 export class RouteResolver {
@@ -89,147 +144,130 @@ export class RouteResolver {
 }
 ```
 
-### 入力検証
-```typescript
-// GraphQL + class-validator
-@InputType()
-export class CreateRouteInput {
-  @Field()
-  @IsString()
-  @Length(1, 100)
-  name: string;
-
-  @Field(() => [CoordinateInput])
-  @ValidateNested({ each: true })
-  @Type(() => CoordinateInput)
-  coordinates: CoordinateInput[];
-}
-```
-
-### CORS設定
-```typescript
-app.enableCors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-  credentials: true,
-});
-```
-
-## データセキュリティ
+## 4. データセキュリティ（実装済み）
 
 ### 暗号化
-- **転送時**: HTTPS/TLS 1.3
-- **保存時**: RDS暗号化 + S3暗号化
-- **メモリ内**: 機密データの即座削除
+- **転送時**: HTTPS/TLS 1.3 (CloudFront + ALB)
+- **保存時**: RDS暗号化 (AES-256) + S3暗号化
+- **機密情報**: AWS Secrets Manager でDB認証情報管理
 
-### データベースセキュリティ
-```sql
--- RDS設定
-encrypted = true
-backup_retention_period = 7
-deletion_protection = true
-publicly_accessible = false
-```
-
-### 機密情報管理
-```typescript
-// AWS Secrets Manager
-const dbPassword = await this.secretsManager
-  .getSecretValue({ SecretId: 'hannibal/db/password' })
-  .promise();
-```
-
-## 監査・コンプライアンス
-
-### CloudTrail設定
+### データベースセキュリティ (Terraform: `modules/storage/rds/main.tf`)
 ```hcl
-resource "aws_cloudtrail" "hannibal" {
-  name           = "nestjs-hannibal-3-trail"
-  s3_bucket_name = aws_s3_bucket.cloudtrail.bucket
-  
-  event_selector {
-    read_write_type                 = "All"
-    include_management_events       = true
-    data_resource {
-      type   = "AWS::S3::Object"
-      values = ["${aws_s3_bucket.app.arn}/*"]
-    }
-  }
+resource "aws_db_instance" "main" {
+  storage_encrypted         = true
+  backup_retention_period   = 7
+  deletion_protection       = true
+  publicly_accessible       = false  # 完全非公開
+  vpc_security_group_ids    = [aws_security_group.rds.id]
 }
 ```
 
-### ログ分析 (Athena)
+### 機密情報管理 (実装済み)
+```typescript
+// TypeORM: DATABASE_URL環境変数から取得
+TypeOrmModule.forRootAsync({
+  useFactory: () => ({
+    type: 'postgres',
+    url: process.env.DATABASE_URL,  // Secrets Managerから取得
+    entities: [Route],
+    synchronize: false,
+  }),
+})
+```
+
+## 5. 監査・コンプライアンス（実装済み）
+
+### CloudTrail設定 (Terraform: `foundation/athena.tf`)
+```hcl
+resource "aws_cloudtrail" "main" {
+  name                          = "nestjs-hannibal-3-trail"
+  s3_bucket_name                = aws_s3_bucket.cloudtrail.bucket
+  include_global_service_events = true
+  is_multi_region_trail         = false
+  enable_log_file_validation    = true
+}
+```
+
+**ログ保持期間**: 90日間 (S3 Lifecycle Policy)
+
+### ログ分析 (Athena: 実装済み)
 ```sql
--- 権限使用状況分析
+-- IAM権限使用状況分析
 SELECT 
   eventName,
   COUNT(*) as usage_count,
-  userIdentity.type as user_type
+  userIdentity.principalId
 FROM cloudtrail_logs 
-WHERE eventTime >= '2024-01-01'
-GROUP BY eventName, userIdentity.type
-ORDER BY usage_count DESC;
+WHERE eventTime >= date_add('day', -30, current_date)
+GROUP BY eventName, userIdentity.principalId
+ORDER BY usage_count DESC
+LIMIT 20;
 ```
 
-## 脅威検知・対応
+**分析クエリ保存先**: `docs/operations/README.md`
 
-### GuardDuty設定
+## 6. 脅威検知・対応
+
+### GuardDuty設定 (コスト最適化のため無効化中)
 ```hcl
+# terraform/foundation/guardduty.tf
 resource "aws_guardduty_detector" "hannibal" {
-  enable = true
-  
-  datasources {
-    s3_logs {
-      enable = true
-    }
-    kubernetes {
-      audit_logs {
-        enable = true
-      }
-    }
-  }
+  enable = false  # 月額$30-50のため停止中
 }
 ```
 
-### インシデント対応
-1. **検知**: CloudWatch Alarms + SNS
-2. **分析**: CloudTrail + GuardDuty
-3. **対応**: 自動ブロック + 手動調査
-4. **復旧**: バックアップからの復元
+**無効化理由**: ポートフォリオプロジェクトのためコスト優先
 
-## セキュリティテスト
+### CloudWatch監視 (実装済み)
+- **ECS Task Health**: 5分間隔でヘルスチェック
+- **ALB Target Health**: Unhealthy時に自動切り離し
+- **RDS Connections**: 接続数監視
+- **Billing Alarm**: 月額$50超過でSNS通知
 
-### 自動スキャン
+## 7. セキュリティテスト（実装済み）
+
+### PR時の自動スキャン
 ```yaml
-# GitHub Actions
-- name: Security Scan
-  uses: github/super-linter@v4
-  env:
-    DEFAULT_BRANCH: main
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    VALIDATE_TYPESCRIPT_ES: true
-    VALIDATE_DOCKERFILE: true
+# .github/workflows/security-scan.yml
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+        - cron: '0 0 * * 0'  # 週次
 ```
 
 ### 脆弱性管理
-- **Dependabot**: 依存関係の脆弱性検出
-- **Snyk**: コード・コンテナスキャン
-- **OWASP ZAP**: 動的セキュリティテスト
+- **Dependabot**: GitHub標準機能で依存関係を自動更新
+- **CodeQL/Trivy/tfsec/Gitleaks**: 4層防御で全PRをスキャン
+- **結果統合**: GitHub Security タブで一元管理
 
-## セキュリティ運用
+## 8. セキュリティ運用（実装済み）
 
-### 定期監査
-- **月次**: IAM権限レビュー
-- **四半期**: セキュリティ設定監査
-- **年次**: ペネトレーションテスト
+### 定期監査（手動実施）
+- **月次**: IAM権限レビュー（Athena分析）
+- **四半期**: CloudTrail ログ分析
+- **随時**: Dependabot Alert対応
 
-### セキュリティメトリクス
-```
-- 未使用IAM権限数: 84 → 0 (目標)
-- セキュリティアラート対応時間: < 15分
-- 脆弱性修正時間: < 24時間
-- セキュリティテストカバレッジ: > 80%
-```
+### 実績メトリクス
+- **IAM権限最適化**: 160権限中76使用 (47.5% 削減達成)
+- **セキュリティスキャン**: PR毎に4種類自動実行
+- **脆弱性修正**: Dependabot PR を週次マージ
+
+## セキュリティ成熟度評価
+
+| カテゴリ | 実装状況 | レベル |
+|---------|---------|--------|
+| **ネットワーク** | 3層VPC + 完全DB非公開 | 🟢 高 |
+| **IAM** | Permission Boundary + AssumeRole | 🟢 高 |
+| **自動スキャン** | 4層防御 (SAST/SCA/IaC/Secrets) | 🟢 高 |
+| **暗号化** | TLS 1.3 + RDS/S3暗号化 | 🟢 高 |
+| **監査** | CloudTrail + Athena分析 | 🟡 中 |
+| **認証・認可** | 未実装 (将来計画) | 🔴 低 |
+| **脅威検知** | GuardDuty停止中 (コスト優先) | 🔴 低 |
+
+**総合評価**: DevSecOps実践レベル（認証機能は将来実装）
 
 ---
-**更新日**: 2025年1月8日  
-**セキュリティレベル**: Enterprise Grade
+**最終更新**: 2025年10月12日  
+**セキュリティレベル**: ポートフォリオ向けDevSecOps実装  
+**実装範囲**: ネットワーク層・インフラ層・CI/CD層のセキュリティ対策完了

@@ -3,92 +3,82 @@
 ## データアーキテクチャ概要
 ハンニバルのアルプス越えルートデータを効率的に管理・配信するためのデータ設計
 
-## データモデル設計
+## データモデル設計（実装済み）
 
-### 地理データモデル
+### 実装されているデータモデル
+
+**TypeORM Entity: `src/entities/route.entity.ts`**
+
+```typescript
+@Entity('routes')
+export class Route {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ length: 255 })
+  name: string;
+
+  @Column('text')
+  description: string;
+
+  @Column('jsonb')
+  coordinates: number[][];  // [[lng, lat], [lng, lat], ...]
+
+  @Column({ length: 100, nullable: true })
+  color?: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}
+```
+
+**PostgreSQL テーブル定義:**
 ```sql
--- ルートマスターテーブル
 CREATE TABLE routes (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    difficulty_level INTEGER CHECK (difficulty_level BETWEEN 1 AND 5),
-    total_distance_km DECIMAL(8,2),
-    estimated_duration_days INTEGER,
-    historical_context TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 座標データテーブル
-CREATE TABLE route_coordinates (
-    id SERIAL PRIMARY KEY,
-    route_id INTEGER REFERENCES routes(id) ON DELETE CASCADE,
-    sequence_order INTEGER NOT NULL,
-    latitude DECIMAL(10,8) NOT NULL,
-    longitude DECIMAL(11,8) NOT NULL,
-    elevation_m INTEGER,
-    location_name VARCHAR(100),
-    waypoint_type VARCHAR(20) CHECK (waypoint_type IN ('start', 'waypoint', 'camp', 'battle', 'end')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 地形データテーブル
-CREATE TABLE terrain_features (
-    id SERIAL PRIMARY KEY,
-    coordinate_id INTEGER REFERENCES route_coordinates(id),
-    feature_type VARCHAR(50) NOT NULL, -- 'mountain', 'river', 'pass', 'valley'
-    feature_name VARCHAR(100),
-    difficulty_modifier DECIMAL(3,2) DEFAULT 1.0,
-    seasonal_accessibility JSONB, -- 季節別アクセス可能性
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    coordinates JSONB NOT NULL,  -- GeoJSON座標配列
+    color VARCHAR(100),
+    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-### GraphQLスキーマ設計
+### データモデルの特徴
+
+1. **JSONB型**: 座標データをPostgreSQLのJSONB型で保存
+   - フレキシブルなデータ構造
+   - インデックス可能（GIN/GiSTインデックス）
+   - ネイティブJSON関数でクエリ最適化
+
+2. **シンプル設計**: 複雑な正規化を避け、パフォーマンス重視
+   - 座標は routes テーブルに直接保存
+   - 別テーブル分割なし（データ量が小規模なため）
+
+3. **TypeORM統合**: TypeScriptの型安全性を保持
+   - GraphQL Code First と連携
+   - 自動マイグレーション対応（開発環境のみ）
+
+### GraphQLスキーマ設計（実装済み）
+
+**GraphQL Code First による自動生成スキーマ:**
+
 ```graphql
 type Route {
   id: ID!
   name: String!
-  description: String
-  difficultyLevel: Int!
-  totalDistanceKm: Float
-  estimatedDurationDays: Int
-  historicalContext: String
-  coordinates: [RouteCoordinate!]!
-  terrainFeatures: [TerrainFeature!]!
+  description: String!
+  coordinates: [[Float!]!]!  # JSONB形式の座標配列
+  color: String
   createdAt: DateTime!
   updatedAt: DateTime!
 }
 
-type RouteCoordinate {
-  id: ID!
-  sequenceOrder: Int!
-  latitude: Float!
-  longitude: Float!
-  elevationM: Int
-  locationName: String
-  waypointType: WaypointType!
-  terrainFeatures: [TerrainFeature!]!
-}
-
-enum WaypointType {
-  START
-  WAYPOINT
-  CAMP
-  BATTLE
-  END
-}
-
-type TerrainFeature {
-  id: ID!
-  featureType: String!
-  featureName: String
-  difficultyModifier: Float!
-  seasonalAccessibility: JSON
-}
-
-# クエリ定義
+# GeoJSON形式のクエリ
 type Query {
   # 全ルート取得
   routes: [Route!]!
@@ -96,19 +86,60 @@ type Query {
   # 特定ルート取得
   route(id: ID!): Route
   
-  # 難易度別ルート検索
-  routesByDifficulty(level: Int!): [Route!]!
+  # GeoJSON形式のハンニバルルート
+  hannibalRoute: HannibalRouteCollection!
   
-  # 地理的範囲でのルート検索
-  routesInBounds(
-    northEast: CoordinateInput!
-    southWest: CoordinateInput!
-  ): [Route!]!
+  # GeoJSON形式のポイントルート
+  pointRoute: PointRouteCollection!
 }
 
-input CoordinateInput {
-  latitude: Float!
-  longitude: Float!
+# GeoJSON Collection型
+type HannibalRouteCollection {
+  type: String!
+  features: [HannibalRouteFeature!]!
+}
+
+type HannibalRouteFeature {
+  type: String!
+  properties: HannibalRouteProperties!
+  geometry: GeometryLineString!
+}
+
+type GeometryLineString {
+  type: String!
+  coordinates: [[Float!]!]!
+}
+
+type HannibalRouteProperties {
+  name: String!
+}
+```
+
+### 実装されているクエリ
+
+```typescript
+// src/modules/route/route.resolver.ts
+@Resolver(() => Route)
+export class RouteResolver {
+  @Query(() => [Route])
+  async routes(): Promise<Route[]> {
+    return this.routeService.findAll();
+  }
+
+  @Query(() => Route, { nullable: true })
+  async route(@Args('id', { type: () => Int }) id: number): Promise<Route> {
+    return this.routeService.findOne(id);
+  }
+
+  @Query('hannibalRoute')
+  async hannibalRoute() {
+    return this.routeService.getHannibalRouteGeoJSON();
+  }
+
+  @Query('pointRoute')
+  async pointRoute() {
+    return this.routeService.getPointRouteGeoJSON();
+  }
 }
 ```
 
@@ -140,89 +171,122 @@ graph LR
     E --> F[Cache Invalidation]
 ```
 
-## 空間データ最適化
+## データクエリ最適化（実装済み）
 
-### PostGIS拡張機能
+### JSONB型の活用
+
+**PostgreSQL JSONB クエリ例:**
 ```sql
--- PostGIS拡張有効化
-CREATE EXTENSION IF NOT EXISTS postgis;
+-- 座標データから特定地点を検索
+SELECT id, name, 
+       jsonb_array_length(coordinates) as point_count
+FROM routes
+WHERE coordinates @> '[[7.0, 46.0]]';
 
--- 空間インデックス作成
-CREATE INDEX idx_route_coordinates_geom 
-ON route_coordinates 
-USING GIST (ST_Point(longitude, latitude));
-
--- 空間クエリ例
-SELECT r.name, rc.latitude, rc.longitude
-FROM routes r
-JOIN route_coordinates rc ON r.id = rc.route_id
-WHERE ST_DWithin(
-    ST_Point(rc.longitude, rc.latitude)::geography,
-    ST_Point(7.0, 46.0)::geography, -- アルプス中心部
-    50000 -- 50km範囲
-);
+-- GINインデックス作成（JSONB高速検索）
+CREATE INDEX idx_routes_coordinates 
+ON routes USING GIN (coordinates);
 ```
 
-### 地理データ最適化
+### TypeORMによるクエリ最適化
+
 ```typescript
-// NestJS Repository with spatial queries
+// src/modules/route/route.service.ts
 @Injectable()
-export class RouteRepository {
+export class RouteService {
   constructor(
     @InjectRepository(Route)
     private routeRepository: Repository<Route>,
   ) {}
 
-  async findRoutesInBounds(
-    northEast: Coordinate,
-    southWest: Coordinate,
-  ): Promise<Route[]> {
-    return this.routeRepository
-      .createQueryBuilder('route')
-      .leftJoinAndSelect('route.coordinates', 'coord')
-      .where(
-        `ST_Within(
-          ST_Point(coord.longitude, coord.latitude),
-          ST_MakeEnvelope(:swLng, :swLat, :neLng, :neLat, 4326)
-        )`,
-        {
-          swLng: southWest.longitude,
-          swLat: southWest.latitude,
-          neLng: northEast.longitude,
-          neLat: northEast.latitude,
+  async findAll(): Promise<Route[]> {
+    // シンプルなSELECT文（全カラム取得）
+    return this.routeRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findOne(id: number): Promise<Route> {
+    return this.routeRepository.findOne({
+      where: { id },
+    });
+  }
+
+  // GeoJSON形式への変換
+  async getHannibalRouteGeoJSON() {
+    const routes = await this.findAll();
+    return {
+      type: 'FeatureCollection',
+      features: routes.map(route => ({
+        type: 'Feature',
+        properties: { name: route.name },
+        geometry: {
+          type: 'LineString',
+          coordinates: route.coordinates,
         },
-      )
-      .getMany();
+      })),
+    };
   }
 }
 ```
 
-## キャッシュ戦略
+## 将来実装予定の最適化
 
-### 多層キャッシュ設計
+### PostGIS拡張機能（未実装）
+- 空間インデックス（GIST/GIN）
+- 地理的範囲検索（ST_Within、ST_DWithin）
+- ルート計算（ST_Length、ST_Distance）
+
+### 理由
+- 現在のデータ量では不要（ルート数が少ない）
+- JSONB型で十分なパフォーマンス
+- 将来的なデータ増加時に実装予定
+
+## キャッシュ戦略（部分実装）
+
+### 実装済みキャッシュ
+
+#### CloudFront CDN キャッシュ
+```hcl
+# terraform/modules/cdn/cloudfront/main.tf
+resource "aws_cloudfront_distribution" "main" {
+  default_cache_behavior {
+    default_ttl = 86400    # 1日
+    max_ttl     = 31536000 # 1年
+    min_ttl     = 0
+  }
+}
+```
+
+**特徴:**
+- 静的コンテンツ（React ビルド成果物）をグローバルキャッシュ
+- エッジロケーションでの高速配信
+- オリジン（S3/ALB）への負荷軽減
+
+### 将来実装予定のキャッシュ
+
+#### Redis キャッシュ（未実装）
 ```typescript
-// Redis キャッシュ実装
+// 将来実装予定
 @Injectable()
 export class RouteService {
   constructor(
-    private routeRepository: RouteRepository,
+    private routeRepository: Repository<Route>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  async getRoute(id: string): Promise<Route> {
+  async getRoute(id: number): Promise<Route> {
     const cacheKey = `route:${id}`;
     
-    // L1: メモリキャッシュ
+    // L1: Redisキャッシュ
     let route = await this.cacheManager.get<Route>(cacheKey);
     
     if (!route) {
-      // L2: データベース
-      route = await this.routeRepository.findById(id);
+      // L2: PostgreSQL
+      route = await this.routeRepository.findOne({ where: { id } });
       
-      if (route) {
-        // キャッシュに保存 (TTL: 1時間)
-        await this.cacheManager.set(cacheKey, route, 3600);
-      }
+      // キャッシュに保存 (TTL: 1時間)
+      await this.cacheManager.set(cacheKey, route, 3600);
     }
     
     return route;
@@ -230,24 +294,32 @@ export class RouteService {
 }
 ```
 
-### CDNキャッシュ設定
+#### DataLoader による N+1 問題解決（未実装）
 ```typescript
-// GraphQL レスポンスキャッシュ
-@Resolver(() => Route)
-export class RouteResolver {
-  @Query(() => [Route])
-  @CacheControl({ maxAge: 3600 }) // 1時間キャッシュ
-  async routes(): Promise<Route[]> {
-    return this.routeService.findAll();
-  }
+// 将来実装予定
+@Injectable()
+export class RouteLoader {
+  private readonly loader = new DataLoader<number, Route>(
+    async (ids: number[]) => {
+      const routes = await this.routeRepository
+        .findByIds(ids);
+      
+      return ids.map(id => 
+        routes.find(route => route.id === id)
+      );
+    }
+  );
 
-  @Query(() => Route)
-  @CacheControl({ maxAge: 86400 }) // 24時間キャッシュ
-  async route(@Args('id') id: string): Promise<Route> {
-    return this.routeService.getRoute(id);
+  async load(id: number): Promise<Route> {
+    return this.loader.load(id);
   }
 }
 ```
+
+### 未実装の理由
+- **データ量が少ない**: ルート数が限定的（キャッシュ不要）
+- **コスト最適化**: Redis/ElastiCache の追加コストを回避
+- **シンプル設計**: PostgreSQL JSONB で十分なパフォーマンス
 
 ## データ品質管理
 
@@ -426,5 +498,6 @@ export class MetricsService {
 ```
 
 ---
-**更新日**: 2025年1月8日  
-**データ規模**: 地理座標 10,000+ points, ルート 50+ routes
+**最終更新**: 2025年10月12日  
+**データモデル**: シンプル設計（Route Entity のみ、JSONB型座標）  
+**実装状況**: TypeORM + PostgreSQL 15 + GraphQL Code First

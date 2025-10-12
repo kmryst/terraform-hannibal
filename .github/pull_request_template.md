@@ -5,7 +5,8 @@
 
 ## 変更内容 *必須*
 <!-- 具体的に何を変更したか（1行要点） -->
-**変更タイプ**: Doc-only / Config / Network / Data / Capacity（いずれか選択）
+**変更タイプ**: type:docs / type:feature / type:infra / type:bug / type:chore / type:security / type:refactor / type:test / type:ci
+<!-- 必ずラベル体系（copilot-instructions.md/CONTRIBUTING.md参照）に合わせて記載 -->
 
 ## 影響範囲 *必須*
 <!-- 対象/非対象の一言 -->
