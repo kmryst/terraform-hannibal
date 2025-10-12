@@ -41,5 +41,7 @@ lerna-debug.log*
 # Build analysis
 stats.html
 
+# Personal TODO management
+TODO.md
 
 memo/
