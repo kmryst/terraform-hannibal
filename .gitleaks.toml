@@ -1,3 +1,3 @@
-[[allowlist]]
+[allowlists]
 description = "dist成果物は検査対象外"
-paths = ["client/dist/assets/*"]
+files = ["client/dist/assets/*"]
