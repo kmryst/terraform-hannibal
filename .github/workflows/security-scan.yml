@@ -150,6 +150,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        with:
+          config-path: .gitleaks.toml
 
   # スキャン結果サマリー
   # 全スキャンの結果を1つのサマリーに集約
