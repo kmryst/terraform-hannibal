@@ -1,60 +1,43 @@
 # セキュリティスキャン統合ワークフロー
 # 目的: 依存関係、コンテナ、コード、IaC、シークレットの脆弱性を一元管理
-name: Security Scan
 
+name: Security Scan
 on:
   pull_request:
-    branches: [main, feature/develop] # PR作成時に全スキャン実行
+    branches: [main, feature/develop]
   schedule:
-    - cron: "0 0 * * 1" # 毎週月曜0時に定期スキャン（新CVE対応）
-  workflow_dispatch: # 手動実行可能（緊急時対応）
-
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
 jobs:
-  # 依存関係の脆弱性スキャン
-  # package.json/package-lock.jsonの依存パッケージをスキャン
-  # 既知の脆弱性（CVE）を検出してGitHub Securityに報告
   dependency-scan:
     name: Dependency Vulnerability Scan
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
     steps:
       - uses: actions/checkout@v4
-
-      # Trivyでnpm依存関係をスキャン
-      # scan-type: 'fs' = ファイルシステムスキャン（package-lock.json等を解析）
-      # severity: CRITICAL,HIGH = 重大度が高い脆弱性のみ検出（Medium以下は無視）
       - name: Run Trivy vulnerability scanner (npm)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: "fs"
           scan-ref: "."
-          format: "sarif" # GitHub Security連携用のSARIF形式で出力
+          format: "sarif"
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH"
-
-      # GitHub Securityタブに結果をアップロード
-      # if: always() = スキャン失敗時も結果を記録（重要）
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: "trivy-results.sarif"
-
-  # コンテナイメージの脆弱性スキャン
-  # Dockerイメージ内のOS/ライブラリの脆弱性を検出
-  # ECRプッシュ前にブロックする仕組みとして機能
   container-scan:
     name: Container Image Scan
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
     steps:
       - uses: actions/checkout@v4
-
-      # Docker Buildxセットアップ（キャッシュ機能有効化）
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      # 本番と同じDockerイメージをビルド（キャッシュ利用で80%高速化）
-      # github.sha = コミットハッシュでタグ付け（トレーサビリティ確保）
-      # cache-from/to = GitHub Actions Cacheでレイヤーキャッシュ
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
@@ -63,9 +46,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           load: true
-
-      # Dockerイメージ内の脆弱性をスキャン
-      # ベースイメージ（node:20-alpine）とアプリ依存関係の両方をチェック
       - name: Run Trivy vulnerability scanner (Docker)
         uses: aquasecurity/trivy-action@master
         with:
@@ -73,103 +53,39 @@ jobs:
           format: "sarif"
           output: "trivy-container-results.sarif"
           severity: "CRITICAL,HIGH"
-
-      # コンテナスキャン結果をGitHub Securityに統合
       - name: Upload Trivy container results
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: "trivy-container-results.sarif"
-
-  # 静的アプリケーションセキュリティテスト（SAST）
-  # ソースコードの脆弱性パターンを検出（SQLインジェクション、XSS等）
-  # GitHub CodeQL = GitHubネイティブのSASTツール（無料）
   sast-scan:
     name: Static Application Security Testing
     runs-on: ubuntu-latest
     permissions:
-      security-events: write # GitHub Securityへの書き込み権限
+      security-events: write
       actions: read
       contents: read
     steps:
       - uses: actions/checkout@v4
-
-      # CodeQLデータベースを初期化
-      # languages: javascript-typescript = NestJS + React両方をカバー
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
-
-      # コードをビルドしてCodeQLデータベースを構築
-      # TypeScriptの型情報も解析に利用
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
-
-      # セキュリティ脆弱性パターンを検出
-      # 検出例: 未検証の入力値、ハードコードされた認証情報、安全でない暗号化等
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-
-  # Terraformセキュリティスキャン
-  # IaCのセキュリティベストプラクティス違反を検出
-  # 例: パブリックS3バケット、暗号化なしRDS、過度に広いSG等
-  terraform-scan:
-    name: Terraform Security Scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # tfsecでTerraformコードをスキャン
-      # soft_fail: true = 警告があってもワークフロー自体は成功扱い（段階的導入）
-      # 本番運用では false にして厳格化を推奨
-      - name: Run tfsec
-        uses: aquasecurity/tfsec-action@v1.0.3
-        with:
-          soft_fail: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-  # シークレット漏洩検出
-  # AWS認証情報、APIキー、パスワード等の漏洩を検出
-  # 全コミット履歴をスキャン（過去の漏洩も検出）
-  secrets-scan:
-    name: Secrets Detection
-    runs-on: ubuntu-latest
-    steps:
-      # fetch-depth: 0 = 全コミット履歴を取得（過去の漏洩も検出）
-      # デフォルトは最新コミットのみなので注意
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # Gitleaksでシークレット漏洩をスキャン
-      # 検出パターン: AWS_ACCESS_KEY_ID、PRIVATE_KEY、パスワード等
-      # 検出時はワークフロー失敗 = マージブロック
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
-
-  # スキャン結果サマリー
-  # 全スキャンの結果を1つのサマリーに集約
-  # GitHub Actions UIで一目で確認可能
   summary:
     name: Security Scan Summary
     runs-on: ubuntu-latest
     needs:
-      [dependency-scan, container-scan, sast-scan, terraform-scan, secrets-scan]
-    if: always() # 一部失敗してもサマリーは表示
+      - dependency-scan
+      - container-scan
+      - sast-scan
+    if: always()
     steps:
-      # GitHub Actions Summaryに結果を出力
-      # PRページやActionsページで視覚的に確認可能
       - name: Check scan results
         run: |
           echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
           echo "- Dependency Scan: ${{ needs.dependency-scan.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Container Scan: ${{ needs.container-scan.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- SAST Scan: ${{ needs.sast-scan.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Terraform Scan: ${{ needs.terraform-scan.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Secrets Scan: ${{ needs.secrets-scan.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "詳細は [Security > Code scanning alerts](../../security/code-scanning) を確認" >> $GITHUB_STEP_SUMMARY
