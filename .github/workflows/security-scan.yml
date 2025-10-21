@@ -3,11 +3,12 @@
 
 name: Security Scan
 on:
-  pull_request:
-    branches: [main, feature/develop]
-  schedule:
-    - cron: "0 0 * * 1"
   workflow_dispatch:
+    # 手動実行のみ許可（PRやスケジュールでは実行されない）
+  # pull_request:
+  #   branches: [main, feature/develop]
+  # schedule:
+  #   - cron: "0 0 * * 1"
 jobs:
   dependency-scan:
     name: Dependency Vulnerability Scan
