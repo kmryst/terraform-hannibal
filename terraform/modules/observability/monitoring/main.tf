@@ -22,9 +22,9 @@ resource "aws_sns_topic_subscription" "email_alerts" {
 # ECS CPU使用率監視（実務レベル: 70%）
 resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
   alarm_name          = "${var.project_name}-ecs-cpu-high"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "CPUUtilization"
+  comparison_operator = "GreaterThanThreshold" # comparison: コンパリソン 比較 threshold: 閾値
+  evaluation_periods  = "2" # evaluation: 評価
+  metric_name         = "CPUUtilization" # utilization: 使用
   namespace           = "AWS/ECS"
   period              = "300"
   statistic           = "Average"
@@ -32,9 +32,9 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
   alarm_description   = "ECS CPU utilization is too high"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
-  treat_missing_data  = "breaching"
+  treat_missing_data  = "breaching" # データが欠損している場合、それを“breaching”（＝しきい値を超えている、アラーム条件を満たしている）とみなす
 
-  dimensions = {
+  dimensions = { # dimensions: 属性、この場合は追加情報 
     ServiceName = var.ecs_service_name
     ClusterName = var.ecs_cluster_name
   }
