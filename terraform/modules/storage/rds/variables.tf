@@ -33,7 +33,7 @@ variable "db_allocated_storage" {
 variable "db_engine_version" {
   description = "PostgreSQL engine version"
   type        = string
-  default     = "15"
+  default     = "15.14"
 }
 
 variable "db_name" {
