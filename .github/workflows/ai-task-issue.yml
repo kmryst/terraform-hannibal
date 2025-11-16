@@ -1,0 +1,21 @@
+name: "AI支援タスク: Issueデバッグ"
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  debug-ai-task-issue:
+    runs-on: ubuntu-latest
+    if: contains(join(fromJson(toJson(github.event.issue.labels)).*.name, ','), 'ai-task')
+    steps:
+      - name: Show basic issue info
+        run: |
+          echo "Issue number : ${{ github.event.issue.number }}"
+          echo "Title        : ${{ github.event.issue.title }}"
+          echo "User         : ${{ github.event.issue.user.login }}"
+          echo "Labels       : ${{ toJson(github.event.issue.labels) }}"
+          echo "Body (raw)   :"
+          echo "----------------------------------------"
+          echo "${{ github.event.issue.body }}"
+          echo "----------------------------------------"
