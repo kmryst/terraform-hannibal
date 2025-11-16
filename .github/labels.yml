@@ -146,3 +146,8 @@
 - name: "wontfix"
   color: "ffffff"
   description: "対応しない・仕様"
+
+- name: "ai-task"
+  color: "BFD4F2"  # 既存の青系に合わせるなど
+  description: "AI支援フローに乗せるIssue用ラベル"
+
