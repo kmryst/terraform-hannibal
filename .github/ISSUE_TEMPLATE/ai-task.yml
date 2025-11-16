@@ -2,6 +2,7 @@ name: "AI支援タスク"
 description: "AIと自動化のフローに乗せたい開発タスク用のIssueテンプレートです"
 labels:
   - ai-task
+
 body:
   - type: textarea
     id: objective
@@ -10,17 +11,26 @@ body:
       description: "このIssueで達成したい状態を、1〜3行でざっくり書いてください"
     validations:
       required: true
-  - type: textarea
+
+  - type: dropdown
     id: target
     attributes:
       label: "対象"
-      description: "主に変更する対象（例: docs / terraform / backend / frontend など）"
+      description: "主に変更する対象を選んでください（複数選択可）"
+      multiple: true
+      options:
+        - "terraform"
+        - "backend"
+        - "frontend"
+        - "docs"
+        - "infra-ops"
     validations:
       required: true
+
   - type: textarea
     id: acceptance
     attributes:
       label: "受け入れ条件"
-      description: "完了の判定基準（どのような状態ならこのIssueをCloseできるか）"
+      description: "完了の判定基準（どのような状態ならこのIssueをCloseできるか）を書いてください"
     validations:
       required: true
