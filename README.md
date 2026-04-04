@@ -9,11 +9,12 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - 段階配信（Canary）で10%→100%を段階展開。
 - 停止運用により月額約$30-50→[停止時約$5](./terraform/foundation/billing.tf)を実現（[コスト設計](./terraform/foundation/billing.tf)）。
 - PRトリガー＋週次の脆弱性スキャンを継続運用。
+- 要件整理・設計・技術選定・実装・運用フロー整備までを一人で主導。
 
 **再現性**
 - S3+DynamoDBでState管理を実施。
 - GitHub Actionsで[ワンクリック起動/停止](./.github/workflows/deploy.yml)に対応（[起動完了まで約15分](./.github/workflows/deploy.yml)）。
-- IaC標準化（モジュール化・レビュー基準・運用SOP）を実施。
+- Terraformモジュール化、PR時のfmt/validate自動チェック、運用SOP整備により、変更の再現性とレビュー容易性を向上。
 
 **デモ**
 - hamilcar-hannibal.click（現在は停止中。起動はGitHub Actionsから[約15分](./.github/workflows/deploy.yml)・要依頼）
@@ -25,8 +26,8 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
   <summary>依頼文サンプル（3行）</summary>
   
   ```
-  タイトル: デモ起動依頼（希望日時: 2025年10月12日 10:00 JST / 確認観点: 切替・API・セキュリティ）。
-  本文: hamilcar-hannibal.click の起動をお願いします。希望開始 2025年10月12日 10:00 JST、確認観点は無停止切替（Blue/Green）履歴・セキュリティスキャン結果、連絡先は @YourGitHubID。
+  タイトル: デモ起動依頼（希望日時: YYYY-MM-DD HH:MM JST / 確認観点: 切替・API・セキュリティ）。
+  本文: hamilcar-hannibal.click の起動をお願いします。希望開始: YYYY-MM-DD HH:MM JST、確認観点は無停止切替（Blue/Green）履歴・セキュリティスキャン結果、連絡先は @YourGitHubID。
   備考: 起動から確認まで約15分、終了後は停止運用を実施。
   ```
   </details>
@@ -80,7 +81,7 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 
 **プロジェクト概要**
 
-本番環境を想定したAWSインフラ構築の技術力を示すため、セキュア・スケーラブル・コスト最適化されたアーキテクチャを個人開発で実装。歴史的ルートを可視化するWebアプリケーションを題材に、実務で使われるAWSサービス構成で構築。インフラストラクチャー、バックエンド、フロントエンドまですべて一人で設計・開発・運用。
+要件整理からアーキテクチャ設計、技術選定、実装、運用フロー整備までを一人で主導し、本番運用を想定したAWS基盤を構築。
 
 **設計方針**
 - 本番環境を想定したセキュアなネットワーク設計（3層VPC）
