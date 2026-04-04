@@ -1,6 +1,6 @@
 # --- AWS Professional Environment Configuration ---
 locals {
-  # 環境別リソース最適化（Netflix/Airbnb/Spotify標準パターン）
+  # 環境別リソース最適化
   enable_multi_az       = var.environment != "dev"
   enable_backup         = var.environment != "dev"
   backup_retention_days = var.environment == "prod" ? 7 : 0

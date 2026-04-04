@@ -36,8 +36,7 @@
 #   }
 # }
 
-# --- 企業レベル設計原則 ---
-# Netflix/Airbnb/Spotify標準パターン:
+# --- 設計方針 ---
 # - 基盤リソース: 手動管理・永続化
 # - アプリケーションリソース: Terraform管理
 # - 同時実行制御: DynamoDB State Lock

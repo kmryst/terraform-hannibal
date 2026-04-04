@@ -1,5 +1,4 @@
-# Athena分析基盤 - AWS Certified Professional/Specialty設計
-# Netflix/Airbnb/Spotify企業レベル品質
+# Athena分析基盤 - CloudTrailログ分析用
 
 # 専用ワークグループ（企業レベル設定）
 resource "aws_athena_workgroup" "hannibal_analysis" {

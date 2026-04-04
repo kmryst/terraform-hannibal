@@ -1,6 +1,6 @@
 # --- AWS Professional Environment Configuration ---
 locals {
-  # 環境別リソース最適化（Netflix/Airbnb/Spotify標準パターン）
+  # 環境別リソース最適化
   enable_multi_az       = var.environment != "dev"
   enable_backup         = var.environment != "dev"
   backup_retention_days = var.environment == "prod" ? 7 : 0
@@ -43,7 +43,7 @@ resource "aws_db_instance" "postgres" {
 
   iam_database_authentication_enabled = true
 
-  # AWS Professional環境別設定（Netflix/Airbnb/Spotify標準）
+  # 環境別設定
   backup_retention_period = local.backup_retention_days
   multi_az                = local.enable_multi_az
   publicly_accessible     = false
