@@ -8,13 +8,13 @@ locals {
   deletion_protection   = var.environment == "prod"
 }
 
-# ⭐️ --- ECR Repository (手動作成済み) --- ⭐️
-# ⭐️ 手動で作成済みのECRリポジトリを使用 ⭐️
+# --- ECR Repository (手動作成済み) ---
+# 手動で作成済みのECRリポジトリを使用
 # 理由: 権限エラー回避、CI/CD安定性向上、実行時間短縮
 # ECR URI: variables.tfで定義済み
 
-# ⭐️ --- ECR Lifecycle Policy (Terraform管理) --- ⭐️
-# ⭐️ 古いイメージを自動削除するためのライフサイクルポリシー ⭐️
+# --- ECR Lifecycle Policy (Terraform管理) ---
+# 古いイメージを自動削除するためのライフサイクルポリシー
 # Infrastructure as Code原則に従いTerraformで管理
 resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
   repository = "nestjs-hannibal-3" # 直接リポジトリ名を指定
