@@ -2,7 +2,7 @@
 A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue/Green CI/CD, and security automation.
 
 ## 採用向けサマリー（30秒）
-- 対象ロール: SRE / プラットフォーム / インフラ（Terraform × AWS × GitHub Actions）
+- 対象ロール: DevOps / SRE / インフラ（Terraform × AWS × GitHub Actions）
 
 **実績**
 - 無停止切替（Blue/Green）で[約5分のスイッチ](./docs/deployment/codedeploy-blue-green.md)を実現。
