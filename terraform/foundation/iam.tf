@@ -15,7 +15,7 @@ resource "aws_iam_role" "hannibal_developer_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::258632448142:user/hannibal"
+          AWS = "arn:aws:iam::${var.aws_account_id}:user/hannibal"
         }
         Condition = {
           StringEquals = {
@@ -30,7 +30,7 @@ resource "aws_iam_role" "hannibal_developer_role" {
 # --- 2. HannibalCICDRole-Dev (自動デプロイロール) ---
 resource "aws_iam_role" "hannibal_cicd_role" {
   name                 = "HannibalCICDRole-Dev"
-  permissions_boundary = "arn:aws:iam::258632448142:policy/HannibalCICDBoundary"
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/HannibalCICDBoundary"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -39,7 +39,7 @@ resource "aws_iam_role" "hannibal_cicd_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::258632448142:user/hannibal-cicd"
+          AWS = "arn:aws:iam::${var.aws_account_id}:user/hannibal-cicd"
         }
         Condition = {
           StringEquals = {
@@ -411,7 +411,7 @@ resource "aws_iam_role" "cacoo_integration_role" {
       {
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::631054961367:root"
+          AWS = "arn:aws:iam::${var.cacoo_aws_account_id}:root"
         }
         Action = "sts:AssumeRole"
       }
