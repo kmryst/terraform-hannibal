@@ -1,7 +1,7 @@
 # ハンニバルのアルプス越えルートアプリケーション
 A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue/Green CI/CD, and security automation.
 
-## 採用向けサマリー（30秒）
+## 採用担当者向けサマリー（30秒）
 - 対象ロール: DevOps / SRE / インフラ（Terraform × AWS × GitHub Actions）
 
 **実績**
