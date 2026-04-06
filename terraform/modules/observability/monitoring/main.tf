@@ -23,8 +23,8 @@ resource "aws_sns_topic_subscription" "email_alerts" {
 resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
   alarm_name          = "${var.project_name}-ecs-cpu-high"
   comparison_operator = "GreaterThanThreshold" # comparison: コンパリソン 比較 threshold: 閾値
-  evaluation_periods  = "2" # evaluation: 評価
-  metric_name         = "CPUUtilization" # utilization: 使用
+  evaluation_periods  = "2"                    # evaluation: 評価
+  metric_name         = "CPUUtilization"       # utilization: 使用
   namespace           = "AWS/ECS"
   period              = "300"
   statistic           = "Average"
