@@ -6,15 +6,18 @@ alwaysApply: true
 # terraform-hannibal プロジェクトコンテキスト
 
 ## プロジェクト概要
+
 - 転職用ポートフォリオ（SRE / プラットフォーム / インフラ向け）
 - ハンニバルのアルプス越えルートを可視化する Web アプリケーション
 - 個人開発：設計・開発・インフラ・CI/CD すべて一人で担当
 
 ## 対象ロール
+
 - DevOps / SRE / インフラエンジニア
 - GitHub：https://github.com/kmryst/terraform-hannibal
 
 ## 技術スタック
+
 - インフラ：Terraform / AWS（ECS Fargate / RDS PostgreSQL / CloudFront / Route53 / ALB）
 - CI/CD：GitHub Actions（Blue/Green・Canary デプロイ）
 - バックエンド：NestJS / TypeScript / GraphQL / PostgreSQL
@@ -23,11 +26,13 @@ alwaysApply: true
 - 開発環境：WSL2（Ubuntu）/ ThinkPad T14
 
 ## 重要な設計方針
+
 - Terraform モジュール化・S3+DynamoDB で State 管理
 - 3層VPC（Public/App/Data）でDB層を外部非公開
 - 停止運用により月額 $30-50 → 約 $5 に最適化
 - Permission Boundary + AssumeRole で最小権限設計
 
 ## コミット規約
+
 - Conventional Commits（feat / fix / chore / docs / ci など）
 - Issue 駆動開発：feature/#issue番号-説明 形式のブランチ
