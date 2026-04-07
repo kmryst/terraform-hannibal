@@ -25,8 +25,9 @@ module "security_groups" {
 module "iam" {
   source = "../../modules/security/iam"
 
-  project_name                = var.project_name
-  secrets_manager_secret_arns = compact([module.rds.master_user_secret_arn])
+  project_name   = var.project_name
+  aws_region     = var.aws_region
+  aws_account_id = var.aws_account_id
 }
 
 # --- Reliability + Performance Pillar: VPC ---

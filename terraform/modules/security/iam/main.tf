@@ -38,8 +38,6 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 }
 
 resource "aws_iam_role_policy" "ecs_task_execution_secrets_manager_read" {
-  count = length(var.secrets_manager_secret_arns) > 0 ? 1 : 0
-
   name = "${var.project_name}-ecs-task-execution-secrets-manager-read"
   role = aws_iam_role.ecs_task_execution_role.id
 
@@ -52,7 +50,13 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets_manager_read" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        Resource = var.secrets_manager_secret_arns
+        # Terraform plan時点で確定できる範囲にスコープする（apply後に決まるARNをcount条件に使わない）
+        Resource = [
+          # RDS managed secret (name starts with "rds!")
+          "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:rds!*",
+          # (Optional) project-prefixed secrets for future extensions
+          "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:${var.project_name}*"
+        ]
       }
     ]
   })

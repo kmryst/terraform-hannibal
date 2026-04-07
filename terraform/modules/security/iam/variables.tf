@@ -3,8 +3,12 @@ variable "project_name" {
   type        = string
 }
 
-variable "secrets_manager_secret_arns" {
-  description = "List of Secrets Manager secret ARNs the ECS task execution role can read"
-  type        = list(string)
-  default     = []
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+}
+
+variable "aws_account_id" {
+  description = "AWS account ID"
+  type        = string
 }
