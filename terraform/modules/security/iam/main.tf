@@ -37,9 +37,9 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy" # AWSが提供するマネージドポリシー
 }
 
-resource "aws_iam_role_policy" "ecs_task_execution_secrets_manager_read" {
-  name = "${var.project_name}-ecs-task-execution-secrets-manager-read"
-  role = aws_iam_role.ecs_task_execution_role.id
+resource "aws_iam_policy" "ecs_task_execution_secrets_manager_read" {
+  name        = "${var.project_name}-ecs-task-execution-secrets-manager-read"
+  description = "Allow ECS task execution role to read Secrets Manager secrets (scoped by prefix)"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -50,7 +50,6 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets_manager_read" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        # Terraform plan時点で確定できる範囲にスコープする（apply後に決まるARNをcount条件に使わない）
         Resource = [
           # RDS managed secret (name starts with "rds!")
           "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:rds!*",
@@ -60,4 +59,9 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets_manager_read" {
       }
     ]
   })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_secrets_manager_read" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = aws_iam_policy.ecs_task_execution_secrets_manager_read.arn
 }
