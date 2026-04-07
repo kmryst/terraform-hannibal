@@ -103,9 +103,9 @@ variable "db_password" {
 }
 
 variable "manage_master_user_password" {
-  description = "If true, RDS manages the master password in Secrets Manager (recommended for production-like security posture)"
+  description = "If true, RDS manages the master password in Secrets Manager. Requires secretsmanager:CreateSecret permission on the CICD role. Default false to avoid CICD boundary complexity."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "alert_email" {

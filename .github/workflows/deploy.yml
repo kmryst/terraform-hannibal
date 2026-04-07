@@ -105,6 +105,7 @@ jobs:
             -var="environment=dev" \
             -var="deployment_type=$DEPLOYMENT_TYPE" \
             -var="enable_cloudfront=true" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -out=tfplan
           terraform apply -auto-approve tfplan
           
