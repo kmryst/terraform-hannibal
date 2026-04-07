@@ -29,6 +29,8 @@
         "iam:ListRolePolicies",
         "iam:CreatePolicy",
         "iam:DeletePolicy",
+        "iam:TagPolicy",
+        "iam:UntagPolicy",
         "iam:GetPolicy",
         "iam:GetPolicyVersion",
         "iam:ListPolicyVersions",
