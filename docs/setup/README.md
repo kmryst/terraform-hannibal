@@ -97,19 +97,32 @@ terraform plan  # 変更プレビュー
 
 ---
 
-## 🔑 ステップ3: GitHub Secrets登録
+## 🔐 ステップ3: Secrets Manager にDB接続情報を登録（推奨）
 
-### 3-1. 必須Secrets一覧
+このプロジェクトでは **DBパスワードや `DATABASE_URL` をTerraformやGitHub Secretsに平文で持たない** 方針です。  
+ECS タスクは **Secrets Manager から `secrets` 注入**で DB 接続情報を取得します。
+
+### 3-1. Secret は RDS が自動作成（managed secret）
+
+RDS は `manage_master_user_password = true` で作成され、**master user の認証情報を Secrets Manager に自動保存**します。  
+アプリ（ECS）は **同じ managed secret** から `host/port/username/password` を参照するため、**ズレない**構成になります。
+
+> 補足: `DB_NAME` は秘匿ではないので、ECS側は通常の環境変数として渡します。
+
+---
+
+## 🔑 ステップ4: GitHub Secrets登録
+
+### 4-1. 必須Secrets一覧
 
 | Secret名 | 説明 | 取得方法 |
 |---------|------|---------|
 | `AWS_ACCESS_KEY_ID` | hannibal-cicd のAccess Key | ステップ1-3で取得 |
 | `AWS_SECRET_ACCESS_KEY` | hannibal-cicd のSecret Key | ステップ1-3で取得 |
 | `AWS_REGION` | デプロイ先リージョン | `ap-northeast-1` |
-| `DATABASE_URL` | PostgreSQL接続文字列 | 初回デプロイ後に設定 |
 | `CLIENT_URL` | Frontend URL | `https://hamilcar-hannibal.click` |
 
-### 3-2. 登録方法（GitHub CLI推奨）
+### 4-2. 登録方法（GitHub CLI推奨）
 
 ```powershell
 # PowerShellでの登録例
@@ -119,15 +132,9 @@ gh secret set AWS_REGION -b "ap-northeast-1"
 gh secret set CLIENT_URL -b "https://hamilcar-hannibal.click"
 ```
 
-**DATABASE_URL は初回デプロイ後に追加:**
-```powershell
-# RDS作成後
-gh secret set DATABASE_URL -b "postgresql://hannibal:PASSWORD@xxx.rds.amazonaws.com:5432/hannibal"
-```
-
 ---
 
-## 🚀 ステップ4: 初回デプロイ
+## 🚀 ステップ5: 初回デプロイ
 
 ### 4-1. GitHub Actionsで実行
 
@@ -242,8 +249,8 @@ terraform force-unlock <LOCK_ID>
 # CloudWatch Logs確認
 aws logs tail /ecs/nestjs-hannibal-3 --follow
 
-# 原因: DATABASE_URL環境変数未設定
-# 解決: GitHub Secretsに追加 → 再デプロイ
+# 原因: ECS実行ロールのSecrets Manager参照権限不足 / RDS managed secret未作成
+# 解決: Terraform applyでRDS作成（managed secret作成）→ IAMポリシー確認 → 再デプロイ
 ```
 
 ### Backend初期化エラー

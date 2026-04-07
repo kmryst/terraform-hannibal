@@ -92,8 +92,14 @@ variable "db_username" {
 variable "db_password" {
   description = "Database master password"
   type        = string
-  default     = "hannibal123!"
   sensitive   = true
+  default     = null
+}
+
+variable "manage_master_user_password" {
+  description = "If true, RDS manages the master password in Secrets Manager (recommended for production-like security posture)"
+  type        = bool
+  default     = true
 }
 
 variable "alert_email" {

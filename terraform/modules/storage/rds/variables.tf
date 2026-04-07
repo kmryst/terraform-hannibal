@@ -50,4 +50,11 @@ variable "db_password" {
   description = "Database master password"
   type        = string
   sensitive   = true
+  default     = null
+}
+
+variable "manage_master_user_password" {
+  description = "If true, RDS manages the master user password in Secrets Manager"
+  type        = bool
+  default     = true
 }

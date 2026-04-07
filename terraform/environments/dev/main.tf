@@ -25,7 +25,8 @@ module "security_groups" {
 module "iam" {
   source = "../../modules/security/iam"
 
-  project_name = var.project_name
+  project_name                = var.project_name
+  secrets_manager_secret_arns = compact([module.rds.master_user_secret_arn])
 }
 
 # --- Reliability + Performance Pillar: VPC ---
@@ -85,8 +86,8 @@ module "ecs" {
   memory                      = var.memory
   client_url_for_cors         = var.client_url_for_cors
   db_username                 = var.db_username
-  db_password                 = var.db_password
   db_name                     = var.db_name
+  db_credentials_secret_arn   = module.rds.master_user_secret_arn
   ecs_task_execution_role_arn = module.iam.ecs_task_execution_role_arn
   app_subnet_ids              = module.vpc.app_subnet_ids
   ecs_security_group_id       = module.security_groups.ecs_security_group_id
@@ -100,16 +101,17 @@ module "ecs" {
 module "rds" {
   source = "../../modules/storage/rds"
 
-  project_name          = var.project_name
-  environment           = var.environment
-  data_subnet_ids       = module.vpc.data_subnet_ids
-  rds_security_group_id = module.security_groups.rds_security_group_id
-  db_instance_class     = var.db_instance_class
-  db_allocated_storage  = var.db_allocated_storage
-  db_engine_version     = var.db_engine_version
-  db_name               = var.db_name
-  db_username           = var.db_username
-  db_password           = var.db_password
+  project_name                = var.project_name
+  environment                 = var.environment
+  data_subnet_ids             = module.vpc.data_subnet_ids
+  rds_security_group_id       = module.security_groups.rds_security_group_id
+  db_instance_class           = var.db_instance_class
+  db_allocated_storage        = var.db_allocated_storage
+  db_engine_version           = var.db_engine_version
+  db_name                     = var.db_name
+  db_username                 = var.db_username
+  db_password                 = var.db_password
+  manage_master_user_password = var.manage_master_user_password
 }
 
 # --- Operational Excellence Pillar: Monitoring ---

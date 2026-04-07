@@ -36,3 +36,24 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
   role       = aws_iam_role.ecs_task_execution_role.name                               # 先ほど作成したロールの.name 属性
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy" # AWSが提供するマネージドポリシー
 }
+
+resource "aws_iam_role_policy" "ecs_task_execution_secrets_manager_read" {
+  count = length(var.secrets_manager_secret_arns) > 0 ? 1 : 0
+
+  name = "${var.project_name}-ecs-task-execution-secrets-manager-read"
+  role = aws_iam_role.ecs_task_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = var.secrets_manager_secret_arns
+      }
+    ]
+  })
+}

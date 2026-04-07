@@ -156,7 +156,7 @@ aws logs tail /ecs/nestjs-hannibal-3 --follow
 **よくある原因と解決方法:**
 | 原因 | 解決方法 |
 |------|---------|
-| DATABASE_URL未設定 | GitHub Secrets追加 → 再デプロイ |
+| RDS managed secret参照不可 | IAM（ECS実行ロール）にSecrets Manager参照権限付与 → 再デプロイ |
 | ECRイメージ取得失敗 | NAT Gateway確認 |
 | メモリ不足 | Task Definition のメモリ増加 |
 
@@ -213,7 +213,7 @@ terraform force-unlock <LOCK_ID>
 ```powershell
 # Secrets Manager確認
 aws secretsmanager get-secret-value `
-  --secret-id hannibal/db/password
+  --secret-id <RDS_MANAGED_SECRET_ARN_or_NAME>
 
 # Security Group確認
 aws ec2 describe-security-groups `
@@ -221,9 +221,9 @@ aws ec2 describe-security-groups `
 ```
 
 **解決方法:**
-1. DATABASE_URL が正しいか確認
+1. Secrets Manager の値（DB_HOST/DB_USER/DB_PASSWORD/DB_NAME など）が正しいか確認
 2. RDS Security Group でECSからの通信を許可
-3. パスワード変更時は Secrets Manager + GitHub Secrets を同時更新
+3. パスワード変更時は Secrets Manager を更新（アプリ側はECS再起動で反映）
 
 ### 5. CloudFront キャッシュ問題
 

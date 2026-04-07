@@ -34,9 +34,10 @@ resource "aws_db_instance" "postgres" {
   storage_type          = "gp2"
   storage_encrypted     = true
 
-  db_name  = var.db_name
-  username = var.db_username
-  password = var.db_password
+  db_name                     = var.db_name
+  username                    = var.db_username
+  manage_master_user_password = var.manage_master_user_password
+  password                    = var.manage_master_user_password ? null : var.db_password
 
   vpc_security_group_ids = [var.rds_security_group_id]
   db_subnet_group_name   = aws_db_subnet_group.postgres.name

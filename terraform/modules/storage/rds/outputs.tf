@@ -17,3 +17,8 @@ output "db_subnet_group_name" {
   description = "Name of the DB subnet group"
   value       = aws_db_subnet_group.postgres.name
 }
+
+output "master_user_secret_arn" {
+  description = "Secrets Manager ARN for the RDS managed master user secret (only when manage_master_user_password is enabled)"
+  value       = try(aws_db_instance.postgres.master_user_secret[0].secret_arn, null)
+}

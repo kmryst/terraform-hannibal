@@ -54,10 +54,9 @@ variable "db_username" {
   type        = string
 }
 
-variable "db_password" {
-  description = "Database master password"
+variable "db_credentials_secret_arn" {
+  description = "Secrets Manager secret ARN that stores DB credentials for the application (RDS managed secret recommended)"
   type        = string
-  sensitive   = true
 }
 
 variable "db_name" {
