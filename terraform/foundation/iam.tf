@@ -347,8 +347,10 @@ resource "aws_iam_role_policy_attachment" "hannibal_cicd_policy_attachment" {
 # --- 実際に使用中のポリシー（手動管理・記録用） ---
 resource "aws_iam_policy" "hannibal_cicd_policy" {
   name        = "HannibalCICDPolicy-Dev"
-  description = "CI/CD automation permissions - ECR push, ECS update, limited operations (段階的縮小予定)"
+  description = "CI/CD automation permissions - ECR push, ECS update, RDS managed password, Secrets Manager (段階的縮小予定)"
 
+  # AWS上の実体は v13 (2026-04-07更新)
+  # secretsmanager:* を追加: RDS managed password (manage_master_user_password=true) に必要
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -364,6 +366,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
           "logs:*",
           "cloudwatch:*",
           "rds:*",
+          "secretsmanager:*",
           "s3:*",
           "sns:*",
           "sts:*",

@@ -73,28 +73,6 @@ module "load_balancer" {
   green_target_group_arn = module.codedeploy.green_target_group_arn
 }
 
-# --- Security Pillar: DB Credentials Secret ---
-# RDS managed password をオフにしているため、Terraform でアプリ用 secret を作成し
-# ECS がそこから DB 接続情報を取得する。パスワード自体は GitHub Secrets 経由で受け取り
-# Terraform state にも plan ログにも残らないようにする。
-resource "aws_secretsmanager_secret" "db_credentials" {
-  name                    = "${var.project_name}/db/credentials"
-  description             = "DB credentials for ECS tasks (host/port/username/password/dbname)"
-  recovery_window_in_days = 0 # dev環境では即削除を許可（再作成を容易にする）
-}
-
-resource "aws_secretsmanager_secret_version" "db_credentials" {
-  secret_id = aws_secretsmanager_secret.db_credentials.id
-
-  secret_string = jsonencode({
-    host     = split(":", module.rds.db_instance_endpoint)[0]
-    port     = "5432"
-    username = var.db_username
-    password = var.db_password
-    dbname   = var.db_name
-  })
-}
-
 # --- Performance + Cost Optimization Pillar: ECS ---
 module "ecs" {
   source = "../../modules/compute/ecs"
@@ -110,7 +88,7 @@ module "ecs" {
   client_url_for_cors         = var.client_url_for_cors
   db_username                 = var.db_username
   db_name                     = var.db_name
-  db_credentials_secret_arn   = aws_secretsmanager_secret.db_credentials.arn
+  db_credentials_secret_arn   = module.rds.master_user_secret_arn
   ecs_task_execution_role_arn = module.iam.ecs_task_execution_role_arn
   app_subnet_ids              = module.vpc.app_subnet_ids
   ecs_security_group_id       = module.security_groups.ecs_security_group_id
