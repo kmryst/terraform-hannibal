@@ -132,11 +132,11 @@ jobs:
       - name: Sync frontend to S3 and invalidate CloudFront
         run: |
           set -e
-          aws s3 sync client/dist/ s3://${{ env.S3_BUCKET }}/ --delete
+          aws s3 sync client/dist/ "s3://${S3_BUCKET}/" --delete
 
-          if [ "${{ env.CLOUDFRONT_ARN }}" != "" ]; then
-            CLOUDFRONT_ID=$(echo ${{ env.CLOUDFRONT_ARN }} | cut -d'/' -f2)
-            aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths "/*"
+          if [ -n "${CLOUDFRONT_ARN}" ]; then
+            CLOUDFRONT_ID=$(echo "${CLOUDFRONT_ARN}" | cut -d'/' -f2)
+            aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_ID" --paths "/*"
           fi
 
       - name: Login to Amazon ECR
