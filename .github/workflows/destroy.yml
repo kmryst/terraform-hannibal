@@ -40,12 +40,15 @@ jobs:
       - name: Assume CICD Role
         run: |
           set -e
+          ROLE_ARN="arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev"
+          SESSION_NAME="github-actions-destroy-$(date +%s)"
           CREDS=$(aws sts assume-role \
-            --role-arn arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev \
-            --role-session-name destroy-$(date +%s))
-          echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+            --role-arn "$ROLE_ARN" \
+            --role-session-name "$SESSION_NAME" \
+            --output json)
+          echo "AWS_ACCESS_KEY_ID=$(echo "$CREDS" | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo "$CREDS" | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo "$CREDS" | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
           echo "✅ Assumed CICD role"
 
       - name: Stop active CodeDeploy deployments
@@ -103,11 +106,10 @@ jobs:
       - name: Cleanup S3 buckets (best-effort)
         run: |
           set -e
+          # codedeploy-artifacts: Terraform で管理・destroy で消えるが、残っているオブジェクトを先に削除しておく
           aws s3 rm s3://${{ env.PROJECT_NAME }}-codedeploy-artifacts --recursive || true
-          FRONTEND_BUCKET=$(jq -r '.s3_bucket_name.value' terraform/environments/dev/tf_outputs.json 2>/dev/null || echo "")
-          if [ -n "$FRONTEND_BUCKET" ]; then
-            aws s3 rm s3://$FRONTEND_BUCKET --recursive || true
-          fi
+          # フロント用バケット本体は手動作成・永続（data 参照）なのでバケット削除はしない。オブジェクトのみ掃除
+          aws s3 rm s3://${{ env.PROJECT_NAME }}-frontend --recursive || true
 
       - name: Cleanup ECR images (best-effort)
         run: |
