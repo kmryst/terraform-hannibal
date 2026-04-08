@@ -75,6 +75,22 @@ jobs:
           terraform version
           which terraform
 
+      # aws_s3_object の fileset 用。空 dist で apply すると state 上のオブジェクトが消えるため、Terraform より前にビルドする
+      - name: Setup Node.js for frontend build
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Build frontend (client/dist for Terraform)
+        run: |
+          set -e
+          cd client
+          echo "VITE_GRAPHQL_ENDPOINT=/graphql" > .env.production
+          npm ci
+          npm run build
+
       - name: Assume CICD Role
         run: |
           set -e
@@ -113,16 +129,11 @@ jobs:
           echo "S3_BUCKET=$(terraform output -raw s3_bucket_name)" >> $GITHUB_ENV
           echo "CLOUDFRONT_ARN=$(terraform output -raw cloudfront_distribution_arn)" >> $GITHUB_ENV
 
-      - name: Build and Deploy Frontend
+      - name: Sync frontend to S3 and invalidate CloudFront
         run: |
           set -e
-          cd client
-          echo "VITE_GRAPHQL_ENDPOINT=/graphql" > .env.production
-          npm ci
-          npm run build
-          
-          aws s3 sync dist/ s3://${{ env.S3_BUCKET }}/ --delete
-          
+          aws s3 sync client/dist/ s3://${{ env.S3_BUCKET }}/ --delete
+
           if [ "${{ env.CLOUDFRONT_ARN }}" != "" ]; then
             CLOUDFRONT_ID=$(echo ${{ env.CLOUDFRONT_ARN }} | cut -d'/' -f2)
             aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths "/*"
