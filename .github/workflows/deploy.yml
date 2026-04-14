@@ -47,13 +47,15 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # GitHub OIDC トークン発行に必須
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Install prerequisites
@@ -90,19 +92,6 @@ jobs:
           echo "VITE_GRAPHQL_ENDPOINT=/graphql" > .env.production
           npm ci
           npm run build
-
-      - name: Assume CICD Role
-        run: |
-          set -e
-          ROLE_ARN="arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev"
-          SESSION_NAME="github-actions-deploy-$(date +%s)"
-          CREDS=$(aws sts assume-role \
-            --role-arn "$ROLE_ARN" \
-            --role-session-name "$SESSION_NAME" \
-            --output json)
-          echo "AWS_ACCESS_KEY_ID=$(echo "$CREDS" | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo "$CREDS" | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo "$CREDS" | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
       - name: Deploy Infrastructure
         working-directory: ./terraform/environments/dev

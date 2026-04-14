@@ -2,6 +2,16 @@
 # 基盤IAMリソース（Terraformで作成後、管理から除外・永続保持）
 # AWS Professional設計: Infrastructure as Code + 永続管理
 
+# --- 0. GitHub Actions OIDC Provider ---
+# GitHub Actions が発行する短期トークンを AWS が検証するための IdP 登録
+# 適用: aws iam create-open-id-connect-provider で実施（state管理外）
+# 参考: https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+}
+
 # --- 新設計: 2ユーザー × 2ロール構成 ---
 
 # --- 1. HannibalDeveloperRole-Dev (統合開発ロール) ---
@@ -28,6 +38,9 @@ resource "aws_iam_role" "hannibal_developer_role" {
 }
 
 # --- 2. HannibalCICDRole-Dev (自動デプロイロール) ---
+# 信頼ポリシー: GitHub OIDC による AssumeRoleWithWebIdentity（長期キー不要）
+# 許可範囲: kmryst/terraform-hannibal の main ブランチからの workflow_dispatch のみ
+# 適用: aws iam update-assume-role-policy で実施（state管理外）
 resource "aws_iam_role" "hannibal_cicd_role" {
   name                 = "HannibalCICDRole-Dev"
   permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/HannibalCICDBoundary"
@@ -36,14 +49,17 @@ resource "aws_iam_role" "hannibal_cicd_role" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action = "sts:AssumeRole"
         Effect = "Allow"
+        Action = "sts:AssumeRoleWithWebIdentity"
         Principal = {
-          AWS = "arn:aws:iam::${var.aws_account_id}:user/hannibal-cicd"
+          Federated = "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
         }
         Condition = {
           StringEquals = {
-            "aws:RequestedRegion" = "ap-northeast-1"
+            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+          }
+          StringLike = {
+            "token.actions.githubusercontent.com:sub" = "repo:kmryst/terraform-hannibal:ref:refs/heads/main"
           }
         }
       }
