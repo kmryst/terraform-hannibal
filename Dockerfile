@@ -32,7 +32,6 @@ RUN npm ci --omit=dev
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/src ./src
 COPY --from=builder /usr/src/app/node_modules ./node_modules
-COPY --from=builder /usr/src/app/.env ./
 
 ENV NODE_ENV=production
 ENV PORT=3000

@@ -22,5 +22,9 @@ ync function bootstrap() {
 # Mac特有のファイル
 .DS_Store
 
+# 環境変数ファイル（ランタイムは ECS タスク定義から注入）
+.env
+.env.*
+
 # Build analysis
 stats.html
