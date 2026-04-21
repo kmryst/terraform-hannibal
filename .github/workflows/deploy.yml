@@ -94,6 +94,8 @@ jobs:
           npm run build
 
       - name: Deploy Infrastructure
+        # prod に切り替える場合は working-directory を ./terraform/environments/prod に変更するか
+        # inputs に environment を追加して -chdir で切り替える
         working-directory: ./terraform/environments/dev
         run: |
           set -e

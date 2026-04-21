@@ -27,6 +27,7 @@ module "cloudfront" {
 module "dns_frontend" {
   source = "../../modules/networking/dns"
 
+  zone_name                 = var.domain_name
   domain_name               = var.domain_name
   hosted_zone_id            = var.hosted_zone_id
   cloudfront_domain_name    = module.cloudfront.distribution_domain_name

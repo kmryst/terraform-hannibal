@@ -23,7 +23,7 @@ locals {
 # 古いイメージを自動削除するためのライフサイクルポリシー
 # Infrastructure as Code原則に従いTerraformで管理
 resource "aws_ecr_lifecycle_policy" "nestjs_hannibal_3_policy" {
-  repository = "nestjs-hannibal-3" # 直接リポジトリ名を指定
+  repository = var.project_name
 
   policy = jsonencode({
     rules = [

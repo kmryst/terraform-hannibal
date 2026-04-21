@@ -1,3 +1,8 @@
+variable "zone_name" {
+  description = "Route53 hosted zone name to look up (e.g., hamilcar-hannibal.click)"
+  type        = string
+}
+
 variable "domain_name" {
   description = "Your custom domain name (e.g., app.example.com)"
   type        = string

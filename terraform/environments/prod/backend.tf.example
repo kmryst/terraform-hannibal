@@ -1,0 +1,13 @@
+# S3 Backend Configuration for Terraform State (prod)
+# このファイルをコピーして backend.tf を作成してください: cp backend.tf.example backend.tf
+# ※ backend.tf は git 管理外にはしていませんが、apply 前に必ず内容を確認してください。
+
+terraform {
+  backend "s3" {
+    bucket         = "nestjs-hannibal-3-terraform-state"
+    key            = "environments/prod/terraform.tfstate"
+    region         = "ap-northeast-1"
+    dynamodb_table = "terraform-state-lock"
+    encrypt        = true
+  }
+}

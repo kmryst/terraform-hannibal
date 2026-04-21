@@ -41,6 +41,8 @@ module "vpc" {
 # --- Reliability Pillar: DNS ---
 module "dns" {
   source = "../../modules/networking/dns"
+
+  zone_name = var.domain_name
 }
 
 # --- Performance + Cost Optimization Pillar: CodeDeploy ---

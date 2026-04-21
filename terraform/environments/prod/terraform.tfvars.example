@@ -1,0 +1,31 @@
+# terraform.tfvars for prod environment
+# このファイルをコピーして terraform.tfvars を作成してください: cp terraform.tfvars.example terraform.tfvars
+# ※ terraform.tfvars は .gitignore で管理外にすることを推奨（シークレットが入る場合）
+
+environment  = "prod"
+project_name = "nestjs-hannibal-3"
+aws_region   = "ap-northeast-1"
+
+# ドメイン設定（prod ドメインまたはサブドメインに変更）
+domain_name    = "prod.hamilcar-hannibal.click"
+hosted_zone_id = "<prod 用 Route53 Hosted Zone ID>"
+
+# ACM 証明書（us-east-1 で発行した prod 用 ARN）
+acm_certificate_arn_us_east_1 = "arn:aws:acm:us-east-1:<account-id>:certificate/<cert-id>"
+
+# CORS
+client_url_for_cors = "https://prod.hamilcar-hannibal.click"
+
+# ECR（dev と同一リポジトリを使う場合はそのまま）
+ecr_repository_url = "258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3"
+
+# ECS スケール（prod は 2 以上推奨）
+desired_task_count = 2
+cpu                = 512
+memory             = 1024
+
+# RDS（prod は t3.small 以上推奨）
+db_instance_class = "db.t3.small"
+
+# CloudWatch アラート
+alert_email = "gatsbykenji@gmail.com"
