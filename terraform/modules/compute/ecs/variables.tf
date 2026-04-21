@@ -3,11 +3,6 @@ variable "project_name" {
   type        = string
 }
 
-variable "environment" {
-  description = "Environment (dev/staging/prod)"
-  type        = string
-}
-
 variable "aws_region" {
   description = "AWS region"
   type        = string
@@ -49,10 +44,6 @@ variable "client_url_for_cors" {
   default     = ""
 }
 
-variable "db_username" {
-  description = "Database master username"
-  type        = string
-}
 
 variable "db_credentials_secret_arn" {
   description = "Secrets Manager secret ARN that stores DB credentials for the application (RDS managed secret recommended)"

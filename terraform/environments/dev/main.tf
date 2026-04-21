@@ -2,14 +2,6 @@
 # AWS Well-Architected準拠 - 開発環境統合設定
 
 # --- AWS Professional Environment Configuration ---
-locals {
-  # 環境別リソース最適化
-  enable_multi_az       = var.environment != "dev"
-  enable_backup         = var.environment != "dev"
-  backup_retention_days = var.environment == "prod" ? 7 : 0
-  publicly_accessible   = var.environment == "dev"
-  deletion_protection   = var.environment == "prod"
-}
 
 # --- Security Pillar: セキュリティグループ ---
 module "security_groups" {

@@ -1,12 +1,5 @@
 # --- AWS Professional Environment Configuration ---
 locals {
-  # 環境別リソース最適化
-  enable_multi_az       = var.environment != "dev"
-  enable_backup         = var.environment != "dev"
-  backup_retention_days = var.environment == "prod" ? 7 : 0
-  publicly_accessible   = var.environment == "dev"
-  deletion_protection   = var.environment == "prod"
-
   # RDS manage_master_user_password の Secrets は username/password のみ（host/port なし）のため、
   # ECS ではエンドポイントからホスト・ポートを環境変数で渡す。
   # https://docs.aws.amazon.com/secretsmanager/latest/userguide/reference_secret_json_structure.html

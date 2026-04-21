@@ -147,12 +147,6 @@ variable "frontend_build_path" {
   default     = "../../../client/dist"
 }
 
-variable "api_alb_dns_name" {
-  description = "DNS name of the backend API's Application Load Balancer"
-  type        = string
-  default     = ""
-}
-
 variable "domain_name" {
   description = "Your custom domain name (e.g., app.example.com)"
   type        = string
