@@ -31,8 +31,3 @@ alwaysApply: true
 - 3層VPC（Public/App/Data）でDB層を外部非公開
 - 停止運用により月額 $30-50 → 約 $5 に最適化
 - Permission Boundary + AssumeRole で最小権限設計
-
-## コミット規約
-
-- Conventional Commits（feat / fix / chore / docs / ci など）
-- Issue 駆動開発：feature/#issue番号-説明 形式のブランチ
