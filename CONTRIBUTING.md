@@ -9,9 +9,10 @@
 ### 1. Issue作成
 
 新しい機能追加やバグ修正は、必ずIssueから始めます。
+軽運用でもIssueは必須です。ただし簡潔で構いません。
 
 ```bash
-gh issue create --title "[Type] 短い要約" \
+gh issue create --title "[Infra] 短い要約" \
   --body-file docs/issue-templates/feature_request.md \
   --label "type:feature,area:infra,risk:low,cost:none"
 ```
@@ -20,6 +21,23 @@ gh issue create --title "[Type] 短い要約" \
 - `.github/ISSUE_TEMPLATE/feature_request.yml` (Web UI用)
 - `docs/issue-templates/feature_request.md` (CLI用 `--body-file`)
 
+**Issueタイトル命名規則**:
+- `Issue: [Type] 短い要約`
+
+**軽運用のIssueに必要な最小項目**:
+- `目的`
+- `対象`
+- `受け入れ条件`
+
+**厳密運用のIssueで必須にする項目**:
+- `背景/目的`
+- `要件/スコープ`
+- `受け入れ条件`
+- `リスク`
+- `コスト`
+
+`ダウンタイム` や `補足` は必要な場合のみ記載します。
+
 ---
 
 ### 2. ブランチ作成
@@ -27,14 +45,14 @@ gh issue create --title "[Type] 短い要約" \
 Issueに基づいてブランチを作成します。
 
 ```bash
-# ブランチ命名規則: feature/#issue番号-説明
-git checkout -b feature/#XX-short-description
+# ブランチ命名規則: <issue番号>-<kebab-case要約>
+git checkout -b 38-update-readme
 ```
 
 **例**:
 ```bash
 # Issue #38: README更新
-git checkout -b feature/#38-update-readme
+git checkout -b 38-update-readme
 ```
 
 ---
@@ -72,7 +90,7 @@ git commit -m "docs: README.mdにセットアップ手順を追加"
 リモートリポジトリにプッシュします。
 
 ```bash
-git push -u origin feature/#XX-short-description
+git push -u origin 38-update-readme
 ```
 
 ---
@@ -81,19 +99,29 @@ git push -u origin feature/#XX-short-description
 
 PRテンプレートを使ってPRを作成します。
 
-**PowerShell推奨例**（Issue番号自動埋め込み）:
+**PowerShell推奨例**:
 ```powershell
-gh pr create --title "[Type] 短い要約" `
+gh pr create --title "docs: update contributing guide" `
   --body "$(Get-Content .github/pull_request_template.md -Raw)`n`nCloses #XX" `
   --label type:feature --label area:backend --label risk:low --label cost:none
 ```
 
 **bash/zsh例**:
 ```bash
-gh pr create --title "[Type] 短い要約" \
+gh pr create --title "docs: update contributing guide" \
   --body "$(cat .github/pull_request_template.md)"$'\n\n'"Closes #XX" \
   --label type:feature --label area:backend --label risk:low --label cost:none
 ```
+
+**PRタイトル命名規則**:
+- `PR: <type>: <変更の要約>`
+
+**PR本文のIssueリンク規則**:
+- `Closes #<issue番号>`
+- `Fixes #<issue番号>`
+- `Refs #<issue番号>`
+
+上記のいずれかを必ず記載してください。PR Check が確認します。
 
 **PRテンプレート項目** (`.github/pull_request_template.md`):
 - 目的
@@ -103,6 +131,19 @@ gh pr create --title "[Type] 短い要約" \
 - 可観測性/検証
 - ロールバック手順
 - `Closes #XX` （Issue自動クローズ）
+
+**軽運用のPRに必要な最小項目**:
+- `目的`
+- `変更内容`
+- `影響範囲`
+- `Closes/Fixes/Refs #<issue番号>`
+
+`リスク`、`コスト`、`ロールバック` は `なし` または `No-op` で簡潔に記載して構いません。
+
+**厳密運用のPR**:
+- 影響範囲、検証内容、人間確認の観点を丁寧に記載します
+- `ロールバック` は必要な変更だけ必須です
+- GitHub の `Approve 1` は必須にしませんが、人間が丁寧に確認します
 
 **必須ラベル4種類**:
 - `type:*` - feature/bug/docs/infra/chore
@@ -139,8 +180,49 @@ mainブランチから次のIssue用ブランチを作成します。
 
 ```bash
 gh issue create --title "[Type] 次のタスク"
-git checkout -b feature/#YY-next-task
+git checkout -b YY-next-task
 ```
+
+---
+
+## 🧭 運用モード
+
+### 軽運用
+
+以下のような変更は軽運用で進めます。
+
+- `README`
+- `docs`
+- コメント修正
+- 文言修正
+- 影響範囲が限定的な軽微修正
+
+軽運用でも `Issue -> Branch -> PR -> CI` の流れは維持します。
+
+### 厳密運用
+
+以下のいずれかに該当する変更は厳密運用で進めます。
+
+- `terraform/`
+- `.github/workflows/`
+- `IAM`
+- `Secrets`
+- `Network`
+- `Security`
+- `deploy`
+- `destroy`
+- 運用環境に影響する変更
+- コスト影響がある変更
+- ロールバックを考える必要がある変更
+
+厳密運用では、Issue と PR の記載を丁寧に行い、人間が変更内容を十分に確認します。
+
+### 例外ルール
+
+- 緊急時はメンテナーが `Blank issue` を使ってよい
+- ただし、その日のうちにテンプレ形式へ補完する
+- 緊急時でも PR は必ず作る
+- `main` へ直pushはしない
 
 ---
 
@@ -155,7 +237,7 @@ git checkout -b feature/#YY-next-task
                 ▼
 ┌─────────────────────────────────────────────┐
 │ 2. ブランチ作成                              │
-│    git checkout -b feature/#XX-description   │
+│    git checkout -b XX-description            │
 └───────────────┬─────────────────────────────┘
                 │
                 ▼
@@ -167,7 +249,7 @@ git checkout -b feature/#YY-next-task
                 ▼
 ┌─────────────────────────────────────────────┐
 │ 4. プッシュ                                  │
-│    git push -u origin feature/#XX            │
+│    git push -u origin XX-description         │
 └───────────────┬─────────────────────────────┘
                 │
                 ▼
@@ -253,9 +335,9 @@ gh alias set done '!f() { gh pr merge "$1" --merge && git checkout main && git p
 - [ ] mainブランチにいるか確認（`git branch --show-current`）
 - [ ] 最新のmainを取得済みか（`git pull origin main`）
 - [ ] Issueを作成したか
-- [ ] ブランチ名が `feature/#XX-description` 形式か
+- [ ] ブランチ名が `<issue番号>-<kebab-case要約>` 形式か
 - [ ] コミットメッセージがConventional Commits形式か
-- [ ] PR本文に `Closes #XX` を記載したか
+- [ ] PR本文に `Closes #XX` / `Fixes #XX` / `Refs #XX` のいずれかを記載したか
 
 ---
 
