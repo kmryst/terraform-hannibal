@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     # 手動実行のみ許可（PRやスケジュールでは実行されない）
   # pull_request:
-  #   branches: [main, feature/develop]
+  #   branches: [main]
   # schedule:
   #   - cron: "0 0 * * 1"
 jobs:
