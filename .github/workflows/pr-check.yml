@@ -2,6 +2,7 @@ name: PR Check
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
     branches: [main]
 
 jobs:

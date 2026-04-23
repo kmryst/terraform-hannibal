@@ -5,7 +5,7 @@
 
 ## 変更内容 *必須*
 <!-- 具体的に何を変更したか（1行要点） -->
-**変更タイプ**: type:docs / type:feature / type:infra / type:bug / type:chore / type:security / type:refactor / type:test / type:ci
+**変更タイプ**: type:docs / type:feature / type:infra / type:bug / type:chore / type:refactor / type:test
 <!-- 必ずラベル体系（copilot-instructions.md/CONTRIBUTING.md参照）に合わせて記載 -->
 
 ## 影響範囲 *必須*
@@ -36,7 +36,7 @@
 ## 承認/リリース連携 *推奨*
 - **必須承認者**: @xxx / なし
 - **リリースノート**: 要 / 不要
-- **推奨ラベル**: type:doc, area:github, risk:low, cost:none
+- **推奨ラベル**: type:docs, area:docs, risk:low, cost:none
 
 <details>
 <summary>テスト結果/検証手順</summary>
