@@ -126,6 +126,10 @@
   color: "28a745"
   description: "準備完了・マージ可能"
 
+- name: "needs-template"
+  color: "d93f0b"
+  description: "Issueテンプレートの必須項目が不足"
+
 # Special - 特殊用途
 - name: "good first issue"
   color: "7057ff"
@@ -150,4 +154,3 @@
 - name: "ai-task"
   color: "BFD4F2"  # 既存の青系に合わせるなど
   description: "AI支援フローに乗せるIssue用ラベル"
-

@@ -5,6 +5,21 @@ on:
     branches: [main, feature/develop]
 
 jobs:
+  pr-policy-check:
+    name: PR Policy Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require linked issue in PR body
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if printf '%s\n' "$PR_BODY" | grep -Eiq '(close[sd]?|fix(e[sd])?|resolve[sd]?|refs?|relates to) #[0-9]+'; then
+            echo "Linked issue found."
+          else
+            echo "::error::PR body must include a linked issue, for example: Closes #123, Fixes #123, or Refs #123"
+            exit 1
+          fi
+
   backend-check:
     name: Backend Lint & Build
     runs-on: ubuntu-latest

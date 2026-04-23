@@ -1,0 +1,109 @@
+name: Issue Template Check
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  issue-template-check:
+    name: Issue Template Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate issue body
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- issue-template-check -->';
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const labels = issue.labels.map((label) => label.name);
+
+            const hasAll = (headings) =>
+              headings.every((heading) => body.includes(`### ${heading}`));
+
+            const isAiTask = labels.includes('ai-task');
+            const requiredHeadings = isAiTask
+              ? ['目的', '対象', '受け入れ条件']
+              : ['背景/目的', '要件/スコープ', '受け入れ条件', 'リスクレベル', 'コスト影響', '連携'];
+
+            const valid = hasAll(requiredHeadings);
+            const needsTemplateLabel = 'needs-template';
+            const addNeedsTemplateLabel = async () => {
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: [needsTemplateLabel],
+                });
+              } catch (error) {
+                if (error.status !== 404) {
+                  throw error;
+                }
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: needsTemplateLabel,
+                  color: 'd93f0b',
+                  description: 'Issueテンプレートの必須項目が不足',
+                });
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: [needsTemplateLabel],
+                });
+              }
+            };
+
+            if (valid) {
+              if (labels.includes(needsTemplateLabel)) {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name: needsTemplateLabel,
+                });
+              }
+              core.info('Issue body matches the required template headings.');
+              return;
+            }
+
+            await addNeedsTemplateLabel();
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              per_page: 100,
+            });
+
+            const alreadyCommented = comments.some((comment) =>
+              comment.user.type === 'Bot' && comment.body.includes(marker)
+            );
+
+            if (!alreadyCommented) {
+              const commentBody = [
+                marker,
+                `このIssueはテンプレートの必須項目が不足しているため、\`${needsTemplateLabel}\` を付けました。`,
+                '',
+                'Issue FormsまたはCLI用テンプレートを使い、少なくとも以下の見出しを含めてください。',
+                '',
+                ...requiredHeadings.map((heading) => `- \`### ${heading}\``),
+                '',
+                'AIで下書きした場合も、人間が内容を確認してテンプレート形式に整えてから次工程へ進めてください。',
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: commentBody,
+              });
+            }
+
+            core.setFailed(`Issue body is missing required template headings: ${requiredHeadings.join(', ')}`);
