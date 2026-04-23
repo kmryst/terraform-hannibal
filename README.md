@@ -131,7 +131,7 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - destroy.yml: ワンクリックでAWSリソース削除
 - pr-check.yml: Backend ESLint+Build、Frontend TypeScript+Build、Terraform Format+Validate
 - security-scan.yml: PR時と週次でCodeQL、Trivy、tfsec、Gitleaksを実行しGitHub Securityへ集約
-- architecture-diagram.yml: Python diagramsで構成図を自動更新
+- 構成図の自動生成Workflowは廃止済み（経緯: `docs/architecture/diagram-automation-history.md`）
 
 <div align="center">
   <img src="docs/screenshots/github-actions-demo.gif?v=20250108165536" alt="GitHub Actions Demo" width="800">
