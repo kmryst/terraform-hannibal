@@ -1,4 +1,11 @@
 
+locals {
+  backup_retention_days = var.environment == "prod" ? 30 : 7
+  enable_multi_az       = var.environment == "prod"
+  enable_backup         = var.environment == "prod"
+  deletion_protection   = var.environment == "prod"
+}
+
 # --- RDS Subnet Group ---
 resource "aws_db_subnet_group" "postgres" {
   name       = "${var.project_name}-db-subnet-group"

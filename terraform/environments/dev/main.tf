@@ -72,7 +72,6 @@ module "ecs" {
   source = "../../modules/compute/ecs"
 
   project_name                = var.project_name
-  environment                 = var.environment
   aws_region                  = var.aws_region
   ecr_repository_url          = var.ecr_repository_url
   container_port              = var.container_port
@@ -80,7 +79,6 @@ module "ecs" {
   cpu                         = var.cpu
   memory                      = var.memory
   client_url_for_cors         = var.client_url_for_cors
-  db_username                 = var.db_username
   db_name                     = var.db_name
   db_credentials_secret_arn   = module.rds.master_user_secret_arn
   ecs_task_execution_role_arn = module.iam.ecs_task_execution_role_arn
