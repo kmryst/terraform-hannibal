@@ -25,12 +25,12 @@ jobs:
             const hasAll = (headings) =>
               headings.every((heading) => body.includes(`### ${heading}`));
 
+            const lightHeadings = ['目的', '対象', '受け入れ条件'];
+            const strictHeadings = ['背景/目的', '要件/スコープ', '受け入れ条件', 'リスクレベル', 'コスト影響', '連携'];
             const isAiTask = labels.includes('ai-task');
-            const requiredHeadings = isAiTask
-              ? ['目的', '対象', '受け入れ条件']
-              : ['背景/目的', '要件/スコープ', '受け入れ条件', 'リスクレベル', 'コスト影響', '連携'];
-
-            const valid = hasAll(requiredHeadings);
+            const valid = isAiTask
+              ? hasAll(lightHeadings)
+              : hasAll(lightHeadings) || hasAll(strictHeadings);
             const needsTemplateLabel = 'needs-template';
             const addNeedsTemplateLabel = async () => {
               try {
@@ -87,16 +87,31 @@ jobs:
             );
 
             if (!alreadyCommented) {
-              const commentBody = [
-                marker,
-                `このIssueはテンプレートの必須項目が不足しているため、\`${needsTemplateLabel}\` を付けました。`,
-                '',
-                'Issue FormsまたはCLI用テンプレートを使い、少なくとも以下の見出しを含めてください。',
-                '',
-                ...requiredHeadings.map((heading) => `- \`### ${heading}\``),
-                '',
-                'AIで下書きした場合も、人間が内容を確認してテンプレート形式に整えてから次工程へ進めてください。',
-              ].join('\n');
+              const commentBody = isAiTask
+                ? [
+                    marker,
+                    `このIssueはテンプレートの必須項目が不足しているため、\`${needsTemplateLabel}\` を付けました。`,
+                    '',
+                    'AI支援タスクIssueでは、少なくとも以下の見出しを含めてください。',
+                    '',
+                    ...lightHeadings.map((heading) => `- \`### ${heading}\``),
+                    '',
+                    'AIで下書きした場合も、人間が内容を確認してテンプレート形式に整えてから次工程へ進めてください。',
+                  ].join('\n')
+                : [
+                    marker,
+                    `このIssueはテンプレートの必須項目が不足しているため、\`${needsTemplateLabel}\` を付けました。`,
+                    '',
+                    '通常Issueでは、軽運用または厳密運用のどちらかの見出しセットを満たしてください。',
+                    '',
+                    '軽運用の最小項目:',
+                    ...lightHeadings.map((heading) => `- \`### ${heading}\``),
+                    '',
+                    '厳密運用の項目:',
+                    ...strictHeadings.map((heading) => `- \`### ${heading}\``),
+                    '',
+                    'AIで下書きした場合も、人間が内容を確認してテンプレート形式に整えてから次工程へ進めてください。',
+                  ].join('\n');
 
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -106,4 +121,8 @@ jobs:
               });
             }
 
-            core.setFailed(`Issue body is missing required template headings: ${requiredHeadings.join(', ')}`);
+            core.setFailed(
+              isAiTask
+                ? `Issue body is missing required template headings: ${lightHeadings.join(', ')}`
+                : `Issue body must satisfy either light headings (${lightHeadings.join(', ')}) or strict headings (${strictHeadings.join(', ')})`
+            );
