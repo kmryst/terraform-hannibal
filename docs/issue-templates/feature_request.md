@@ -1,7 +1,7 @@
 ---
 name: Feature Request (CLI)
 about: 新機能/改善の要望チケット（CLI 用 Markdown テンプレート）
-title: '[{type}] 短い要約（例: README.mdにGitHub運用セクション追加）' # {type} は手入力
+title: '[{type}] 短い要約（例: README.mdにGitHub運用セクション追加）'
 labels: ['type:feature', 'area:infra', 'risk:low', 'cost:none']
 assignees: []
 ---

@@ -11,12 +11,14 @@
 新しい機能追加やバグ修正は、必ずIssueから始めます。
 
 ```bash
-gh issue create --title "[Type] 短い要約" --body "詳細内容"
+gh issue create --title "[Type] 短い要約" \
+  --body-file docs/issue-templates/feature_request.md \
+  --label "type:feature,area:infra,risk:low,cost:none"
 ```
 
 **Issueテンプレート**:
 - `.github/ISSUE_TEMPLATE/feature_request.yml` (Web UI用)
-- `.github/ISSUE_TEMPLATE/feature_request.md` (CLI用)
+- `docs/issue-templates/feature_request.md` (CLI用 `--body-file`)
 
 ---
 

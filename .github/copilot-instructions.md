@@ -35,7 +35,7 @@ CloudFront (CDN) → ALB → ECS Fargate (Blue/Green) → RDS PostgreSQL
 - CLI例（feature request テンプレート）:
 
   ```bash
-  gh issue create --template feature_request.md --label "type:docs,area:docs,risk:low,cost:none"
+  gh issue create --body-file docs/issue-templates/feature_request.md --label "type:docs,area:docs,risk:low,cost:none"
   ```
 
   CLI でテンプレ本文を扱う場合は `.github/tmp/` 配下に一時ファイルを作成し、起票後すぐ削除すること（例: `.github/tmp/issue-<summary>.md`）。
@@ -130,7 +130,7 @@ nestjs-hannibal-3/
 ### 1. Issue作成（必須第一ステップ）
 
 ```bash
-gh issue create --template feature_request.yml \
+gh issue create --body-file docs/issue-templates/feature_request.md \
   --label "type:feature,area:backend,risk:low,cost:none"
 ```
 
