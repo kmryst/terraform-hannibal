@@ -56,9 +56,15 @@ CloudFront (CDN) → ALB → ECS Fargate (Blue/Green) → RDS PostgreSQL
 - PowerShell推奨例（Issue番号自動埋め込み）:
 
   ```powershell
-  gh pr create --title "[Docs] 要約" `
-    --body "$(Get-Content .github/pull_request_template.md -Raw)`n`nCloses #XX" `
-    --label type:docs --label area:docs --label risk:low --label cost:none
+  ./scripts/github/create-pr-with-labels.sh `
+    --title "[Docs] 要約" `
+    --body-file .github/pull_request_template.md `
+    --issue XX `
+    --type type:docs `
+    --area area:docs `
+    --risk risk:low `
+    --cost cost:none `
+    --base main
   ```
 
 テンプレートを外した状態でのIssue/PR作成は禁止。例外が必要な場合は事前にオーナーへ相談し、承認を得ること。
@@ -163,9 +169,15 @@ git commit -m "feat: 新機能を追加"  # Conventional Commits
 ### 3. PR作成（PowerShell推奨）
 
 ```powershell
-gh pr create --title "[Feature] 要約" `
-  --body "$(Get-Content .github/pull_request_template.md -Raw)`n`nCloses #XX" `
-  --label type:feature --label area:backend --label risk:low --label cost:none
+./scripts/github/create-pr-with-labels.sh `
+  --title "[Feature] 要約" `
+  --body-file .github/pull_request_template.md `
+  --issue XX `
+  --type type:feature `
+  --area area:backend `
+  --risk risk:low `
+  --cost cost:none `
+  --base main
 ```
 
 ### 4. マージ & 自動クリーンアップ
