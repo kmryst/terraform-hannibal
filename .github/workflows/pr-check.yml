@@ -10,15 +10,89 @@ jobs:
     name: PR Policy Check
     runs-on: ubuntu-latest
     steps:
-      - name: Require linked issue in PR body
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require linked issue and mandatory labels
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_LABELS_JSON: ${{ toJson(github.event.pull_request.labels) }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if printf '%s\n' "$PR_BODY" | grep -Eiq '(close[sd]?|fix(e[sd])?|resolve[sd]?|refs?|relates to) #[0-9]+'; then
+          labels=$(printf '%s' "$PR_LABELS_JSON")
+
+          count_labels() {
+            local prefix=$1
+            printf '%s' "$labels" | grep -o "\"name\":\"$prefix[^\"]*\"" | wc -l | tr -d ' '
+          }
+
+          type_count=$(count_labels 'type:')
+          area_count=$(count_labels 'area:')
+          risk_count=$(count_labels 'risk:')
+          cost_count=$(count_labels 'cost:')
+
+          if [ "$type_count" -ne 1 ]; then
+            echo "::error::PR must have exactly one type:* label."
+            exit 1
+          fi
+
+          if [ "$area_count" -lt 1 ]; then
+            echo "::error::PR must have at least one area:* label."
+            exit 1
+          fi
+
+          if [ "$risk_count" -ne 1 ]; then
+            echo "::error::PR must have exactly one risk:* label."
+            exit 1
+          fi
+
+          if [ "$cost_count" -ne 1 ]; then
+            echo "::error::PR must have exactly one cost:* label."
+            exit 1
+          fi
+
+          strict_by_labels=false
+          strict_by_paths=false
+
+          if printf '%s' "$labels" | grep -Eq '"name":"risk:(medium|high)"'; then
+            strict_by_labels=true
+          fi
+
+          if printf '%s' "$labels" | grep -Eq '"name":"cost:(medium|large)"'; then
+            strict_by_labels=true
+          fi
+
+          changed_files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          if printf '%s\n' "$changed_files" | grep -Eq '^(terraform/|\.github/workflows/|scripts/deployment/|scripts/validation/)'; then
+            strict_by_paths=true
+          fi
+
+          if printf '%s\n' "$PR_BODY" | grep -Eiq '(close[sd]?|fix(e[sd])?|refs?) #[0-9]+'; then
             echo "Linked issue found."
           else
             echo "::error::PR body must include a linked issue, for example: Closes #123, Fixes #123, or Refs #123"
             exit 1
+          fi
+
+          if [ "$strict_by_labels" = true ] || [ "$strict_by_paths" = true ]; then
+            rollback_content=$(printf '%s\n' "$PR_BODY" | awk '
+              /^##[[:space:]]+ロールバック/ { capture=1; next }
+              capture && /^##[[:space:]]+/ { capture=0 }
+              capture { print }
+            ')
+
+            rollback_text=$(printf '%s\n' "$rollback_content" \
+              | sed '/^[[:space:]]*$/d' \
+              | sed '/^[[:space:]]*<!--.*-->[[:space:]]*$/d')
+            rollback_compact=$(printf '%s' "$rollback_text" | tr -d '[:space:]')
+
+            if [ -z "$rollback_compact" ] || printf '%s' "$rollback_compact" | grep -Eiq '^(なし|不要|no-op|noop|n/a|na)$'; then
+              echo "::error::Strict PRs must include a substantive rollback section."
+              exit 1
+            fi
           fi
 
   backend-check:

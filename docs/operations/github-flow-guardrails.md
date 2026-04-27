@@ -1,0 +1,127 @@
+# GitHub Flow Guardrails
+
+`terraform-hannibal` の GitHub フローを、少人数・dev中心運用に合う軽さを保ちながら、仕組みで担保するための設計意図をまとめた文書です。
+
+運用ルールの正本は [CONTRIBUTING.md](../../CONTRIBUTING.md) です。この文書では、採用方針の理由、未採用案、将来の再検討条件を補足します。
+
+## 目的
+
+- `Issue -> Branch -> PR -> Merge` を推奨ではなくガードレールで支える
+- AI Agent / CLI / API を使っても、最終的なIssue / PR品質が崩れないようにする
+- dev中心運用では過剰な承認フローを避け、人間確認は本当に効く場所へ寄せる
+
+## 設計原則
+
+- 入口の Issue は完全遮断ではなく、作成後のチェックで整える
+- 出口の PR は CI で強く止める
+- AI は下書きと整理を補助し、人間は起票判断・レビュー判断・反映判断を担う
+- ラベルは飾りではなく、分類と判断のためのメタデータとして扱う
+
+## 採用方針
+
+### 実装済みまたは今回整備するもの
+
+- `main` は branch protection で direct push 禁止、PR必須、required status checks 必須、squash merge only
+- Issue / PR の共通必須ラベルは `type / area / risk / cost`
+- PR 本文には `Closes / Fixes / Refs #<issue番号>` を必須にする
+- Issue の必須本文項目は `目的 / 対象 / 受け入れ条件`
+- Issue の自動チェックは本文とラベルの両方を見て、未整備なら `needs-template` を付ける
+- PR テンプレの `目的 / 変更内容 / 影響範囲` は推奨に留め、厳密運用PRでは `ロールバック` を必須にする
+
+### 軽運用 / 厳密運用
+
+軽運用では、Issue と PR の本文は最小限に保ちます。その代わり、Issueリンク、ラベル、CI を必須にして、最低限の構造を揃えます。
+
+厳密運用PRは、次のいずれかに当てはまるものです。
+
+- `risk:medium/high`
+- `cost:medium/large`
+- `terraform/**`
+- `.github/workflows/**`
+- `scripts/deployment/**`
+- `scripts/validation/**`
+
+厳密運用PRでは、`ロールバック` を本文に必須にします。ここで求めるのは見出しだけではなく、実際にどう戻すかが分かる最低限の内容です。
+
+### AI Agent 運用
+
+- 通常Issueも AI Agent / CLI / API から起票される前提で設計する
+- ただし、AI Agent は原則として起票前に Issue プランを提示する
+- Issue プランには、タイトル案、`目的`、`対象`、`受け入れ条件`、`type/area/risk/cost` の見立てを含める
+- 起票後は GitHub Actions が最終チェックする
+
+## 未採用案と理由
+
+### approval 常時必須
+
+今は採用しません。
+
+理由:
+
+- 少人数運用では重い
+- 形式的な承認になりやすい
+- 代わりに PR必須、必須CI、Issueリンク、ラベル、人間確認で担保できる
+
+### CODEOWNERS 即導入
+
+今は採用しません。
+
+理由:
+
+- 現状は責任分担の実益が薄い
+- 少人数では運用コストが先に立つ
+
+### dev への Environment 承認
+
+今は採用しません。
+
+理由:
+
+- `deploy.yml` は手動実行で、押す人間の判断がすでに入る
+- `destroy.yml` は `workflow_dispatch + DESTROY` 入力で十分強い確認になっている
+- dev中心運用では二重承認が過剰になりやすい
+
+### 全PRで重い本文チェック
+
+今は採用しません。
+
+理由:
+
+- 軽微な docs / CI 修正でも過剰に重くなる
+- 全PRで必要なのは本文の完璧さより、Issueリンク・ラベル・CI の方が優先度が高い
+
+## Terraform plan 方針
+
+- 対象パスは `terraform/**`
+- 実stateを使う
+- `-refresh=true`
+- `-lock=false`
+- 出力は `artifact + Job Summary`
+- PRコメント自動投稿は初回実装では行わない
+
+`terraform fmt/validate` は軽量・常時の静的ガード、`terraform plan` は実state を使う差分確認として役割を分けます。
+
+`-lock=false` を採るのは、PR plan を読み取り中心の確認として扱うためです。ただし、deploy 中の一時状態を読む可能性があるため、PR plan は最終確定値ではなくレビュー補助として扱います。
+
+理想形は plan 専用の read-only role ですが、初回実装では後回しを許容します。dev中心運用で段階導入し、必要に応じてロールを分離します。
+
+## 将来の再検討条件
+
+### approval 再検討条件
+
+- 常時レビュー担当が2名以上いる
+- `terraform/` や `.github/workflows/` の責任分担が明確
+- 緊急変更でも相互レビューできる体制がある
+- 本番相当の共有環境を継続運用する段階に入る
+
+### CODEOWNERS 再検討条件
+
+- 複数人で責任分担する領域オーナーが明確になった
+- `terraform/` と `.github/workflows/` を継続的に見る人が複数いる
+- レビュー責任を GitHub 上で明示する価値が、運用コストを上回る
+
+### deploy / destroy 承認の再検討条件
+
+- 共有の本番相当環境を継続運用する
+- 実行者と確認者を分けられる体制になる
+- dev ではなく、誤実行コストの高い環境へ適用する

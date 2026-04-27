@@ -1,6 +1,7 @@
 # Contributing Guide
 
 本プロジェクトへの貢献ガイドです。Issue駆動開発のワークフローを説明します。
+設計意図や未採用案、将来の再検討条件は [docs/operations/github-flow-guardrails.md](./docs/operations/github-flow-guardrails.md) を参照してください。
 
 ---
 
@@ -29,14 +30,20 @@ gh issue create --title "[Infra] 短い要約" \
 - `対象`
 - `受け入れ条件`
 
-**厳密運用のIssueで必須にする項目**:
-- `背景/目的`
-- `要件/スコープ`
-- `受け入れ条件`
-- `リスク`
-- `コスト`
+見出し階層は固定しませんが、上記3項目を本文に含めてください。
 
-`ダウンタイム` や `補足` は必要な場合のみ記載します。
+**Issue必須ラベル4種類**:
+- `type:*` - ちょうど1つ
+- `area:*` - 1つ以上、複数可
+- `risk:*` - ちょうど1つ
+- `cost:*` - ちょうど1つ
+
+CLI / API / AI Agent からIssueを作ること自体は許容します。
+ただし、起票後に GitHub Actions が本文とラベルを検査し、不備があれば `needs-template` を付けます。
+`needs-template` が付いたIssueは、着手やPR作成の対象にしません。
+
+AI Agent を使う場合は、いきなり起票せずに先に Issue プランを提示し、人間が確認してから起票します。
+Issue プランには、少なくともタイトル案、`目的`、`対象`、`受け入れ条件`、`type/area/risk/cost` の見立てを含めてください。
 
 ---
 
@@ -127,29 +134,32 @@ gh pr create --title "docs: update contributing guide" \
 - 目的
 - 変更内容
 - 影響範囲
-- 影響チェック（ダウンタイム/コスト/リスク）
 - 可観測性/検証
 - ロールバック手順
 - `Closes #XX` （Issue自動クローズ）
 
-**軽運用のPRに必要な最小項目**:
+**全PRで必須にするもの**:
+- `Closes/Fixes/Refs #<issue番号>`
+- `type:*` - ちょうど1つ
+- `area:*` - 1つ以上、複数可
+- `risk:*` - ちょうど1つ
+- `cost:*` - ちょうど1つ
+
+**全PRで推奨にするもの**:
 - `目的`
 - `変更内容`
 - `影響範囲`
-- `Closes/Fixes/Refs #<issue番号>`
-
-`リスク`、`コスト`、`ロールバック` は `なし` または `No-op` で簡潔に記載して構いません。
 
 **厳密運用のPR**:
-- 影響範囲、検証内容、人間確認の観点を丁寧に記載します
-- `ロールバック` は必要な変更だけ必須です
+- 次のいずれかに当てはまる場合は厳密運用として扱います
+  - `risk:medium/high`
+  - `cost:medium/large`
+  - `terraform/**`
+  - `.github/workflows/**`
+  - `scripts/deployment/**`
+  - `scripts/validation/**`
+- `ロールバック` は厳密運用PRで必須です
 - GitHub の `Approve 1` は必須にしませんが、人間が丁寧に確認します
-
-**必須ラベル4種類**:
-- `type:*` - feature/bug/docs/infra/chore
-- `area:*` - frontend/backend/infra/ci-cd/docs
-- `risk:*` - low/medium/high
-- `cost:*` - none/small/medium/large
 
 ---
 
@@ -219,8 +229,7 @@ git checkout -b YY-next-task
 
 ### 例外ルール
 
-- 緊急時はメンテナーが `Blank issue` を使ってよい
-- ただし、その日のうちにテンプレ形式へ補完する
+- 緊急時でも `Blank issue` には頼らず、既存フォームまたはCLI/AI下書きから起票する
 - 緊急時でも PR は必ず作る
 - `main` へ直pushはしない
 
