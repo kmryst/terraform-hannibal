@@ -114,17 +114,32 @@ PRテンプレートを使ってPRを作成します。
 
 **PowerShell推奨例**:
 ```powershell
-gh pr create --title "docs: update contributing guide" `
-  --body "$(Get-Content .github/pull_request_template.md -Raw)`n`nCloses #XX" `
-  --label type:feature --label area:backend --label risk:low --label cost:none
+./scripts/github/create-pr-with-labels.sh `
+  --title "docs: update contributing guide" `
+  --body-file .github/pull_request_template.md `
+  --issue XX `
+  --type type:feature `
+  --area area:backend `
+  --risk risk:low `
+  --cost cost:none `
+  --base main
 ```
 
 **bash/zsh例**:
 ```bash
-gh pr create --title "docs: update contributing guide" \
-  --body "$(cat .github/pull_request_template.md)"$'\n\n'"Closes #XX" \
-  --label type:feature --label area:backend --label risk:low --label cost:none
+./scripts/github/create-pr-with-labels.sh \
+  --title "docs: update contributing guide" \
+  --body-file .github/pull_request_template.md \
+  --issue XX \
+  --type type:feature \
+  --area area:backend \
+  --risk risk:low \
+  --cost cost:none \
+  --base main
 ```
+
+CLI からの PR 作成は、必須ラベルの付け忘れを防ぐため、原則として上記ヘルパーを使います。
+このヘルパーは `Closes #<issue番号>` を PR 本文へ自動で追記します。
 
 **PRタイトル命名規則**:
 - `PR: <type>: <変更の要約>`
@@ -294,7 +309,7 @@ git checkout -b YY-next-task
                 ▼
 ┌─────────────────────────────────────────────┐
 │ 5. PR作成                                    │
-│    gh pr create --title "..." --base main    │
+│    ./scripts/github/create-pr-with-labels.sh ... │
 └───────────────┬─────────────────────────────┘
                 │
                 ▼

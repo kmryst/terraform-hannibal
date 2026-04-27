@@ -13,6 +13,7 @@
 
 ### github/
 - **create-issue-with-labels.sh** - 必須4ラベル付きで Issue を作成するヘルパー
+- **create-pr-with-labels.sh** - 必須4ラベル付きで PR を作成するヘルパー
 
 ## 🚀 今後の拡張予定
 
