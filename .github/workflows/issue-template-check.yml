@@ -133,6 +133,8 @@ jobs:
                 '- `risk:*` をちょうど1つ',
                 '- `cost:*` をちょうど1つ',
                 '',
+                'CLI や AI Agent から起票する場合は `./scripts/github/create-issue-with-labels.sh` を使うと、必須ラベルの付け忘れを減らせます。',
+                '',
                 'AIで下書きした場合も、人間が内容を確認してテンプレート形式に整えてから次工程へ進めてください。',
               ].join('\n');
 
@@ -153,7 +155,7 @@ jobs:
                   ? `Issue body sections must not be empty: ${emptyHeadings.join(', ')}`
                   : null,
                 labelErrors.length > 0
-                  ? `Issue labels must include ${labelErrors.join(', ')}`
+                  ? `Issue labels must include ${labelErrors.join(', ')}. Use ./scripts/github/create-issue-with-labels.sh to create labeled issues from CLI or AI Agent workflows.`
                   : null,
               ]
                 .filter(Boolean)
