@@ -168,10 +168,12 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 
 **GitHub運用**
 - Issue作成 → ブランチ作成 → 実装 → PR → マージの一連フローを徹底
-- Issueテンプレートで背景・要件・リスク・コストを記録し、PRテンプレートで影響範囲とロールバック手順を明記
+- AI下書きと人間確認を前提にしつつ、Issue / PR の品質は GitHub Actions とラベル運用で担保
 - `.github/labels.yml` でラベルをコード管理し、GitHub Actionsで自動同期
-- ブランチは `feature/#issue番号-説明`、コミットはConventional Commits、PR本文に `Closes #issue番号`
+- ブランチは `issue番号-kebab-case要約`、コミットはConventional Commits、PR本文に `Closes #issue番号`
 - `gh done XX` でPRマージ後にmainへ戻り最新を取得
+
+詳細な運用ルールは [CONTRIBUTING.md](./CONTRIBUTING.md)、設計意図と将来候補は [docs/operations/github-flow-guardrails.md](./docs/operations/github-flow-guardrails.md) を参照してください。
 
 ---
 **最終更新**: 2026年4月4日 JST

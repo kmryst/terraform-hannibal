@@ -2,7 +2,7 @@ name: Issue Template Check
 
 on:
   issues:
-    types: [opened, edited]
+    types: [opened, edited, labeled, unlabeled]
 
 permissions:
   issues: write
@@ -22,15 +22,45 @@ jobs:
             const body = issue.body || '';
             const labels = issue.labels.map((label) => label.name);
 
-            const hasAll = (headings) =>
-              headings.every((heading) => body.includes(`### ${heading}`));
+            const hasHeading = (heading) =>
+              body.includes(`## ${heading}`) || body.includes(`### ${heading}`);
 
-            const lightHeadings = ['目的', '対象', '受け入れ条件'];
-            const strictHeadings = ['背景/目的', '要件/スコープ', '受け入れ条件', 'リスクレベル', 'コスト影響', '連携'];
-            const isAiTask = labels.includes('ai-task');
-            const valid = isAiTask
-              ? hasAll(lightHeadings)
-              : hasAll(lightHeadings) || hasAll(strictHeadings);
+            const escapeRegExp = (value) =>
+              value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+            const getSectionContent = (heading) => {
+              const escapedHeading = escapeRegExp(heading);
+              const pattern = new RegExp(
+                `(?:^|\\n)#{2,3}\\s+${escapedHeading}\\s*\\n([\\s\\S]*?)(?=\\n#{2,3}\\s+\\S|$)`
+              );
+              const match = body.match(pattern);
+              return match ? match[1].trim() : '';
+            };
+
+            const requiredHeadings = ['目的', '対象', '受け入れ条件'];
+            const missingHeadings = requiredHeadings.filter((heading) => !hasHeading(heading));
+            const emptyHeadings = requiredHeadings.filter(
+              (heading) => hasHeading(heading) && getSectionContent(heading).length === 0
+            );
+
+            const countByPrefix = (prefix) =>
+              labels.filter((label) => label.startsWith(prefix)).length;
+
+            const typeCount = countByPrefix('type:');
+            const areaCount = countByPrefix('area:');
+            const riskCount = countByPrefix('risk:');
+            const costCount = countByPrefix('cost:');
+
+            const labelErrors = [];
+            if (typeCount !== 1) labelErrors.push('`type:*` をちょうど1つ');
+            if (areaCount < 1) labelErrors.push('`area:*` を1つ以上');
+            if (riskCount !== 1) labelErrors.push('`risk:*` をちょうど1つ');
+            if (costCount !== 1) labelErrors.push('`cost:*` をちょうど1つ');
+
+            const valid =
+              missingHeadings.length === 0 &&
+              emptyHeadings.length === 0 &&
+              labelErrors.length === 0;
             const needsTemplateLabel = 'needs-template';
             const addNeedsTemplateLabel = async () => {
               try {
@@ -87,31 +117,24 @@ jobs:
             );
 
             if (!alreadyCommented) {
-              const commentBody = isAiTask
-                ? [
-                    marker,
-                    `このIssueはテンプレートの必須項目が不足しているため、\`${needsTemplateLabel}\` を付けました。`,
-                    '',
-                    'AI支援タスクIssueでは、少なくとも以下の見出しを含めてください。',
-                    '',
-                    ...lightHeadings.map((heading) => `- \`### ${heading}\``),
-                    '',
-                    'AIで下書きした場合も、人間が内容を確認してテンプレート形式に整えてから次工程へ進めてください。',
-                  ].join('\n')
-                : [
-                    marker,
-                    `このIssueはテンプレートの必須項目が不足しているため、\`${needsTemplateLabel}\` を付けました。`,
-                    '',
-                    '通常Issueでは、軽運用または厳密運用のどちらかの見出しセットを満たしてください。',
-                    '',
-                    '軽運用の最小項目:',
-                    ...lightHeadings.map((heading) => `- \`### ${heading}\``),
-                    '',
-                    '厳密運用の項目:',
-                    ...strictHeadings.map((heading) => `- \`### ${heading}\``),
-                    '',
-                    'AIで下書きした場合も、人間が内容を確認してテンプレート形式に整えてから次工程へ進めてください。',
-                  ].join('\n');
+              const commentBody = [
+                marker,
+                `このIssueは本文または必須ラベルが不足しているため、\`${needsTemplateLabel}\` を付けました。`,
+                '',
+                '本文には少なくとも以下の項目見出しを含めてください。',
+                '',
+                ...requiredHeadings.map((heading) => `- \`${heading}\``),
+                '',
+                '各項目には見出しだけでなく中身も記載してください。',
+                '',
+                '必須ラベル:',
+                '- `type:*` をちょうど1つ',
+                '- `area:*` を1つ以上',
+                '- `risk:*` をちょうど1つ',
+                '- `cost:*` をちょうど1つ',
+                '',
+                'AIで下書きした場合も、人間が内容を確認してテンプレート形式に整えてから次工程へ進めてください。',
+              ].join('\n');
 
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -122,7 +145,17 @@ jobs:
             }
 
             core.setFailed(
-              isAiTask
-                ? `Issue body is missing required template headings: ${lightHeadings.join(', ')}`
-                : `Issue body must satisfy either light headings (${lightHeadings.join(', ')}) or strict headings (${strictHeadings.join(', ')})`
+              [
+                missingHeadings.length > 0
+                  ? `Issue body is missing required headings: ${missingHeadings.join(', ')}`
+                  : null,
+                emptyHeadings.length > 0
+                  ? `Issue body sections must not be empty: ${emptyHeadings.join(', ')}`
+                  : null,
+                labelErrors.length > 0
+                  ? `Issue labels must include ${labelErrors.join(', ')}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' / ')
             );
