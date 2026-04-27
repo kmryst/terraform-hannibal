@@ -181,8 +181,23 @@ gh done XX
 
 ```bash
 gh pr merge XX --merge
-git checkout main
+git switch main
 git pull origin main
+```
+
+#### ローカル作業ブランチの整理
+
+PRをマージしたら、ローカルも `main` に戻して最新化します。
+
+```bash
+git switch main
+git pull origin main
+```
+
+不要になったローカル作業ブランチは削除して構いません。
+
+```bash
+git branch -d XX-description
 ```
 
 ---
