@@ -11,6 +11,9 @@
 ### deployment/
 - **deploy-codedeploy.ps1** - CodeDeploy Blue/Greenデプロイメントスクリプト
 
+### github/
+- **create-issue-with-labels.sh** - 必須4ラベル付きで Issue を作成するヘルパー
+
 ## 🚀 今後の拡張予定
 
 ### setup/
@@ -24,6 +27,8 @@
 ## 📋 使用方法
 
 各ディレクトリのREADMEを参照してください。
+
+GitHub 運用用スクリプトの使い方は [CONTRIBUTING.md](../CONTRIBUTING.md) を参照してください。
 
 ## 🔐 権限要件
 
