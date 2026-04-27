@@ -123,6 +123,9 @@ gh pr create --title "docs: update contributing guide" \
 **PRタイトル命名規則**:
 - `PR: <type>: <変更の要約>`
 
+AI Agent を使う場合は、PR もいきなり作成せず、先に PR プランを提示して人間が確認してから作成します。
+PR プランには、少なくともタイトル案、`目的`、`変更内容`、`影響範囲`、`Closes/Fixes/Refs #<issue番号>`、`type/area/risk/cost` の見立てを含めてください。
+
 **PR本文のIssueリンク規則**:
 - `Closes #<issue番号>`
 - `Fixes #<issue番号>`
