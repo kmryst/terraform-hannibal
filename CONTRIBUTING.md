@@ -13,10 +13,16 @@
 軽運用でもIssueは必須です。ただし簡潔で構いません。
 
 ```bash
-gh issue create --title "[Infra] 短い要約" \
+./scripts/github/create-issue-with-labels.sh \
+  --title "[Infra] 短い要約" \
   --body-file docs/issue-templates/feature_request.md \
-  --label "type:feature,area:infra,risk:low,cost:none"
+  --type type:feature \
+  --area area:infra \
+  --risk risk:low \
+  --cost cost:none
 ```
+
+CLI からの Issue 作成は、必須ラベルの付け忘れを防ぐため、原則として上記ヘルパーを使います。
 
 **Issueテンプレート**:
 - `.github/ISSUE_TEMPLATE/feature_request.yml` (Web UI用)
@@ -207,7 +213,13 @@ git branch -d XX-description
 mainブランチから次のIssue用ブランチを作成します。
 
 ```bash
-gh issue create --title "[Type] 次のタスク"
+./scripts/github/create-issue-with-labels.sh \
+  --title "[Type] 次のタスク" \
+  --body-file docs/issue-templates/feature_request.md \
+  --type type:docs \
+  --area area:docs \
+  --risk risk:low \
+  --cost cost:none
 git checkout -b YY-next-task
 ```
 
@@ -258,7 +270,7 @@ git checkout -b YY-next-task
 ```
 ┌─────────────────────────────────────────────┐
 │ 1. Issue作成                                 │
-│    gh issue create --title "..."             │
+│    ./scripts/github/create-issue-with-labels.sh ... │
 └───────────────┬─────────────────────────────┘
                 │
                 ▼
@@ -382,7 +394,13 @@ gh alias set done '!f() { gh pr merge "$1" --merge && git checkout main && git p
 質問や提案がある場合は、Issueを作成してください。
 
 ```bash
-gh issue create --title "[Question] 質問内容"
+./scripts/github/create-issue-with-labels.sh \
+  --title "[Question] 質問内容" \
+  --body-file docs/issue-templates/feature_request.md \
+  --type type:docs \
+  --area area:docs \
+  --risk risk:low \
+  --cost cost:none
 ```
 
 ---
