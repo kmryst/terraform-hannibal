@@ -22,17 +22,30 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          labels=$(printf '%s' "$PR_LABELS_JSON")
+          counts=$(python3 - <<'PY'
+          import json
+          import os
 
-          count_labels() {
-            local prefix=$1
-            printf '%s' "$labels" | grep -o "\"name\":\"$prefix[^\"]*\"" | wc -l | tr -d ' '
-          }
+          labels = json.loads(os.environ["PR_LABELS_JSON"])
 
-          type_count=$(count_labels 'type:')
-          area_count=$(count_labels 'area:')
-          risk_count=$(count_labels 'risk:')
-          cost_count=$(count_labels 'cost:')
+          def count(prefix: str) -> int:
+              return sum(1 for label in labels if label["name"].startswith(prefix))
+
+          print(count("type:"))
+          print(count("area:"))
+          print(count("risk:"))
+          print(count("cost:"))
+          print("true" if any(label["name"] in {"risk:medium", "risk:high"} for label in labels) else "false")
+          print("true" if any(label["name"] in {"cost:medium", "cost:large"} for label in labels) else "false")
+          PY
+          )
+
+          type_count=$(printf '%s\n' "$counts" | sed -n '1p')
+          area_count=$(printf '%s\n' "$counts" | sed -n '2p')
+          risk_count=$(printf '%s\n' "$counts" | sed -n '3p')
+          cost_count=$(printf '%s\n' "$counts" | sed -n '4p')
+          strict_by_labels=$(printf '%s\n' "$counts" | sed -n '5p')
+          strict_by_cost=$(printf '%s\n' "$counts" | sed -n '6p')
 
           if [ "$type_count" -ne 1 ]; then
             echo "::error::PR must have exactly one type:* label."
@@ -54,14 +67,9 @@ jobs:
             exit 1
           fi
 
-          strict_by_labels=false
           strict_by_paths=false
 
-          if printf '%s' "$labels" | grep -Eq '"name":"risk:(medium|high)"'; then
-            strict_by_labels=true
-          fi
-
-          if printf '%s' "$labels" | grep -Eq '"name":"cost:(medium|large)"'; then
+          if [ "$strict_by_cost" = true ]; then
             strict_by_labels=true
           fi
 
@@ -79,15 +87,17 @@ jobs:
 
           if [ "$strict_by_labels" = true ] || [ "$strict_by_paths" = true ]; then
             rollback_content=$(printf '%s\n' "$PR_BODY" | awk '
-              /^##[[:space:]]+ロールバック/ { capture=1; next }
-              capture && /^##[[:space:]]+/ { capture=0 }
+              /^###[[:space:]]+ロールバック/ || /^##[[:space:]]+ロールバック/ { capture=1; next }
+              capture && (/^###[[:space:]]+/ || /^##[[:space:]]+/) { capture=0 }
               capture { print }
             ')
 
             rollback_text=$(printf '%s\n' "$rollback_content" \
               | sed '/^[[:space:]]*$/d' \
               | sed '/^[[:space:]]*<!--.*-->[[:space:]]*$/d')
-            rollback_compact=$(printf '%s' "$rollback_text" | tr -d '[:space:]')
+            rollback_compact=$(printf '%s\n' "$rollback_text" \
+              | sed 's/^[[:space:]]*[-*][[:space:]]*//' \
+              | tr -d '[:space:]')
 
             if [ -z "$rollback_compact" ] || printf '%s' "$rollback_compact" | grep -Eiq '^(なし|不要|no-op|noop|n/a|na)$'; then
               echo "::error::Strict PRs must include a substantive rollback section."
