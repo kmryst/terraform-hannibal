@@ -43,7 +43,7 @@ CLI / API / AI Agent からIssueを作ること自体は許容します。
 `needs-template` が付いたIssueは、着手やPR作成の対象にしません。
 
 AI Agent を使う場合は、いきなり起票せずに先に Issue プランを提示し、人間が確認してから起票します。
-Issue プランには、少なくともタイトル案、`目的`、`対象`、`受け入れ条件`、`type/area/risk/cost` の見立てを含めてください。
+Issue プランには、少なくともタイトル案、`目的`、`対象`、`受け入れ条件`、推奨ラベルとしての `type/area/risk/cost` を明示して含めてください。
 
 ---
 
@@ -124,7 +124,7 @@ gh pr create --title "docs: update contributing guide" \
 - `PR: <type>: <変更の要約>`
 
 AI Agent を使う場合は、PR もいきなり作成せず、先に PR プランを提示して人間が確認してから作成します。
-PR プランには、少なくともタイトル案、`目的`、`変更内容`、`影響範囲`、`Closes/Fixes/Refs #<issue番号>`、`type/area/risk/cost` の見立てを含めてください。
+PR プランには、少なくともタイトル案、`目的`、`変更内容`、`影響範囲`、`Closes/Fixes/Refs #<issue番号>`、推奨ラベルとしての `type/area/risk/cost` を明示して含めてください。
 
 **PR本文のIssueリンク規則**:
 - `Closes #<issue番号>`
@@ -181,8 +181,23 @@ gh done XX
 
 ```bash
 gh pr merge XX --merge
-git checkout main
+git switch main
 git pull origin main
+```
+
+#### ローカル作業ブランチの整理
+
+PRをマージしたら、ローカルも `main` に戻して最新化します。
+
+```bash
+git switch main
+git pull origin main
+```
+
+不要になったローカル作業ブランチは削除して構いません。
+
+```bash
+git branch -d XX-description
 ```
 
 ---

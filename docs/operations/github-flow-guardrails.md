@@ -47,9 +47,9 @@
 
 - 通常Issueも AI Agent / CLI / API から起票される前提で設計する
 - ただし、AI Agent は原則として起票前に Issue プランを提示する
-- Issue プランには、タイトル案、`目的`、`対象`、`受け入れ条件`、`type/area/risk/cost` の見立てを含める
+- Issue プランには、タイトル案、`目的`、`対象`、`受け入れ条件`、推奨ラベルとしての `type/area/risk/cost` を明示して含める
 - PR も同様に、いきなり作成せず先に PR プランを提示する
-- PR プランには、タイトル案、`目的`、`変更内容`、`影響範囲`、`Closes/Fixes/Refs #<issue番号>`、`type/area/risk/cost` の見立て、厳密運用PRかどうか、`ロールバック` が必須かどうかを含める
+- PR プランには、タイトル案、`目的`、`変更内容`、`影響範囲`、`Closes/Fixes/Refs #<issue番号>`、推奨ラベルとしての `type/area/risk/cost`、厳密運用PRかどうか、`ロールバック` が必須かどうかを明示して含める
 - 起票後は GitHub Actions が最終チェックする
 
 Issue / PR のどちらも、AI Agent は下書きと整理を担当し、人間が起票前に内容を確認します。これにより、GitHub Actions の機械チェックに入る前に、意図のズレや過不足を減らします。
