@@ -7,6 +7,18 @@
 
 ## 🚀 開発フロー（Issue駆動開発）
 
+### 正規コマンド
+
+Issue と PR の作成は、原則として以下のヘルパーを使います。
+
+```bash
+# Issue
+./scripts/github/create-issue-with-labels.sh ...
+
+# PR
+./scripts/github/create-pr-with-labels.sh ...
+```
+
 ### 1. Issue作成
 
 新しい機能追加やバグ修正は、必ずIssueから始めます。
@@ -49,7 +61,7 @@ CLI / API / AI Agent からIssueを作ること自体は許容します。
 `needs-template` が付いたIssueは、着手やPR作成の対象にしません。
 
 AI Agent を使う場合は、いきなり起票せずに先に Issue プランを提示し、人間が確認してから起票します。
-Issue プランには、少なくともタイトル案、`目的`、`対象`、`受け入れ条件`、推奨ラベルとしての `type/area/risk/cost` を明示して含めてください。
+Issue プランには、少なくともタイトル案、`目的`、`対象`、`受け入れ条件`、推奨ラベルとしての `type/area/risk/cost`、`使用ヘルパー: ./scripts/github/create-issue-with-labels.sh` を明示して含めてください。
 
 ---
 
@@ -145,7 +157,7 @@ CLI からの PR 作成は、必須ラベルの付け忘れを防ぐため、原
 - `PR: <type>: <変更の要約>`
 
 AI Agent を使う場合は、PR もいきなり作成せず、先に PR プランを提示して人間が確認してから作成します。
-PR プランには、少なくともタイトル案、`目的`、`変更内容`、`影響範囲`、`Closes/Fixes/Refs #<issue番号>`、推奨ラベルとしての `type/area/risk/cost` を明示して含めてください。
+PR プランには、少なくともタイトル案、`目的`、`変更内容`、`影響範囲`、`Closes/Fixes/Refs #<issue番号>`、推奨ラベルとしての `type/area/risk/cost`、`使用ヘルパー: ./scripts/github/create-pr-with-labels.sh` を明示して含めてください。
 
 **PR本文のIssueリンク規則**:
 - `Closes #<issue番号>`

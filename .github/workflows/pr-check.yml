@@ -48,22 +48,22 @@ jobs:
           strict_by_cost=$(printf '%s\n' "$counts" | sed -n '6p')
 
           if [ "$type_count" -ne 1 ]; then
-            echo "::error::PR must have exactly one type:* label."
+            echo "::error::PR must have exactly one type:* label. Use ./scripts/github/create-pr-with-labels.sh to create PRs with the required labels."
             exit 1
           fi
 
           if [ "$area_count" -lt 1 ]; then
-            echo "::error::PR must have at least one area:* label."
+            echo "::error::PR must have at least one area:* label. Use ./scripts/github/create-pr-with-labels.sh to create PRs with the required labels."
             exit 1
           fi
 
           if [ "$risk_count" -ne 1 ]; then
-            echo "::error::PR must have exactly one risk:* label."
+            echo "::error::PR must have exactly one risk:* label. Use ./scripts/github/create-pr-with-labels.sh to create PRs with the required labels."
             exit 1
           fi
 
           if [ "$cost_count" -ne 1 ]; then
-            echo "::error::PR must have exactly one cost:* label."
+            echo "::error::PR must have exactly one cost:* label. Use ./scripts/github/create-pr-with-labels.sh to create PRs with the required labels."
             exit 1
           fi
 
@@ -81,7 +81,7 @@ jobs:
           if printf '%s\n' "$PR_BODY" | grep -Eiq '(close[sd]?|fix(e[sd])?|refs?) #[0-9]+'; then
             echo "Linked issue found."
           else
-            echo "::error::PR body must include a linked issue, for example: Closes #123, Fixes #123, or Refs #123"
+            echo "::error::PR body must include a linked issue, for example: Closes #123, Fixes #123, or Refs #123. ./scripts/github/create-pr-with-labels.sh appends Closes #<issue番号> automatically."
             exit 1
           fi
 
