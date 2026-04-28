@@ -118,8 +118,6 @@ jobs:
 
             const commentBody = [
               marker,
-              `このIssueは本文または必須ラベルが不足しているため、\`${needsTemplateLabel}\` を付けました。`,
-              '',
               '## 要修正',
               '',
               'このIssueは次を修正すると通ります:',
