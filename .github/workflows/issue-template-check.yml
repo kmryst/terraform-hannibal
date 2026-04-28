@@ -120,7 +120,10 @@ jobs:
               marker,
               `このIssueは本文または必須ラベルが不足しているため、\`${needsTemplateLabel}\` を付けました。`,
               '',
-              '不足している項目:',
+              '## 要修正',
+              '',
+              'このIssueは次を修正すると通ります:',
+              '',
               ...(missingHeadings.length > 0
                 ? missingHeadings.map((heading) => `- 見出し不足: \`${heading}\``)
                 : []),
@@ -131,7 +134,7 @@ jobs:
                 ? labelErrors.map((error) => `- ラベル不足: ${error}`)
                 : []),
               '',
-              '必要条件:',
+              '## 必要条件',
               '- 本文には `目的` `対象` `受け入れ条件` を含める',
               '- 各項目には見出しだけでなく中身も書く',
               '- `type:*` をちょうど1つ',
