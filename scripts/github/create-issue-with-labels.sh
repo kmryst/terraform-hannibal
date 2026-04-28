@@ -23,7 +23,7 @@ Required:
 
 Notes:
   - Repeat --area for multiple area labels.
-  - The script creates the issue first, then applies labels with gh issue edit.
+  - The script applies required labels at issue creation time.
 EOF
 }
 
@@ -105,25 +105,21 @@ for area_label in "${area_labels[@]}"; do
   require_prefix "$area_label" "area:"
 done
 
-issue_url=$(
-  gh issue create \
-    --title "$title" \
-    --body-file "$body_file"
-)
-
-issue_number="${issue_url##*/}"
-
-edit_args=(
-  issue edit "$issue_number"
-  --add-label "$type_label"
-  --add-label "$risk_label"
-  --add-label "$cost_label"
+create_args=(
+  issue create
+  --title "$title"
+  --body-file "$body_file"
+  --label "$type_label"
+  --label "$risk_label"
+  --label "$cost_label"
 )
 
 for area_label in "${area_labels[@]}"; do
-  edit_args+=(--add-label "$area_label")
+  create_args+=(--label "$area_label")
 done
 
-gh "${edit_args[@]}"
+issue_url=$(gh "${create_args[@]}")
+
+issue_number="${issue_url##*/}"
 
 printf 'Created issue #%s\n%s\n' "$issue_number" "$issue_url"

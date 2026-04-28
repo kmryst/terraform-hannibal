@@ -116,34 +116,53 @@ jobs:
               comment.user.type === 'Bot' && comment.body.includes(marker)
             );
 
-            if (!alreadyCommented) {
-              const commentBody = [
-                marker,
-                `このIssueは本文または必須ラベルが不足しているため、\`${needsTemplateLabel}\` を付けました。`,
-                '',
-                '本文には少なくとも以下の項目見出しを含めてください。',
-                '',
-                ...requiredHeadings.map((heading) => `- \`${heading}\``),
-                '',
-                '各項目には見出しだけでなく中身も記載してください。',
-                '',
-                '必須ラベル:',
-                '- `type:*` をちょうど1つ',
-                '- `area:*` を1つ以上',
-                '- `risk:*` をちょうど1つ',
-                '- `cost:*` をちょうど1つ',
-                '',
-                'CLI や AI Agent から起票する場合は `./scripts/github/create-issue-with-labels.sh` を使うと、必須ラベルの付け忘れを減らせます。',
-                '',
-                'AIで下書きした場合も、人間が内容を確認してテンプレート形式に整えてから次工程へ進めてください。',
-              ].join('\n');
+            const commentBody = [
+              marker,
+              `このIssueは本文または必須ラベルが不足しているため、\`${needsTemplateLabel}\` を付けました。`,
+              '',
+              '不足している項目:',
+              ...(missingHeadings.length > 0
+                ? missingHeadings.map((heading) => `- 見出し不足: \`${heading}\``)
+                : []),
+              ...(emptyHeadings.length > 0
+                ? emptyHeadings.map((heading) => `- 中身が空: \`${heading}\``)
+                : []),
+              ...(labelErrors.length > 0
+                ? labelErrors.map((error) => `- ラベル不足: ${error}`)
+                : []),
+              '',
+              '必要条件:',
+              '- 本文には `目的` `対象` `受け入れ条件` を含める',
+              '- 各項目には見出しだけでなく中身も書く',
+              '- `type:*` をちょうど1つ',
+              '- `area:*` を1つ以上',
+              '- `risk:*` をちょうど1つ',
+              '- `cost:*` をちょうど1つ',
+              '',
+              'CLI や AI Agent から起票する場合は `./scripts/github/create-issue-with-labels.sh` を使うと、作成時点で必須ラベルを付けられます。',
+              '',
+              'AIで下書きした場合も、人間が内容を確認してテンプレート形式に整えてから次工程へ進めてください。',
+            ].join('\n');
 
+            if (!alreadyCommented) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
                 body: commentBody,
               });
+            } else {
+              const existingComment = comments.find((comment) =>
+                comment.user.type === 'Bot' && comment.body.includes(marker)
+              );
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existingComment.id,
+                  body: commentBody,
+                });
+              }
             }
 
             core.setFailed(
@@ -155,7 +174,7 @@ jobs:
                   ? `Issue body sections must not be empty: ${emptyHeadings.join(', ')}`
                   : null,
                 labelErrors.length > 0
-                  ? `Issue labels must include ${labelErrors.join(', ')}. Use ./scripts/github/create-issue-with-labels.sh to create labeled issues from CLI or AI Agent workflows.`
+                  ? `Issue labels must include ${labelErrors.join(', ')}. Use ./scripts/github/create-issue-with-labels.sh to create issues with required labels at creation time.`
                   : null,
               ]
                 .filter(Boolean)
