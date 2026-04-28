@@ -62,6 +62,7 @@ CLI / API / AI Agent からIssueを作ること自体は許容します。
 
 AI Agent を使う場合は、いきなり起票せずに先に Issue プランを提示し、人間が確認してから起票します。
 Issue プランには、少なくともタイトル案、`目的`、`対象`、`受け入れ条件`、推奨ラベルとしての `type/area/risk/cost`、`使用ヘルパー: ./scripts/github/create-issue-with-labels.sh` を明示して含めてください。
+この `使用ヘルパー` は起票前プランで確認するための項目です。GitHub 上の最終 Issue 本文に毎回含める必要はありません。
 
 ---
 
@@ -158,6 +159,7 @@ CLI からの PR 作成は、必須ラベルの付け忘れを防ぐため、原
 
 AI Agent を使う場合は、PR もいきなり作成せず、先に PR プランを提示して人間が確認してから作成します。
 PR プランには、少なくともタイトル案、`目的`、`変更内容`、`影響範囲`、`Closes/Fixes/Refs #<issue番号>`、推奨ラベルとしての `type/area/risk/cost`、`使用ヘルパー: ./scripts/github/create-pr-with-labels.sh` を明示して含めてください。
+この `使用ヘルパー` は作成前プランで確認するための項目です。GitHub 上の最終 PR 本文に毎回含める必要はありません。
 
 **PR本文のIssueリンク規則**:
 - `Closes #<issue番号>`
