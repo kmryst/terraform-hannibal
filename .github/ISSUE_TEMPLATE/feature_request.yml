@@ -1,116 +1,112 @@
 name: Feature Request
 description: 新機能/改善の要望チケット
-title: '[{type}] 短い要約（例: README.mdにGitHub運用セクション追加）'
-labels: ['type:feature', 'area:infra', 'risk:low', 'cost:none']
+title: '短い要約（例: READMEにGitHub運用導線を追加）'
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Web UI から起票する場合も、最小本文項目と必須4ラベル (`type / area / risk / cost`) をこのフォームで揃えます。
+
   - type: dropdown
     id: type
     attributes:
-      label: 種別
+      label: type
+      description: 変更の主題を1つ選んでください。
       options:
-        - Feature
-        - Fix
-        - Docs
-        - Infra
-        - Security
-        - Chore
-    validations:
-      required: true
-
-  - type: textarea
-    id: background
-    attributes:
-      label: 背景/目的
-      description: なぜ必要か
-      placeholder: 例) README.mdにGitHub運用セクション追加
-    validations:
-      required: true
-
-  - type: textarea
-    id: scope
-    attributes:
-      label: 要件/スコープ
-      description: 何を変えるか
-      placeholder: 例) README.mdの最後にGitHub運用セクション追加
-    validations:
-      required: true
-
-  - type: checkboxes
-    id: acceptance
-    attributes:
-      label: 受け入れ条件
-      options:
-        - label: テスト通過
-        - label: ドキュメント更新
-        - label: 監視/アラート更新
-        - label: セキュリティ/ポリシー確認
+        - type:feature
+        - type:bug
+        - type:docs
+        - type:infra
+        - type:chore
+        - type:refactor
+        - type:test
     validations:
       required: true
 
   - type: dropdown
-    id: downtime
+    id: area
     attributes:
-      label: ダウンタイム
+      label: area
+      description: |
+        主に影響する領域を選んでください（1つ以上、複数可）。
+        area:docs = ドキュメント関連
+        area:ci-cd = GitHub Actions / CI
+        area:infra = Terraform / AWS 基盤
+        area:backend = NestJS / API
+        area:frontend = React / UI
+        area:database = PostgreSQL / TypeORM
+      multiple: true
       options:
-        - なし
-        - あり
+        - area:docs
+        - area:ci-cd
+        - area:infra
+        - area:backend
+        - area:frontend
+        - area:database
     validations:
       required: true
-
-  - type: textarea
-    id: downtime_detail
-    attributes:
-      label: ダウンタイム詳細（必要時）
-      placeholder: 例) メンテ窓 02:00-02:10
-    validations:
-      required: false
 
   - type: dropdown
     id: risk
     attributes:
-      label: リスクレベル
+      label: risk
+      description: |
+        変更の危険度を1つ選んでください。
+        risk:low = 低リスク・影響範囲小・ロールバック容易
+        risk:medium = 要注意・変更範囲や確認項目が増える
+        risk:high = 高リスク・慎重な確認や戻し方の検討が必要
       options:
-        - Low
-        - Medium
-        - High
+        - risk:low
+        - risk:medium
+        - risk:high
     validations:
       required: true
-
-  - type: textarea
-    id: risk_reason
-    attributes:
-      label: リスク根拠（Medium/High時）
-      placeholder: 例) 本番ネットワーク経路変更
-    validations:
-      required: false
 
   - type: dropdown
     id: cost
     attributes:
-      label: コスト影響
+      label: cost
+      description: |
+        コスト影響を1つ選んでください。
+        cost:none = コスト影響なし
+        cost:small = 小
+        cost:medium = 中
+        cost:large = 大
       options:
-        - なし
-        - 小
-        - 中
-        - 大
+        - cost:none
+        - cost:small
+        - cost:medium
+        - cost:large
     validations:
       required: true
 
   - type: textarea
-    id: cost_basis
+    id: objective
     attributes:
-      label: コスト根拠（必要時）
-      placeholder: 例) NAT GW追加 0.062 USD/時
+      label: 目的
+      description: なぜ必要かを簡潔に書いてください。
+      placeholder: 例) GitHub運用ルールへの導線を README に追加したい
     validations:
-      required: false
+      required: true
 
-  - type: checkboxes
-    id: links
+  - type: textarea
+    id: target
     attributes:
-      label: 連携
-      options:
-        - label: ブランチ命名にIssue番号を含める
-        - label: PR本文にCloses記載
+      label: 対象
+      description: 主に何を変更するかを書いてください。
+      placeholder: 例) README.md と CONTRIBUTING.md
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 受け入れ条件
+      description: この Issue を close できる状態を書いてください。
+      placeholder: |
+        例)
+        - README に導線が追加されている
+        - 関連ドキュメントの表現が揃っている
     validations:
       required: true
 
@@ -118,6 +114,7 @@ body:
     id: notes
     attributes:
       label: 補足
-      placeholder: 既知の制約や代替案
+      description: 必要な場合だけ使ってください。
+      placeholder: 既知の制約、代替案、関連URLなど
     validations:
       required: false
