@@ -25,6 +25,7 @@
 - Issue / PR の共通必須ラベルは `type / area / risk / cost`
 - PR 本文には `Closes / Fixes / Refs #<issue番号>` を必須にする
 - Issue の必須本文項目は `目的 / 対象 / 受け入れ条件`
+- Web UI の Issue Forms は 1 本に寄せ、`目的 / 対象 / 受け入れ条件` と `type / area / risk / cost` を同じフォームで扱う
 - Issue の自動チェックは本文とラベルの両方を見て、未整備なら `needs-template` を付ける
 - PR テンプレの `目的 / 変更内容 / 影響範囲` は推奨に留め、厳密運用PRでは `ロールバック` を必須にする
 
@@ -46,6 +47,7 @@
 ### AI Agent 運用
 
 - 通常Issueも AI Agent / CLI / API から起票される前提で設計する
+- Web UI 起票では `.github/ISSUE_TEMPLATE/feature_request.yml` を使い、フォーム回答から `type / area / risk / cost` を同期する
 - ただし、AI Agent は原則として起票前に Issue プランを提示する
 - Issue プランには、タイトル案、`目的`、`対象`、`受け入れ条件`、推奨ラベルとしての `type/area/risk/cost`、`使用ヘルパー: ./scripts/github/create-issue-with-labels.sh` を明示して含める
 - PR も同様に、いきなり作成せず先に PR プランを提示する

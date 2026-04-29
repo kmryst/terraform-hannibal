@@ -1,80 +1,23 @@
----
-name: Feature Request (CLI)
-about: 新機能/改善の要望チケット（CLI 用 Markdown テンプレート）
-title: '[{type}] 短い要約（例: README.mdにGitHub運用セクション追加）'
-labels: ['type:feature', 'area:infra', 'risk:low', 'cost:none']
-assignees: []
----
+## 目的
 
-### 種別（type）
+なぜ必要かを簡潔に書いてください。
 
-上から1つ選び、同じ語をタイトルの {type} に転記してください。
+例) README に GitHub 運用への導線を追加したい
 
-- 選択肢:
-  - Feature
-  - Fix
-  - Docs
-  - Infra
-  - Security
-  - Chore
+## 対象
 
-### 背景/目的（background）
+主に何を変更するかを書いてください。
 
-なぜ必要か（1-3行）
+例) README.md と CONTRIBUTING.md
 
-- 例) README.mdにGitHub運用セクション追加
+## 受け入れ条件
 
-### 要件/スコープ（scope）
+この Issue を close できる状態を書いてください。
 
-何を変えるか（箇条書き）
+例)
+- README に導線が追加されている
+- 関連ドキュメントの表現が揃っている
 
-- 例) README.mdの最後にGitHub運用セクション追加
+## 補足
 
-### 受け入れ条件（acceptance）
-
-- [ ] テスト通過
-- [ ] ドキュメント更新
-- [ ] 監視/アラート更新
-- [ ] セキュリティ/ポリシー確認
-
-### ダウンタイム（downtime）
-
-- 選択肢:
-  - なし
-  - あり
-
-### ダウンタイム詳細（必要時）（downtime_detail）
-
-- 例) メンテ窓 02:00-02:10
-
-### リスクレベル（risk）
-
-- 選択肢:
-  - Low
-  - Medium
-  - High
-
-### リスク根拠（Medium/High時）（risk_reason）
-
-- 例) 本番ネットワーク経路変更
-
-### コスト影響（cost）
-
-- 選択肢:
-  - なし
-  - 小
-  - 中
-  - 大
-
-### コスト根拠（必要時）（cost_basis）
-
-- 例) NAT GW追加 0.062 USD/時
-
-### 連携（links）
-
-- [ ] ブランチ命名にIssue番号を含める
-- [ ] PR本文にCloses記載
-
-### 補足（notes）
-
-既知の制約や代替案
+必要な場合だけ、既知の制約、代替案、関連URLなどを書いてください。

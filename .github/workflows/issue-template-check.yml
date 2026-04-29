@@ -21,6 +21,7 @@ jobs:
             const issue = context.payload.issue;
             const body = issue.body || '';
             const labels = issue.labels.map((label) => label.name);
+            const managedPrefixes = ['type:', 'area:', 'risk:', 'cost:'];
 
             const hasHeading = (heading) =>
               body.includes(`## ${heading}`) || body.includes(`### ${heading}`);
@@ -37,6 +38,64 @@ jobs:
               return match ? match[1].trim() : '';
             };
 
+            const extractLabelsFromSection = (heading, prefix) => {
+              const content = getSectionContent(heading);
+              if (!content) return [];
+              const pattern = new RegExp(`\\b${escapeRegExp(prefix)}[a-z0-9-]+\\b`, 'g');
+              return [...new Set(content.match(pattern) || [])];
+            };
+
+            let effectiveLabels = [...labels];
+            const hasFormLabelSections = ['type', 'area', 'risk', 'cost'].every((heading) =>
+              hasHeading(heading)
+            );
+
+            if (hasFormLabelSections) {
+              const desiredManagedLabels = [
+                ...extractLabelsFromSection('type', 'type:'),
+                ...extractLabelsFromSection('area', 'area:'),
+                ...extractLabelsFromSection('risk', 'risk:'),
+                ...extractLabelsFromSection('cost', 'cost:'),
+              ];
+
+              const currentManagedLabels = effectiveLabels.filter((label) =>
+                managedPrefixes.some((prefix) => label.startsWith(prefix))
+              );
+
+              const labelsToAdd = desiredManagedLabels.filter((label) => !effectiveLabels.includes(label));
+              const labelsToRemove = currentManagedLabels.filter(
+                (label) => !desiredManagedLabels.includes(label)
+              );
+
+              if (labelsToAdd.length > 0) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: labelsToAdd,
+                });
+              }
+
+              for (const label of labelsToRemove) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    name: label,
+                  });
+                } catch (error) {
+                  if (error.status !== 404) {
+                    throw error;
+                  }
+                }
+              }
+
+              effectiveLabels = effectiveLabels
+                .filter((label) => !labelsToRemove.includes(label))
+                .concat(labelsToAdd.filter((label) => !effectiveLabels.includes(label)));
+            }
+
             const requiredHeadings = ['目的', '対象', '受け入れ条件'];
             const missingHeadings = requiredHeadings.filter((heading) => !hasHeading(heading));
             const emptyHeadings = requiredHeadings.filter(
@@ -44,7 +103,7 @@ jobs:
             );
 
             const countByPrefix = (prefix) =>
-              labels.filter((label) => label.startsWith(prefix)).length;
+              effectiveLabels.filter((label) => label.startsWith(prefix)).length;
 
             const typeCount = countByPrefix('type:');
             const areaCount = countByPrefix('area:');
@@ -91,7 +150,7 @@ jobs:
             };
 
             if (valid) {
-              if (labels.includes(needsTemplateLabel)) {
+              if (effectiveLabels.includes(needsTemplateLabel)) {
                 await github.rest.issues.removeLabel({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -140,6 +199,8 @@ jobs:
               '- `risk:*` をちょうど1つ',
               '- `cost:*` をちょうど1つ',
               '',
+              'Web UI から起票する場合は `.github/ISSUE_TEMPLATE/feature_request.yml` のフォーム回答から `type / area / risk / cost` を同期します。',
+              '',
               'CLI や AI Agent から起票する場合は `./scripts/github/create-issue-with-labels.sh` を使うと、作成時点で必須ラベルを付けられます。',
               '',
               'AIで下書きした場合も、人間が内容を確認してテンプレート形式に整えてから次工程へ進めてください。',
@@ -175,7 +236,7 @@ jobs:
                   ? `Issue body sections must not be empty: ${emptyHeadings.join(', ')}`
                   : null,
                 labelErrors.length > 0
-                  ? `Issue labels must include ${labelErrors.join(', ')}. Use ./scripts/github/create-issue-with-labels.sh to create issues with required labels at creation time.`
+                  ? `Issue labels must include ${labelErrors.join(', ')}. Use the Web UI form or ./scripts/github/create-issue-with-labels.sh to create issues with required labels.`
                   : null,
               ]
                 .filter(Boolean)
