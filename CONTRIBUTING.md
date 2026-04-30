@@ -222,17 +222,28 @@ git pull origin main
 
 #### ローカル作業ブランチの整理
 
-PRをマージしたら、ローカルも `main` に戻して最新化します。
+PRをマージしたら、ローカルも `main` に戻して最新化し、不要になった作業ブランチを削除します。
+
+```bash
+./scripts/github/cleanup-merged-pr-branch.sh XX
+```
+
+このヘルパーは、GitHub上でPRが `MERGED` であることを確認してから、PRのhead branchを削除対象にします。squash merge後にローカルGitでは未マージに見えるブランチも、安全確認のうえで整理できます。
+
+手動で行う場合:
 
 ```bash
 git switch main
-git pull origin main
+git pull --ff-only origin main
 ```
 
-不要になったローカル作業ブランチは削除して構いません。
+不要になったローカル作業ブランチは削除して構いません。squash merge後はGit上のmerged判定とGitHub上のマージ状態がずれることがあるため、PRがマージ済みであることを確認してから削除します。
 
 ```bash
 git branch -d XX-description
+# squash merge後など、Git上は未マージに見えるがPRがマージ済みと確認できる場合
+git branch -D XX-description
+git push origin --delete XX-description
 ```
 
 ---
