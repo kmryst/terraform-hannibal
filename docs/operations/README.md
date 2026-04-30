@@ -7,6 +7,7 @@
 **関連ドキュメント:**
 - [iam-management.md](./iam-management.md) - IAM権限最適化（Athena分析）
 - [monitoring.md](./monitoring.md) - CloudWatch監視・CloudTrail分析
+- [pr-terraform-plan-role-design.md](./pr-terraform-plan-role-design.md) - PR terraform plan用AWS Role/OIDC権限設計補足
 - [docs/deployment/codedeploy-blue-green.md](../deployment/codedeploy-blue-green.md) - デプロイ詳細
 
 ---

@@ -1,73 +1,21 @@
 # IAM権限管理
 
-## 🔐 IAM アーキテクチャ
+この文書を IAM Role 一覧の正本とします。Role ごとの詳細設計は必要な時だけ個別文書に分け、通常はこの文書の Role カタログで用途・Assume元・権限方針を管理します。
 
-```mermaid
-graph TB
-    %% Users
-    subgraph "👤 IAM Users"
-        Hannibal[hannibal<br/>Developer]
-        CICD[hannibal-cicd<br/>CI/CD Automation]
-    end
-    
-    %% Roles
-    subgraph "🎭 IAM Roles"
-        Dev_Role[HannibalDeveloperRole-Dev<br/>Development Access]
-        CICD_Role[HannibalCICDRole-Dev<br/>CI/CD Access]
-        ECS_Exec_Role[ECS Task Execution Role<br/>Container Management]
-        ECS_Service_Role[ECS Service Role<br/>Blue/Green Operations]
-    end
-    
-    %% Policies
-    subgraph "📋 IAM Policies"
-        Dev_Policy[HannibalDeveloperPolicy-Dev<br/>Full Development Access]
-        CICD_Policy[HannibalCICDPolicy-Dev-Minimal<br/>76 Permissions Optimized]
-        AWS_ECS_Policy[AmazonECSTaskExecutionRolePolicy<br/>AWS Managed]
-        BG_Policy[Blue/Green Policy<br/>ALB + ECS Operations]
-    end
-    
-    %% Permission Boundaries
-    subgraph "🛡️ Permission Boundaries"
-        CICD_Boundary[HannibalCICDBoundary<br/>Maximum Allowed Permissions]
-        ECS_Boundary[HannibalECSBoundary<br/>Container Restrictions]
-    end
-    
-    %% Assume Role Relationships
-    Hannibal --> |AssumeRole| Dev_Role
-    CICD --> |AssumeRole| CICD_Role
-    
-    %% Policy Attachments
-    Dev_Role --> Dev_Policy
-    CICD_Role --> CICD_Policy
-    ECS_Exec_Role --> AWS_ECS_Policy
-    ECS_Service_Role --> BG_Policy
-    
-    %% Permission Boundaries
-    CICD_Role -.-> |Bounded by| CICD_Boundary
-    ECS_Exec_Role -.-> |Bounded by| ECS_Boundary
-    
-    %% AWS Services
-    subgraph "⚙️ AWS Services"
-        ECS_Service[ECS Service]
-        ECS_Tasks[ECS Tasks]
-    end
-    
-    ECS_Service --> |Uses| ECS_Service_Role
-    ECS_Tasks --> |Uses| ECS_Exec_Role
-    
-    %% Styling
-    classDef user fill:#e1f5fe
-    classDef role fill:#f3e5f5
-    classDef policy fill:#e8f5e8
-    classDef boundary fill:#ffebee
-    classDef service fill:#fff3e0
-    
-    class Hannibal,CICD user
-    class Dev_Role,CICD_Role,ECS_Exec_Role,ECS_Service_Role role
-    class Dev_Policy,CICD_Policy,AWS_ECS_Policy,BG_Policy policy
-    class CICD_Boundary,ECS_Boundary boundary
-    class ECS_Service,ECS_Tasks service
-```
+PR terraform plan 用 Role の詳細設計補足は [pr-terraform-plan-role-design.md](./pr-terraform-plan-role-design.md) に分けています。
+
+## Roleカタログ
+
+Role名、Assume元、権限方針、管理場所はこの表を正本にします。図は更新漏れが起きやすいため、この文書では管理しません。
+
+| Role | 用途 | Assume元 | 権限方針 | 管理 |
+| --- | --- | --- | --- | --- |
+| `HannibalDeveloperRole-Dev` | 開発者の手元作業 | `hannibal` IAM User | dev作業用の広い開発権限 | `terraform/foundation`。厳密運用で変更 |
+| `HannibalCICDRole-Dev` | main の deploy / destroy | GitHub Actions OIDC `repo:kmryst/terraform-hannibal:ref:refs/heads/main` | deploy / destroy 用。PR plan には使わない | `terraform/foundation`。最小権限化の現状確認は #129 |
+| `HannibalPRPlanRole-Dev` | PR の `terraform plan` | GitHub Actions OIDC `repo:kmryst/terraform-hannibal:pull_request` | read-only plan。apply / destroy / write 系権限なし | #121 で設計、#127 で実装予定。詳細は [pr-terraform-plan-role-design.md](./pr-terraform-plan-role-design.md) |
+| `nestjs-hannibal-3-ecs-task-execution-role` | ECS Task の起動、ECR pull、CloudWatch Logs、RDS managed secret参照 | `ecs-tasks.amazonaws.com` | ECS実行に必要な権限だけ。Secrets Manager read はprefixで絞る | `terraform/environments/dev` 経由のアプリケーションTerraform |
+| `nestjs-hannibal-3-codedeploy-service-role` | CodeDeploy Blue/Green | `codedeploy.amazonaws.com` | AWS managed `AWSCodeDeployRoleForECS` | `terraform/environments/dev` 経由のアプリケーションTerraform |
+| `CacooAWSIntegrationRole` | Cacoo構成図連携 | Cacoo AWS Account | 構成図生成用read-only | `terraform/foundation` |
 
 ## 🔐 IAM構成 (AWS Professional設計)
 
@@ -78,12 +26,18 @@ graph TB
 └── 使用可能ロール: HannibalDeveloperRole-Dev
    └── アタッチポリシー: HannibalDeveloperPolicy-Dev（ECR/ECS/RDS/CloudWatch/EC2/ELB/S3/CloudFront/IAM）
 
-🤖 hannibal-cicd (IAMユーザー・CI/CD自動化)
-├── インラインポリシー: AssumeCICDRole
+🤖 GitHub Actions OIDC (main branch deploy / destroy)
 └── 使用可能ロール: HannibalCICDRole-Dev
    ├── Permission Boundary: HannibalCICDBoundary
-   ├── アタッチポリシー: HannibalCICDPolicy-Dev-Minimal（CloudTrail分析に基づく最小権限）
-   └── 保持ポリシー: HannibalCICDPolicy-Dev（広い権限・未アタッチ）
+   └── アタッチポリシー: HannibalCICDPolicy-Dev
+
+🧪 GitHub Actions OIDC (pull_request terraform plan)
+└── 使用予定ロール: HannibalPRPlanRole-Dev
+   └── アタッチ予定ポリシー: PR plan用read-only policy
+
+🗺️ Cacoo AWS Integration
+└── 使用可能ロール: CacooAWSIntegrationRole
+   └── アタッチポリシー: CacooReadOnlyPolicy
 ```
 
 ### **アプリケーションIAMリソース（一時的・Terraform管理）**
@@ -91,7 +45,12 @@ graph TB
 🔧 ecs-tasks.amazonaws.com (ECSサービス)
 └── 使用ロール: nestjs-hannibal-3-ecs-task-execution-role（Terraform管理）
    ├── Permission Boundary: HannibalECSBoundary（現在永続化・検討の余地あり）
-   └── アタッチポリシー: AmazonECSTaskExecutionRolePolicy（AWS管理ポリシー・Terraformでアタッチ）
+   ├── アタッチポリシー: AmazonECSTaskExecutionRolePolicy（AWS管理ポリシー・Terraformでアタッチ）
+   └── アタッチポリシー: nestjs-hannibal-3-ecs-task-execution-secrets-manager-read
+
+🚦 codedeploy.amazonaws.com (Blue/Greenデプロイ)
+└── 使用ロール: nestjs-hannibal-3-codedeploy-service-role（Terraform管理）
+   └── アタッチポリシー: AWSCodeDeployRoleForECS（AWS管理ポリシー）
 ```
 
 ### **運用フロー**
@@ -99,37 +58,44 @@ graph TB
 # 日常開発 (hannibal)
 aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalDeveloperRole-Dev --role-session-name dev-session
 
-# 自動デプロイ (GitHub Actions)
-# hannibal-cicdの認証情報でHannibalCICDRole-DevをAssume
+# 自動deploy / destroy (GitHub Actions main)
+# GitHub OIDCでHannibalCICDRole-DevをAssumeRoleWithWebIdentity
+
+# PR terraform plan (GitHub Actions pull_request, #127/#122実装後)
+# GitHub OIDCでHannibalPRPlanRole-DevをAssumeRoleWithWebIdentity
 ```
 
 ### **管理方針**
 - **IAMユーザー**: 完全手動管理
-- **IAMロール・ポリシー**: Terraform作成後、管理から除外・永続保持
-- **段階的権限縮小**: CloudTrailログ分析後に最小権限化完了
+- **基盤IAMロール・ポリシー**: `terraform/foundation` で扱い、厳密運用で変更する
+- **アプリケーションIAMロール・ポリシー**: `terraform/environments/dev` から作成・破棄される
+- **段階的権限縮小**: CloudTrailログ分析とPRレビューで継続的に行う
 
 ## 🏗️ 設計原則
 
 ### 基盤とアプリケーションの分離
-- **基盤IAMリソース**: 手動管理・永続保持
+- **基盤IAMリソース**: 永続保持し、変更時は厳密運用で扱う
 - **アプリケーションIAMリソース**: Terraform管理・一時的
 
 ### 最小権限の原則
-- **CloudTrail分析**: 実際の使用権限（76個）を特定
+- **CloudTrail分析**: 実際の使用権限を特定する
 - **Permission Boundary**: 最大権限の制限
-- **段階的権限縮小**: 160個 → 76個（52%削減）
+- **段階的権限縮小**: 過去分析を起点に、現状確認と縮小を継続する
 
 ### 環境分離
 - **開発環境**: HannibalDeveloperRole-Dev
-- **CI/CD環境**: HannibalCICDRole-Dev
+- **deploy / destroy環境**: HannibalCICDRole-Dev
+- **PR plan環境**: HannibalPRPlanRole-Dev
 - **本番環境**: 将来的に別アカウント分離
 
 ## 📊 権限最適化結果
 
-### CI/CD権限分析 2025年7月27日
+### CI/CD権限分析 2025年7月27日（過去分析）
 - **分析前**: 160個の権限
 - **実際使用**: 76個の権限
 - **削減率**: 52%の権限削減達成
+
+現在の `HannibalCICDRole-Dev` の実権限と最小権限化は #129 で再確認します。PR plan ではこのRoleを流用せず、`HannibalPRPlanRole-Dev` を分けることを正とします。
 
 ### 企業レベル監査
 - **CloudTrail**: 全API呼び出しを記録
@@ -156,7 +122,10 @@ aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalDeveloperR
 }
 ```
 
-### AssumeRole設定
+### Trust Policy例
+
+GitHub Actions main の deploy / destroy 用:
+
 ```json
 {
   "Version": "2012-10-17",
@@ -164,18 +133,23 @@ aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalDeveloperR
     {
       "Effect": "Allow",
       "Principal": {
-        "AWS": "arn:aws:iam::258632448142:user/hannibal-cicd"
+        "Federated": "arn:aws:iam::258632448142:oidc-provider/token.actions.githubusercontent.com"
       },
-      "Action": "sts:AssumeRole",
+      "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "sts:ExternalId": "unique-external-id"
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:kmryst/terraform-hannibal:ref:refs/heads/main"
         }
       }
     }
   ]
 }
 ```
+
+PR terraform plan 用のTrust Policyは [pr-terraform-plan-role-design.md](./pr-terraform-plan-role-design.md) で扱います。
 
 ## 🔧 運用手順
 
