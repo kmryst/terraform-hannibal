@@ -487,3 +487,122 @@ resource "aws_iam_role_policy_attachment" "cacoo_policy_attachment" {
   role       = aws_iam_role.cacoo_integration_role.name
   policy_arn = aws_iam_policy.cacoo_readonly_policy.arn
 }
+
+# --- 8. HannibalPRPlanRole-Dev (PR terraform plan専用ロール) ---
+# 信頼ポリシー: GitHub OIDC による AssumeRoleWithWebIdentity
+# 許可範囲: kmryst/terraform-hannibal への pull_request イベントのみ
+# 用途: PR Check での terraform plan 実行（read-only、apply/destroy 権限なし）
+# 設計詳細: docs/operations/pr-terraform-plan-role-design.md
+# Permission Boundary: 付与しない。plan policy が read-only に限定されており
+#   既存の HannibalCICDBoundary は deploy/destroy 用で流用不適。
+#   専用 Boundary の要否は Issue #139 で後続検討する。
+resource "aws_iam_role" "hannibal_pr_plan_role" {
+  name = "HannibalPRPlanRole-Dev"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Principal = {
+          Federated = "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
+        }
+        Condition = {
+          StringEquals = {
+            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+            "token.actions.githubusercontent.com:sub" = "repo:kmryst/terraform-hannibal:pull_request"
+          }
+        }
+      }
+    ]
+  })
+}
+
+# --- 9. HannibalPRPlanPolicy-Dev (PR terraform plan専用ポリシー) ---
+# terraform plan に必要な read/list/describe/get 権限のみ
+# 含めない: iam:PassRole / create・update・delete・put・modify 系 /
+#           s3:PutObject・DeleteObject / dynamodb:PutItem・DeleteItem /
+#           secretsmanager:GetSecretValue / ECR push・upload 系
+resource "aws_iam_policy" "hannibal_pr_plan_policy" {
+  name        = "HannibalPRPlanPolicy-Dev"
+  description = "Read-only permissions for PR terraform plan - describe/list/get only, no write or apply operations"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "TerraformPlanRead"
+        Effect = "Allow"
+        Action = [
+          "sts:GetCallerIdentity",
+          "ec2:Describe*",
+          "elasticloadbalancing:Describe*",
+          "ecs:Describe*",
+          "ecs:List*",
+          "ecr:DescribeRepositories",
+          "ecr:GetLifecyclePolicy",
+          "ecr:ListTagsForResource",
+          "rds:Describe*",
+          "rds:ListTagsForResource",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:ListTagsForResource",
+          "cloudwatch:DescribeAlarms",
+          "cloudwatch:GetDashboard",
+          "cloudwatch:ListTagsForResource",
+          "sns:GetTopicAttributes",
+          "sns:GetSubscriptionAttributes",
+          "sns:ListSubscriptionsByTopic",
+          "sns:ListTagsForResource",
+          "sns:ListTopics",
+          "codedeploy:Get*",
+          "codedeploy:List*",
+          "iam:GetRole",
+          "iam:ListRolePolicies",
+          "iam:GetRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:GetPolicy",
+          "iam:GetPolicyVersion",
+          "iam:ListPolicyVersions",
+          "iam:ListInstanceProfilesForRole",
+          "s3:GetBucketLocation",
+          "s3:GetBucketPolicy",
+          "s3:GetBucketPublicAccessBlock",
+          "s3:GetBucketVersioning",
+          "s3:GetEncryptionConfiguration",
+          "s3:GetBucketTagging",
+          "s3:GetBucketAcl",
+          "s3:ListBucket",
+          "route53:GetHostedZone",
+          "route53:ListHostedZones",
+          "route53:ListHostedZonesByName",
+          "route53:ListResourceRecordSets",
+          "route53:ListTagsForResource",
+          "cloudfront:GetOriginAccessControl",
+          "cloudfront:ListOriginAccessControls",
+          "cloudfront:GetDistribution",
+          "cloudfront:GetDistributionConfig",
+          "cloudfront:ListTagsForResource",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:GetResourcePolicy",
+          "secretsmanager:ListSecretVersionIds",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid      = "TerraformStateRead"
+        Effect   = "Allow"
+        Action   = "s3:GetObject"
+        Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate"
+      }
+    ]
+  })
+}
+
+# --- 10. Policy Attachment (PR plan) ---
+resource "aws_iam_role_policy_attachment" "hannibal_pr_plan_policy_attachment" {
+  role       = aws_iam_role.hannibal_pr_plan_role.name
+  policy_arn = aws_iam_policy.hannibal_pr_plan_policy.arn
+}
