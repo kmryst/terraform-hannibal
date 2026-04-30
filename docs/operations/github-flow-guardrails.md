@@ -105,12 +105,15 @@ Issue / PR のどちらも、AI Agent は下書きと整理を担当し、人間
 - `-lock=false`
 - 出力は `artifact + Job Summary`
 - PRコメント自動投稿は初回実装では行わない
+- AWS認証は PR plan 専用の read-only Role を使い、deploy / destroy 用の `HannibalCICDRole-Dev` は使わない
 
 `terraform fmt/validate` は軽量・常時の静的ガード、`terraform plan` は実state を使う差分確認として役割を分けます。
 
 `-lock=false` を採るのは、PR plan を読み取り中心の確認として扱うためです。ただし、deploy 中の一時状態を読む可能性があるため、PR plan は最終確定値ではなくレビュー補助として扱います。
 
-理想形は plan 専用の read-only role ですが、初回実装では後回しを許容します。dev中心運用で段階導入し、必要に応じてロールを分離します。
+このプロジェクトでは dev 環境を通常 destroy 済みにしておき、人に見せる時だけ deploy してすぐ destroy します。そのため PR plan の全作成差分は正常系として扱い、drift 検知ではなく再構築予行演習として読むのが基本です。
+
+PR plan 用 AWS Role / OIDC 権限の詳細設計は [pr-terraform-plan-role-design.md](./pr-terraform-plan-role-design.md) に分けます。
 
 ## 将来の再検討条件
 
