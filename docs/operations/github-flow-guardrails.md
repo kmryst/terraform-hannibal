@@ -27,13 +27,16 @@
 - Issue の必須本文項目は `目的 / 対象 / 受け入れ条件`
 - Web UI の Issue Forms は 1 本に寄せ、`目的 / 対象 / 受け入れ条件` と `type / area / risk / cost` を同じフォームで扱う
 - Issue の自動チェックは本文とラベルの両方を見て、未整備なら `needs-template` を付ける
+- Issue 本文に専用の運用区分欄は追加せず、軽運用 / 厳密運用の判定は起票前プランと PR 作成前プランで確認する
 - PR テンプレの `目的 / 変更内容 / 影響範囲` は推奨に留め、厳密運用PRでは `ロールバック` を必須にする
 
 ### 軽運用 / 厳密運用
 
 軽運用では、Issue と PR の本文は最小限に保ちます。その代わり、Issueリンク、ラベル、CI を必須にして、最低限の構造を揃えます。
+Issue 本文の必須項目を増やすと、軽微な docs / CI 修正や AI Agent / CLI 起票の負担が増えやすいため、運用区分は本文項目としては持たせません。
+代わりに、人間または AI Agent が起票前プランでラベル・変更対象・変更内容を見て判断します。
 
-厳密運用PRは、次のいずれかに当てはまるものです。
+厳密運用は、次のいずれかに当てはまるものです。
 
 - `risk:medium/high`
 - `cost:medium/large`
@@ -41,6 +44,12 @@
 - `.github/workflows/**`
 - `scripts/deployment/**`
 - `scripts/validation/**`
+- IAM / OIDC / Permission Boundary
+- Secrets / Network / Security
+- deploy / destroy に関わる変更
+- 運用環境に影響する変更
+- コスト影響がある変更
+- ロールバックを考える必要がある変更
 
 厳密運用PRでは、`ロールバック` を本文に必須にします。ここで求めるのは見出しだけではなく、実際にどう戻すかが分かる最低限の内容です。
 
@@ -49,9 +58,9 @@
 - 通常Issueも AI Agent / CLI / API から起票される前提で設計する
 - Web UI 起票では `.github/ISSUE_TEMPLATE/feature_request.yml` を使い、フォーム回答から `type / area / risk / cost` を同期する
 - ただし、AI Agent は原則として起票前に Issue プランを提示する
-- Issue プランには、タイトル案、`目的`、`対象`、`受け入れ条件`、推奨ラベルとしての `type/area/risk/cost`、`使用ヘルパー: ./scripts/github/create-issue-with-labels.sh` を明示して含める
+- Issue プランには、タイトル案、`目的`、`対象`、`受け入れ条件`、推奨ラベルとしての `type/area/risk/cost`、軽運用 / 厳密運用の判定と理由、`使用ヘルパー: ./scripts/github/create-issue-with-labels.sh` を明示して含める
 - PR も同様に、いきなり作成せず先に PR プランを提示する
-- PR プランには、タイトル案、`目的`、`変更内容`、`影響範囲`、`Closes/Fixes/Refs #<issue番号>`、推奨ラベルとしての `type/area/risk/cost`、`使用ヘルパー: ./scripts/github/create-pr-with-labels.sh`、厳密運用PRかどうか、`ロールバック` が必須かどうかを明示して含める
+- PR プランには、タイトル案、`目的`、`変更内容`、`影響範囲`、`Closes/Fixes/Refs #<issue番号>`、推奨ラベルとしての `type/area/risk/cost`、`使用ヘルパー: ./scripts/github/create-pr-with-labels.sh`、軽運用 / 厳密運用の判定と理由、厳密運用の場合は `ロールバック` が必須かどうかを明示して含める
 - 起票後は GitHub Actions が最終チェックする
 
 Issue / PR のどちらも、AI Agent は下書きと整理を担当し、人間が起票前に内容を確認します。これにより、GitHub Actions の機械チェックに入る前に、意図のズレや過不足を減らします。
