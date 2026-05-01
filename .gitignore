@@ -53,6 +53,9 @@ docs/worklogs/
 # Local Codex workspace file
 .codex
 
+# Local Claude Code settings
+.claude/settings.local.json
+
 # 環境変数ファイル（ランタイムは ECS タスク定義から注入。.env.example のみ管理）
 .env
 .env.local

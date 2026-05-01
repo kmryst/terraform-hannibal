@@ -165,6 +165,7 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - [docs/architecture/aws/mermaid/README.md](./docs/architecture/aws/mermaid/README.md): システム構成図
 - [docs/troubleshooting/README.md](./docs/troubleshooting/README.md): 実装時の課題と解決方法
 - [CONTRIBUTING.md](./CONTRIBUTING.md): Issue駆動開発フロー・貢献ガイド
+- [CLAUDE.md](./CLAUDE.md): Claude Code 向け作業ルール
 
 **GitHub運用**
 - Issue作成 → ブランチ作成 → 実装 → PR → マージの一連フローを徹底
