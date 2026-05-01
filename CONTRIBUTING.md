@@ -423,6 +423,7 @@ gh alias set done '!f() { gh pr merge "$1" --merge && git checkout main && git p
 ## 📚 関連ドキュメント
 
 - [README.md](./README.md) - プロジェクト概要
+- [CLAUDE.md](./CLAUDE.md) - Claude Code 向け作業ルール
 - [Issue Template](./.github/ISSUE_TEMPLATE/feature_request.yml) - Issue作成ガイド
 - [PR Template](./.github/pull_request_template.md) - PR作成ガイド
 - [Labels](./.github/labels.yml) - ラベル定義
