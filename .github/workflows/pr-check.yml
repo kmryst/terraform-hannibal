@@ -297,13 +297,74 @@ jobs:
           if-no-files-found: warn
           retention-days: 3
 
-      - name: Write Terraform plan note
+      - name: Write Terraform plan summary
         if: always()
+        env:
+          PLAN_STATUS: ${{ steps.terraform_plan.outputs.plan_status }}
+          ARTIFACT_NAME: terraform-plan-dev-${{ github.event.pull_request.number }}
         run: |
+          set -e
+
+          plan_file="terraform/environments/dev/terraform-plan.txt"
+          exit_file="terraform/environments/dev/terraform-plan-exitcode.txt"
+          plan_exit="unknown"
+          add_count="unknown"
+          change_count="unknown"
+          destroy_count="unknown"
+          result_label="Not completed"
+          result_note="Terraform plan did not complete. Check the job logs and artifact for details."
+
+          if [ -f "$exit_file" ]; then
+            plan_exit="$(cat "$exit_file")"
+          fi
+
+          if [ -f "$plan_file" ]; then
+            plan_counts=$(sed -nE 's/^Plan: ([0-9]+) to add, ([0-9]+) to change, ([0-9]+) to destroy\..*/\1 \2 \3/p' "$plan_file" | tail -n 1)
+            if [ -n "$plan_counts" ]; then
+              set -- $plan_counts
+              add_count="$1"
+              change_count="$2"
+              destroy_count="$3"
+            elif grep -q '^No changes\.' "$plan_file"; then
+              add_count="0"
+              change_count="0"
+              destroy_count="0"
+            fi
+          fi
+
+          if [ "${PLAN_STATUS:-}" = "no_changes" ]; then
+            result_label="No changes"
+            result_note="Terraform reported no changes."
+          elif [ "${PLAN_STATUS:-}" = "changes" ]; then
+            result_label="Changes detected"
+            result_note="Review the plan artifact for full details."
+
+            if [ "$add_count" != "unknown" ] && [ "$change_count" = "0" ] && [ "$destroy_count" = "0" ]; then
+              result_note="All-create plan. This is expected for the normal destroyed dev environment and is not treated as a warning by itself."
+            fi
+          elif [ "${PLAN_STATUS:-}" = "failed" ]; then
+            result_label="Plan failed"
+            result_note="Check the job logs and uploaded plan artifact for the failure reason."
+          fi
+
           {
-            echo "## Terraform Plan Artifact"
+            echo "## Terraform Plan Summary"
+            echo
             echo "- Environment: dev"
             echo "- dev is usually destroyed; an all-create plan is expected and is not treated as failure."
+            echo "- Apply is not executed."
             echo "- Binary plan files are not uploaded."
-            echo "- Text plan output is uploaded as artifact with 3-day retention: terraform-plan-dev-${{ github.event.pull_request.number }}"
+            echo "- Text plan output artifact: \`$ARTIFACT_NAME\` (retention: 3 days)"
+            echo
+            echo "### Result"
+            echo
+            echo "| Item | Value |"
+            echo "|---|---|"
+            echo "| Status | \`$result_label\` |"
+            echo "| Terraform exit code | \`$plan_exit\` |"
+            echo "| Add | \`$add_count\` |"
+            echo "| Change | \`$change_count\` |"
+            echo "| Destroy | \`$destroy_count\` |"
+            echo
+            echo "$result_note"
           } >> "$GITHUB_STEP_SUMMARY"
