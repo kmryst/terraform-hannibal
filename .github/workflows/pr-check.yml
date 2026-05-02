@@ -264,6 +264,7 @@ jobs:
             -input=false \
             -no-color \
             -detailed-exitcode \
+            -out=tfplan \
             -var="client_url_for_cors=https://hamilcar-hannibal.click" \
             -var="environment=dev" \
             -var="deployment_type=canary" \
@@ -273,6 +274,10 @@ jobs:
           set -e
 
           echo "$plan_exit" > terraform-plan-exitcode.txt
+
+          if [ "$plan_exit" -eq 0 ] || [ "$plan_exit" -eq 2 ]; then
+            terraform show -json tfplan > terraform-plan.json 2> terraform-plan-json-error.txt || true
+          fi
 
           if [ "$plan_exit" -eq 0 ]; then
             echo "plan_status=no_changes" >> "$GITHUB_OUTPUT"
@@ -297,6 +302,142 @@ jobs:
           if-no-files-found: warn
           retention-days: 3
 
+      - name: Analyze Terraform plan review signals
+        if: always()
+        working-directory: ./terraform/environments/dev
+        run: |
+          set -e
+
+          if [ ! -s terraform-plan.json ]; then
+            {
+              echo "### Review Signals"
+              echo
+              echo "Structured plan analysis was not available. Check the plan artifact and job logs."
+            } > terraform-plan-signals.md
+            exit 0
+          fi
+
+          python3 <<'PY'
+          import json
+          from collections import defaultdict
+          from pathlib import Path
+
+          with open("terraform-plan.json", encoding="utf-8") as f:
+              plan = json.load(f)
+
+          categories = {
+              "destroy": "Destroy actions",
+              "replace": "Replace actions",
+              "iam": "IAM / OIDC / permission boundary changes",
+              "security_group_ingress": "Security group ingress changes",
+              "public_access": "Public access / external exposure changes",
+              "edge_data": "Route53 / CloudFront / RDS changes",
+          }
+
+          matches = defaultdict(list)
+          resource_changes = plan.get("resource_changes", [])
+
+          def actions_for(change):
+              return change.get("change", {}).get("actions", [])
+
+          def has_change(change):
+              actions = actions_for(change)
+              return actions and actions != ["no-op"]
+
+          def before_after_changed(change, key):
+              body = change.get("change", {})
+              before = body.get("before") or {}
+              after = body.get("after") or {}
+              return before.get(key) != after.get(key)
+
+          def add(category, change, reason):
+              actions = "/".join(actions_for(change)) or "unknown"
+              address = change.get("address", "unknown")
+              rtype = change.get("type", "unknown")
+              matches[category].append(f"- `{address}` ({rtype}, actions: `{actions}`): {reason}")
+
+          for change in resource_changes:
+              if not has_change(change):
+                  continue
+
+              actions = actions_for(change)
+              action_set = set(actions)
+              rtype = change.get("type", "")
+              address = change.get("address", "")
+              name = change.get("name", "")
+              combined = f"{rtype} {address} {name}".lower()
+
+              if "delete" in action_set and action_set != {"create", "delete"}:
+                  add("destroy", change, "resource will be destroyed")
+
+              if action_set == {"create", "delete"}:
+                  add("replace", change, "resource will be replaced")
+
+              if rtype.startswith("aws_iam_") or rtype == "aws_organizations_policy" or "openid_connect" in rtype:
+                  add("iam", change, "IAM/OIDC related resource changed")
+              elif before_after_changed(change, "permissions_boundary") or "permission_boundary" in combined:
+                  add("iam", change, "permission boundary related change")
+
+              if rtype in {"aws_vpc_security_group_ingress_rule", "aws_security_group_rule"}:
+                  body = change.get("change", {})
+                  before = body.get("before") or {}
+                  after = body.get("after") or {}
+                  rule_type = after.get("type", before.get("type"))
+                  if rtype == "aws_vpc_security_group_ingress_rule" or rule_type == "ingress":
+                      add("security_group_ingress", change, "security group ingress rule changed")
+              elif rtype == "aws_security_group" and before_after_changed(change, "ingress"):
+                  add("security_group_ingress", change, "security group ingress block changed")
+
+              if rtype in {
+                  "aws_s3_bucket_policy",
+                  "aws_s3_bucket_acl",
+                  "aws_s3_bucket_public_access_block",
+                  "aws_s3_bucket_website_configuration",
+                  "aws_lb",
+                  "aws_lb_listener",
+                  "aws_apigatewayv2_api",
+                  "aws_apigatewayv2_route",
+                  "aws_apigatewayv2_stage",
+              } or "public_access" in combined:
+                  add("public_access", change, "public access or external exposure related resource changed")
+
+              if (
+                  rtype.startswith("aws_route53_")
+                  or rtype.startswith("aws_cloudfront_")
+                  or rtype.startswith("aws_rds_")
+                  or rtype in {"aws_db_instance", "aws_db_subnet_group", "aws_db_parameter_group"}
+              ):
+                  add("edge_data", change, "external DNS/CDN or data-layer related resource changed")
+
+          lines = ["### Review Signals", ""]
+          if not any(matches.values()):
+              lines.append("No elevated review signals detected from structured Terraform plan JSON.")
+              lines.append("")
+              lines.append("Add count alone is not treated as a warning for the normal destroyed dev environment.")
+          else:
+              lines.append("These are review signals only. They do not change CI pass/fail behavior.")
+              lines.append("")
+              lines.append("| Signal | Count |")
+              lines.append("|---|---:|")
+              for key, label in categories.items():
+                  lines.append(f"| {label} | {len(matches[key])} |")
+              lines.append("")
+
+              max_items = 12
+              for key, label in categories.items():
+                  items = matches[key]
+                  if not items:
+                      continue
+                  lines.append(f"#### {label}")
+                  lines.append("")
+                  lines.extend(items[:max_items])
+                  if len(items) > max_items:
+                      lines.append(f"- ...and {len(items) - max_items} more")
+                  lines.append("")
+
+          Path("terraform-plan-signals.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
       - name: Write Terraform plan summary
         if: always()
         env:
@@ -307,6 +448,7 @@ jobs:
 
           plan_file="terraform/environments/dev/terraform-plan.txt"
           exit_file="terraform/environments/dev/terraform-plan-exitcode.txt"
+          signal_file="terraform/environments/dev/terraform-plan-signals.md"
           plan_exit="unknown"
           add_count="unknown"
           change_count="unknown"
@@ -367,4 +509,12 @@ jobs:
             echo "| Destroy | \`$destroy_count\` |"
             echo
             echo "$result_note"
+            echo
+            if [ -f "$signal_file" ]; then
+              cat "$signal_file"
+            else
+              echo "### Review Signals"
+              echo
+              echo "Structured plan analysis did not run. Check the plan artifact and job logs."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
