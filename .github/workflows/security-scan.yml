@@ -9,16 +9,21 @@ on:
   #   branches: [main]
   # schedule:
   #   - cron: "0 0 * * 1"
+
+permissions:
+  contents: read
+
 jobs:
   dependency-scan:
     name: Dependency Vulnerability Scan
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       security-events: write
     steps:
       - uses: actions/checkout@v4
       - name: Run Trivy vulnerability scanner (npm)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: "fs"
           scan-ref: "."
@@ -34,6 +39,7 @@ jobs:
     name: Container Image Scan
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       security-events: write
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +54,7 @@ jobs:
           cache-to: type=gha,mode=max
           load: true
       - name: Run Trivy vulnerability scanner (Docker)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: "nestjs-hannibal-3:${{ github.sha }}"
           format: "sarif"
@@ -77,6 +83,7 @@ jobs:
   summary:
     name: Security Scan Summary
     runs-on: ubuntu-latest
+    permissions: {}
     needs:
       - dependency-scan
       - container-scan

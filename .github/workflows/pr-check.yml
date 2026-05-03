@@ -5,6 +5,9 @@ on:
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
     branches: [main]
 
+permissions:
+  contents: read
+
 env:
   AWS_ACCOUNT_ID: "258632448142"
   AWS_REGION: "ap-northeast-1"
