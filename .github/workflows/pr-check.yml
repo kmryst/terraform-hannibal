@@ -18,6 +18,9 @@ jobs:
   pr-policy-check:
     name: PR Policy Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,35 +29,64 @@ jobs:
 
       - name: Require linked issue and mandatory labels
         env:
+          GH_TOKEN: ${{ github.token }}
           PR_BODY: ${{ github.event.pull_request.body }}
-          PR_LABELS_JSON: ${{ toJson(github.event.pull_request.labels) }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          counts=$(python3 - <<'PY'
+          labels_fetch_ok=false
+
+          for attempt in 1 2 3 4 5; do
+            labels_fetch_ok=false
+
+            if labels_json=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]'); then
+              labels_fetch_ok=true
+              echo "Current PR labels: $labels_json"
+            else
+              labels_json="[]"
+              echo "::warning::Failed to fetch current PR labels from GitHub API."
+            fi
+
+            counts=$(LABEL_NAMES_JSON="$labels_json" python3 - <<'PY'
           import json
           import os
 
-          labels = json.loads(os.environ["PR_LABELS_JSON"])
+          labels = json.loads(os.environ["LABEL_NAMES_JSON"])
 
           def count(prefix: str) -> int:
-              return sum(1 for label in labels if label["name"].startswith(prefix))
+              return sum(1 for label in labels if label.startswith(prefix))
 
           print(count("type:"))
           print(count("area:"))
           print(count("risk:"))
           print(count("cost:"))
-          print("true" if any(label["name"] in {"risk:medium", "risk:high"} for label in labels) else "false")
-          print("true" if any(label["name"] in {"cost:medium", "cost:large"} for label in labels) else "false")
+          print("true" if any(label in {"risk:medium", "risk:high"} for label in labels) else "false")
+          print("true" if any(label in {"cost:medium", "cost:large"} for label in labels) else "false")
           PY
-          )
+            )
 
-          type_count=$(printf '%s\n' "$counts" | sed -n '1p')
-          area_count=$(printf '%s\n' "$counts" | sed -n '2p')
-          risk_count=$(printf '%s\n' "$counts" | sed -n '3p')
-          cost_count=$(printf '%s\n' "$counts" | sed -n '4p')
-          strict_by_labels=$(printf '%s\n' "$counts" | sed -n '5p')
-          strict_by_cost=$(printf '%s\n' "$counts" | sed -n '6p')
+            type_count=$(printf '%s\n' "$counts" | sed -n '1p')
+            area_count=$(printf '%s\n' "$counts" | sed -n '2p')
+            risk_count=$(printf '%s\n' "$counts" | sed -n '3p')
+            cost_count=$(printf '%s\n' "$counts" | sed -n '4p')
+            strict_by_labels=$(printf '%s\n' "$counts" | sed -n '5p')
+            strict_by_cost=$(printf '%s\n' "$counts" | sed -n '6p')
+
+            if [ "$type_count" -eq 1 ] && [ "$area_count" -ge 1 ] && [ "$risk_count" -eq 1 ] && [ "$cost_count" -eq 1 ]; then
+              break
+            fi
+
+            if [ "$attempt" -lt 5 ]; then
+              echo "Required PR labels are not complete yet; retrying label fetch..."
+              sleep 2
+            fi
+          done
+
+          if [ "$labels_fetch_ok" != true ]; then
+            echo "::error::Failed to fetch current PR labels from GitHub API."
+            exit 1
+          fi
 
           if [ "$type_count" -ne 1 ]; then
             echo "::error::PR must have exactly one type:* label. Use ./scripts/github/create-pr-with-labels.sh to create PRs with the required labels."
