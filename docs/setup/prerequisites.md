@@ -74,6 +74,8 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 - 💰 **コスト最適化**: ストレージ料金は数セント程度
 - 📝 **注意**: Terraform管理外のため、destroy時も自動削除されません
 
+永続リソースの全体一覧（IAM / ECR / Route53 / ACM 含む）は [docs/operations/aws-resources.md](../operations/aws-resources.md) を参照。
+
 ## ✅ IAM権限設定（完了済み）
 
 このプロジェクトのIAM権限設定は完了しています。
