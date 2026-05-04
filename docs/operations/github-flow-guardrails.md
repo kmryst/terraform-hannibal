@@ -124,6 +124,44 @@ Issue / PR のどちらも、AI Agent は下書きと整理を担当し、人間
 
 PR plan 用 AWS Role / OIDC 権限の詳細設計は [pr-terraform-plan-role-design.md](./pr-terraform-plan-role-design.md) に分けます。
 
+### Terraform plan の required status check 方針
+
+**現在の判断: required 化しない（#128 時点）**
+
+理由:
+
+- #122/#124/#125 がマージされたばかりで運用実績が浅い
+- plan job には「正常なのに skip される」ケースが2つあり、required との相性が悪い
+  - `terraform/**` 変更なしの PR → `Terraform Plan Change Detection` が変更なしを検出し、`Terraform Plan Artifact` が skip される
+  - fork PR → セキュリティ上 AWS 認証を走らせないため、plan job が `if` 条件で skip される
+- GitHub の required check が skip になった場合、PR がマージできなくなる問題がある
+
+**skip の扱い**
+
+`terraform/**` 変更なしの PR と fork PR では plan job が skip される。これは正常系であり、CI の失敗ではない。required check は「成功」を要求するため、skip のままでは required check が通らずマージが詰まる。この問題を解決しないまま required 化するとすべての非 terraform PR と fork PR がブロックされる。
+
+**plan 失敗時のマージ可否**
+
+現時点では plan 失敗時にマージを止めない。plan はレビュー補助として扱う。CI の fail 条件は Terraform 実行エラー・OIDC/backend エラーのみとし、全作成 plan は destroy 済み dev 環境の正常系として fail 扱いしない。
+
+**将来 required 化する場合の方針**
+
+生の `Terraform Plan Artifact` job を直接 required にせず、**gate job を新設してそちらを required 対象にする**。
+
+gate job の役割:
+
+- plan が skip された場合（terraform 変更なし・fork PR）→ success を返す
+- plan が成功した場合 → success を返す
+- plan が失敗した場合 → fail を返す
+
+これにより skip を gate job で吸収でき、required check と整合が取れる。branch protection の更新は gate job が安定してから行い、後続 Issue で別途判断する。
+
+**現在の required status checks（参考）**
+
+`PR Policy Check` / `Backend Lint & Build` / `Frontend Build` / `Terraform Format & Validate`
+
+`Terraform Plan Change Detection` / `Terraform Plan Artifact` はいずれも required に含まれていない。
+
 ## 将来の再検討条件
 
 ### approval 再検討条件
