@@ -1,85 +1,80 @@
 # セットアップガイド - NestJS Hannibal 3
 
-## � セットアップ概要
+## セットアップ概要
 
 このプロジェクトは **Terraform + GitHub Actions** で完全自動化されています。
-手動セットアップは **IAM設定 → Terraform State初期化 → GitHub Secrets登録** の3ステップのみ。
+手動セットアップは **IAM/OIDC設定 → Terraform State初期化** の2ステップのみ。
+
+GitHub Actions から AWS への認証は **OIDC（OpenID Connect）** を使います。
+長期 Access Key は不要です。
 
 ---
 
-## 🔐 ステップ1: IAM設定（初回のみ）
+## ステップ1: IAM/OIDC設定（初回のみ）
 
 ### 1-1. IAM User作成
 
+開発者手動操作用のユーザーを作成します（GitHub Actions用は不要）。
+
 ```bash
-# AWS CLIで基盤IAMを作成
 aws iam create-user --user-name hannibal
-aws iam create-user --user-name hannibal-cicd
 ```
 
-### 1-2. Permission Boundary適用
-
-```bash
-cd terraform/foundation
-terraform init
-terraform apply  # IAMポリシー・ロール作成
-```
-
-**作成されるリソース:**
-- `HannibalDeveloperRole-Dev` (手動操作用)
-- `HannibalCICDRole-Dev` (GitHub Actions用)
-- `HannibalCICDBoundary` (Permission Boundary)
-
-### 1-3. Access Key発行
-
-```bash
-# GitHub Actions用の認証情報
-aws iam create-access-key --user-name hannibal-cicd
-```
-
-**出力例:**
-```json
-{
-  "AccessKey": {
-    "AccessKeyId": "AKIAIOSFODNN7EXAMPLE",
-    "SecretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-  }
-}
-```
-
----
-
-## 🗄️ ステップ2: Terraform State初期化（初回のみ）
-
-### 2-1. S3バケット + DynamoDB作成
+### 1-2. foundation Terraform apply
 
 ```bash
 cd terraform/foundation
 terraform init
 terraform apply
+```
 
-# 作成されるリソース:
-# - S3: nestjs-hannibal-3-terraform-state (State保存)
-# - DynamoDB: terraform-state-lock (Lock管理)
+**作成されるリソース:**
+- `aws_iam_openid_connect_provider` — GitHub Actions OIDC プロバイダー
+- `HannibalDeveloperRole-Dev` — 開発者手動操作用 Role
+- `HannibalCICDRole-Dev` — deploy/destroy workflow 用 Role（OIDC trust）
+- `HannibalPRPlanRole-Dev` — PR terraform plan 用 Role（OIDC trust・read-only）
+- `HannibalCICDBoundary` / `HannibalECSBoundary` — Permission Boundary
+- Athena Workgroup / Database / Budget アラーム 等
+
+foundation apply 後、GitHub Actions の deploy/destroy は OIDC で `HannibalCICDRole-Dev` を
+AssumeRoleWithWebIdentity します。Access Key の発行・登録は不要です。
+
+---
+
+## ステップ2: Terraform State初期化（初回のみ）
+
+### 2-1. S3バケット + DynamoDB作成
+
+Terraform state 用のバックエンドリソースを手動で作成します。
+
+```bash
+aws s3 mb s3://nestjs-hannibal-3-terraform-state --region ap-northeast-1
+aws s3api put-bucket-versioning \
+  --bucket nestjs-hannibal-3-terraform-state \
+  --versioning-configuration Status=Enabled
+
+aws dynamodb create-table \
+  --table-name terraform-state-lock \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST \
+  --region ap-northeast-1
 ```
 
 ### 2-2. Backend設定確認
 
-**ファイル構造:**
 ```
 terraform/
-├── foundation/          # 基盤（State管理自体はlocal）
-│   └── main.tf
-└── environments/dev/    # アプリ環境（S3バックエンド利用）
-    └── main.tf
+├── foundation/          # 基盤（IAM/OIDC/Athena等。backend は local）
+└── environments/dev/    # アプリ環境（S3 backend）
 ```
 
-**dev環境の設定例** (`terraform/environments/dev/main.tf`):
+`terraform/environments/dev/backend.tf`:
 ```hcl
 terraform {
   backend "s3" {
     bucket         = "nestjs-hannibal-3-terraform-state"
-    key            = "dev/terraform.tfstate"
+    key            = "environments/dev/terraform.tfstate"
     region         = "ap-northeast-1"
     dynamodb_table = "terraform-state-lock"
     encrypt        = true
@@ -91,64 +86,34 @@ terraform {
 
 ```bash
 cd terraform/environments/dev
-terraform init  # S3バックエンド初期化
-terraform plan  # 変更プレビュー
+terraform init
 ```
 
 ---
 
-## 🔐 ステップ3: Secrets Manager にDB接続情報を登録（推奨）
+## ステップ3: GitHub Secrets
 
-このプロジェクトでは **DBパスワードや `DATABASE_URL` をTerraformやGitHub Secretsに平文で持たない** 方針です。  
-ECS タスクは **Secrets Manager から `secrets` 注入**で DB 接続情報を取得します。
+AWS 認証は OIDC のため、**長期 Access Key の登録は不要**です。
 
-### 3-1. Secret は RDS が自動作成（managed secret）
-
-RDS は `manage_master_user_password = true` で作成され、**master user の認証情報を Secrets Manager に自動保存**します。  
-アプリ（ECS）は **同じ managed secret** から `host/port/username/password` を参照するため、**ズレない**構成になります。
-
-> 補足: `DB_NAME` は秘匿ではないので、ECS側は通常の環境変数として渡します。
+現在 GitHub Actions が参照する Secret はありません（`GITHUB_TOKEN` は自動提供）。
+`AWS_ACCOUNT_ID` / `AWS_REGION` / `CLIENT_URL` はワークフロー内に直接定義されています。
 
 ---
 
-## 🔑 ステップ4: GitHub Secrets登録
+## ステップ4: 初回デプロイ
 
-### 4-1. 必須Secrets一覧
+GitHub Actions の deploy workflow を手動実行します。
 
-| Secret名 | 説明 | 取得方法 |
-|---------|------|---------|
-| `AWS_ACCESS_KEY_ID` | hannibal-cicd のAccess Key | ステップ1-3で取得 |
-| `AWS_SECRET_ACCESS_KEY` | hannibal-cicd のSecret Key | ステップ1-3で取得 |
-| `AWS_REGION` | デプロイ先リージョン | `ap-northeast-1` |
-| `CLIENT_URL` | Frontend URL | `https://hamilcar-hannibal.click` |
-
-### 4-2. 登録方法（GitHub CLI推奨）
-
-```powershell
-# PowerShellでの登録例
-gh secret set AWS_ACCESS_KEY_ID -b "AKIAIOSFODNN7EXAMPLE"
-gh secret set AWS_SECRET_ACCESS_KEY -b "wJalrXUtnFEMI/K7MDENG/..."
-gh secret set AWS_REGION -b "ap-northeast-1"
-gh secret set CLIENT_URL -b "https://hamilcar-hannibal.click"
 ```
-
----
-
-## 🚀 ステップ5: 初回デプロイ
-
-### 4-1. GitHub Actionsで実行
-
-```bash
-# WebUIで手動実行: .github/workflows/deploy.yml
-# 入力パラメータ:
-#   deployment_mode: provisioning
-#   environment: dev
+Workflow: deploy.yml
+Inputs:
+  - deployment_mode: provisioning
+  - environment: dev
 ```
 
 **所要時間**: 約15分
 
-### 4-2. デプロイフロー
-
+**デプロイフロー:**
 ```
 1. Terraform Apply (VPC/ECS/RDS/ALB/CloudFront作成)
    ↓
@@ -158,17 +123,15 @@ gh secret set CLIENT_URL -b "https://hamilcar-hannibal.click"
    ↓
 4. ECS Service起動（Blue環境）
    ↓
-5. CloudFront DNS設定（hamilcar-hannibal.click）
+5. CloudFront / DNS設定（hamilcar-hannibal.click）
 ```
 
-### 4-3. デプロイ確認
-
+**デプロイ確認:**
 ```bash
-# ALB Health Check
-aws elbv2 describe-target-health \
-  --target-group-arn <ARN>
+# ALB ターゲットヘルス確認
+aws elbv2 describe-target-health --target-group-arn <ARN>
 
-# ECS Task状態確認
+# ECS Task 状態確認
 aws ecs describe-tasks \
   --cluster nestjs-hannibal-3-cluster \
   --tasks <TASK_ARN>
@@ -176,21 +139,16 @@ aws ecs describe-tasks \
 
 ---
 
-## 🔧 ローカル開発環境セットアップ
+## ローカル開発環境セットアップ
 
 ### Backend (NestJS)
 
 ```bash
-# 依存関係インストール
 npm ci
-
-# 環境変数設定
 cp .env.example .env
 # DATABASE_URL=postgresql://user:pass@localhost:5432/hannibal
 # NODE_ENV=development
 # DEV_CLIENT_URL_LOCAL=http://localhost:5173
-
-# 開発サーバー起動
 npm run start:dev  # http://localhost:3000/graphql
 ```
 
@@ -199,10 +157,7 @@ npm run start:dev  # http://localhost:3000/graphql
 ```bash
 cd client
 npm ci
-
-# 環境変数設定
 echo "VITE_GRAPHQL_ENDPOINT=http://localhost:3000/graphql" > .env
-
 npm run dev  # http://localhost:5173
 ```
 
@@ -211,35 +166,30 @@ npm run dev  # http://localhost:5173
 ```bash
 cd terraform/environments/dev
 
-# AssumeRole設定（PowerShell）
-$env:AWS_PROFILE = "hannibal-dev"
-
-# 変更プレビュー
+# HannibalDeveloperRole-Dev を AssumeRole してから実行
 terraform plan
-
-# リソース作成
 terraform apply
 ```
 
 ---
 
-## 📋 関連ドキュメント
+## 関連ドキュメント
 
-- **[CONTRIBUTING.md](../../CONTRIBUTING.md)** - Issue駆動開発フロー（必読）
-- **[docs/architecture/](../architecture/)** - システム設計詳細
-- **[docs/deployment/](../deployment/)** - Blue/Green・Canaryデプロイ手順
-- **[docs/operations/](../operations/)** - 日常運用・監視・トラブルシュート
-- **[docs/troubleshooting/](../troubleshooting/)** - よくある問題と解決方法
+- [CONTRIBUTING.md](../../CONTRIBUTING.md) — Issue駆動開発フロー（必読）
+- [docs/setup/prerequisites.md](./prerequisites.md) — 手動作成リソース一覧
+- [docs/operations/aws-resources.md](../operations/aws-resources.md) — 永続リソース・一時リソース一覧
+- [docs/operations/iam-management.md](../operations/iam-management.md) — IAM権限設計
+- [docs/architecture/](../architecture/) — システム設計詳細
+- [docs/deployment/](../deployment/) — Blue/Green・Canaryデプロイ手順
 
 ---
 
-## 🚨 トラブルシューティング
+## トラブルシューティング
 
 ### Terraform State Lock エラー
 
 ```bash
 # 原因: 別の操作が実行中 or 異常終了
-# 解決: Lock解除（他の操作がないことを確認）
 terraform force-unlock <LOCK_ID>
 ```
 
@@ -248,21 +198,17 @@ terraform force-unlock <LOCK_ID>
 ```bash
 # CloudWatch Logs確認
 aws logs tail /ecs/nestjs-hannibal-3 --follow
-
-# 原因: ECS実行ロールのSecrets Manager参照権限不足 / RDS managed secret未作成
-# 解決: Terraform applyでRDS作成（managed secret作成）→ IAMポリシー確認 → 再デプロイ
+# 原因: ECS実行ロールの Secrets Manager 参照権限不足 / RDS managed secret 未作成
 ```
 
 ### Backend初期化エラー
 
 ```bash
 # エラー: "Backend initialization required"
-# 解決: terraform init を再実行
 cd terraform/environments/dev
 terraform init -reconfigure
 ```
 
 ---
 
-**最終更新**: 2025年10月12日  
-**セットアップ所要時間**: 初回約2時間（IAM設定30分 + Terraform実行15分 + 動作確認15分）
+**最終更新**: 2026-05-05

@@ -76,16 +76,17 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 
 永続リソースの全体一覧（IAM / ECR / Route53 / ACM 含む）は [docs/operations/aws-resources.md](../operations/aws-resources.md) を参照。
 
-## ✅ IAM権限設定（完了済み）
+## ✅ IAM/OIDC設定（完了済み）
 
-このプロジェクトのIAM権限設定は完了しています。
+このプロジェクトの IAM / OIDC 設定は完了しています。
 
 ### 設定済みリソース
-- **HannibalCICDRole-Dev**: CI/CD用IAMロール
-- **HannibalCICDPolicy-Dev**: CI/CD用ポリシー（最新版）
-- **GitHub Secrets**: AWS認証情報設定済み
+- **GitHub Actions OIDC Provider**: `token.actions.githubusercontent.com` — 長期 Access Key 不要
+- **HannibalCICDRole-Dev**: deploy/destroy workflow が OIDC で AssumeRoleWithWebIdentity するロール
+- **HannibalPRPlanRole-Dev**: PR terraform plan 用ロール（read-only）
+- **HannibalCICDPolicy-Dev**: CI/CD用ポリシー（現在 attach 中）
 
-> ※ 初回セットアップ時に一時的な高権限が必要でしたが、現在は完了しているため追加作業は不要です。
+> ※ GitHub Actions から AWS への認証は OIDC を使います。AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY の GitHub Secrets 登録は不要です。
 
 ## 🔐 Infrastructure as Code原則
 
