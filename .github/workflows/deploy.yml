@@ -220,3 +220,46 @@ jobs:
           echo "📊 Monitor: https://console.aws.amazon.com/codesuite/codedeploy/deployments/$DEPLOYMENT_ID"
           aws deploy wait deployment-successful --deployment-id "$DEPLOYMENT_ID"
           echo "✅ Canary deployment finished successfully!"
+
+      - name: Cleanup old task definition revisions
+        # ECRライフサイクルポリシーが直近10イメージを保持するため、タスク定義も10世代に揃える
+        run: |
+          set -e
+          FAMILY="${{ env.PROJECT_NAME }}-api-task"
+          KEEP=10
+
+          ALL_ARNS=()
+          NEXT_TOKEN=""
+          while true; do
+            if [ -z "$NEXT_TOKEN" ]; then
+              RESULT=$(aws ecs list-task-definitions \
+                --family-prefix "$FAMILY" \
+                --sort DESC \
+                --output json)
+            else
+              RESULT=$(aws ecs list-task-definitions \
+                --family-prefix "$FAMILY" \
+                --sort DESC \
+                --next-token "$NEXT_TOKEN" \
+                --output json)
+            fi
+            while IFS= read -r ARN; do
+              ALL_ARNS+=("$ARN")
+            done < <(echo "$RESULT" | jq -r '.taskDefinitionArns[]')
+            NEXT_TOKEN=$(echo "$RESULT" | jq -r '.nextToken // empty')
+            [ -z "$NEXT_TOKEN" ] && break
+          done
+
+          TOTAL=${#ALL_ARNS[@]}
+          if [ "$TOTAL" -le "$KEEP" ]; then
+            echo "✅ ${TOTAL} 世代のため cleanup 不要（保持上限: ${KEEP}）"
+          else
+            OLD_COUNT=$((TOTAL - KEEP))
+            echo "🗑️ ${OLD_COUNT} 件の古いリビジョンを deregister します（${TOTAL} → ${KEEP} 世代）"
+            for i in $(seq "$KEEP" $((TOTAL - 1))); do
+              aws ecs deregister-task-definition \
+                --task-definition "${ALL_ARNS[$i]}" \
+                --query 'taskDefinition.taskDefinitionArn' --output text
+            done
+            echo "✅ Cleanup complete"
+          fi
