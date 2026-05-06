@@ -827,77 +827,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_deploy" {
 #   → Access Advisor調査で実使用174 actionのうち56個が不足しており即切り替え不可
 #   → 最小権限化は後続PRで段階的に実施予定（vNextポリシー候補あり）
 
-# --- 7. 外部サービス連携用ロール・ポリシー ---
-
-# Cacoo AWS Integration Role (構成図自動生成サービス)
-resource "aws_iam_role" "cacoo_integration_role" {
-  name = "CacooAWSIntegrationRole"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          AWS = "arn:aws:iam::${var.cacoo_aws_account_id}:root"
-        }
-        Action = "sts:AssumeRole"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_policy" "cacoo_readonly_policy" {
-  name        = "CacooReadOnlyPolicy"
-  description = "Read-only permissions for Cacoo AWS diagram generation"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "cloudfront:ListDistributions",
-          "ec2:DescribeInstances",
-          "ec2:DescribeSecurityGroups",
-          "ec2:DescribeSubnets",
-          "ec2:DescribeVpcs",
-          "ec2:DescribeAvailabilityZones",
-          "elasticloadbalancing:DescribeLoadBalancers",
-          "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeTargetHealth",
-          "elasticache:DescribeCacheSubnetGroups",
-          "elasticache:DescribeCacheClusters",
-          "rds:DescribeDBInstances",
-          "s3:ListAllMyBuckets",
-          "s3:GetBucketLocation",
-          "sns:ListTopics",
-          "sns:GetTopicAttributes",
-          "sqs:ListQueues",
-          "ec2:DescribeRouteTables",
-          "ec2:DescribeNatGateways",
-          "ecs:DescribeClusters",
-          "ecs:DescribeServices",
-          "ecs:DescribeTasks",
-          "ecs:ListClusters",
-          "ecs:ListServices",
-          "ecs:ListTasks",
-          "iam:ListRoles",
-          "iam:GetRole",
-          "iam:ListInstanceProfiles"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "cacoo_policy_attachment" {
-  role       = aws_iam_role.cacoo_integration_role.name
-  policy_arn = aws_iam_policy.cacoo_readonly_policy.arn
-}
-
-# --- 8. HannibalPRPlanRole-Dev (PR terraform plan専用ロール) ---
+# --- 7. HannibalPRPlanRole-Dev (PR terraform plan専用ロール) ---
 # 信頼ポリシー: GitHub OIDC による AssumeRoleWithWebIdentity
 # 許可範囲: kmryst/terraform-hannibal への pull_request イベントのみ
 # 用途: PR Check での terraform plan 実行（read-only、apply/destroy 権限なし）
