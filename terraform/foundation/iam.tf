@@ -414,9 +414,10 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
 # 用途: ECSタスク実行ロールの権限制限
 
 # --- 現在の運用状況 ---
-# HannibalCICDRole-Dev: HannibalCICDPolicy-Dev-Minimal v2 アタッチ済み
-# deploy.yml + destroy.yml 両対応の最小権限設計
-# CloudTrail分析結果に基づく実用的な権限設定
+# HannibalCICDRole-Dev: HannibalCICDPolicy-Dev (v13) がアタッチ済み（service:* ワイルドカード中心）
+# HannibalCICDPolicy-Dev-Minimal はAWS上に存在するが未アタッチ
+#   → Access Advisor調査で実使用174 actionのうち56個が不足しており即切り替え不可
+#   → 最小権限化は後続PRで段階的に実施予定（vNextポリシー候補あり）
 
 # --- 7. 外部サービス連携用ロール・ポリシー ---
 
