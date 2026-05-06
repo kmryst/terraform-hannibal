@@ -554,7 +554,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_storage" {
           "s3:GetBucketTagging", "s3:GetBucketVersioning", "s3:GetBucketWebsite",
           "s3:GetEncryptionConfiguration", "s3:GetLifecycleConfiguration",
           "s3:GetReplicationConfiguration", "s3:GetAccelerateConfiguration",
-          "s3:ListBucket", "s3:PutBucketPolicy", "s3:PutBucketPublicAccessBlock",
+          "s3:ListBucket", "s3:ListBucketVersions", "s3:PutBucketPolicy", "s3:PutBucketPublicAccessBlock",
           "s3:PutBucketTagging", "s3:PutBucketVersioning", "s3:PutEncryptionConfiguration",
         ]
         Resource = [
@@ -567,7 +567,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_storage" {
         Sid    = "S3Object"
         Effect = "Allow"
         Action = [
-          "s3:DeleteObject", "s3:DeleteObjectTagging", "s3:GetObject",
+          "s3:DeleteObject", "s3:DeleteObjectTagging", "s3:DeleteObjectVersion", "s3:GetObject",
           "s3:GetObjectTagging", "s3:PutObject", "s3:PutObjectTagging",
         ]
         Resource = [
