@@ -931,6 +931,7 @@ resource "aws_iam_policy" "hannibal_pr_plan_policy" {
           "s3:GetEncryptionConfiguration",
           "s3:GetBucketTagging",
           "s3:GetBucketAcl",
+          "s3:GetBucketCORS",
           "s3:ListBucket",
           "route53:GetHostedZone",
           "route53:ListHostedZones",
@@ -954,6 +955,12 @@ resource "aws_iam_policy" "hannibal_pr_plan_policy" {
         Effect   = "Allow"
         Action   = "s3:GetObject"
         Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate"
+      },
+      {
+        Sid      = "TerraformFrontendObjectRead"
+        Effect   = "Allow"
+        Action   = "s3:GetObject"
+        Resource = "arn:aws:s3:::nestjs-hannibal-3-frontend/*"
       }
     ]
   })

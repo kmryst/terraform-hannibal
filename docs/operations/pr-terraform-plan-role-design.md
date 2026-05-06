@@ -142,7 +142,8 @@ jobs:
 
 既存 data source / 永続リソース参照:
 
-- `s3:GetBucketLocation`, `s3:GetBucketPolicy`, `s3:GetBucketPublicAccessBlock`, `s3:GetBucketVersioning`, `s3:GetBucketEncryption`, `s3:GetBucketTagging`, `s3:GetBucketAcl`, `s3:ListBucket`
+- `s3:GetBucketLocation`, `s3:GetBucketPolicy`, `s3:GetBucketPublicAccessBlock`, `s3:GetBucketVersioning`, `s3:GetBucketEncryption`, `s3:GetBucketTagging`, `s3:GetBucketAcl`, `s3:GetBucketCORS`, `s3:ListBucket`
+- `s3:GetObject` for `nestjs-hannibal-3-frontend/*` only. `aws_s3_object` refresh uses `HeadObject`, which is authorized by `s3:GetObject`.
 - `route53:GetHostedZone`, `route53:ListHostedZones`, `route53:ListHostedZonesByName`, `route53:ListResourceRecordSets`, `route53:ListTagsForResource`
 - `cloudfront:GetOriginAccessControl`, `cloudfront:ListOriginAccessControls`, `cloudfront:GetDistribution`, `cloudfront:GetDistributionConfig`, `cloudfront:ListTagsForResource`
 - `secretsmanager:DescribeSecret`, `secretsmanager:GetResourcePolicy`, `secretsmanager:ListSecretVersionIds`
