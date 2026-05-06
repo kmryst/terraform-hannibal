@@ -932,6 +932,7 @@ resource "aws_iam_policy" "hannibal_pr_plan_policy" {
           "s3:GetBucketTagging",
           "s3:GetBucketAcl",
           "s3:GetBucketCORS",
+          "s3:GetBucketWebsite",
           "s3:ListBucket",
           "route53:GetHostedZone",
           "route53:ListHostedZones",
@@ -959,7 +960,7 @@ resource "aws_iam_policy" "hannibal_pr_plan_policy" {
       {
         Sid      = "TerraformFrontendObjectRead"
         Effect   = "Allow"
-        Action   = "s3:GetObject"
+        Action   = ["s3:GetObject", "s3:GetObjectTagging"]
         Resource = "arn:aws:s3:::nestjs-hannibal-3-frontend/*"
       }
     ]
