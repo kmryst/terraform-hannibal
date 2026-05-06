@@ -766,6 +766,15 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_deploy" {
         }
       },
       {
+        Sid      = "IAMPassRoleForCodeDeployOnly"
+        Effect   = "Allow"
+        Action   = ["iam:PassRole"]
+        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-codedeploy-service-role"
+        Condition = {
+          StringEquals = { "iam:PassedToService" = ["codedeploy.amazonaws.com"] }
+        }
+      },
+      {
         Sid      = "IAMReadOnlyForCheck"
         Effect   = "Allow"
         Action   = ["iam:SimulatePrincipalPolicy", "iam:ListRoles", "iam:ListPolicies"]
