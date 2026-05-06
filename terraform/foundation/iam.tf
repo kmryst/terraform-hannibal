@@ -689,7 +689,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_deploy" {
           "codedeploy:GetApplication", "codedeploy:GetDeployment", "codedeploy:GetDeploymentConfig",
           "codedeploy:GetDeploymentGroup",
           "codedeploy:ListApplications", "codedeploy:ListDeploymentGroups", "codedeploy:ListDeployments",
-          "codedeploy:ListTagsForResource", "codedeploy:StopDeployment",
+          "codedeploy:ListTagsForResource", "codedeploy:RegisterApplicationRevision", "codedeploy:StopDeployment",
           "codedeploy:TagResource", "codedeploy:UntagResource", "codedeploy:UpdateDeploymentGroup",
         ]
         Resource = [
