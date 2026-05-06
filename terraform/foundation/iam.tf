@@ -573,7 +573,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_storage" {
         Sid      = "DynamoDBTerraformLock"
         Effect   = "Allow"
         Action   = ["dynamodb:DeleteItem", "dynamodb:DescribeTable", "dynamodb:GetItem", "dynamodb:PutItem"]
-        Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-lock-*"
+        Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
       },
       {
         Sid    = "SecretsManagerForRDS"
