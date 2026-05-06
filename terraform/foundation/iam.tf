@@ -526,7 +526,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_storage" {
           "s3:GetEncryptionConfiguration", "s3:GetLifecycleConfiguration",
           "s3:GetReplicationConfiguration", "s3:GetAccelerateConfiguration",
           "s3:ListBucket", "s3:PutBucketPolicy", "s3:PutBucketPublicAccessBlock",
-          "s3:PutBucketVersioning", "s3:PutEncryptionConfiguration",
+          "s3:PutBucketTagging", "s3:PutBucketVersioning", "s3:PutEncryptionConfiguration",
         ]
         Resource = [
           "arn:aws:s3:::nestjs-hannibal-3-frontend",
@@ -559,7 +559,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_storage" {
         Action = [
           "rds:AddTagsToResource", "rds:CreateDBInstance", "rds:CreateDBParameterGroup",
           "rds:CreateDBSubnetGroup", "rds:DeleteDBInstance", "rds:DeleteDBParameterGroup",
-          "rds:DeleteDBSubnetGroup", "rds:DescribeDBInstances", "rds:DescribeDBParameterGroups",
+          "rds:DeleteDBSubnetGroup", "rds:DescribeDBParameterGroups",
           "rds:DescribeDBParameters", "rds:DescribeDBSubnetGroups", "rds:ListTagsForResource",
           "rds:ModifyDBParameterGroup", "rds:RemoveTagsFromResource", "rds:ResetDBParameterGroup",
         ]
@@ -568,6 +568,12 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_storage" {
           "arn:aws:rds:ap-northeast-1:${var.aws_account_id}:subgrp:nestjs-hannibal-3-*",
           "arn:aws:rds:ap-northeast-1:${var.aws_account_id}:pg:nestjs-hannibal-3-*",
         ]
+      },
+      {
+        Sid      = "RDSDescribeAll"
+        Effect   = "Allow"
+        Action   = ["rds:DescribeDBInstances"]
+        Resource = "*"
       },
       {
         Sid      = "DynamoDBTerraformLock"
@@ -622,7 +628,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_deploy" {
         Sid    = "CloudWatchLogs"
         Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:DescribeLogGroups",
+          "logs:CreateLogGroup", "logs:DeleteLogGroup",
           "logs:DescribeLogStreams", "logs:ListTagsForResource", "logs:PutRetentionPolicy",
           "logs:TagLogGroup", "logs:TagResource", "logs:UntagLogGroup", "logs:UntagResource",
         ]
@@ -632,6 +638,12 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_deploy" {
           "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:/aws/codedeploy/nestjs-hannibal-3-*",
           "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:/aws/codedeploy/nestjs-hannibal-3-*:*",
         ]
+      },
+      {
+        Sid      = "CloudWatchLogsDescribeAll"
+        Effect   = "Allow"
+        Action   = ["logs:DescribeLogGroups"]
+        Resource = "*"
       },
       {
         Sid    = "CloudWatchAlarm"
