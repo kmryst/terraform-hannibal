@@ -405,6 +405,517 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
 # 3. 以降は手動管理・永続保持
 # 4. コードは再現性・ドキュメント用に保持
 
+# --- HannibalCICDPolicy-Dev-candidate (最小権限化検証用・未アタッチ) ---
+# 用途: HannibalCICDPolicy-Dev の後継候補。未アタッチで apply → 手動 deploy/destroy で検証後に本体に反映する。
+# 検証完了後このリソースは削除し、hannibal_cicd_policy のドキュメントを更新する。
+# 移行手順: docs/security/iam-analysis/README.md の #166 を参照。
+resource "aws_iam_policy" "hannibal_cicd_policy_candidate" {
+  name        = "HannibalCICDPolicy-Dev-candidate"
+  description = "最小権限化検証用候補ポリシー。検証完了後に HannibalCICDPolicy-Dev へ反映して削除する。"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "VPCAndNetworking"
+        Effect = "Allow"
+        Action = [
+          "ec2:AllocateAddress",
+          "ec2:AssociateRouteTable",
+          "ec2:AttachInternetGateway",
+          "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:CreateInternetGateway",
+          "ec2:CreateNatGateway",
+          "ec2:CreateRoute",
+          "ec2:CreateRouteTable",
+          "ec2:CreateSecurityGroup",
+          "ec2:CreateSubnet",
+          "ec2:CreateTags",
+          "ec2:CreateVpc",
+          "ec2:DeleteInternetGateway",
+          "ec2:DeleteNatGateway",
+          "ec2:DeleteRouteTable",
+          "ec2:DeleteSecurityGroup",
+          "ec2:DeleteSubnet",
+          "ec2:DeleteTags",
+          "ec2:DeleteVpc",
+          "ec2:DescribeAccountAttributes",
+          "ec2:DescribeAddresses",
+          "ec2:DescribeAddressesAttribute",
+          "ec2:DescribeAvailabilityZones",
+          "ec2:DescribeInternetGateways",
+          "ec2:DescribeNatGateways",
+          "ec2:DescribeNetworkAcls",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DescribeRouteTables",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeVpcAttribute",
+          "ec2:DescribeVpcs",
+          "ec2:DetachInternetGateway",
+          "ec2:DisassociateAddress",
+          "ec2:DisassociateRouteTable",
+          "ec2:GetSecurityGroupsForVpc",
+          "ec2:ModifySubnetAttribute",
+          "ec2:ModifyVpcAttribute",
+          "ec2:ReleaseAddress",
+          "ec2:RevokeSecurityGroupEgress",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "ECRWrite"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchDeleteImage",
+          "ecr:BatchGetImage",
+          "ecr:CompleteLayerUpload",
+          "ecr:DeleteLifecyclePolicy",
+          "ecr:DescribeImages",
+          "ecr:DescribeRepositories",
+          "ecr:GetLifecyclePolicy",
+          "ecr:InitiateLayerUpload",
+          "ecr:ListImages",
+          "ecr:ListTagsForResource",
+          "ecr:PutImage",
+          "ecr:PutLifecyclePolicy",
+          "ecr:TagResource",
+          "ecr:UntagResource",
+          "ecr:UploadLayerPart",
+        ]
+        Resource = "arn:aws:ecr:ap-northeast-1:${var.aws_account_id}:repository/nestjs-hannibal-3"
+      },
+      {
+        Sid      = "ECRAuthToken"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Sid    = "ECSCluster"
+        Effect = "Allow"
+        Action = [
+          "ecs:CreateCluster",
+          "ecs:DeleteCluster",
+          "ecs:DescribeClusters",
+          "ecs:ListClusters",
+          "ecs:PutClusterCapacityProviders",
+          "ecs:TagResource",
+          "ecs:UntagResource",
+        ]
+        Resource = "arn:aws:ecs:ap-northeast-1:${var.aws_account_id}:cluster/nestjs-hannibal-3-*"
+      },
+      {
+        Sid    = "ECSService"
+        Effect = "Allow"
+        Action = [
+          "ecs:CreateService",
+          "ecs:DeleteService",
+          "ecs:DescribeServices",
+          "ecs:UpdateService",
+        ]
+        Resource = "arn:aws:ecs:ap-northeast-1:${var.aws_account_id}:service/nestjs-hannibal-3-*/*"
+      },
+      {
+        Sid    = "ECSTaskDefinition"
+        Effect = "Allow"
+        Action = [
+          "ecs:DeregisterTaskDefinition",
+          "ecs:DescribeTaskDefinition",
+          "ecs:ListTaskDefinitions",
+          "ecs:RegisterTaskDefinition",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "ELB"
+        Effect = "Allow"
+        Action = [
+          "elasticloadbalancing:AddTags",
+          "elasticloadbalancing:CreateListener",
+          "elasticloadbalancing:CreateLoadBalancer",
+          "elasticloadbalancing:CreateRule",
+          "elasticloadbalancing:CreateTargetGroup",
+          "elasticloadbalancing:DeleteListener",
+          "elasticloadbalancing:DeleteLoadBalancer",
+          "elasticloadbalancing:DeleteRule",
+          "elasticloadbalancing:DeleteTargetGroup",
+          "elasticloadbalancing:DescribeListeners",
+          "elasticloadbalancing:DescribeListenerAttributes",
+          "elasticloadbalancing:DescribeLoadBalancers",
+          "elasticloadbalancing:DescribeLoadBalancerAttributes",
+          "elasticloadbalancing:DescribeRules",
+          "elasticloadbalancing:DescribeTags",
+          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeTargetGroupAttributes",
+          "elasticloadbalancing:ModifyListener",
+          "elasticloadbalancing:ModifyLoadBalancerAttributes",
+          "elasticloadbalancing:ModifyRule",
+          "elasticloadbalancing:ModifyTargetGroup",
+          "elasticloadbalancing:ModifyTargetGroupAttributes",
+          "elasticloadbalancing:RemoveTags",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "CloudWatchLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:DeleteLogGroup",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:ListTagsForResource",
+          "logs:PutRetentionPolicy",
+          "logs:TagLogGroup",
+          "logs:TagResource",
+          "logs:UntagLogGroup",
+          "logs:UntagResource",
+        ]
+        Resource = [
+          "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:/ecs/nestjs-hannibal-3-*",
+          "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:/ecs/nestjs-hannibal-3-*:*",
+          "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:/aws/codedeploy/nestjs-hannibal-3-*",
+          "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:/aws/codedeploy/nestjs-hannibal-3-*:*",
+        ]
+      },
+      {
+        Sid    = "CloudWatchAlarm"
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:DeleteAlarms",
+          "cloudwatch:DeleteDashboards",
+          "cloudwatch:DescribeAlarms",
+          "cloudwatch:GetDashboard",
+          "cloudwatch:ListMetrics",
+          "cloudwatch:ListTagsForResource",
+          "cloudwatch:PutDashboard",
+          "cloudwatch:PutMetricAlarm",
+          "cloudwatch:TagResource",
+          "cloudwatch:UntagResource",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "RDSInstance"
+        Effect = "Allow"
+        Action = [
+          "rds:AddTagsToResource",
+          "rds:CreateDBInstance",
+          "rds:CreateDBParameterGroup",
+          "rds:CreateDBSubnetGroup",
+          "rds:DeleteDBInstance",
+          "rds:DeleteDBParameterGroup",
+          "rds:DeleteDBSubnetGroup",
+          "rds:DescribeDBInstances",
+          "rds:DescribeDBParameterGroups",
+          "rds:DescribeDBParameters",
+          "rds:DescribeDBSubnetGroups",
+          "rds:ListTagsForResource",
+          "rds:ModifyDBParameterGroup",
+          "rds:RemoveTagsFromResource",
+          "rds:ResetDBParameterGroup",
+        ]
+        Resource = [
+          "arn:aws:rds:ap-northeast-1:${var.aws_account_id}:db:nestjs-hannibal-3-*",
+          "arn:aws:rds:ap-northeast-1:${var.aws_account_id}:subgrp:nestjs-hannibal-3-*",
+          "arn:aws:rds:ap-northeast-1:${var.aws_account_id}:pg:nestjs-hannibal-3-*",
+        ]
+      },
+      {
+        Sid    = "S3FrontendAndArtifacts"
+        Effect = "Allow"
+        Action = [
+          "s3:CreateBucket",
+          "s3:DeleteBucket",
+          "s3:DeleteBucketPolicy",
+          "s3:DeleteBucketPublicAccessBlock",
+          "s3:GetBucketAcl",
+          "s3:GetBucketCORS",
+          "s3:GetBucketLocation",
+          "s3:GetBucketLogging",
+          "s3:GetBucketObjectLockConfiguration",
+          "s3:GetBucketPolicy",
+          "s3:GetBucketPublicAccessBlock",
+          "s3:GetBucketRequestPayment",
+          "s3:GetBucketTagging",
+          "s3:GetBucketVersioning",
+          "s3:GetBucketWebsite",
+          "s3:GetEncryptionConfiguration",
+          "s3:GetLifecycleConfiguration",
+          "s3:GetReplicationConfiguration",
+          "s3:GetAccelerateConfiguration",
+          "s3:ListBucket",
+          "s3:PutBucketPolicy",
+          "s3:PutBucketPublicAccessBlock",
+          "s3:PutBucketVersioning",
+          "s3:PutEncryptionConfiguration",
+        ]
+        Resource = [
+          "arn:aws:s3:::nestjs-hannibal-3-frontend",
+          "arn:aws:s3:::nestjs-hannibal-3-codedeploy-artifacts",
+          "arn:aws:s3:::nestjs-hannibal-3-terraform-state",
+        ]
+      },
+      {
+        Sid    = "S3Object"
+        Effect = "Allow"
+        Action = [
+          "s3:DeleteObject",
+          "s3:DeleteObjectTagging",
+          "s3:GetObject",
+          "s3:GetObjectTagging",
+          "s3:PutObject",
+          "s3:PutObjectTagging",
+        ]
+        Resource = [
+          "arn:aws:s3:::nestjs-hannibal-3-frontend/*",
+          "arn:aws:s3:::nestjs-hannibal-3-codedeploy-artifacts/*",
+          "arn:aws:s3:::nestjs-hannibal-3-terraform-state/*",
+        ]
+      },
+      {
+        Sid      = "S3List"
+        Effect   = "Allow"
+        Action   = ["s3:ListAllMyBuckets"]
+        Resource = "*"
+      },
+      {
+        Sid    = "DynamoDBTerraformLock"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DeleteItem",
+          "dynamodb:DescribeTable",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+        ]
+        Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-lock-*"
+      },
+      {
+        Sid    = "CloudFront"
+        Effect = "Allow"
+        Action = [
+          "cloudfront:CreateDistribution",
+          "cloudfront:CreateInvalidation",
+          "cloudfront:CreateOriginAccessControl",
+          "cloudfront:DeleteDistribution",
+          "cloudfront:DeleteOriginAccessControl",
+          "cloudfront:GetDistribution",
+          "cloudfront:GetDistributionConfig",
+          "cloudfront:GetInvalidation",
+          "cloudfront:GetOriginAccessControl",
+          "cloudfront:ListDistributions",
+          "cloudfront:ListInvalidations",
+          "cloudfront:ListOriginAccessControls",
+          "cloudfront:ListTagsForResource",
+          "cloudfront:TagResource",
+          "cloudfront:UntagResource",
+          "cloudfront:UpdateDistribution",
+          "cloudfront:UpdateOriginAccessControl",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "Route53"
+        Effect = "Allow"
+        Action = [
+          "route53:ChangeResourceRecordSets",
+          "route53:GetChange",
+          "route53:GetHostedZone",
+          "route53:ListHostedZones",
+          "route53:ListHostedZonesByName",
+          "route53:ListResourceRecordSets",
+          "route53:ListTagsForResource",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "CodeDeploy"
+        Effect = "Allow"
+        Action = [
+          "codedeploy:CreateApplication",
+          "codedeploy:CreateDeployment",
+          "codedeploy:CreateDeploymentGroup",
+          "codedeploy:DeleteApplication",
+          "codedeploy:DeleteDeploymentGroup",
+          "codedeploy:GetApplication",
+          "codedeploy:GetDeployment",
+          "codedeploy:GetDeploymentGroup",
+          "codedeploy:ListApplications",
+          "codedeploy:ListDeploymentGroups",
+          "codedeploy:ListDeployments",
+          "codedeploy:ListTagsForResource",
+          "codedeploy:StopDeployment",
+          "codedeploy:TagResource",
+          "codedeploy:UntagResource",
+          "codedeploy:UpdateDeploymentGroup",
+        ]
+        Resource = [
+          "arn:aws:codedeploy:ap-northeast-1:${var.aws_account_id}:application:nestjs-hannibal-3-*",
+          "arn:aws:codedeploy:ap-northeast-1:${var.aws_account_id}:deploymentgroup:nestjs-hannibal-3-*/nestjs-hannibal-3-*",
+          "arn:aws:codedeploy:ap-northeast-1:${var.aws_account_id}:deploymentconfig:*",
+        ]
+      },
+      {
+        Sid    = "SecretsManagerForRDS"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:CreateSecret",
+          "secretsmanager:DeleteSecret",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:GetResourcePolicy",
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:ListSecretVersionIds",
+          "secretsmanager:PutResourcePolicy",
+          "secretsmanager:TagResource",
+          "secretsmanager:UntagResource",
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:ap-northeast-1:${var.aws_account_id}:secret:nestjs-hannibal-3*",
+          "arn:aws:secretsmanager:ap-northeast-1:${var.aws_account_id}:secret:rds!*",
+        ]
+      },
+      {
+        Sid    = "KMSGrantForSecretsAndLogs"
+        Effect = "Allow"
+        Action = [
+          "kms:CreateGrant",
+          "kms:DescribeKey",
+        ]
+        Resource = "arn:aws:kms:ap-northeast-1:${var.aws_account_id}:key/*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = [
+              "secretsmanager.ap-northeast-1.amazonaws.com",
+              "logs.ap-northeast-1.amazonaws.com",
+              "ecr.ap-northeast-1.amazonaws.com",
+              "rds.ap-northeast-1.amazonaws.com",
+              "s3.ap-northeast-1.amazonaws.com",
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "SNS"
+        Effect = "Allow"
+        Action = [
+          "sns:CreateTopic",
+          "sns:DeleteTopic",
+          "sns:GetSubscriptionAttributes",
+          "sns:GetTopicAttributes",
+          "sns:ListSubscriptionsByTopic",
+          "sns:ListTagsForResource",
+          "sns:ListTopics",
+          "sns:SetTopicAttributes",
+          "sns:Subscribe",
+          "sns:TagResource",
+          "sns:UntagResource",
+          "sns:Unsubscribe",
+        ]
+        Resource = "arn:aws:sns:ap-northeast-1:${var.aws_account_id}:nestjs-hannibal-3-*"
+      },
+      {
+        Sid    = "AccessAnalyzer"
+        Effect = "Allow"
+        Action = [
+          "access-analyzer:CreateAnalyzer",
+          "access-analyzer:DeleteAnalyzer",
+          "access-analyzer:GetAnalyzer",
+          "access-analyzer:ListAnalyzers",
+          "access-analyzer:TagResource",
+          "access-analyzer:UntagResource",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "CloudTrail"
+        Effect = "Allow"
+        Action = [
+          "cloudtrail:AddTags",
+          "cloudtrail:CreateTrail",
+          "cloudtrail:DeleteTrail",
+          "cloudtrail:DescribeTrails",
+          "cloudtrail:GetTrailStatus",
+          "cloudtrail:ListTags",
+          "cloudtrail:PutEventSelectors",
+          "cloudtrail:RemoveTags",
+          "cloudtrail:StartLogging",
+        ]
+        Resource = "arn:aws:cloudtrail:ap-northeast-1:${var.aws_account_id}:trail/nestjs-hannibal-3-*"
+      },
+      {
+        Sid      = "STSReadOnly"
+        Effect   = "Allow"
+        Action   = ["sts:GetCallerIdentity"]
+        Resource = "*"
+      },
+      {
+        Sid    = "IAMRolePolicyForProjectRolesOnly"
+        Effect = "Allow"
+        Action = [
+          "iam:AttachRolePolicy",
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:DeleteRolePermissionsBoundary",
+          "iam:DeleteRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:GetRole",
+          "iam:GetRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:ListInstanceProfilesForRole",
+          "iam:ListRolePolicies",
+          "iam:PutRolePolicy",
+          "iam:PutRolePermissionsBoundary",
+          "iam:TagRole",
+          "iam:UntagRole",
+          "iam:UpdateAssumeRolePolicy",
+        ]
+        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-*"
+      },
+      {
+        Sid    = "IAMPolicyForProjectPoliciesOnly"
+        Effect = "Allow"
+        Action = [
+          "iam:CreatePolicy",
+          "iam:CreatePolicyVersion",
+          "iam:DeletePolicy",
+          "iam:DeletePolicyVersion",
+          "iam:GetPolicy",
+          "iam:GetPolicyVersion",
+          "iam:ListPolicyVersions",
+          "iam:SetDefaultPolicyVersion",
+          "iam:TagPolicy",
+          "iam:UntagPolicy",
+        ]
+        Resource = "arn:aws:iam::${var.aws_account_id}:policy/nestjs-hannibal-3-*"
+      },
+      {
+        Sid      = "IAMPassRoleForECSTaskExecutionOnly"
+        Effect   = "Allow"
+        Action   = ["iam:PassRole"]
+        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-ecs-task-execution-role"
+        Condition = {
+          StringEquals = {
+            "iam:PassedToService" = ["ecs-tasks.amazonaws.com"]
+          }
+        }
+      },
+      {
+        Sid    = "IAMReadOnlyForCheck"
+        Effect = "Allow"
+        Action = [
+          "iam:SimulatePrincipalPolicy",
+          "iam:ListRoles",
+          "iam:ListPolicies",
+        ]
+        Resource = "*"
+      },
+    ]
+  })
+}
+
 # --- 6. Permission Boundary管理 ---
 # HannibalCICDBoundary: CI/CD専用Permission Boundary (手動作成済み)
 # arn:aws:iam::258632448142:policy/HannibalCICDBoundary
