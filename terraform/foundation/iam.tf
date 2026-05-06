@@ -508,6 +508,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_compute" {
         Action = [
           "ecs:DeregisterTaskDefinition", "ecs:DescribeTaskDefinition",
           "ecs:ListTaskDefinitions", "ecs:RegisterTaskDefinition",
+          "ecs:TagResource", "ecs:UntagResource",
         ]
         Resource = "*"
       },
@@ -554,7 +555,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_storage" {
           "s3:GetEncryptionConfiguration", "s3:GetLifecycleConfiguration",
           "s3:GetReplicationConfiguration", "s3:GetAccelerateConfiguration",
           "s3:ListBucket", "s3:PutBucketPolicy", "s3:PutBucketPublicAccessBlock",
-          "s3:PutBucketVersioning", "s3:PutEncryptionConfiguration",
+          "s3:PutBucketTagging", "s3:PutBucketVersioning", "s3:PutEncryptionConfiguration",
         ]
         Resource = [
           "arn:aws:s3:::nestjs-hannibal-3-frontend",
@@ -587,7 +588,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_storage" {
         Action = [
           "rds:AddTagsToResource", "rds:CreateDBInstance", "rds:CreateDBParameterGroup",
           "rds:CreateDBSubnetGroup", "rds:DeleteDBInstance", "rds:DeleteDBParameterGroup",
-          "rds:DeleteDBSubnetGroup", "rds:DescribeDBInstances", "rds:DescribeDBParameterGroups",
+          "rds:DeleteDBSubnetGroup", "rds:DescribeDBParameterGroups",
           "rds:DescribeDBParameters", "rds:DescribeDBSubnetGroups", "rds:ListTagsForResource",
           "rds:ModifyDBParameterGroup", "rds:RemoveTagsFromResource", "rds:ResetDBParameterGroup",
         ]
@@ -598,10 +599,16 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_storage" {
         ]
       },
       {
+        Sid      = "RDSDescribeAll"
+        Effect   = "Allow"
+        Action   = ["rds:DescribeDBInstances"]
+        Resource = "*"
+      },
+      {
         Sid      = "DynamoDBTerraformLock"
         Effect   = "Allow"
         Action   = ["dynamodb:DeleteItem", "dynamodb:DescribeTable", "dynamodb:GetItem", "dynamodb:PutItem"]
-        Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-lock-*"
+        Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
       },
       {
         Sid    = "SecretsManagerForRDS"
@@ -650,7 +657,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_deploy" {
         Sid    = "CloudWatchLogs"
         Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:DescribeLogGroups",
+          "logs:CreateLogGroup", "logs:DeleteLogGroup",
           "logs:DescribeLogStreams", "logs:ListTagsForResource", "logs:PutRetentionPolicy",
           "logs:TagLogGroup", "logs:TagResource", "logs:UntagLogGroup", "logs:UntagResource",
         ]
@@ -660,6 +667,12 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_deploy" {
           "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:/aws/codedeploy/nestjs-hannibal-3-*",
           "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:/aws/codedeploy/nestjs-hannibal-3-*:*",
         ]
+      },
+      {
+        Sid      = "CloudWatchLogsDescribeAll"
+        Effect   = "Allow"
+        Action   = ["logs:DescribeLogGroups"]
+        Resource = "*"
       },
       {
         Sid    = "CloudWatchAlarm"
@@ -701,9 +714,10 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_deploy" {
         Action = [
           "codedeploy:CreateApplication", "codedeploy:CreateDeployment", "codedeploy:CreateDeploymentGroup",
           "codedeploy:DeleteApplication", "codedeploy:DeleteDeploymentGroup",
-          "codedeploy:GetApplication", "codedeploy:GetDeployment", "codedeploy:GetDeploymentGroup",
+          "codedeploy:GetApplication", "codedeploy:GetDeployment", "codedeploy:GetDeploymentConfig",
+          "codedeploy:GetDeploymentGroup",
           "codedeploy:ListApplications", "codedeploy:ListDeploymentGroups", "codedeploy:ListDeployments",
-          "codedeploy:ListTagsForResource", "codedeploy:StopDeployment",
+          "codedeploy:ListTagsForResource", "codedeploy:RegisterApplicationRevision", "codedeploy:StopDeployment",
           "codedeploy:TagResource", "codedeploy:UntagResource", "codedeploy:UpdateDeploymentGroup",
         ]
         Resource = [
@@ -778,6 +792,15 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_deploy" {
         Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-ecs-task-execution-role"
         Condition = {
           StringEquals = { "iam:PassedToService" = ["ecs-tasks.amazonaws.com"] }
+        }
+      },
+      {
+        Sid      = "IAMPassRoleForCodeDeployOnly"
+        Effect   = "Allow"
+        Action   = ["iam:PassRole"]
+        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-codedeploy-service-role"
+        Condition = {
+          StringEquals = { "iam:PassedToService" = ["codedeploy.amazonaws.com"] }
         }
       },
       {
