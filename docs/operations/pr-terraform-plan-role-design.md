@@ -142,7 +142,7 @@ jobs:
 
 既存 data source / 永続リソース参照:
 
-- `s3:GetBucketLocation`, `s3:GetBucketPolicy`, `s3:GetBucketPublicAccessBlock`, `s3:GetBucketVersioning`, `s3:GetBucketEncryption`, `s3:GetBucketTagging`, `s3:GetBucketAcl`, `s3:ListBucket`
+- **S3: `s3:Get*`, `s3:List*`**（`Resource: "*"`）
 - `route53:GetHostedZone`, `route53:ListHostedZones`, `route53:ListHostedZonesByName`, `route53:ListResourceRecordSets`, `route53:ListTagsForResource`
 - `cloudfront:GetOriginAccessControl`, `cloudfront:ListOriginAccessControls`, `cloudfront:GetDistribution`, `cloudfront:GetDistributionConfig`, `cloudfront:ListTagsForResource`
 - `secretsmanager:DescribeSecret`, `secretsmanager:GetResourcePolicy`, `secretsmanager:ListSecretVersionIds`
@@ -150,8 +150,8 @@ jobs:
 注意:
 
 - 多くの AWS read API は resource-level restriction が効かないため、`Resource: "*"` が必要になる
-- S3 backend state、S3 frontend bucket、IAM Role など、ARN を絞れるものは #127 で可能な限り絞る
-- ここで挙げた権限は初期候補であり、#127 の実装PRで CI / CloudTrail / AccessDenied を見ながら最小化する
+- S3 は `s3:Get*` / `s3:List*` のワイルドカードを採用している。理由: Terraform provider の refresh がデプロイ済み環境に対して呼ぶ S3 API（`GetBucketCORS`, `GetBucketWebsite`, `GetAccelerateConfiguration`, `GetObjectTagging` 等）はプロバイダーのバージョンによって増減し、個別列挙では継続的な whack-a-mole になる。このロールは plan 専用（read-only）であり、`s3:Put*` / `s3:Delete*` は含まないため、read ワイルドカードのリスクは write 権限と質が異なる。
+- S3 state ファイルの `s3:GetObject` は別ステートメントで ARN を限定している（最小権限の原則を適用できる範囲で適用）
 
 ## Workflow Contract
 
