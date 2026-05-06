@@ -42,8 +42,6 @@ Codex は GitHub 操作を手作業で再現せず、既存ヘルパーを正規
 Issue 作成と PR 作成は、実行前にユーザーへプランを提示して確認します。
 Issue 本文には専用の運用区分欄を追加せず、起票前プランと PR 作成前プランで軽運用 / 厳密運用を判定します。
 
-補足: `gh pr view` / `gh pr edit` が GitHub CLI の GraphQL `projectCards` deprecated 警告で失敗しても、PR 作成自体が失敗したとは限りません。PR の本文・ラベル・状態確認や本文更新は、必要に応じて `gh api repos/<owner>/<repo>/pulls/<PR番号>` などの REST API で確認・更新します。
-
 PR がマージされた後、次の Issue へ進む前に必ず `cleanup-merged-pr-branch.sh` を実行します。
 このヘルパーは PR が `MERGED` であることを確認し、base branch を最新化してから作業ブランチを整理します。
 
