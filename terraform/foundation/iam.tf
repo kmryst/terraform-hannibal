@@ -149,12 +149,40 @@ resource "aws_iam_policy" "hannibal_developer_policy" {
         Resource = "*"
       },
       {
-        # IAM権限 (フル操作)
+        # IAM権限 (開発・Terraform foundation applyに必要な範囲)
         Effect = "Allow"
         Action = [
-          "iam:*"
+          "iam:Get*",
+          "iam:List*",
+          "iam:CreateRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:DeleteRole",
+          "iam:PassRole",
+          "iam:CreatePolicy",
+          "iam:CreatePolicyVersion",
+          "iam:DeletePolicy",
+          "iam:DeletePolicyVersion",
+          "iam:SetDefaultPolicyVersion",
+          "iam:GetPolicy",
+          "iam:GetPolicyVersion",
+          "iam:ListRolePolicies",
+          "iam:GetRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy"
         ]
         Resource = "*"
+      },
+      {
+        # Terraform state lock table (foundation backend)
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DescribeTable",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem"
+        ]
+        Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
       }
     ]
   })
