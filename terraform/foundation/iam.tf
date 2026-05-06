@@ -480,6 +480,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_compute" {
         Action = [
           "ecs:DeregisterTaskDefinition", "ecs:DescribeTaskDefinition",
           "ecs:ListTaskDefinitions", "ecs:RegisterTaskDefinition",
+          "ecs:TagResource", "ecs:UntagResource",
         ]
         Resource = "*"
       },
