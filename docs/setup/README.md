@@ -30,7 +30,7 @@ terraform apply
 
 **作成されるリソース:**
 - `aws_iam_openid_connect_provider` — GitHub Actions OIDC プロバイダー
-- `HannibalDeveloperRole-Dev` — 開発者手動操作用 Role
+- `HannibalDeveloperRole-Dev` — 日常開発・アプリ運用用 Role
 - `HannibalCICDRole-Dev` — deploy/destroy workflow 用 Role（OIDC trust）
 - `HannibalPRPlanRole-Dev` — PR terraform plan 用 Role（OIDC trust・read-only）
 - `HannibalCICDBoundary` / `HannibalECSBoundary` — Permission Boundary
@@ -38,6 +38,8 @@ terraform apply
 
 foundation apply 後、GitHub Actions の deploy/destroy は OIDC で `HannibalCICDRole-Dev` を
 AssumeRoleWithWebIdentity します。Access Key の発行・登録は不要です。
+初回構築後に `terraform/foundation` を更新する場合は `HannibalFoundationRole-Dev` を assume し、
+`HannibalDeveloperRole-Dev` では foundation apply を実行しません。
 
 ---
 
@@ -166,7 +168,7 @@ npm run dev  # http://localhost:5173
 ```bash
 cd terraform/environments/dev
 
-# HannibalDeveloperRole-Dev を AssumeRole してから実行
+# terraform/environments/dev は HannibalDeveloperRole-Dev を AssumeRole してから実行
 terraform plan
 terraform apply
 ```
