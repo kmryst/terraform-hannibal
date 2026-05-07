@@ -74,7 +74,7 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.repository
 ```
 
-## 権限境界
+## 権限方針
 
 このRoleには apply / destroy / write 系権限を付けません。Terraform plan が必要とする read / list / describe / get 系権限だけを許可します。
 
@@ -88,6 +88,26 @@ jobs:
 - ECR image push / upload 系権限
 
 ただし、Terraform state そのものは機密情報を含み得ます。plan Role は state を読むため、単なる「無害な読み取り権限」ではなく、信頼できる repository 内 PR だけで使う前提にします。
+
+## Permission Boundary
+
+#139 の検討結果として、`HannibalPRPlanRole-Dev` には専用の `HannibalPRPlanBoundary-Dev` を付与します。
+
+理由:
+
+- identity policy は read-only に限定しているが、将来の policy 変更ミスで write 系権限が混入する可能性を Boundary で抑える
+- PR workflow は外部入力を含み得る経路なので、Trust Policy / workflow の fork skip / identity policy / Permission Boundary の複数層で守る
+- DevOps ポートフォリオとして、PR から AWS を読む Role に defense-in-depth を設計していることを示せる
+
+`HannibalCICDBoundary` は流用しません。これは main の deploy / destroy 用 Role の上限であり、write 系操作を前提にしています。plan-only Role に流用すると、PR plan Role の最大権限としては広すぎます。
+
+`HannibalPRPlanBoundary-Dev` は、PR plan に必要な read / list / describe / get 系のみを最大権限として許可します。次の権限は Boundary に含めません。
+
+- `iam:PassRole`
+- `s3:PutObject` / `s3:DeleteObject`
+- `dynamodb:PutItem` / `dynamodb:DeleteItem`
+- `secretsmanager:GetSecretValue`
+- create / update / delete / put / modify / attach / detach 系の write 権限
 
 ## Backend Read Permissions
 
@@ -173,6 +193,7 @@ jobs:
 3. #122: PR plan workflow から plan Role を assume して `terraform plan` を実行する
 4. #125 / #124: Job Summary と危険シグナル抽出を追加する
 5. #128: required status check にするかを判断する
+6. #139: `HannibalPRPlanRole-Dev` 専用 Permission Boundary を追加する
 
 ## ロールバック方針
 

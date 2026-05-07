@@ -827,16 +827,85 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_deploy" {
 #   → Access Advisor調査で実使用174 actionのうち56個が不足しており即切り替え不可
 #   → 最小権限化は後続PRで段階的に実施予定（vNextポリシー候補あり）
 
-# --- 7. HannibalPRPlanRole-Dev (PR terraform plan専用ロール) ---
+# --- 7. HannibalPRPlanBoundary-Dev (PR terraform plan専用Permission Boundary) ---
+# PR plan role の最大権限を read/list/describe/get 系に制限する。
+# iam:PassRole / create・update・delete・put・modify・attach・detach 系 /
+# s3:PutObject・DeleteObject / secretsmanager:GetSecretValue は含めない。
+resource "aws_iam_policy" "hannibal_pr_plan_boundary" {
+  name        = "HannibalPRPlanBoundary-Dev"
+  description = "Permission boundary for PR terraform plan role - read/list/describe/get only"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "TerraformPlanReadOnlyBoundary"
+        Effect = "Allow"
+        Action = [
+          "sts:GetCallerIdentity",
+          "ec2:Describe*",
+          "elasticloadbalancing:Describe*",
+          "ecs:Describe*",
+          "ecs:List*",
+          "ecr:DescribeRepositories",
+          "ecr:GetLifecyclePolicy",
+          "ecr:ListTagsForResource",
+          "rds:Describe*",
+          "rds:ListTagsForResource",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:ListTagsForResource",
+          "cloudwatch:DescribeAlarms",
+          "cloudwatch:GetDashboard",
+          "cloudwatch:ListTagsForResource",
+          "sns:GetTopicAttributes",
+          "sns:GetSubscriptionAttributes",
+          "sns:ListSubscriptionsByTopic",
+          "sns:ListTagsForResource",
+          "sns:ListTopics",
+          "codedeploy:Get*",
+          "codedeploy:List*",
+          "iam:GetRole",
+          "iam:ListRolePolicies",
+          "iam:GetRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:GetPolicy",
+          "iam:GetPolicyVersion",
+          "iam:ListPolicyVersions",
+          "iam:ListInstanceProfilesForRole",
+          "s3:Get*",
+          "s3:List*",
+          "route53:GetHostedZone",
+          "route53:ListHostedZones",
+          "route53:ListHostedZonesByName",
+          "route53:ListResourceRecordSets",
+          "route53:ListTagsForResource",
+          "cloudfront:GetOriginAccessControl",
+          "cloudfront:ListOriginAccessControls",
+          "cloudfront:GetDistribution",
+          "cloudfront:GetDistributionConfig",
+          "cloudfront:ListTagsForResource",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:GetResourcePolicy",
+          "secretsmanager:ListSecretVersionIds",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# --- 8. HannibalPRPlanRole-Dev (PR terraform plan専用ロール) ---
 # 信頼ポリシー: GitHub OIDC による AssumeRoleWithWebIdentity
 # 許可範囲: kmryst/terraform-hannibal への pull_request イベントのみ
 # 用途: PR Check での terraform plan 実行（read-only、apply/destroy 権限なし）
 # 設計詳細: docs/operations/pr-terraform-plan-role-design.md
-# Permission Boundary: 付与しない。plan policy が read-only に限定されており
+# Permission Boundary: HannibalPRPlanBoundary-Dev を付与する。
 #   既存の HannibalCICDBoundary は deploy/destroy 用で流用不適。
-#   専用 Boundary の要否は Issue #139 で後続検討する。
 resource "aws_iam_role" "hannibal_pr_plan_role" {
-  name = "HannibalPRPlanRole-Dev"
+  name                 = "HannibalPRPlanRole-Dev"
+  permissions_boundary = aws_iam_policy.hannibal_pr_plan_boundary.arn
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
