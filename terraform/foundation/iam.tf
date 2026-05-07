@@ -14,7 +14,7 @@ resource "aws_iam_openid_connect_provider" "github" {
 
 # --- 新設計: 2ユーザー × 2ロール構成 ---
 
-# --- 1. HannibalDeveloperRole-Dev (統合開発ロール) ---
+# --- 1. HannibalDeveloperRole-Dev (日常開発・アプリ運用ロール) ---
 resource "aws_iam_role" "hannibal_developer_role" {
   name = "HannibalDeveloperRole-Dev"
 
@@ -67,7 +67,7 @@ resource "aws_iam_role" "hannibal_cicd_role" {
   })
 }
 
-# --- 3. HannibalDeveloperPolicy-Dev (統合開発ポリシー) ---
+# --- 3. HannibalDeveloperPolicy-Dev (日常開発・アプリ運用ポリシー) ---
 resource "aws_iam_policy" "hannibal_developer_policy" {
   name        = "HannibalDeveloperPolicy-Dev"
   description = "Integrated development permissions - ECS/ECR/RDS/CloudWatch operations, limited Terraform execution"
@@ -75,6 +75,15 @@ resource "aws_iam_policy" "hannibal_developer_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        # foundation Terraform state は HannibalFoundationRole-Dev 専用。
+        # S3 権限の広さは #164 で別途最小権限化するが、foundation state だけはここで明示的に切り離す。
+        Effect = "Deny"
+        Action = [
+          "s3:*"
+        ]
+        Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state/foundation/*"
+      },
       {
         # ECR権限 (フル操作)
         Effect = "Allow"
@@ -149,40 +158,103 @@ resource "aws_iam_policy" "hannibal_developer_policy" {
         Resource = "*"
       },
       {
-        # IAM権限 (開発・Terraform foundation applyに必要な範囲)
+        # IAM権限 (日常開発・アプリTerraform用)。Hannibal* / OIDC / foundation IAM は Foundation Role 側で扱う。
         Effect = "Allow"
         Action = [
-          "iam:Get*",
-          "iam:List*",
           "iam:CreateRole",
           "iam:AttachRolePolicy",
           "iam:DetachRolePolicy",
           "iam:DeleteRole",
-          "iam:PassRole",
+          "iam:UpdateAssumeRolePolicy",
+          "iam:PutRolePermissionsBoundary",
+          "iam:DeleteRolePermissionsBoundary",
+          "iam:GetRole",
+          "iam:ListAttachedRolePolicies",
+          "iam:ListInstanceProfilesForRole",
+          "iam:ListRolePolicies",
+          "iam:GetRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
+          "iam:TagRole",
+          "iam:UntagRole"
+        ]
+        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-*"
+      },
+      {
+        # アプリ用 managed policy の作成・更新だけを許可する。
+        Effect = "Allow"
+        Action = [
           "iam:CreatePolicy",
           "iam:CreatePolicyVersion",
           "iam:DeletePolicy",
           "iam:DeletePolicyVersion",
-          "iam:SetDefaultPolicyVersion",
           "iam:GetPolicy",
           "iam:GetPolicyVersion",
-          "iam:ListRolePolicies",
-          "iam:GetRolePolicy",
-          "iam:PutRolePolicy",
-          "iam:DeleteRolePolicy"
+          "iam:ListPolicyVersions",
+          "iam:SetDefaultPolicyVersion",
+          "iam:TagPolicy",
+          "iam:UntagPolicy"
+        ]
+        Resource = "arn:aws:iam::${var.aws_account_id}:policy/nestjs-hannibal-3-*"
+      },
+      {
+        # ECS / CodeDeploy が必要とする Role への PassRole だけ許可する。
+        Effect = "Allow"
+        Action = [
+          "iam:PassRole"
+        ]
+        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-ecs-task-execution-role"
+        Condition = {
+          StringEquals = {
+            "iam:PassedToService" = "ecs-tasks.amazonaws.com"
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:PassRole"
+        ]
+        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-codedeploy-service-role"
+        Condition = {
+          StringEquals = {
+            "iam:PassedToService" = "codedeploy.amazonaws.com"
+          }
+        }
+      },
+      {
+        # Terraform refresh / policy attachment 確認用の読み取り。
+        Effect = "Allow"
+        Action = [
+          "iam:GetPolicy",
+          "iam:GetPolicyVersion",
+          "iam:ListPolicies",
+          "iam:ListRoles"
         ]
         Resource = "*"
       },
       {
-        # Terraform state lock table (foundation backend)
+        # Terraform state lock table (dev backend)
         Effect = "Allow"
         Action = [
-          "dynamodb:DescribeTable",
+          "dynamodb:DescribeTable"
+        ]
+        Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
+      },
+      {
+        # environments/dev の Terraform state lock のみ許可する。foundation state lock は Foundation Role 側で扱う。
+        Effect = "Allow"
+        Action = [
           "dynamodb:GetItem",
           "dynamodb:PutItem",
           "dynamodb:DeleteItem"
         ]
         Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
+        Condition = {
+          StringLike = {
+            "dynamodb:LeadingKeys" = "nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate*"
+          }
+        }
       }
     ]
   })
@@ -1013,7 +1085,7 @@ resource "aws_iam_role_policy_attachment" "hannibal_pr_plan_policy_attachment" {
 # 用途: IAM / OIDC / Permission Boundary / CloudTrail / Athena / Budgets など
 #       「インフラのインフラ」を更新する terraform/foundation apply 専用。
 # HannibalDeveloperRole-Dev は日常開発・アプリ運用に寄せるため、foundation apply
-# 用の高権限操作はこのロールへ分離する。Developer Role の権限削減は #180 で扱う。
+# 用の高権限操作はこのロールへ分離する。
 
 locals {
   hannibal_foundation_approved_boundary_arns = [
