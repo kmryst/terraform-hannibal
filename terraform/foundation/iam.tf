@@ -1016,55 +1016,127 @@ resource "aws_iam_role_policy_attachment" "hannibal_pr_plan_policy_attachment" {
 # 用の高権限操作はこのロールへ分離する。Developer Role の権限削減は #180 で扱う。
 
 locals {
+  hannibal_foundation_approved_boundary_arns = [
+    "arn:aws:iam::${var.aws_account_id}:policy/HannibalCICDBoundary",
+    "arn:aws:iam::${var.aws_account_id}:policy/HannibalPRPlanBoundary-Dev",
+    "arn:aws:iam::${var.aws_account_id}:policy/HannibalFoundationBoundary-Dev"
+  ]
+
   hannibal_foundation_policy_statements = [
     {
-      Sid    = "ManageHannibalIAMFoundation"
+      Sid    = "DenyFoundationBoundaryPolicyMutation"
+      Effect = "Deny"
+      Action = [
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion",
+        "iam:SetDefaultPolicyVersion"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:policy/HannibalFoundationBoundary-Dev"
+    },
+    {
+      Sid      = "DenyRemovingHannibalRoleBoundaries"
+      Effect   = "Deny"
+      Action   = "iam:DeleteRolePermissionsBoundary"
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+    },
+    {
+      Sid    = "ReadHannibalIAMResources"
       Effect = "Allow"
       Action = [
-        "iam:CreateRole",
-        "iam:DeleteRole",
-        "iam:GetRole",
-        "iam:UpdateRole",
-        "iam:UpdateAssumeRolePolicy",
-        "iam:TagRole",
-        "iam:UntagRole",
-        "iam:ListRoleTags",
-        "iam:AttachRolePolicy",
-        "iam:DetachRolePolicy",
-        "iam:ListAttachedRolePolicies",
-        "iam:PutRolePolicy",
-        "iam:DeleteRolePolicy",
-        "iam:GetRolePolicy",
-        "iam:ListRolePolicies",
-        "iam:PutRolePermissionsBoundary",
-        "iam:DeleteRolePermissionsBoundary",
-        "iam:CreatePolicy",
-        "iam:DeletePolicy",
-        "iam:GetPolicy",
-        "iam:GetPolicyVersion",
-        "iam:ListPolicyVersions",
-        "iam:ListEntitiesForPolicy",
-        "iam:CreatePolicyVersion",
-        "iam:DeletePolicyVersion",
-        "iam:SetDefaultPolicyVersion",
-        "iam:TagPolicy",
-        "iam:UntagPolicy",
-        "iam:ListPolicyTags",
-        "iam:CreateOpenIDConnectProvider",
-        "iam:DeleteOpenIDConnectProvider",
-        "iam:GetOpenIDConnectProvider",
-        "iam:ListOpenIDConnectProviderTags",
-        "iam:UpdateOpenIDConnectProviderThumbprint",
-        "iam:AddClientIDToOpenIDConnectProvider",
-        "iam:RemoveClientIDFromOpenIDConnectProvider",
-        "iam:TagOpenIDConnectProvider",
-        "iam:UntagOpenIDConnectProvider"
+        "iam:Get*",
+        "iam:List*"
       ]
       Resource = [
         "arn:aws:iam::${var.aws_account_id}:role/Hannibal*",
         "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*",
         "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
       ]
+    },
+    {
+      Sid    = "CreateOrSetApprovedHannibalRoleBoundaries"
+      Effect = "Allow"
+      Action = [
+        "iam:CreateRole",
+        "iam:PutRolePermissionsBoundary"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Condition = {
+        ArnEquals = {
+          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arns
+        }
+      }
+    },
+    {
+      Sid    = "ManageApprovedBoundaryHannibalRoles"
+      Effect = "Allow"
+      Action = [
+        "iam:DeleteRole",
+        "iam:UpdateRole",
+        "iam:UpdateAssumeRolePolicy"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Condition = {
+        ArnEquals = {
+          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arns
+        }
+      }
+    },
+    {
+      Sid    = "ManageApprovedBoundaryHannibalRolePolicies"
+      Effect = "Allow"
+      Action = [
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Condition = {
+        ArnEquals = {
+          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arns
+        }
+      }
+    },
+    {
+      Sid    = "ManageApprovedHannibalPolicyAttachments"
+      Effect = "Allow"
+      Action = [
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Condition = {
+        ArnEquals = {
+          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arns
+        }
+        ArnLike = {
+          "iam:PolicyARN" = "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*"
+        }
+      }
+    },
+    {
+      Sid    = "ManageHannibalManagedPolicies"
+      Effect = "Allow"
+      Action = [
+        "iam:CreatePolicy",
+        "iam:DeletePolicy",
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:SetDefaultPolicyVersion"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*"
+    },
+    {
+      Sid    = "ManageGitHubOIDCProvider"
+      Effect = "Allow"
+      Action = [
+        "iam:CreateOpenIDConnectProvider",
+        "iam:DeleteOpenIDConnectProvider",
+        "iam:GetOpenIDConnectProvider",
+        "iam:UpdateOpenIDConnectProviderThumbprint",
+        "iam:AddClientIDToOpenIDConnectProvider",
+        "iam:RemoveClientIDFromOpenIDConnectProvider"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
     },
     {
       Sid    = "ListIAMFoundationResources"
