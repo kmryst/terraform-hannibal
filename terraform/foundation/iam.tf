@@ -1008,3 +1008,335 @@ resource "aws_iam_role_policy_attachment" "hannibal_pr_plan_policy_attachment" {
   role       = aws_iam_role.hannibal_pr_plan_role.name
   policy_arn = aws_iam_policy.hannibal_pr_plan_policy.arn
 }
+
+# --- 11. HannibalFoundationRole-Dev (terraform/foundation apply専用ロール) ---
+# 用途: IAM / OIDC / Permission Boundary / CloudTrail / Athena / Budgets など
+#       「インフラのインフラ」を更新する terraform/foundation apply 専用。
+# HannibalDeveloperRole-Dev は日常開発・アプリ運用に寄せるため、foundation apply
+# 用の高権限操作はこのロールへ分離する。Developer Role の権限削減は #180 で扱う。
+
+locals {
+  hannibal_foundation_approved_boundary_arns = [
+    "arn:aws:iam::${var.aws_account_id}:policy/HannibalCICDBoundary",
+    "arn:aws:iam::${var.aws_account_id}:policy/HannibalPRPlanBoundary-Dev",
+    "arn:aws:iam::${var.aws_account_id}:policy/HannibalFoundationBoundary-Dev"
+  ]
+
+  hannibal_foundation_policy_statements = [
+    {
+      Sid    = "DenyFoundationBoundaryPolicyMutation"
+      Effect = "Deny"
+      Action = [
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion",
+        "iam:SetDefaultPolicyVersion"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:policy/HannibalFoundationBoundary-Dev"
+    },
+    {
+      Sid      = "DenyRemovingHannibalRoleBoundaries"
+      Effect   = "Deny"
+      Action   = "iam:DeleteRolePermissionsBoundary"
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+    },
+    {
+      Sid    = "ReadHannibalIAMResources"
+      Effect = "Allow"
+      Action = [
+        "iam:Get*",
+        "iam:List*"
+      ]
+      Resource = [
+        "arn:aws:iam::${var.aws_account_id}:role/Hannibal*",
+        "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*",
+        "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
+      ]
+    },
+    {
+      Sid    = "CreateOrSetApprovedHannibalRoleBoundaries"
+      Effect = "Allow"
+      Action = [
+        "iam:CreateRole",
+        "iam:PutRolePermissionsBoundary"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Condition = {
+        ArnEquals = {
+          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arns
+        }
+      }
+    },
+    {
+      Sid    = "ManageApprovedBoundaryHannibalRoles"
+      Effect = "Allow"
+      Action = [
+        "iam:DeleteRole",
+        "iam:UpdateRole",
+        "iam:UpdateAssumeRolePolicy"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Condition = {
+        ArnEquals = {
+          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arns
+        }
+      }
+    },
+    {
+      Sid    = "ManageApprovedBoundaryHannibalRolePolicies"
+      Effect = "Allow"
+      Action = [
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Condition = {
+        ArnEquals = {
+          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arns
+        }
+      }
+    },
+    {
+      Sid    = "ManageApprovedHannibalPolicyAttachments"
+      Effect = "Allow"
+      Action = [
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Condition = {
+        ArnEquals = {
+          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arns
+        }
+        ArnLike = {
+          "iam:PolicyARN" = "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*"
+        }
+      }
+    },
+    {
+      Sid    = "ManageHannibalManagedPolicies"
+      Effect = "Allow"
+      Action = [
+        "iam:CreatePolicy",
+        "iam:DeletePolicy",
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:SetDefaultPolicyVersion"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*"
+    },
+    {
+      Sid    = "ManageGitHubOIDCProvider"
+      Effect = "Allow"
+      Action = [
+        "iam:CreateOpenIDConnectProvider",
+        "iam:DeleteOpenIDConnectProvider",
+        "iam:GetOpenIDConnectProvider",
+        "iam:UpdateOpenIDConnectProviderThumbprint",
+        "iam:AddClientIDToOpenIDConnectProvider",
+        "iam:RemoveClientIDFromOpenIDConnectProvider"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
+    },
+    {
+      Sid    = "ListIAMFoundationResources"
+      Effect = "Allow"
+      Action = [
+        "iam:GetAccountSummary",
+        "iam:ListRoles",
+        "iam:ListPolicies",
+        "iam:ListOpenIDConnectProviders"
+      ]
+      Resource = "*"
+    },
+    {
+      Sid      = "TerraformFoundationStateBucketLocation"
+      Effect   = "Allow"
+      Action   = "s3:GetBucketLocation"
+      Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state"
+    },
+    {
+      Sid      = "TerraformFoundationStateBucketList"
+      Effect   = "Allow"
+      Action   = "s3:ListBucket"
+      Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state"
+      Condition = {
+        StringLike = {
+          "s3:prefix" = [
+            "foundation/",
+            "foundation/terraform.tfstate"
+          ]
+        }
+      }
+    },
+    {
+      Sid    = "TerraformFoundationStateObject"
+      Effect = "Allow"
+      Action = [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ]
+      Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state/foundation/terraform.tfstate"
+    },
+    {
+      Sid    = "TerraformFoundationStateLock"
+      Effect = "Allow"
+      Action = [
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem"
+      ]
+      Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
+    },
+    {
+      Sid    = "ManageAthenaFoundation"
+      Effect = "Allow"
+      Action = [
+        "athena:CreateWorkGroup",
+        "athena:DeleteWorkGroup",
+        "athena:GetWorkGroup",
+        "athena:UpdateWorkGroup",
+        "athena:ListWorkGroups",
+        "athena:CreateNamedQuery",
+        "athena:DeleteNamedQuery",
+        "athena:GetNamedQuery",
+        "athena:BatchGetNamedQuery",
+        "athena:ListNamedQueries",
+        "athena:StartQueryExecution",
+        "athena:GetQueryExecution",
+        "athena:GetQueryResults",
+        "athena:TagResource",
+        "athena:UntagResource",
+        "athena:ListTagsForResource",
+        "glue:CreateDatabase",
+        "glue:DeleteDatabase",
+        "glue:GetDatabase",
+        "glue:GetDatabases",
+        "glue:UpdateDatabase",
+        "glue:TagResource",
+        "glue:UntagResource",
+        "glue:GetTags"
+      ]
+      Resource = "*"
+    },
+    {
+      Sid    = "AthenaResultsBucket"
+      Effect = "Allow"
+      Action = [
+        "s3:GetBucketLocation",
+        "s3:ListBucket"
+      ]
+      Resource = "arn:aws:s3:::nestjs-hannibal-3-athena-results"
+    },
+    {
+      Sid    = "AthenaResultsObjects"
+      Effect = "Allow"
+      Action = [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ]
+      Resource = "arn:aws:s3:::nestjs-hannibal-3-athena-results/*"
+    },
+    {
+      Sid    = "ManageCloudTrailFoundation"
+      Effect = "Allow"
+      Action = [
+        "cloudtrail:CreateTrail",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:UpdateTrail",
+        "cloudtrail:DescribeTrails",
+        "cloudtrail:GetTrail",
+        "cloudtrail:GetTrailStatus",
+        "cloudtrail:GetEventSelectors",
+        "cloudtrail:ListTrails",
+        "cloudtrail:ListTags",
+        "cloudtrail:PutEventSelectors",
+        "cloudtrail:StartLogging",
+        "cloudtrail:StopLogging",
+        "cloudtrail:AddTags",
+        "cloudtrail:RemoveTags"
+      ]
+      Resource = "*"
+    },
+    {
+      Sid    = "ManageGuardDutyFoundation"
+      Effect = "Allow"
+      Action = [
+        "guardduty:CreateDetector",
+        "guardduty:DeleteDetector",
+        "guardduty:GetDetector",
+        "guardduty:ListDetectors",
+        "guardduty:UpdateDetector",
+        "guardduty:TagResource",
+        "guardduty:UntagResource",
+        "guardduty:ListTagsForResource"
+      ]
+      Resource = "*"
+    },
+    {
+      Sid      = "ManageBudgetsFoundation"
+      Effect   = "Allow"
+      Action   = "budgets:*"
+      Resource = "*"
+    },
+    {
+      Sid      = "ReadCallerIdentity"
+      Effect   = "Allow"
+      Action   = "sts:GetCallerIdentity"
+      Resource = "*"
+    }
+  ]
+}
+
+# --- 12. HannibalFoundationBoundary-Dev ---
+# Foundation Role の最大権限を、foundation Terraform が扱うサービスに限定する。
+resource "aws_iam_policy" "hannibal_foundation_boundary" {
+  name        = "HannibalFoundationBoundary-Dev"
+  description = "Permission boundary for terraform/foundation apply role"
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = local.hannibal_foundation_policy_statements
+  })
+}
+
+resource "aws_iam_role" "hannibal_foundation_role" {
+  name                 = "HannibalFoundationRole-Dev"
+  permissions_boundary = aws_iam_policy.hannibal_foundation_boundary.arn
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${var.aws_account_id}:user/hannibal"
+        }
+        Condition = {
+          StringEquals = {
+            "aws:RequestedRegion" = "ap-northeast-1"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "hannibal_foundation_policy" {
+  name        = "HannibalFoundationPolicy-Dev"
+  description = "Permissions for terraform/foundation apply only"
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = local.hannibal_foundation_policy_statements
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "hannibal_foundation_policy_attachment" {
+  role       = aws_iam_role.hannibal_foundation_role.name
+  policy_arn = aws_iam_policy.hannibal_foundation_policy.arn
+}
