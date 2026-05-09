@@ -266,6 +266,314 @@ resource "aws_iam_role_policy_attachment" "hannibal_developer_policy_attachment"
 }
 
 
+# --- 5.5. HannibalDeveloperRole-Dev-candidate (日常開発ロール最小権限化の検証用) ---
+# #164 の段階移行用。既存 HannibalDeveloperRole-Dev には影響させず、
+# candidate role / policy / boundary で ECS exec・ログ確認・ECR push・Secrets 参照を検証する。
+locals {
+  hannibal_developer_candidate_policy_statements = [
+    {
+      Sid    = "DenyFoundationStateAccess"
+      Effect = "Deny"
+      Action = [
+        "s3:*"
+      ]
+      Resource = [
+        "arn:aws:s3:::nestjs-hannibal-3-terraform-state/foundation/*"
+      ]
+    },
+    {
+      Sid    = "ReadOperationalResources"
+      Effect = "Allow"
+      Action = [
+        "cloudfront:Get*",
+        "cloudfront:List*",
+        "cloudwatch:Describe*",
+        "cloudwatch:Get*",
+        "cloudwatch:List*",
+        "codedeploy:Get*",
+        "codedeploy:List*",
+        "ec2:Describe*",
+        "ec2:Get*",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:Describe*",
+        "ecr:Get*",
+        "ecr:List*",
+        "ecs:Describe*",
+        "ecs:List*",
+        "elasticloadbalancing:Describe*",
+        "iam:Get*",
+        "iam:List*",
+        "iam:SimulatePrincipalPolicy",
+        "kms:Describe*",
+        "kms:Get*",
+        "kms:List*",
+        "logs:Describe*",
+        "logs:FilterLogEvents",
+        "logs:Get*",
+        "logs:GetQueryResults",
+        "logs:List*",
+        "logs:StartLiveTail",
+        "logs:StartQuery",
+        "logs:StopLiveTail",
+        "logs:StopQuery",
+        "rds:Describe*",
+        "rds:List*",
+        "resource-groups:Get*",
+        "resource-groups:List*",
+        "route53:Get*",
+        "route53:List*",
+        "secretsmanager:Describe*",
+        "secretsmanager:List*",
+        "sns:Get*",
+        "sns:List*",
+        "sts:DecodeAuthorizationMessage",
+        "sts:GetCallerIdentity",
+        "tag:Get*"
+      ]
+      Resource = "*"
+    },
+    {
+      Sid      = "ECRAuthToken"
+      Effect   = "Allow"
+      Action   = "ecr:GetAuthorizationToken"
+      Resource = "*"
+    },
+    {
+      Sid    = "ECRPushPullApplicationRepository"
+      Effect = "Allow"
+      Action = [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchDeleteImage",
+        "ecr:BatchGetImage",
+        "ecr:CompleteLayerUpload",
+        "ecr:DescribeImages",
+        "ecr:DescribeRepositories",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:GetLifecyclePolicy",
+        "ecr:InitiateLayerUpload",
+        "ecr:ListImages",
+        "ecr:ListTagsForResource",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart"
+      ]
+      Resource = "arn:aws:ecr:ap-northeast-1:${var.aws_account_id}:repository/nestjs-hannibal-3"
+    },
+    {
+      Sid    = "ECSExecAndOperationalChange"
+      Effect = "Allow"
+      Action = [
+        "ecs:DeregisterTaskDefinition",
+        "ecs:ExecuteCommand",
+        "ecs:RegisterTaskDefinition",
+        "ecs:RunTask",
+        "ecs:StopTask",
+        "ecs:UpdateService",
+        "ssm:DescribeSessions",
+        "ssm:GetConnectionStatus",
+        "ssm:StartSession",
+        "ssm:TerminateSession",
+        "ssmmessages:CreateControlChannel",
+        "ssmmessages:CreateDataChannel",
+        "ssmmessages:OpenControlChannel",
+        "ssmmessages:OpenDataChannel"
+      ]
+      Resource = "*"
+    },
+    {
+      Sid    = "CodeDeployApplicationOperations"
+      Effect = "Allow"
+      Action = [
+        "codedeploy:CreateDeployment",
+        "codedeploy:RegisterApplicationRevision",
+        "codedeploy:StopDeployment"
+      ]
+      Resource = [
+        "arn:aws:codedeploy:ap-northeast-1:${var.aws_account_id}:application:nestjs-hannibal-3-*",
+        "arn:aws:codedeploy:ap-northeast-1:${var.aws_account_id}:deploymentgroup:nestjs-hannibal-3-*/nestjs-hannibal-3-*",
+        "arn:aws:codedeploy:ap-northeast-1:${var.aws_account_id}:deploymentconfig:*"
+      ]
+    },
+    {
+      Sid    = "S3ProjectBucketRead"
+      Effect = "Allow"
+      Action = [
+        "s3:Get*",
+        "s3:List*"
+      ]
+      Resource = [
+        "arn:aws:s3:::nestjs-hannibal-3-frontend",
+        "arn:aws:s3:::nestjs-hannibal-3-frontend/*",
+        "arn:aws:s3:::nestjs-hannibal-3-codedeploy-artifacts",
+        "arn:aws:s3:::nestjs-hannibal-3-codedeploy-artifacts/*"
+      ]
+    },
+    {
+      Sid    = "S3ProjectObjectWrite"
+      Effect = "Allow"
+      Action = [
+        "s3:DeleteObject",
+        "s3:DeleteObjectTagging",
+        "s3:GetObject",
+        "s3:GetObjectTagging",
+        "s3:PutObject",
+        "s3:PutObjectTagging"
+      ]
+      Resource = [
+        "arn:aws:s3:::nestjs-hannibal-3-frontend/*",
+        "arn:aws:s3:::nestjs-hannibal-3-codedeploy-artifacts/*"
+      ]
+    },
+    {
+      Sid      = "TerraformDevStateBucketLocation"
+      Effect   = "Allow"
+      Action   = "s3:GetBucketLocation"
+      Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state"
+    },
+    {
+      Sid      = "TerraformDevStateBucketList"
+      Effect   = "Allow"
+      Action   = "s3:ListBucket"
+      Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state"
+      Condition = {
+        StringLike = {
+          "s3:prefix" = [
+            "environments/dev/",
+            "environments/dev/terraform.tfstate",
+            "environments/dev/terraform.tfstate.tflock"
+          ]
+        }
+      }
+    },
+    {
+      Sid      = "TerraformDevStateObjectRead"
+      Effect   = "Allow"
+      Action   = "s3:GetObject"
+      Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate"
+    },
+    {
+      Sid    = "TerraformDevStateLockfileWrite"
+      Effect = "Allow"
+      Action = [
+        "s3:DeleteObject",
+        "s3:GetObject",
+        "s3:PutObject"
+      ]
+      Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate.tflock"
+    },
+    {
+      Sid      = "TerraformDevStateLockTableDescribe"
+      Effect   = "Allow"
+      Action   = "dynamodb:DescribeTable"
+      Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
+    },
+    {
+      Sid    = "TerraformDevStateLockItems"
+      Effect = "Allow"
+      Action = [
+        "dynamodb:DeleteItem",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem"
+      ]
+      Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
+      Condition = {
+        StringLike = {
+          "dynamodb:LeadingKeys" = "nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate*"
+        }
+      }
+    },
+    {
+      Sid    = "SecretsManagerReadForApplicationDebug"
+      Effect = "Allow"
+      Action = [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetResourcePolicy",
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:ListSecretVersionIds"
+      ]
+      Resource = [
+        "arn:aws:secretsmanager:ap-northeast-1:${var.aws_account_id}:secret:nestjs-hannibal-3*",
+        "arn:aws:secretsmanager:ap-northeast-1:${var.aws_account_id}:secret:rds!*"
+      ]
+    },
+    {
+      Sid    = "KMSDecryptForApplicationSecrets"
+      Effect = "Allow"
+      Action = [
+        "kms:Decrypt",
+        "kms:DescribeKey"
+      ]
+      Resource = "arn:aws:kms:ap-northeast-1:${var.aws_account_id}:key/*"
+      Condition = {
+        StringEquals = {
+          "kms:ViaService" = "secretsmanager.ap-northeast-1.amazonaws.com"
+        }
+      }
+    },
+    {
+      Sid      = "PassECSTaskExecutionRoleOnly"
+      Effect   = "Allow"
+      Action   = "iam:PassRole"
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-ecs-task-execution-role"
+      Condition = {
+        StringEquals = {
+          "iam:PassedToService" = "ecs-tasks.amazonaws.com"
+        }
+      }
+    }
+  ]
+}
+
+resource "aws_iam_policy" "hannibal_developer_boundary_candidate" {
+  name        = "HannibalDeveloperBoundary-Dev-candidate"
+  description = "Candidate permission boundary for daily developer operations role"
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = local.hannibal_developer_candidate_policy_statements
+  })
+}
+
+resource "aws_iam_role" "hannibal_developer_role_candidate" {
+  name                 = "HannibalDeveloperRole-Dev-candidate"
+  permissions_boundary = aws_iam_policy.hannibal_developer_boundary_candidate.arn
+  depends_on           = [aws_iam_policy.hannibal_foundation_boundary]
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${var.aws_account_id}:user/hannibal"
+        }
+        Condition = {
+          StringEquals = {
+            "aws:RequestedRegion" = "ap-northeast-1"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "hannibal_developer_policy_candidate" {
+  name        = "HannibalDeveloperPolicy-Dev-candidate"
+  description = "Candidate least-privilege permissions for daily developer operations"
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = local.hannibal_developer_candidate_policy_statements
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "hannibal_developer_policy_candidate_attachment" {
+  role       = aws_iam_role.hannibal_developer_role_candidate.name
+  policy_arn = aws_iam_policy.hannibal_developer_policy_candidate.arn
+}
+
+
 # --- 6. HannibalCICDBoundary (CI/CD専用Permission Boundary) ---
 # HannibalCICDRole-Dev の最大権限を制限する Permission Boundary。
 # #166 にて Terraform 管理に移行。不使用サービスへの明示 Deny を追加済み。
@@ -916,6 +1224,7 @@ resource "aws_iam_role_policy_attachment" "hannibal_pr_plan_policy_attachment" {
 locals {
   hannibal_foundation_approved_boundary_arns = [
     "arn:aws:iam::${var.aws_account_id}:policy/HannibalCICDBoundary",
+    "arn:aws:iam::${var.aws_account_id}:policy/HannibalDeveloperBoundary-Dev-candidate",
     "arn:aws:iam::${var.aws_account_id}:policy/HannibalPRPlanBoundary-Dev",
     "arn:aws:iam::${var.aws_account_id}:policy/HannibalFoundationBoundary-Dev"
   ]
