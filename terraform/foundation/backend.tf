@@ -3,7 +3,8 @@ terraform {
     bucket         = "nestjs-hannibal-3-terraform-state"
     key            = "foundation/terraform.tfstate"
     region         = "ap-northeast-1"
-    dynamodb_table = "terraform-state-lock" # DynamoDB State Lock
+    use_lockfile   = true
+    dynamodb_table = "terraform-state-lock" # Legacy DynamoDB lock during migration
     encrypt        = true
   }
 }

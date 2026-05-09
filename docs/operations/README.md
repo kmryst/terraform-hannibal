@@ -16,7 +16,7 @@
 
 ### 1. Infrastructure as Code
 - **Terraform管理**: 全リソースをコード化（手動変更禁止）
-- **State管理**: S3 + DynamoDB Lock で一貫性確保
+- **State管理**: S3 backend + S3 lockfile で一貫性確保（DynamoDB Lock は移行期間中のみ併用）
 - **環境分離**: `terraform/environments/dev/` で管理
 
 ### 2. 最小権限原則
@@ -196,7 +196,8 @@ git push origin main
 
 **解決方法:**
 ```powershell
-# Lock ID確認
+# S3 lockfile方式では、Terraform のエラー出力に表示される Lock ID を確認
+# DynamoDB lock は移行期間中のみ確認
 aws dynamodb scan --table-name terraform-state-lock
 
 # Lock強制解除（他の操作がないことを確認）
@@ -205,6 +206,82 @@ terraform force-unlock <LOCK_ID>
 ```
 
 **予防策**: `terraform apply` を Ctrl+C で中断しない
+
+**移行メモ**: 現在は `use_lockfile = true` と `dynamodb_table = "terraform-state-lock"` を併用する第1段階です。
+deploy / destroy の `terraform init` で S3 lockfile 設定を読み込み、安定後に後続作業で DynamoDB lock table と関連権限を削除します。
+
+**S3 lockfile 実動作確認**:
+
+`terraform/environments/dev` で `terraform plan -lock=true` を実行し、S3 lockfile が作成・削除されることを確認します。
+`apply` は実行しません。
+
+```bash
+LOCK_BUCKET="nestjs-hannibal-3-terraform-state"
+LOCK_KEY="environments/dev/terraform.tfstate.tflock"
+
+# 実行前は残留 lockfile がないことを確認
+if aws s3api head-object --bucket "$LOCK_BUCKET" --key "$LOCK_KEY" >/dev/null 2>&1; then
+  echo "before: present"
+else
+  echo "before: absent"
+fi
+```
+
+別ターミナルで plan 中の `.tflock` を観測します。
+
+```bash
+LOCK_BUCKET="nestjs-hannibal-3-terraform-state"
+LOCK_KEY="environments/dev/terraform.tfstate.tflock"
+
+while true; do
+  if aws s3api head-object --bucket "$LOCK_BUCKET" --key "$LOCK_KEY" >/dev/null 2>&1; then
+    echo "observed: present"
+    break
+  fi
+  sleep 0.5
+done
+```
+
+元のターミナルで lock ありの plan を実行します。
+
+```bash
+terraform -chdir=terraform/environments/dev plan \
+  -lock=true \
+  -lock-timeout=20s \
+  -refresh=false \
+  -input=false \
+  -detailed-exitcode \
+  -var="client_url_for_cors=https://hamilcar-hannibal.click" \
+  -var="environment=dev" \
+  -var="deployment_type=canary" \
+  -var="enable_cloudfront=true"
+```
+
+plan 終了後に lockfile が削除されていることを確認します。
+
+```bash
+LOCK_BUCKET="nestjs-hannibal-3-terraform-state"
+LOCK_KEY="environments/dev/terraform.tfstate.tflock"
+
+if aws s3api head-object --bucket "$LOCK_BUCKET" --key "$LOCK_KEY" >/dev/null 2>&1; then
+  echo "after: present"
+else
+  echo "after: absent"
+fi
+```
+
+期待結果:
+- plan 実行中に `.tflock` が一時的に存在する
+- plan 終了後、`.tflock` は存在しない
+- exit code `2` は「plan 成功、差分あり」。destroy 済み dev 環境では正常系
+- exit code `1` はエラーとして扱う
+
+Issue #183 の確認結果（2026-05-09）:
+- `before: absent`
+- `observed: present`
+- `after: absent`
+- `PLAN_EXIT=2`
+- destroy 済み dev 環境として全作成差分が出ることを確認
 
 ### 4. RDS接続エラー
 

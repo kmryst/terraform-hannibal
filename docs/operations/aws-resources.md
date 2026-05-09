@@ -16,11 +16,11 @@
 
 | リソース | 名前 | 残す理由 |
 |---------|------|---------|
-| S3 バケット | `nestjs-hannibal-3-terraform-state` | Terraform state の保存先。削除すると state が失われ復旧困難 |
+| S3 バケット | `nestjs-hannibal-3-terraform-state` | Terraform state と S3 lockfile の保存先。削除すると state が失われ復旧困難 |
 | S3 バケット | `nestjs-hannibal-3-cloudtrail-logs` | CloudTrail 監査ログの保存先 |
 | S3 バケット | `nestjs-hannibal-3-athena-results` | Athena クエリ結果の出力先 |
 | S3 バケット | `nestjs-hannibal-3-frontend` | フロントエンド静的ファイル。Terraform は data 参照のみでバケット本体は管理外 |
-| DynamoDB テーブル | `terraform-state-lock` | Terraform 同時実行ロック。削除すると apply/destroy が排他制御できなくなる |
+| DynamoDB テーブル | `terraform-state-lock` | Terraform DynamoDB lock の移行期間用。S3 lockfile 安定後に後続作業で削除可否を判断する |
 | ECR リポジトリ | `nestjs-hannibal-3` | コンテナイメージの保存先。deploy 時にイメージ push が必要 |
 | CloudFront OAC | `nestjs-hannibal-3-oac` | S3 フロントエンドバケットへのアクセス制御。CloudFront distribution が参照する |
 | Route53 Hosted Zone | `hamilcar-hannibal.click` | DNS 管理。削除するとドメインが引けなくなる |
