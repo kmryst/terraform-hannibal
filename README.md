@@ -12,7 +12,7 @@ A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue
 - 要件整理・設計・技術選定・実装・運用フロー整備までを一人で主導。
 
 **再現性**
-- S3+DynamoDBでState管理を実施。
+- S3 backend と S3 lockfile で Terraform State 管理を実施（DynamoDB lock は移行期間中のみ併用）。
 - GitHub Actionsで[ワンクリック起動/停止](./.github/workflows/deploy.yml)に対応（[起動完了まで約15分](./.github/workflows/deploy.yml)）。
 - Terraformモジュール化、PR時のfmt/validate自動チェック、運用SOP整備により、変更の再現性とレビュー容易性を向上。
 
@@ -125,7 +125,7 @@ terraform/
     └── storage/        # RDS + S3
 ```
 
-State管理: S3 + DynamoDB（Terraform State Lock）
+State管理: S3 backend + S3 lockfile（DynamoDB lock は移行期間中のみ併用）
 
 - deploy.yml: provisioning / bluegreen / canary を選択可能（無停止切替（Blue/Green）と段階配信（Canary）を実装）
 - destroy.yml: ワンクリックでAWSリソース削除
@@ -155,7 +155,7 @@ State管理: S3 + DynamoDB（Terraform State Lock）
 - 無停止切替（Blue/Green）: IAM権限の段階的追加で並行環境から[約5分の切替](./docs/deployment/codedeploy-blue-green.md)と即時ロールバックを実現
 - 最小権限設計: Permission Boundaryでセキュリティと自動化を両立
 - 3層VPCアーキテクチャ: NAT Gateway設計でDB層を完全非公開化
-- Terraform State管理: S3 + DynamoDBでチーム開発に対応可能な基盤を構築
+- Terraform State管理: S3 backend + S3 lockfile でチーム開発に対応可能な排他制御基盤を構築
 - 依存関係の最適化: リソース削除順序の制御で安全に環境破棄
 
 **参考ドキュメント**

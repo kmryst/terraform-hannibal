@@ -4,6 +4,7 @@ terraform {
     bucket         = "nestjs-hannibal-3-terraform-state"
     key            = "environments/dev/terraform.tfstate"
     region         = "ap-northeast-1"
+    use_lockfile   = true
     dynamodb_table = "terraform-state-lock"
     encrypt        = true
   }

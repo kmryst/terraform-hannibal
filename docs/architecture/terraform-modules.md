@@ -12,7 +12,7 @@ terraform/
 │   ├── iam.tf              # IAM User/Role (AssumeRole + Permission Boundary)
 │   ├── billing.tf          # コスト監視 ($30-50 → 停止時$5)
 │   ├── athena.tf           # CloudTrail分析
-│   └── s3-backend.tf       # Terraform State管理 (S3 + DynamoDB Lock)
+│   └── backend.tf          # Terraform State管理 (S3 backend + S3 lockfile)
 ├── modules/                # 再利用可能モジュール
 │   ├── networking/
 │   │   ├── vpc/            # 3層VPC (Public/App/Data)
@@ -473,7 +473,7 @@ module "storage" {
 
 ### 品質向上
 - **Infrastructure as Code**: 全リソースをコード管理
-- **State管理**: S3 + DynamoDB Lock
+- **State管理**: S3 backend + S3 lockfile（DynamoDB Lock は移行期間中のみ併用）
 - **セキュリティ**: tfsecによる自動検証
 
 ### コスト最適化

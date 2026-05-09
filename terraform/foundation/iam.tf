@@ -1062,7 +1062,8 @@ locals {
         StringLike = {
           "s3:prefix" = [
             "foundation/",
-            "foundation/terraform.tfstate"
+            "foundation/terraform.tfstate",
+            "foundation/terraform.tfstate.tflock"
           ]
         }
       }
@@ -1075,7 +1076,10 @@ locals {
         "s3:PutObject",
         "s3:DeleteObject"
       ]
-      Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state/foundation/terraform.tfstate"
+      Resource = [
+        "arn:aws:s3:::nestjs-hannibal-3-terraform-state/foundation/terraform.tfstate",
+        "arn:aws:s3:::nestjs-hannibal-3-terraform-state/foundation/terraform.tfstate.tflock"
+      ]
     },
     {
       Sid    = "TerraformFoundationStateLock"

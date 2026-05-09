@@ -133,7 +133,7 @@ nestjs-hannibal-3/
 3. **CORS設定**: `main.ts`で環境別Origin制御（本番=CLIENT_URL、開発=localhost:5173）
 4. **IAM最小権限**: `foundation/iam.tf`でPermission Boundary + HannibalCICDRole
 5. **Blue/Green Deployment**: `modules/cicd/`でCodeDeploy、約5分で無停止切替
-6. **State管理**: S3 + DynamoDB Lock（`terraform/foundation/`で初期化）
+6. **State管理**: S3 backend + S3 lockfile（DynamoDB Lock は移行期間中のみ併用）
 
 ---
 
@@ -245,7 +245,7 @@ terraform state list
 terraform state show aws_ecs_service.main
 ```
 
-**重要**: Terraform State は S3 で管理、DynamoDB でロック。直接編集禁止。
+**重要**: Terraform State は S3 で管理し、S3 lockfile でロック。直接編集禁止。
 
 ---
 
@@ -449,7 +449,7 @@ aws logs tail /ecs/nestjs-hannibal-3 --follow
 
 #### 2. Terraform State Lock
 ```bash
-# DynamoDB Lock確認
+# DynamoDB Lock確認（移行期間中のみ）
 aws dynamodb scan --table-name terraform-state-lock
 
 # 強制解除（注意: 他の操作がないことを確認）
