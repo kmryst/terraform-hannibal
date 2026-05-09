@@ -196,6 +196,33 @@ PR terraform plan 用のTrust Policyは [pr-terraform-plan-role-design.md](./pr-
 3. **段階的削除**: テスト環境での検証後に本番適用
 4. **継続監視**: 削除後の動作確認
 
+### terraform/foundation apply の注意点
+
+#### `aws_iam_policy` の `description` は ForceNew
+
+Terraform の `aws_iam_policy` で `description` を変更すると、リソースが destroy → create（置き換え）になる。置き換えの際、Terraform はまず既存ポリシーを Role から detach しようとする。
+
+Foundation Policy の `DetachRolePolicy` 文には次の条件が付いている:
+
+```
+Condition:
+  ArnLike:
+    iam:PermissionsBoundary: "arn:aws:iam::...:policy/Hannibal*Boundary*"
+```
+
+これは「detach 対象の Role がすでに `Hannibal*Boundary*` の Boundary を持っているときだけ許可」という意味。Boundary を持たない Role（例: 新しく Boundary を付ける対象）への detach は AccessDenied になる。
+
+**結論**: `aws_iam_policy` の `description` は変更しない。policy 内容だけを変えれば in-place update（新バージョン作成）になり、detach が不要になる。
+
+#### Boundary を持たない Role への最初の apply
+
+Boundary がない Role に対して「Boundary を付与 + ポリシーを置き換え」を同一 apply で実行しようとすると上記で詰まる。安全な順序:
+
+1. Boundary 付与のみを apply する（`-target=aws_iam_role.*`）
+2. 次の apply でポリシー操作を実施する
+
+または policy の description を変えず in-place update にとどめれば 1 回の apply で通る。
+
 ### Developer Role candidate 検証プロセス
 1. bootstrap / admin / break-glass 権限で `terraform/foundation` を apply し、`HannibalDeveloperRole-Dev-candidate` / `HannibalDeveloperPolicy-Dev-candidate` / `HannibalDeveloperBoundary-Dev-candidate` を作成する
 2. `hannibal` IAM User の `AssumeDevRole` が Role ARN を明示している場合、検証期間中だけ candidate Role ARN を追加する
