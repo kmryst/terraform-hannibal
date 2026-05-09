@@ -70,7 +70,24 @@ terraform {
 `use_lockfile = true` により、Terraform は state key に対応する `.tflock` オブジェクトを S3 上で作成・削除してロックします。
 `dynamodb_table` は移行期間中のみ併用し、安定後に backend / IAM / docs から削除します。
 
-### 1-3. 初期化実行
+### 1-3. tfvars ファイル作成
+
+`terraform/foundation` は変数を `terraform.tfvars` で管理します（gitignore 済み）。
+`terraform.tfvars.example` を参考に実値を設定してください。
+
+```bash
+cp terraform/foundation/terraform.tfvars.example terraform/foundation/terraform.tfvars
+# エディタで aws_account_id と alert_email を実際の値に書き換える
+```
+
+`terraform.tfvars.example` の内容:
+
+```hcl
+aws_account_id = "123456789012"
+alert_email    = "your-email@example.com"
+```
+
+### 1-4. 初期化実行
 
 ```bash
 cd terraform/foundation
@@ -85,7 +102,7 @@ terraform init
 ```bash
 cd terraform/foundation
 terraform init -reconfigure
-terraform plan -var="aws_account_id=<AWS_ACCOUNT_ID>" -var="alert_email=<EMAIL>"
+terraform plan
 
 cd ../environments/dev
 terraform init -reconfigure
@@ -133,10 +150,12 @@ aws iam create-user --user-name hannibal
 
 ### 2-2. foundation Terraform apply
 
+事前に `terraform/foundation/terraform.tfvars` を作成済みであることを確認します（ステップ1-3参照）。
+
 ```bash
 cd terraform/foundation
 terraform init
-terraform apply -var="aws_account_id=<AWS_ACCOUNT_ID>" -var="alert_email=<EMAIL>"
+terraform apply
 ```
 
 **作成されるリソース:**
