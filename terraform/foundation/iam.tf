@@ -1222,11 +1222,95 @@ resource "aws_iam_role_policy_attachment" "hannibal_pr_plan_policy_attachment" {
 # 用の高権限操作はこのロールへ分離する。
 
 locals {
-  hannibal_foundation_approved_boundary_arns = [
-    "arn:aws:iam::${var.aws_account_id}:policy/HannibalCICDBoundary",
-    "arn:aws:iam::${var.aws_account_id}:policy/HannibalDeveloperBoundary-Dev-candidate",
-    "arn:aws:iam::${var.aws_account_id}:policy/HannibalPRPlanBoundary-Dev",
-    "arn:aws:iam::${var.aws_account_id}:policy/HannibalFoundationBoundary-Dev"
+  hannibal_foundation_approved_boundary_arn_pattern = "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*Boundary*"
+
+  hannibal_foundation_boundary_statements = [
+    {
+      Sid    = "DenyFoundationBoundaryPolicyMutation"
+      Effect = "Deny"
+      Action = [
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion",
+        "iam:SetDefaultPolicyVersion"
+      ]
+      Resource = "arn:aws:iam::${var.aws_account_id}:policy/HannibalFoundationBoundary-Dev"
+    },
+    {
+      Sid      = "DenyRemovingHannibalRoleBoundaries"
+      Effect   = "Deny"
+      Action   = "iam:DeleteRolePermissionsBoundary"
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+    },
+    {
+      Sid    = "AllowIAMFoundationServices"
+      Effect = "Allow"
+      Action = [
+        "iam:AddClientIDToOpenIDConnectProvider",
+        "iam:AttachRolePolicy",
+        "iam:CreateOpenIDConnectProvider",
+        "iam:CreatePolicy",
+        "iam:CreatePolicyVersion",
+        "iam:CreateRole",
+        "iam:DeleteOpenIDConnectProvider",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion",
+        "iam:DeleteRole",
+        "iam:DeleteRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:Get*",
+        "iam:List*",
+        "iam:PutRolePermissionsBoundary",
+        "iam:PutRolePolicy",
+        "iam:RemoveClientIDFromOpenIDConnectProvider",
+        "iam:SetDefaultPolicyVersion",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:UpdateOpenIDConnectProviderThumbprint",
+        "iam:UpdateRole"
+      ]
+      Resource = "*"
+    },
+    {
+      Sid    = "AllowFoundationS3StateAndAthenaResults"
+      Effect = "Allow"
+      Action = [
+        "s3:DeleteObject",
+        "s3:GetBucketLocation",
+        "s3:GetObject",
+        "s3:ListBucket",
+        "s3:PutObject"
+      ]
+      Resource = [
+        "arn:aws:s3:::nestjs-hannibal-3-terraform-state",
+        "arn:aws:s3:::nestjs-hannibal-3-terraform-state/*",
+        "arn:aws:s3:::nestjs-hannibal-3-athena-results",
+        "arn:aws:s3:::nestjs-hannibal-3-athena-results/*"
+      ]
+    },
+    {
+      Sid    = "AllowFoundationDynamoDBLock"
+      Effect = "Allow"
+      Action = [
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem"
+      ]
+      Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
+    },
+    {
+      Sid    = "AllowFoundationManagedServices"
+      Effect = "Allow"
+      Action = [
+        "athena:*",
+        "budgets:*",
+        "cloudtrail:*",
+        "glue:*",
+        "guardduty:*",
+        "sts:GetCallerIdentity"
+      ]
+      Resource = "*"
+    }
   ]
 
   hannibal_foundation_policy_statements = [
@@ -1269,8 +1353,8 @@ locals {
       ]
       Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
       Condition = {
-        ArnEquals = {
-          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arns
+        ArnLike = {
+          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arn_pattern
         }
       }
     },
@@ -1284,8 +1368,8 @@ locals {
       ]
       Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
       Condition = {
-        ArnEquals = {
-          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arns
+        ArnLike = {
+          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arn_pattern
         }
       }
     },
@@ -1298,8 +1382,8 @@ locals {
       ]
       Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
       Condition = {
-        ArnEquals = {
-          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arns
+        ArnLike = {
+          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arn_pattern
         }
       }
     },
@@ -1312,11 +1396,9 @@ locals {
       ]
       Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
       Condition = {
-        ArnEquals = {
-          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arns
-        }
         ArnLike = {
-          "iam:PolicyARN" = "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*"
+          "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arn_pattern
+          "iam:PolicyARN"           = "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*"
         }
       }
     },
@@ -1510,7 +1592,7 @@ resource "aws_iam_policy" "hannibal_foundation_boundary" {
 
   policy = jsonencode({
     Version   = "2012-10-17"
-    Statement = local.hannibal_foundation_policy_statements
+    Statement = local.hannibal_foundation_boundary_statements
   })
 }
 
