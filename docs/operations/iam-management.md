@@ -220,14 +220,21 @@ PR terraform plan 用のTrust Policyは [pr-terraform-plan-role-design.md](./pr-
 | foundation state `s3:GetObject` | explicitDeny ✓ | policy の Deny ステートメントが機能している |
 | IAM 危険操作（CreateRole / DeleteRole / Attach / Put 等） | all implicitDeny ✓ | |
 
-**未検証（dev deploy が必要）**:
-- ECS exec
-- Secrets Manager `GetSecretValue`
-- ECS service / task 実操作
-- RDS managed secret 参照
+**dev deploy あり検証結果（2026-05-09）**:
+
+| テスト | 結果 | 備考 |
+|---|---|---|
+| ECS exec（IAM simulation） | allowed ✓ | ローカルに Session Manager Plugin なし。IAM 権限は確認済み |
+| CloudWatch Logs `get-log-events` | OK ✓ | `/ecs/nestjs-hannibal-3-api-task` を実読み取り |
+| Secrets Manager `GetSecretValue`（RDS managed secret） | OK ✓ | `rds!db-*` prefix のシークレットを取得確認 |
+| `terraform/environments/dev plan -lock=false` | OK ✓ | deploy 後の state 読み取り成功 |
+| foundation state `s3:GetObject` | explicitDeny ✓ | |
+| `HannibalFoundationRole-Dev` assume（特権昇格テスト） | AccessDenied ✓ | |
 
 **既知の制限**:
 `terraform/environments/dev` の backend は `use_lockfile = true` と `dynamodb_table` を並用中（#189 待ち移行期間）。candidate policy は DynamoDB 権限を持たないため、`-lock=false` での plan が必要。#189 で DynamoDB が削除されれば S3 lockfile 単独になり、lock あり plan が通る。
+
+**次のステップ**: 全検証完了。後続 PR で `HannibalDeveloperPolicy-Dev` / Developer Role Boundary へ反映し、candidate リソースを削除する。
 
 ### 定期メンテナンス
 - **月次権限レビュー**: 使用されていない権限の特定
