@@ -205,6 +205,30 @@ PR terraform plan 用のTrust Policyは [pr-terraform-plan-role-design.md](./pr-
 4. AccessDenied が出たら candidate policy を最小差分で修正し、再検証する
 5. 検証完了後、後続 PR で本体 `HannibalDeveloperPolicy-Dev` / Developer Role Boundary に反映し、candidate リソースを削除する
 
+### candidate 検証記録（#164）
+
+**リソース作成**: PR #190（`HannibalDeveloperRole-Dev-candidate` / `HannibalDeveloperPolicy-Dev-candidate` / `HannibalDeveloperBoundary-Dev-candidate`）、apply 済み。
+
+**deploy なし検証結果（2026-05-09 時点）**:
+
+| テスト | 結果 | 備考 |
+|---|---|---|
+| `terraform/environments/dev plan`（lock あり） | AccessDenied | `dynamodb:PutItem` / `GetItem` 権限なし。#189 で DynamoDB 削除後に解消予定 |
+| `terraform/environments/dev plan`（`-lock=false`） | OK | state 読み取り成功、72 to add |
+| S3 frontend bucket put / delete | OK | `nestjs-hannibal-3-frontend` |
+| ECR push / pull 系（IAM simulation） | all allowed | `ecr:GetAuthorizationToken` / `PutImage` / `InitiateLayerUpload` 等 |
+| foundation state `s3:GetObject` | explicitDeny ✓ | policy の Deny ステートメントが機能している |
+| IAM 危険操作（CreateRole / DeleteRole / Attach / Put 等） | all implicitDeny ✓ | |
+
+**未検証（dev deploy が必要）**:
+- ECS exec
+- Secrets Manager `GetSecretValue`
+- ECS service / task 実操作
+- RDS managed secret 参照
+
+**既知の制限**:
+`terraform/environments/dev` の backend は `use_lockfile = true` と `dynamodb_table` を並用中（#189 待ち移行期間）。candidate policy は DynamoDB 権限を持たないため、`-lock=false` での plan が必要。#189 で DynamoDB が削除されれば S3 lockfile 単独になり、lock あり plan が通る。
+
 ### 定期メンテナンス
 - **月次権限レビュー**: 使用されていない権限の特定
 - **四半期最適化**: Permission Boundaryの見直し
