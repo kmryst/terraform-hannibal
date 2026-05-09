@@ -88,6 +88,7 @@ aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalFoundation
 - **基盤IAMロール・ポリシー**: `terraform/foundation` で扱い、厳密運用で変更する
 - **Foundation Boundary 変更**: `HannibalFoundationRole-Dev` ではなく、bootstrap / admin / break-glass 権限で厳密運用として実行する
 - **日常開発Role**: `HannibalDeveloperRole-Dev` はアプリ運用に使い、`terraform/foundation` の apply には使わない
+- **Boundary命名規約**: Foundation Role が Hannibal 系 Role に設定できる Permission Boundary は `Hannibal*Boundary*` に限定する
 - **Developer Role 最小権限化**: 既存 Role / Policy を直接縮小せず、candidate Role / Policy / Boundary で検証してから本体へ反映する
 - **アプリケーションIAMロール・ポリシー**: `terraform/environments/dev` から作成・破棄される
 - **段階的権限縮小**: CloudTrailログ分析とPRレビューで継続的に行う
@@ -109,6 +110,8 @@ aws sts assume-role --role-arn arn:aws:iam::258632448142:role/HannibalFoundation
 - **CloudTrail分析**: 実際の使用権限を特定する
 - **Permission Boundary**: 最大権限の制限
 - **Boundaryの管理分離**: 日常 apply 用 Role が自分の Boundary を書き換えられないようにする
+- **Boundaryの命名制限**: `Hannibal*Boundary*` に一致する managed policy だけを Hannibal 系 Role の Boundary として使う
+- **Boundaryの粒度**: `HannibalFoundationBoundary-Dev` は詳細な実権限ではなく、foundation が扱うサービス範囲の上限だけを短く定義する。詳細な許可は `HannibalFoundationPolicy-Dev` 側で管理する
 - **段階的権限縮小**: 過去分析を起点に、現状確認と縮小を継続する
 
 ### 環境分離
