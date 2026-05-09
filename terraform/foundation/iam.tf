@@ -16,7 +16,8 @@ resource "aws_iam_openid_connect_provider" "github" {
 
 # --- 1. HannibalDeveloperRole-Dev (日常開発・アプリ運用ロール) ---
 resource "aws_iam_role" "hannibal_developer_role" {
-  name = "HannibalDeveloperRole-Dev"
+  name                 = "HannibalDeveloperRole-Dev"
+  permissions_boundary = aws_iam_policy.hannibal_developer_boundary.arn
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -68,197 +69,29 @@ resource "aws_iam_role" "hannibal_cicd_role" {
 }
 
 # --- 3. HannibalDeveloperPolicy-Dev (日常開発・アプリ運用ポリシー) ---
+# #164 で wildcard から action 列挙に最小権限化済み。statements は local.hannibal_developer_policy_statements で管理。
 resource "aws_iam_policy" "hannibal_developer_policy" {
   name        = "HannibalDeveloperPolicy-Dev"
-  description = "Integrated development permissions - ECS/ECR/RDS/CloudWatch operations, limited Terraform execution"
+  description = "Least-privilege permissions for daily developer operations: ECS exec / logs / ECR push / Secrets / dev Terraform plan"
 
   policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        # foundation Terraform state は HannibalFoundationRole-Dev 専用。
-        # S3 権限の広さは #164 で別途最小権限化するが、foundation state だけはここで明示的に切り離す。
-        Effect = "Deny"
-        Action = [
-          "s3:*"
-        ]
-        Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state/foundation/*"
-      },
-      {
-        # ECR権限 (フル操作)
-        Effect = "Allow"
-        Action = [
-          "ecr:*"
-        ]
-        Resource = "*"
-      },
-      {
-        # ECS権限 (フル操作)
-        Effect = "Allow"
-        Action = [
-          "ecs:*"
-        ]
-        Resource = "*"
-      },
-      {
-        # RDS権限 (フル操作)
-        Effect = "Allow"
-        Action = [
-          "rds:*"
-        ]
-        Resource = "*"
-      },
-      {
-        # CloudWatch Logs権限 (フル操作)
-        Effect = "Allow"
-        Action = [
-          "logs:*"
-        ]
-        Resource = "*"
-      },
-      {
-        # CloudWatch Metrics権限 (フル操作)
-        Effect = "Allow"
-        Action = [
-          "cloudwatch:*"
-        ]
-        Resource = "*"
-      },
-      {
-        # EC2権限 (フル操作)
-        Effect = "Allow"
-        Action = [
-          "ec2:*"
-        ]
-        Resource = "*"
-      },
-      {
-        # ELB権限 (フル操作)
-        Effect = "Allow"
-        Action = [
-          "elasticloadbalancing:*",
-          "elbv2:*"
-        ]
-        Resource = "*"
-      },
-      {
-        # S3権限 (フル操作)
-        Effect = "Allow"
-        Action = [
-          "s3:*"
-        ]
-        Resource = "*"
-      },
-      {
-        # CloudFront権限 (フル操作)
-        Effect = "Allow"
-        Action = [
-          "cloudfront:*"
-        ]
-        Resource = "*"
-      },
-      {
-        # IAM権限 (日常開発・アプリTerraform用)。Hannibal* / OIDC / foundation IAM は Foundation Role 側で扱う。
-        Effect = "Allow"
-        Action = [
-          "iam:CreateRole",
-          "iam:AttachRolePolicy",
-          "iam:DetachRolePolicy",
-          "iam:DeleteRole",
-          "iam:UpdateAssumeRolePolicy",
-          "iam:PutRolePermissionsBoundary",
-          "iam:DeleteRolePermissionsBoundary",
-          "iam:GetRole",
-          "iam:ListAttachedRolePolicies",
-          "iam:ListInstanceProfilesForRole",
-          "iam:ListRolePolicies",
-          "iam:GetRolePolicy",
-          "iam:PutRolePolicy",
-          "iam:DeleteRolePolicy",
-          "iam:TagRole",
-          "iam:UntagRole"
-        ]
-        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-*"
-      },
-      {
-        # アプリ用 managed policy の作成・更新だけを許可する。
-        Effect = "Allow"
-        Action = [
-          "iam:CreatePolicy",
-          "iam:CreatePolicyVersion",
-          "iam:DeletePolicy",
-          "iam:DeletePolicyVersion",
-          "iam:GetPolicy",
-          "iam:GetPolicyVersion",
-          "iam:ListPolicyVersions",
-          "iam:SetDefaultPolicyVersion",
-          "iam:TagPolicy",
-          "iam:UntagPolicy"
-        ]
-        Resource = "arn:aws:iam::${var.aws_account_id}:policy/nestjs-hannibal-3-*"
-      },
-      {
-        # ECS / CodeDeploy が必要とする Role への PassRole だけ許可する。
-        Effect = "Allow"
-        Action = [
-          "iam:PassRole"
-        ]
-        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-ecs-task-execution-role"
-        Condition = {
-          StringEquals = {
-            "iam:PassedToService" = "ecs-tasks.amazonaws.com"
-          }
-        }
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "iam:PassRole"
-        ]
-        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-codedeploy-service-role"
-        Condition = {
-          StringEquals = {
-            "iam:PassedToService" = "codedeploy.amazonaws.com"
-          }
-        }
-      },
-      {
-        # Terraform refresh / policy attachment 確認用の読み取り。
-        Effect = "Allow"
-        Action = [
-          "iam:GetPolicy",
-          "iam:GetPolicyVersion",
-          "iam:ListPolicies",
-          "iam:ListRoles"
-        ]
-        Resource = "*"
-      },
-      {
-        # Terraform state lock table (dev backend)
-        Effect = "Allow"
-        Action = [
-          "dynamodb:DescribeTable"
-        ]
-        Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
-      },
-      {
-        # environments/dev の Terraform state lock のみ許可する。foundation state lock は Foundation Role 側で扱う。
-        Effect = "Allow"
-        Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:DeleteItem"
-        ]
-        Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
-        Condition = {
-          StringLike = {
-            "dynamodb:LeadingKeys" = "nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate*"
-          }
-        }
-      }
-    ]
+    Version   = "2012-10-17"
+    Statement = local.hannibal_developer_policy_statements
   })
 }
+# --- 4. HannibalDeveloperBoundary-Dev (日常開発ロール Permission Boundary) ---
+# HannibalDeveloperRole-Dev の最大権限の上限。identity policy と同じ statements を共有し、
+# Boundary が policy より広くなる状態を避ける。
+resource "aws_iam_policy" "hannibal_developer_boundary" {
+  name        = "HannibalDeveloperBoundary-Dev"
+  description = "Permission Boundary for HannibalDeveloperRole-Dev: app operations only"
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = local.hannibal_developer_policy_statements
+  })
+}
+
 # --- 5. ポリシーアタッチメント ---
 resource "aws_iam_role_policy_attachment" "hannibal_developer_policy_attachment" {
   role       = aws_iam_role.hannibal_developer_role.name
@@ -266,11 +99,8 @@ resource "aws_iam_role_policy_attachment" "hannibal_developer_policy_attachment"
 }
 
 
-# --- 5.5. HannibalDeveloperRole-Dev-candidate (日常開発ロール最小権限化の検証用) ---
-# #164 の段階移行用。既存 HannibalDeveloperRole-Dev には影響させず、
-# candidate role / policy / boundary で ECS exec・ログ確認・ECR push・Secrets 参照を検証する。
 locals {
-  hannibal_developer_candidate_policy_statements = [
+  hannibal_developer_policy_statements = [
     {
       Sid    = "DenyFoundationStateAccess"
       Effect = "Deny"
@@ -523,56 +353,6 @@ locals {
     }
   ]
 }
-
-resource "aws_iam_policy" "hannibal_developer_boundary_candidate" {
-  name        = "HannibalDeveloperBoundary-Dev-candidate"
-  description = "Candidate permission boundary for daily developer operations role"
-
-  policy = jsonencode({
-    Version   = "2012-10-17"
-    Statement = local.hannibal_developer_candidate_policy_statements
-  })
-}
-
-resource "aws_iam_role" "hannibal_developer_role_candidate" {
-  name                 = "HannibalDeveloperRole-Dev-candidate"
-  permissions_boundary = aws_iam_policy.hannibal_developer_boundary_candidate.arn
-  depends_on           = [aws_iam_policy.hannibal_foundation_boundary]
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          AWS = "arn:aws:iam::${var.aws_account_id}:user/hannibal"
-        }
-        Condition = {
-          StringEquals = {
-            "aws:RequestedRegion" = "ap-northeast-1"
-          }
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_policy" "hannibal_developer_policy_candidate" {
-  name        = "HannibalDeveloperPolicy-Dev-candidate"
-  description = "Candidate least-privilege permissions for daily developer operations"
-
-  policy = jsonencode({
-    Version   = "2012-10-17"
-    Statement = local.hannibal_developer_candidate_policy_statements
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "hannibal_developer_policy_candidate_attachment" {
-  role       = aws_iam_role.hannibal_developer_role_candidate.name
-  policy_arn = aws_iam_policy.hannibal_developer_policy_candidate.arn
-}
-
 
 # --- 6. HannibalCICDBoundary (CI/CD専用Permission Boundary) ---
 # HannibalCICDRole-Dev の最大権限を制限する Permission Boundary。
