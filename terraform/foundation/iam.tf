@@ -72,7 +72,7 @@ resource "aws_iam_role" "hannibal_cicd_role" {
 # #164 で wildcard から action 列挙に最小権限化済み。statements は local.hannibal_developer_policy_statements で管理。
 resource "aws_iam_policy" "hannibal_developer_policy" {
   name        = "HannibalDeveloperPolicy-Dev"
-  description = "Least-privilege permissions for daily developer operations: ECS exec / logs / ECR push / Secrets / dev Terraform plan"
+  description = "Integrated development permissions - ECS/ECR/RDS/CloudWatch operations, limited Terraform execution"
 
   policy = jsonencode({
     Version   = "2012-10-17"
