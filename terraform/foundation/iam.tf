@@ -259,218 +259,24 @@ resource "aws_iam_policy" "hannibal_developer_policy" {
     ]
   })
 }
-
-# --- 4. HannibalCICDPolicy-Dev-Minimal (最小権限自動デプロイポリシー) ---
-resource "aws_iam_policy" "hannibal_cicd_policy_minimal" {
-  name        = "HannibalCICDPolicy-Dev-Minimal"
-  description = "Minimal CI/CD permissions - CloudTrail analysis + destroy operations"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "access-analyzer:CreateAnalyzer",
-          "access-analyzer:GetAnalyzer",
-          "access-analyzer:DeleteAnalyzer",
-          "access-analyzer:TagResource",
-          "access-analyzer:UntagResource",
-          "cloudtrail:CreateTrail",
-          "cloudtrail:DescribeTrails",
-          "cloudtrail:GetTrailStatus",
-          "cloudtrail:ListTags",
-          "cloudtrail:PutEventSelectors",
-          "cloudtrail:StartLogging",
-          "cloudtrail:DeleteTrail",
-          "cloudtrail:AddTags",
-          "cloudtrail:RemoveTags",
-          "ec2:AuthorizeSecurityGroupEgress",
-          "ec2:AuthorizeSecurityGroupIngress",
-          "ec2:CreateSecurityGroup",
-          "ec2:DeleteSecurityGroup",
-          "ec2:DescribeAccountAttributes",
-          "ec2:DescribeAvailabilityZones",
-          "ec2:DescribeInternetGateways",
-          "ec2:DescribeRouteTables",
-          "ec2:DescribeSecurityGroups",
-          "ec2:DescribeSubnets",
-          "ec2:DescribeVpcAttribute",
-          "ec2:DescribeVpcs",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:GetSecurityGroupsForVpc",
-          "ec2:RevokeSecurityGroupEgress",
-          "ec2:CreateTags",
-          "ec2:DeleteTags",
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:BatchGetImage",
-          "ecr:CompleteLayerUpload",
-          "ecr:GetAuthorizationToken",
-          "ecr:GetLifecyclePolicy",
-          "ecr:InitiateLayerUpload",
-          "ecr:PutImage",
-          "ecr:PutLifecyclePolicy",
-          "ecr:DeleteLifecyclePolicy",
-          "ecr:UploadLayerPart",
-          "ecs:CreateCluster",
-          "ecs:CreateService",
-          "ecs:DeleteCluster",
-          "ecs:DeleteService",
-          "ecs:DeregisterTaskDefinition",
-          "ecs:DescribeClusters",
-          "ecs:DescribeServices",
-          "ecs:DescribeTaskDefinition",
-          "ecs:RegisterTaskDefinition",
-          "ecs:UpdateService",
-          "ecs:TagResource",
-          "ecs:UntagResource",
-          "elasticloadbalancing:CreateListener",
-          "elasticloadbalancing:CreateLoadBalancer",
-          "elasticloadbalancing:CreateTargetGroup",
-          "elasticloadbalancing:DeleteListener",
-          "elasticloadbalancing:DeleteLoadBalancer",
-          "elasticloadbalancing:DeleteTargetGroup",
-          "elasticloadbalancing:DescribeListenerAttributes",
-          "elasticloadbalancing:DescribeListeners",
-          "elasticloadbalancing:DescribeLoadBalancerAttributes",
-          "elasticloadbalancing:DescribeLoadBalancers",
-          "elasticloadbalancing:DescribeTags",
-          "elasticloadbalancing:DescribeTargetGroupAttributes",
-          "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:ModifyLoadBalancerAttributes",
-          "elasticloadbalancing:ModifyTargetGroupAttributes",
-          "elasticloadbalancing:AddTags",
-          "elasticloadbalancing:RemoveTags",
-          "logs:CreateLogGroup",
-          "logs:DeleteLogGroup",
-          "logs:DescribeLogGroups",
-          "logs:ListTagsForResource",
-          "logs:PutRetentionPolicy",
-          "logs:TagLogGroup",
-          "logs:UntagLogGroup",
-          "cloudwatch:DeleteAlarms",
-          "cloudwatch:DeleteDashboards",
-          "cloudwatch:DescribeAlarms",
-          "cloudwatch:GetDashboard",
-          "cloudwatch:ListTagsForResource",
-          "cloudwatch:PutDashboard",
-          "cloudwatch:PutMetricAlarm",
-          "cloudwatch:TagResource",
-          "cloudwatch:UntagResource",
-          "rds:CreateDBInstance",
-          "rds:CreateDBSubnetGroup",
-          "rds:DeleteDBInstance",
-          "rds:DeleteDBSubnetGroup",
-          "rds:DescribeDBInstances",
-          "rds:DescribeDBSubnetGroups",
-          "rds:ListTagsForResource",
-          "rds:AddTagsToResource",
-          "rds:RemoveTagsFromResource",
-          "s3:GetBucketPolicy",
-          "s3:GetBucketPublicAccessBlock",
-          "s3:PutBucketPolicy",
-          "s3:DeleteBucketPolicy",
-          "s3:PutBucketPublicAccessBlock",
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:ListBucket",
-          "s3:GetObjectTagging",
-          "s3:PutObjectTagging",
-          "s3:DeleteObjectTagging",
-          "cloudfront:GetOriginAccessControl",
-          "cloudfront:ListOriginAccessControls",
-          "cloudfront:CreateDistribution",
-          "cloudfront:GetDistribution",
-          "cloudfront:UpdateDistribution",
-          "cloudfront:DeleteDistribution",
-          "cloudfront:ListDistributions",
-          "cloudfront:TagResource",
-          "cloudfront:UntagResource",
-          "cloudfront:ListTagsForResource",
-          "cloudfront:CreateInvalidation",
-          "cloudfront:GetInvalidation",
-          "cloudfront:ListInvalidations",
-          "sns:CreateTopic",
-          "sns:DeleteTopic",
-          "sns:GetSubscriptionAttributes",
-          "sns:GetTopicAttributes",
-          "sns:ListTagsForResource",
-          "sns:ListTopics",
-          "sns:SetTopicAttributes",
-          "sns:Subscribe",
-          "sns:TagResource",
-          "sns:UntagResource",
-          "sts:GetCallerIdentity",
-          "kms:CreateGrant",
-          "kms:DescribeKey",
-          "route53:GetHostedZone",
-          "route53:ListHostedZones",
-          "route53:ChangeResourceRecordSets",
-          "route53:GetChange",
-          "route53:ListResourceRecordSets",
-          "s3:DeleteBucketPublicAccessBlock",
-          "s3:DeleteBucket",
-          "s3:GetBucketAcl",
-          "s3:ListBucket",
-          "cloudwatch:DeleteLogGroup",
-          "cloudwatch:DeleteMetricAlarm",
-          "cloudwatch:DeleteDashboard",
-          "sns:DeleteTopic",
-          "sns:Unsubscribe",
-          "access-analyzer:DeleteAnalyzer",
-          "iam:DeleteRolePolicy",
-          "iam:PutRolePolicy"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "iam:GetRole",
-          "iam:PassRole",
-          "iam:CreateRole",
-          "iam:DeleteRole",
-          "iam:AttachRolePolicy",
-          "iam:DetachRolePolicy",
-          "iam:ListAttachedRolePolicies",
-          "iam:GetRolePolicy",
-          "iam:ListRolePolicies",
-          "iam:CreatePolicy",
-          "iam:DeletePolicy",
-          "iam:TagRole",
-          "iam:UntagRole",
-          "iam:TagPolicy",
-          "iam:UntagPolicy"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
 # --- 5. ポリシーアタッチメント ---
 resource "aws_iam_role_policy_attachment" "hannibal_developer_policy_attachment" {
   role       = aws_iam_role.hannibal_developer_role.name
   policy_arn = aws_iam_policy.hannibal_developer_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "hannibal_cicd_policy_attachment" {
-  role       = aws_iam_role.hannibal_cicd_role.name
-  policy_arn = aws_iam_policy.hannibal_cicd_policy.arn
-}
 
-# --- 実際に使用中のポリシー（手動管理・記録用） ---
-resource "aws_iam_policy" "hannibal_cicd_policy" {
-  name        = "HannibalCICDPolicy-Dev"
-  description = "CI/CD automation permissions - ECR push, ECS update, RDS managed password, Secrets Manager (段階的縮小予定)"
+# --- 6. HannibalCICDBoundary (CI/CD専用Permission Boundary) ---
+# HannibalCICDRole-Dev の最大権限を制限する Permission Boundary。
+# #166 にて Terraform 管理に移行。不使用サービスへの明示 Deny を追加済み。
+resource "aws_iam_policy" "hannibal_cicd_boundary" {
+  name = "HannibalCICDBoundary"
 
-  # AWS上の実体は v13 (2026-04-07更新)
-  # secretsmanager:* を追加: RDS managed password (manage_master_user_password=true) に必要
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "AllowCICDServices"
         Effect = "Allow"
         Action = [
           "access-analyzer:*",
@@ -487,34 +293,52 @@ resource "aws_iam_policy" "hannibal_cicd_policy" {
           "sns:*",
           "sts:*",
           "kms:*",
-          "iam:*",
+          "iam:GetRole", "iam:PassRole", "iam:CreateRole", "iam:DeleteRole",
+          "iam:AttachRolePolicy", "iam:DetachRolePolicy",
+          "iam:ListAttachedRolePolicies", "iam:GetRolePolicy",
+          "iam:ListRolePolicies", "iam:CreatePolicy", "iam:DeletePolicy",
+          "iam:TagPolicy", "iam:UntagPolicy", "iam:GetPolicy",
+          "iam:GetPolicyVersion", "iam:ListPolicyVersions",
+          "iam:CreatePolicyVersion", "iam:DeletePolicyVersion",
+          "iam:SetDefaultPolicyVersion", "iam:ListRoles", "iam:UpdateRole",
+          "iam:TagRole", "iam:UntagRole", "iam:ListInstanceProfiles",
+          "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile",
+          "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile",
+          "iam:ListInstanceProfilesForRole",
           "cloudfront:*",
           "route53:*",
           "codedeploy:*",
-          "dynamodb:*"
+          "dynamodb:*",
         ]
         Resource = "*"
-      }
+      },
+      {
+        Sid    = "DenyUnusedServicesAndIAMEscalation"
+        Effect = "Deny"
+        Action = [
+          "iam:CreateUser", "iam:DeleteUser",
+          "iam:CreateAccessKey", "iam:DeleteAccessKey",
+          "organizations:*",
+          "account:*",
+          "lambda:*",
+          "cognito-idp:*", "cognito-identity:*",
+          "sagemaker:*", "bedrock:*",
+          "ec2:RunInstances", "ec2:StartInstances", "ec2:TerminateInstances",
+        ]
+        Resource = "*"
+      },
     ]
   })
 }
 
-# --- 実装後の管理方針 ---
-# 1. terraform apply でリソース作成
-# 2. terraform state rm で管理から除外
-# 3. 以降は手動管理・永続保持
-# 4. コードは再現性・ドキュメント用に保持
-
-# --- HannibalCICDPolicy-Dev-candidate-* (最小権限化検証用・未アタッチ・3分割) ---
+# --- 7. HannibalCICDPolicy-Dev-* (CI/CD最小権限ポリシー・3分割) ---
 # IAMマネージドポリシーの6144文字制限により compute/storage/deploy の3ポリシーに分割。
-# 用途: HannibalCICDPolicy-Dev の後継候補。未アタッチで apply → 手動 deploy/destroy で検証後に本体に反映する。
-# 検証完了後これら3リソースは削除し、hannibal_cicd_policy のドキュメントを更新する。
-# 移行手順: docs/security/iam-analysis/README.md の #166 を参照。
+# candidate での deploy/destroy 検証完了後（#166）に正式採用。
 
 # compute: EC2/VPC, ECR, ECS, ELB
-resource "aws_iam_policy" "hannibal_cicd_policy_candidate_compute" {
-  name        = "HannibalCICDPolicy-Dev-candidate-compute"
-  description = "最小権限化検証用候補ポリシー（compute担当）。検証完了後に削除する。"
+resource "aws_iam_policy" "hannibal_cicd_policy_compute" {
+  name        = "HannibalCICDPolicy-Dev-compute"
+  description = "CI/CD permissions for compute resources - EC2/VPC, ECR, ECS, ELB"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -608,9 +432,9 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_compute" {
 }
 
 # storage: S3, RDS, DynamoDB, SecretsManager, KMS
-resource "aws_iam_policy" "hannibal_cicd_policy_candidate_storage" {
-  name        = "HannibalCICDPolicy-Dev-candidate-storage"
-  description = "最小権限化検証用候補ポリシー（storage担当）。検証完了後に削除する。"
+resource "aws_iam_policy" "hannibal_cicd_policy_storage" {
+  name        = "HannibalCICDPolicy-Dev-storage"
+  description = "CI/CD permissions for storage resources - S3, RDS, DynamoDB, SecretsManager, KMS"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -718,9 +542,9 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_storage" {
 }
 
 # deploy: CloudWatch, Logs, CloudFront, Route53, CodeDeploy, SNS, CloudTrail, AccessAnalyzer, STS, IAM
-resource "aws_iam_policy" "hannibal_cicd_policy_candidate_deploy" {
-  name        = "HannibalCICDPolicy-Dev-candidate-deploy"
-  description = "最小権限化検証用候補ポリシー（deploy担当）。検証完了後に削除する。"
+resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
+  name        = "HannibalCICDPolicy-Dev-deploy"
+  description = "CI/CD permissions for deploy operations - CloudWatch, Logs, CloudFront, Route53, CodeDeploy, SNS, CloudTrail, IAM"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -885,19 +709,21 @@ resource "aws_iam_policy" "hannibal_cicd_policy_candidate_deploy" {
   })
 }
 
-# --- 6. Permission Boundary管理 ---
-# HannibalCICDBoundary: CI/CD専用Permission Boundary (手動作成済み)
-# arn:aws:iam::258632448142:policy/HannibalCICDBoundary
-#
-# HannibalECSBoundary: ECS専用Permission Boundary (手動作成済み)
-# arn:aws:iam::258632448142:policy/HannibalECSBoundary
-# 用途: ECSタスク実行ロールの権限制限
+# --- 8. ポリシーアタッチメント (CICD) ---
+resource "aws_iam_role_policy_attachment" "hannibal_cicd_compute_attachment" {
+  role       = "HannibalCICDRole-Dev"
+  policy_arn = aws_iam_policy.hannibal_cicd_policy_compute.arn
+}
 
-# --- 現在の運用状況 ---
-# HannibalCICDRole-Dev: HannibalCICDPolicy-Dev (v13) がアタッチ済み（service:* ワイルドカード中心）
-# HannibalCICDPolicy-Dev-Minimal はAWS上に存在するが未アタッチ
-#   → Access Advisor調査で実使用174 actionのうち56個が不足しており即切り替え不可
-#   → 最小権限化は後続PRで段階的に実施予定（vNextポリシー候補あり）
+resource "aws_iam_role_policy_attachment" "hannibal_cicd_storage_attachment" {
+  role       = "HannibalCICDRole-Dev"
+  policy_arn = aws_iam_policy.hannibal_cicd_policy_storage.arn
+}
+
+resource "aws_iam_role_policy_attachment" "hannibal_cicd_deploy_attachment" {
+  role       = "HannibalCICDRole-Dev"
+  policy_arn = aws_iam_policy.hannibal_cicd_policy_deploy.arn
+}
 
 # --- 7. HannibalPRPlanBoundary-Dev (PR terraform plan専用Permission Boundary) ---
 # PR plan role の最大権限を read/list/describe/get 系に制限する。
