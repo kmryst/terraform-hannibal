@@ -1093,7 +1093,7 @@ locals {
     }
   ]
 
-  hannibal_foundation_policy_statements = [
+  hannibal_foundation_all_policy_statements = [
     {
       Sid    = "DenyFoundationBoundaryPolicyMutation"
       Effect = "Deny"
@@ -1362,6 +1362,51 @@ locals {
       Resource = "*"
     }
   ]
+
+  hannibal_foundation_policy_core_sids = [
+    "DenyFoundationBoundaryPolicyMutation",
+    "DenyRemovingHannibalRoleBoundaries",
+    "ReadHannibalIAMResources",
+    "CreateOrSetApprovedHannibalRoleBoundaries",
+    "ManageApprovedBoundaryHannibalRoles",
+    "ManageApprovedBoundaryHannibalRolePolicies",
+    "ManageApprovedHannibalPolicyAttachments",
+    "ManageHannibalManagedPolicies",
+    "ManageGitHubOIDCProvider",
+    "ListIAMFoundationResources",
+    "ReadCallerIdentity"
+  ]
+
+  hannibal_foundation_policy_state_sids = [
+    "TerraformFoundationStateBucketLocation",
+    "TerraformFoundationStateBucketList",
+    "TerraformFoundationStateObject",
+    "TerraformFoundationStateLock"
+  ]
+
+  hannibal_foundation_policy_services_sids = [
+    "ManageAthenaFoundation",
+    "AthenaResultsBucket",
+    "AthenaResultsObjects",
+    "ManageCloudTrailFoundation",
+    "ManageGuardDutyFoundation",
+    "ManageBudgetsFoundation"
+  ]
+
+  hannibal_foundation_policy_statements = [
+    for statement in local.hannibal_foundation_all_policy_statements : statement
+    if contains(local.hannibal_foundation_policy_core_sids, statement.Sid)
+  ]
+
+  hannibal_foundation_state_policy_statements = [
+    for statement in local.hannibal_foundation_all_policy_statements : statement
+    if contains(local.hannibal_foundation_policy_state_sids, statement.Sid)
+  ]
+
+  hannibal_foundation_services_policy_statements = [
+    for statement in local.hannibal_foundation_all_policy_statements : statement
+    if contains(local.hannibal_foundation_policy_services_sids, statement.Sid)
+  ]
 }
 
 # --- 12. HannibalFoundationBoundary-Dev ---
@@ -1407,9 +1452,46 @@ resource "aws_iam_policy" "hannibal_foundation_policy" {
     Version   = "2012-10-17"
     Statement = local.hannibal_foundation_policy_statements
   })
+
+  # Attach the split-out policies before narrowing this existing policy, so
+  # foundation apply keeps backend state access throughout the transition.
+  depends_on = [
+    aws_iam_role_policy_attachment.hannibal_foundation_state_policy_attachment,
+    aws_iam_role_policy_attachment.hannibal_foundation_services_policy_attachment
+  ]
+}
+
+resource "aws_iam_policy" "hannibal_foundation_state_policy" {
+  name        = "HannibalFoundationStatePolicy-Dev"
+  description = "Foundation backend state permissions for terraform/foundation apply"
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = local.hannibal_foundation_state_policy_statements
+  })
+}
+
+resource "aws_iam_policy" "hannibal_foundation_services_policy" {
+  name        = "HannibalFoundationServicesPolicy-Dev"
+  description = "Managed service permissions for terraform/foundation apply"
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = local.hannibal_foundation_services_policy_statements
+  })
 }
 
 resource "aws_iam_role_policy_attachment" "hannibal_foundation_policy_attachment" {
   role       = aws_iam_role.hannibal_foundation_role.name
   policy_arn = aws_iam_policy.hannibal_foundation_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "hannibal_foundation_state_policy_attachment" {
+  role       = aws_iam_role.hannibal_foundation_role.name
+  policy_arn = aws_iam_policy.hannibal_foundation_state_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "hannibal_foundation_services_policy_attachment" {
+  role       = aws_iam_role.hannibal_foundation_role.name
+  policy_arn = aws_iam_policy.hannibal_foundation_services_policy.arn
 }
