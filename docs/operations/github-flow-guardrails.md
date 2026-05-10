@@ -29,6 +29,7 @@
 - Issue の自動チェックは本文とラベルの両方を見て、未整備なら `needs-template` を付ける
 - Issue 本文に専用の運用区分欄は追加せず、軽運用 / 厳密運用の判定は起票前プランと PR 作成前プランで確認する
 - PR テンプレの `目的 / 変更内容 / 影響範囲` は推奨に留め、厳密運用PRでは `ロールバック` を必須にする
+- PR title と PR 内コミットメッセージは `Commitlint` job で Conventional Commits 形式を検査する
 
 ### 軽運用 / 厳密運用
 
@@ -73,6 +74,21 @@ Issue / PR のどちらも、AI Agent は下書きと整理を担当し、人間
 - コードを書いてから方針のズレを発見すると手戻りコストが高い
 - 計画段階であれば、変更対象・影響範囲・リスクの認識合わせが軽い
 - Issue / PR プランと同じ「先に確認、後に実行」の一貫した流れにできる
+
+### commitlint 方針
+
+commitlint / Conventional Commits の運用ルール正本は [CONTRIBUTING.md](../../CONTRIBUTING.md) です。
+この文書では、なぜ PR title と PR 内コミットメッセージの両方を検査するかを補足します。
+
+このプロジェクトは squash merge only を前提にしているため、main に残る履歴の見出しは PR title の影響を受けます。
+そのため、PR title を Conventional Commits 形式で検査します。
+
+一方で、AI Agent がコミットを作成する運用では、PR 内コミットメッセージも品質ゲートに含めることで、`wip` や `update files` のような曖昧な履歴を PR に載せないようにします。
+これは人間の作業を重くするためではなく、AI Agent が一定の運用品質で履歴を残すためのガードレールです。
+
+`Commitlint` job は独立した check として追加します。
+これにより、ラベル・Issueリンク・ロールバック欄を見る `PR Policy Check` と、コミット/PR title の形式検査を分離し、失敗時の原因を読み取りやすくします。
+required status check として扱う場合は、workflow 追加後に GitHub の branch protection 設定も同期します。
 
 ## 未採用案と理由
 

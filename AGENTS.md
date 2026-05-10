@@ -61,6 +61,14 @@ git switch -c <issue番号>-<kebab-case要約>
 ./scripts/github/cleanup-merged-pr-branch.sh <PR番号>
 ```
 
+## コミットメッセージ
+
+コミットを作成する場合は、必ず `CONTRIBUTING.md` の Conventional Commits / commitlint ルールに従います。
+独自判断で `wip`、`fix` のみ、`update files` のような曖昧なコミットメッセージを使ってはいけません。
+
+PR 作成前には、対象コミットと PR title が commitlint を通ることを確認します。
+許可 type や形式など、詳細ルールの正本は `CONTRIBUTING.md` とします。
+
 ## PR 作成前
 
 PR 作成前プランには、少なくとも次を含めます。
@@ -79,7 +87,7 @@ PR は原則として次のヘルパーで作成します。
 
 ```bash
 ./scripts/github/create-pr-with-labels.sh \
-  --title "type: title" \
+  --title "docs: title" \
   --body-file .github/pull_request_template.md \
   --issue <issue番号> \
   --type type:docs \
