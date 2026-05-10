@@ -1274,6 +1274,7 @@ locals {
         "athena:ListWorkGroups",
         "athena:CreateNamedQuery",
         "athena:DeleteNamedQuery",
+        "athena:GetDatabase",
         "athena:GetNamedQuery",
         "athena:BatchGetNamedQuery",
         "athena:ListNamedQueries",
