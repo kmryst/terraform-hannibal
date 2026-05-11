@@ -1100,15 +1100,6 @@ locals {
       ]
       Resource = "*"
     },
-    {
-      Sid    = "CloudTrailLogsBucketPolicy"
-      Effect = "Allow"
-      Action = [
-        "s3:GetBucketPolicy",
-        "s3:PutBucketPolicy"
-      ]
-      Resource = "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs"
-    }
   ]
 
   hannibal_foundation_all_policy_statements = [
@@ -1379,6 +1370,15 @@ locals {
       Effect   = "Allow"
       Action   = "sts:GetCallerIdentity"
       Resource = "*"
+    },
+    {
+      Sid    = "CloudTrailLogsBucketPolicy"
+      Effect = "Allow"
+      Action = [
+        "s3:GetBucketPolicy",
+        "s3:PutBucketPolicy"
+      ]
+      Resource = "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs"
     }
   ]
 
