@@ -1040,6 +1040,7 @@ locals {
         "iam:DetachRolePolicy",
         "iam:Get*",
         "iam:List*",
+        "iam:PassRole",
         "iam:PutRolePermissionsBoundary",
         "iam:PutRolePolicy",
         "iam:RemoveClientIDFromOpenIDConnectProvider",
@@ -1093,9 +1094,12 @@ locals {
       Action = [
         "athena:*",
         "budgets:*",
+        "cloudwatch:*",
         "cloudtrail:*",
         "glue:*",
         "guardduty:*",
+        "logs:*",
+        "sns:*",
         "sts:GetCallerIdentity"
       ]
       Resource = "*"
@@ -1215,6 +1219,17 @@ locals {
         "iam:RemoveClientIDFromOpenIDConnectProvider"
       ]
       Resource = "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
+    },
+    {
+      Sid      = "PassCloudTrailCloudWatchLogsRole"
+      Effect   = "Allow"
+      Action   = "iam:PassRole"
+      Resource = "arn:aws:iam::${var.aws_account_id}:role/HannibalCloudTrailCloudWatchLogsRole-Dev"
+      Condition = {
+        StringEquals = {
+          "iam:PassedToService" = "cloudtrail.amazonaws.com"
+        }
+      }
     },
     {
       Sid    = "ListIAMFoundationResources"
@@ -1345,6 +1360,56 @@ locals {
       Resource = "*"
     },
     {
+      Sid    = "ManageCloudWatchLogsFoundation"
+      Effect = "Allow"
+      Action = [
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:DescribeMetricFilters",
+        "logs:DeleteMetricFilter",
+        "logs:ListTagsForResource",
+        "logs:PutMetricFilter",
+        "logs:PutRetentionPolicy",
+        "logs:TagResource",
+        "logs:UntagResource"
+      ]
+      Resource = "*"
+    },
+    {
+      Sid    = "ManageCloudWatchAlarmsFoundation"
+      Effect = "Allow"
+      Action = [
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:ListTagsForResource",
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:TagResource",
+        "cloudwatch:UntagResource"
+      ]
+      Resource = "*"
+    },
+    {
+      Sid    = "ManageSNSFoundation"
+      Effect = "Allow"
+      Action = [
+        "sns:CreateTopic",
+        "sns:DeleteTopic",
+        "sns:GetSubscriptionAttributes",
+        "sns:GetTopicAttributes",
+        "sns:ListSubscriptionsByTopic",
+        "sns:ListTagsForResource",
+        "sns:ListTopics",
+        "sns:SetTopicAttributes",
+        "sns:Subscribe",
+        "sns:TagResource",
+        "sns:Unsubscribe",
+        "sns:UntagResource"
+      ]
+      Resource = "*"
+    },
+    {
       Sid    = "ManageGuardDutyFoundation"
       Effect = "Allow"
       Action = [
@@ -1392,6 +1457,7 @@ locals {
     "ManageApprovedHannibalPolicyAttachments",
     "ManageHannibalManagedPolicies",
     "ManageGitHubOIDCProvider",
+    "PassCloudTrailCloudWatchLogsRole",
     "ListIAMFoundationResources",
     "ReadCallerIdentity"
   ]
@@ -1408,6 +1474,9 @@ locals {
     "AthenaResultsBucket",
     "AthenaResultsObjects",
     "ManageCloudTrailFoundation",
+    "ManageCloudWatchLogsFoundation",
+    "ManageCloudWatchAlarmsFoundation",
+    "ManageSNSFoundation",
     "CloudTrailLogsBucketPolicy",
     "ManageGuardDutyFoundation",
     "ManageBudgetsFoundation"
@@ -1514,4 +1583,71 @@ resource "aws_iam_role_policy_attachment" "hannibal_foundation_state_policy_atta
 resource "aws_iam_role_policy_attachment" "hannibal_foundation_services_policy_attachment" {
   role       = aws_iam_role.hannibal_foundation_role.name
   policy_arn = aws_iam_policy.hannibal_foundation_services_policy.arn
+}
+
+# --- 15. HannibalCloudTrailCloudWatchLogsRole-Dev ---
+# CloudTrail が CloudWatch Logs に management events を配信するためのサービスロール。
+resource "aws_iam_policy" "cloudtrail_cloudwatch_logs_boundary" {
+  name        = "HannibalCloudTrailCloudWatchLogsBoundary-Dev"
+  description = "Permission boundary for CloudTrail delivery to CloudWatch Logs"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowCloudTrailDeliveryToCloudWatchLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = local.cloudtrail_cloudwatch_log_stream_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "cloudtrail_cloudwatch_logs_role" {
+  name                 = "HannibalCloudTrailCloudWatchLogsRole-Dev"
+  permissions_boundary = aws_iam_policy.cloudtrail_cloudwatch_logs_boundary.arn
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "sts:AssumeRole"
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "cloudtrail_cloudwatch_logs_policy" {
+  name = "CloudTrailCloudWatchLogsDelivery"
+  role = aws_iam_role.cloudtrail_cloudwatch_logs_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AWSCloudTrailCreateLogStream"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream"
+        ]
+        Resource = local.cloudtrail_cloudwatch_log_stream_arn
+      },
+      {
+        Sid    = "AWSCloudTrailPutLogEvents"
+        Effect = "Allow"
+        Action = [
+          "logs:PutLogEvents"
+        ]
+        Resource = local.cloudtrail_cloudwatch_log_stream_arn
+      }
+    ]
+  })
 }
