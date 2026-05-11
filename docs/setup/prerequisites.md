@@ -2,7 +2,7 @@
 
 ## **⚠️ 重要: GitHub Actions実行前の準備**
 
-GitHub ActionsのCI/CDパイプラインを安定して実行するため、以下の3つのリソースを事前に手動作成してください。
+GitHub ActionsのCI/CDパイプラインを安定して実行するため、以下のリソースを事前に手動作成してください。
 
 ### **1. ECRリポジトリの事前作成**
 ```bash
@@ -35,6 +35,18 @@ aws cloudfront create-origin-access-control \
 # 作成されたOACのIDを確認
 aws cloudfront list-origin-access-controls --region us-east-1
 ```
+
+### **4. Athena クエリ結果 S3 バケットの事前作成**
+```bash
+# Athena クエリ結果の出力先 S3 バケットを作成
+aws s3 mb s3://nestjs-hannibal-3-athena-results --region ap-northeast-1
+
+# 作成確認
+aws s3 ls s3://nestjs-hannibal-3-athena-results
+```
+
+`terraform/foundation` の `aws_athena_workgroup` がこのバケットを出力先として参照するため、
+foundation apply 前に作成しておく必要があります。
 
 **重要**: OACのIDを取得後、`terraform/frontend/main.tf`の47行目を更新してください：
 ```hcl
