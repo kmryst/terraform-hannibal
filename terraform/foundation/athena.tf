@@ -111,8 +111,10 @@ TBLPROPERTIES (
   'projection.year.range'='2025,2030',
   'projection.month.type'='integer',
   'projection.month.range'='01,12',
+  'projection.month.digits'='2',
   'projection.day.type'='integer',
   'projection.day.range'='01,31',
+  'projection.day.digits'='2',
   'storage.location.template'='s3://nestjs-hannibal-3-cloudtrail-logs/AWSLogs/${var.aws_account_id}/CloudTrail/ap-northeast-1/$${year}/$${month}/$${day}/'
 )
 EOF
