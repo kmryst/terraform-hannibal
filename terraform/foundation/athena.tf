@@ -44,7 +44,9 @@ resource "aws_athena_database" "hannibal_logs" {
   }
 }
 
-# パーティション対応CloudTrailテーブル（企業レベル設計）
+# パーティション対応CloudTrailテーブル
+# CloudTrailInputFormat + JsonSerDe を使用。生の CloudTrail ログ（.json.gz）を直接読み取る。
+# PARQUET は Glue ETL 変換後に使う形式であり、生ログには使用できない。
 resource "aws_athena_named_query" "create_partitioned_table" {
   name      = "create-partitioned-cloudtrail-table"
   database  = aws_athena_database.hannibal_logs.name
@@ -52,109 +54,138 @@ resource "aws_athena_named_query" "create_partitioned_table" {
 
   query = <<EOF
 CREATE EXTERNAL TABLE IF NOT EXISTS hannibal_cloudtrail_db.cloudtrail_logs_partitioned (
-  Records array<struct<
-    eventName:string,
-    eventSource:string,
-    userIdentity:struct<arn:string,type:string>,
-    eventTime:string,
-    errorCode:string,
-    errorMessage:string,
-    sourceIPAddress:string,
-    userAgent:string
-  >>
+  eventVersion       STRING,
+  userIdentity       STRUCT<
+    type:            STRING,
+    principalId:     STRING,
+    arn:             STRING,
+    accountId:       STRING,
+    invokedBy:       STRING,
+    accessKeyId:     STRING,
+    userName:        STRING,
+    sessionContext:  STRUCT<
+      attributes:    STRUCT<
+        mfaAuthenticated: STRING,
+        creationDate:     STRING
+      >,
+      sessionIssuer: STRUCT<
+        type:        STRING,
+        principalId: STRING,
+        arn:         STRING,
+        accountId:   STRING,
+        userName:    STRING
+      >
+    >
+  >,
+  eventTime          STRING,
+  eventSource        STRING,
+  eventName          STRING,
+  awsRegion          STRING,
+  sourceIPAddress    STRING,
+  userAgent          STRING,
+  errorCode          STRING,
+  errorMessage       STRING,
+  requestParameters  STRING,
+  responseElements   STRING,
+  requestId          STRING,
+  eventId            STRING,
+  eventType          STRING,
+  readOnly           STRING,
+  recipientAccountId STRING
 )
 PARTITIONED BY (
-  year string,
-  month string,
-  day string
+  year  STRING,
+  month STRING,
+  day   STRING
 )
-STORED AS PARQUET
-LOCATION 's3://nestjs-hannibal-3-cloudtrail-logs/AWSLogs/258632448142/CloudTrail/ap-northeast-1/'
+ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
+WITH SERDEPROPERTIES (
+  'serialization.format' = '1'
+)
+STORED AS INPUTFORMAT  'com.amazon.emr.cloudtrail.CloudTrailInputFormat'
+           OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION 's3://nestjs-hannibal-3-cloudtrail-logs/AWSLogs/${var.aws_account_id}/CloudTrail/ap-northeast-1/'
 TBLPROPERTIES (
   'projection.enabled'='true',
   'projection.year.type'='integer',
   'projection.year.range'='2025,2030',
-  'projection.month.type'='integer', 
+  'projection.month.type'='integer',
   'projection.month.range'='01,12',
   'projection.day.type'='integer',
   'projection.day.range'='01,31',
-  'storage.location.template'='s3://nestjs-hannibal-3-cloudtrail-logs/AWSLogs/258632448142/CloudTrail/ap-northeast-1/$${year}/$${month}/$${day}/',
-  'parquet.compress'='SNAPPY'
+  'storage.location.template'='s3://nestjs-hannibal-3-cloudtrail-logs/AWSLogs/${var.aws_account_id}/CloudTrail/ap-northeast-1/$${year}/$${month}/$${day}/'
 )
 EOF
 
-  description = "パーティション対応CloudTrailテーブル作成（企業レベル設計）"
+  description = "パーティション対応CloudTrailテーブル作成（CloudTrailInputFormat / JsonSerDe）"
 }
 
-# 権限分析クエリ（動的日付対応）
+# 権限分析クエリ
 resource "aws_athena_named_query" "analyze_cicd_permissions" {
   name      = "analyze-hannibal-cicd-permissions"
   database  = aws_athena_database.hannibal_logs.name
   workgroup = aws_athena_workgroup.hannibal_analysis.name
 
   query = <<EOF
-SELECT 
-  CONCAT(regexp_replace(record.eventSource, '\.amazonaws\.com$', ''), ':', record.eventName) as permission,
-  COUNT(*) as usage_count,
-  MIN(record.eventTime) as first_used,
-  MAX(record.eventTime) as last_used
+SELECT
+  CONCAT(regexp_replace(eventsource, '\.amazonaws\.com$', ''), ':', eventname) AS permission,
+  COUNT(*)       AS usage_count,
+  MIN(eventtime) AS first_used,
+  MAX(eventtime) AS last_used
 FROM hannibal_cloudtrail_db.cloudtrail_logs_partitioned
-CROSS JOIN UNNEST(Records) AS t(record)
-WHERE record.userIdentity.arn LIKE '%HannibalCICDRole-Dev%'
-  AND record.errorCode IS NULL
+WHERE useridentity.arn LIKE '%HannibalCICDRole-Dev%'
+  AND errorcode IS NULL
   AND year = '2025' AND month = '07' AND day >= '27'
-GROUP BY record.eventSource, record.eventName
+GROUP BY eventsource, eventname
 ORDER BY usage_count DESC
 EOF
 
-  description = "hannibal-cicd権限分析（パーティション最適化・企業レベル）"
+  description = "HannibalCICDRole の使用権限一覧（CloudTrailInputFormat 対応）"
 }
 
-# 権限総数確認クエリ（企業レベル分析）
+# 権限総数確認クエリ
 resource "aws_athena_named_query" "count_cicd_permissions" {
   name      = "count-hannibal-cicd-permissions"
   database  = aws_athena_database.hannibal_logs.name
   workgroup = aws_athena_workgroup.hannibal_analysis.name
 
   query = <<EOF
-SELECT 
-  COUNT(DISTINCT CONCAT(regexp_replace(record.eventSource, '\.amazonaws\.com$', ''), ':', record.eventName)) as total_permissions,
-  COUNT(*) as total_api_calls,
-  COUNT(DISTINCT record.eventSource) as services_used,
-  MIN(record.eventTime) as analysis_start,
-  MAX(record.eventTime) as analysis_end
+SELECT
+  COUNT(DISTINCT CONCAT(regexp_replace(eventsource, '\.amazonaws\.com$', ''), ':', eventname)) AS total_permissions,
+  COUNT(*)                    AS total_api_calls,
+  COUNT(DISTINCT eventsource) AS services_used,
+  MIN(eventtime)              AS analysis_start,
+  MAX(eventtime)              AS analysis_end
 FROM hannibal_cloudtrail_db.cloudtrail_logs_partitioned
-CROSS JOIN UNNEST(Records) AS t(record)
-WHERE record.userIdentity.arn LIKE '%HannibalCICDRole-Dev%'
-  AND record.errorCode IS NULL
+WHERE useridentity.arn LIKE '%HannibalCICDRole-Dev%'
+  AND errorcode IS NULL
   AND year = '2025' AND month = '07' AND day >= '27'
 EOF
 
-  description = "hannibal-cicd権限統計（企業レベル分析・パーティション最適化）"
+  description = "HannibalCICDRole の権限使用統計（CloudTrailInputFormat 対応）"
 }
 
-# エラー分析クエリ（企業レベル監査）
+# エラー分析クエリ
 resource "aws_athena_named_query" "analyze_cicd_errors" {
   name      = "analyze-hannibal-cicd-errors"
   database  = aws_athena_database.hannibal_logs.name
   workgroup = aws_athena_workgroup.hannibal_analysis.name
 
   query = <<EOF
-SELECT 
-  record.errorCode,
-  record.errorMessage,
-  CONCAT(regexp_replace(record.eventSource, '\.amazonaws\.com$', ''), ':', record.eventName) as failed_permission,
-  COUNT(*) as error_count,
-  record.sourceIPAddress,
-  record.userAgent
+SELECT
+  errorcode,
+  errormessage,
+  CONCAT(regexp_replace(eventsource, '\.amazonaws\.com$', ''), ':', eventname) AS failed_permission,
+  COUNT(*) AS error_count,
+  sourceipaddress,
+  useragent
 FROM hannibal_cloudtrail_db.cloudtrail_logs_partitioned
-CROSS JOIN UNNEST(Records) AS t(record)
-WHERE record.userIdentity.arn LIKE '%HannibalCICDRole-Dev%'
-  AND record.errorCode IS NOT NULL
+WHERE useridentity.arn LIKE '%HannibalCICDRole-Dev%'
+  AND errorcode IS NOT NULL
   AND year = '2025' AND month = '07' AND day >= '27'
-GROUP BY record.errorCode, record.errorMessage, record.eventSource, record.eventName, record.sourceIPAddress, record.userAgent
+GROUP BY errorcode, errormessage, eventsource, eventname, sourceipaddress, useragent
 ORDER BY error_count DESC
 EOF
 
-  description = "hannibal-cicdエラー分析（セキュリティ監査・企業レベル）"
+  description = "HannibalCICDRole のエラー分析（CloudTrailInputFormat 対応）"
 }
