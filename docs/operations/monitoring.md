@@ -65,7 +65,7 @@ CloudTrailログからCI/CD権限の実際の使用状況を分析し、最小�
 ```bash
 # 1. パーティション対応テーブル作成（Named Query使用）
 aws athena start-query-execution \
-  --query-string "CREATE EXTERNAL TABLE IF NOT EXISTS hannibal_cloudtrail_db.cloudtrail_logs_partitioned (Records array<struct<eventName:string,eventSource:string,userIdentity:struct<arn:string,type:string>,eventTime:string,errorCode:string,errorMessage:string,sourceIPAddress:string,userAgent:string>>) PARTITIONED BY (year string, month string, day string) ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe' STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat' LOCATION 's3://nestjs-hannibal-3-cloudtrail-logs/AWSLogs/258632448142/CloudTrail/ap-northeast-1/' TBLPROPERTIES ('projection.enabled'='true', 'projection.year.type'='integer', 'projection.year.range'='2025,2030', 'projection.month.type'='integer', 'projection.month.range'='01,12', 'projection.day.type'='integer', 'projection.day.range'='01,31', 'storage.location.template'='s3://nestjs-hannibal-3-cloudtrail-logs/AWSLogs/258632448142/CloudTrail/ap-northeast-1/\${year}/\${month}/\${day}/', 'has_encrypted_data'='false')" \
+  --query-string "CREATE EXTERNAL TABLE IF NOT EXISTS hannibal_cloudtrail_db.cloudtrail_logs_partitioned (Records array<struct<eventName:string,eventSource:string,userIdentity:struct<arn:string,type:string>,eventTime:string,errorCode:string,errorMessage:string,sourceIPAddress:string,userAgent:string>>) PARTITIONED BY (year string, month string, day string) ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe' STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat' LOCATION 's3://nestjs-hannibal-3-cloudtrail-logs/AWSLogs/xxxxxxxxxxxx/CloudTrail/ap-northeast-1/' TBLPROPERTIES ('projection.enabled'='true', 'projection.year.type'='integer', 'projection.year.range'='2025,2030', 'projection.month.type'='integer', 'projection.month.range'='01,12', 'projection.day.type'='integer', 'projection.day.range'='01,31', 'storage.location.template'='s3://nestjs-hannibal-3-cloudtrail-logs/AWSLogs/xxxxxxxxxxxx/CloudTrail/ap-northeast-1/\${year}/\${month}/\${day}/', 'has_encrypted_data'='false')" \
   --result-configuration OutputLocation=s3://nestjs-hannibal-3-athena-results/ \
   --work-group hannibal-cloudtrail-analysis
 
@@ -108,15 +108,17 @@ aws athena get-query-results --query-execution-id [QueryExecutionId] --output ta
 ## 🔍 監査・分析システム
 
 ### CloudTrail設定
-```json
-{
-  "TrailName": "nestjs-hannibal-3-cloudtrail",
-  "S3BucketName": "nestjs-hannibal-3-cloudtrail-logs",
-  "IncludeGlobalServiceEvents": true,
-  "IsMultiRegionTrail": true,
-  "EnableLogFileValidation": true
-}
-```
+
+trail `nestjs-hannibal-3` は `terraform/foundation/cloudtrail.tf` で管理されている。
+
+| 設定項目 | 値 |
+|---|---|
+| Trail 名 | `nestjs-hannibal-3` |
+| S3 バケット | `nestjs-hannibal-3-cloudtrail-logs` |
+| include_global_service_events | `true` |
+| is_multi_region_trail | `false`（ap-northeast-1 のみ） |
+| enable_log_file_validation | `true` |
+| event_selector | management events All |
 
 ### Athena分析クエリ
 ```sql

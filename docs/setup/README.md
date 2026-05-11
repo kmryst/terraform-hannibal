@@ -164,6 +164,7 @@ terraform apply
 - `HannibalCICDRole-Dev` — deploy/destroy workflow 用 Role（OIDC trust）
 - `HannibalPRPlanRole-Dev` — PR terraform plan 用 Role（OIDC trust・read-only）
 - `HannibalCICDBoundary` / `HannibalECSBoundary` — Permission Boundary
+- `aws_cloudtrail` trail `nestjs-hannibal-3` — management events の監査ログ記録
 - Athena Workgroup / Database / Budget アラーム 等
 
 foundation apply 後、GitHub Actions の deploy/destroy は OIDC で `HannibalCICDRole-Dev` を

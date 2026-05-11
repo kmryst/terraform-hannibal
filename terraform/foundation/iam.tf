@@ -1068,6 +1068,15 @@ locals {
       ]
     },
     {
+      Sid    = "AllowCloudTrailLogsBucketPolicy"
+      Effect = "Allow"
+      Action = [
+        "s3:GetBucketPolicy",
+        "s3:PutBucketPolicy"
+      ]
+      Resource = "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs"
+    },
+    {
       Sid    = "AllowFoundationDynamoDBLock"
       Effect = "Allow"
       Action = [
@@ -1090,6 +1099,15 @@ locals {
         "sts:GetCallerIdentity"
       ]
       Resource = "*"
+    },
+    {
+      Sid    = "CloudTrailLogsBucketPolicy"
+      Effect = "Allow"
+      Action = [
+        "s3:GetBucketPolicy",
+        "s3:PutBucketPolicy"
+      ]
+      Resource = "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs"
     }
   ]
 
@@ -1390,6 +1408,7 @@ locals {
     "AthenaResultsBucket",
     "AthenaResultsObjects",
     "ManageCloudTrailFoundation",
+    "CloudTrailLogsBucketPolicy",
     "ManageGuardDutyFoundation",
     "ManageBudgetsFoundation"
   ]

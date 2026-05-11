@@ -177,18 +177,23 @@ TypeOrmModule.forRootAsync({
 
 ## 5. 監査・コンプライアンス（実装済み）
 
-### CloudTrail設定 (Terraform: `foundation/athena.tf`)
+### CloudTrail設定 (Terraform: `foundation/cloudtrail.tf`)
 ```hcl
-resource "aws_cloudtrail" "main" {
-  name                          = "nestjs-hannibal-3-trail"
-  s3_bucket_name                = aws_s3_bucket.cloudtrail.bucket
+resource "aws_cloudtrail" "hannibal_trail" {
+  name                          = "nestjs-hannibal-3"
+  s3_bucket_name                = "nestjs-hannibal-3-cloudtrail-logs"
   include_global_service_events = true
   is_multi_region_trail         = false
   enable_log_file_validation    = true
+
+  event_selector {
+    read_write_type           = "All"
+    include_management_events = true
+  }
 }
 ```
 
-**ログ保持期間**: 90日間 (S3 Lifecycle Policy)
+**ログ保存先**: `nestjs-hannibal-3-cloudtrail-logs`（手動作成・永続保持）
 
 ### ログ分析 (Athena: 実装済み)
 ```sql
