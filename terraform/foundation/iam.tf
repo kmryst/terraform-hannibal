@@ -1079,6 +1079,23 @@ locals {
       ]
     },
     {
+      Sid    = "AllowFoundationManagedS3Buckets"
+      Effect = "Allow"
+      Action = [
+        "s3:CreateBucket",
+        "s3:DeleteBucket*",
+        "s3:Get*",
+        "s3:List*",
+        "s3:PutBucket*",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutLifecycleConfiguration"
+      ]
+      Resource = [
+        "arn:aws:s3:::nestjs-hannibal-3-athena-results",
+        "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs"
+      ]
+    },
+    {
       Sid    = "AllowCloudTrailLogsBucketPolicy"
       Effect = "Allow"
       Action = [
@@ -1349,6 +1366,23 @@ locals {
       Resource = "arn:aws:s3:::nestjs-hannibal-3-athena-results/*"
     },
     {
+      Sid    = "ManageFoundationS3Buckets"
+      Effect = "Allow"
+      Action = [
+        "s3:CreateBucket",
+        "s3:DeleteBucket*",
+        "s3:Get*",
+        "s3:List*",
+        "s3:PutBucket*",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutLifecycleConfiguration"
+      ]
+      Resource = [
+        "arn:aws:s3:::nestjs-hannibal-3-athena-results",
+        "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs"
+      ]
+    },
+    {
       Sid    = "ManageCloudTrailFoundation"
       Effect = "Allow"
       Action = [
@@ -1483,6 +1517,7 @@ locals {
     "ManageAthenaFoundation",
     "AthenaResultsBucket",
     "AthenaResultsObjects",
+    "ManageFoundationS3Buckets",
     "ManageCloudTrailFoundation",
     "ManageCloudWatchLogsFoundation",
     "ManageCloudWatchAlarmsFoundation",
