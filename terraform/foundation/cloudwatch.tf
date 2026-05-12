@@ -40,7 +40,7 @@ locals {
 
 resource "aws_cloudwatch_log_group" "cloudtrail" {
   name              = local.cloudtrail_cloudwatch_log_group_name
-  retention_in_days = 90
+  retention_in_days = 30
 
   tags = {
     Project     = "nestjs-hannibal-3"
