@@ -36,18 +36,6 @@ aws cloudfront create-origin-access-control \
 aws cloudfront list-origin-access-controls --region us-east-1
 ```
 
-### **4. Athena クエリ結果 S3 バケットの事前作成**
-```bash
-# Athena クエリ結果の出力先 S3 バケットを作成
-aws s3 mb s3://nestjs-hannibal-3-athena-results --region ap-northeast-1
-
-# 作成確認
-aws s3 ls s3://nestjs-hannibal-3-athena-results
-```
-
-`terraform/foundation` の `aws_athena_workgroup` がこのバケットを出力先として参照するため、
-foundation apply 前に作成しておく必要があります。
-
 **重要**: OACのIDを取得後、`terraform/frontend/main.tf`の47行目を更新してください：
 ```hcl
 data "aws_cloudfront_origin_access_control" "s3_oac" {
@@ -68,14 +56,14 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 - ✅ **実行時間短縮**: リソース作成時間を短縮
 - 📝 **注意**: リソース本体は手動管理、Terraformはdataリソースで参照のみ
 
-## **🔒 永続保持リソース（監査・基盤用・Terraform管理外）**
+## **🔒 永続保持リソース（監査・基盤用）**
 以下のリソースは**destroy時も削除されず、永続的に保持**されます：
 
 | リソース | 名前 | 目的 | 理由 | 管理方法 |
 |---------|------|------|------|----------|
 | S3バケット | `nestjs-hannibal-3-terraform-state` | Terraform状態ファイル | 基盤リソース | **手動管理** |
-| S3バケット | `nestjs-hannibal-3-cloudtrail-logs` | CloudTrail監査ログ | セキュリティ監査 | **手動管理** |
-| S3バケット | `nestjs-hannibal-3-athena-results` | Athena分析結果 | 権限分析基盤 | **手動管理** |
+| S3バケット | `nestjs-hannibal-3-cloudtrail-logs` | CloudTrail監査ログ | セキュリティ監査 | **Terraform foundation管理** |
+| S3バケット | `nestjs-hannibal-3-athena-results` | Athena分析結果 | 権限分析基盤 | **Terraform foundation管理** |
 | Athenaテーブル | `cloudtrail_logs_partitioned` | CloudTrail分析 | 権限最適化 | **Terraform管理** |
 | Athenaワークグループ | `hannibal-cloudtrail-analysis` | 専用分析環境 | Professional設計 | **Terraform管理** |
 | Athenaデータベース | `hannibal_cloudtrail_db` | 論理データ分離 | Professional設計 | **Terraform管理** |
@@ -84,7 +72,7 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 - 🔒 **セキュリティ監査**: API呼び出しの証跡保存
 - 📊 **権限分析**: 将来の最小権限最適化
 - 💰 **コスト最適化**: ストレージ料金は数セント程度
-- 📝 **注意**: Terraform管理外のため、destroy時も自動削除されません
+- 📝 **注意**: 手動管理または `prevent_destroy` により、通常のdestroy対象から外しています
 
 永続リソースの全体一覧（IAM / ECR / Route53 / ACM 含む）は [docs/operations/aws-resources.md](../operations/aws-resources.md) を参照。
 
