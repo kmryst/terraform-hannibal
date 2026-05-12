@@ -419,7 +419,17 @@ resource "aws_iam_policy" "hannibal_cicd_boundary" {
   })
 }
 
-# --- 7. HannibalCICDPolicy-Dev-* (CI/CD最小権限ポリシー・3分割) ---
+# --- 7. HannibalECSBoundary (ECSアプリIAM用Permission Boundary) ---
+# ECS Task Execution Role 本体とアプリ用Secrets read policyは terraform/environments/dev 管理。
+# この Boundary は deploy 前から存在する永続ガードレールとして foundation で管理する。
+resource "aws_iam_policy" "hannibal_ecs_boundary" {
+  name        = "HannibalECSBoundary"
+  description = "Permission Boundary for ECS Task Execution Role - Hannibal Project"
+
+  policy = file("${path.module}/HannibalECSBoundary.json")
+}
+
+# --- 8. HannibalCICDPolicy-Dev-* (CI/CD最小権限ポリシー・3分割) ---
 # IAMマネージドポリシーの6144文字制限により compute/storage/deploy の3ポリシーに分割。
 # candidate での deploy/destroy 検証完了後（#166）に正式採用。
 
