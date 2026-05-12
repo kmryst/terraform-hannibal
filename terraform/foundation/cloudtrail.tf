@@ -39,7 +39,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "cloudtrail_logs" {
   bucket = aws_s3_bucket.cloudtrail_logs.bucket
 
   rule {
-    id     = "expire-cloudtrail-logs-after-90-days"
+    id     = "expire-cloudtrail-logs-after-365-days"
     status = "Enabled"
 
     filter {
@@ -47,7 +47,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "cloudtrail_logs" {
     }
 
     expiration {
-      days = 90
+      days = 365
     }
   }
 }
