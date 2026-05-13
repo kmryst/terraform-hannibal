@@ -76,79 +76,145 @@ resource "aws_athena_database" "hannibal_logs" {
 # パーティション対応CloudTrailテーブル
 # CloudTrailInputFormat + JsonSerDe を使用。生の CloudTrail ログ（.json.gz）を直接読み取る。
 # PARQUET は Glue ETL 変換後に使う形式であり、生ログには使用できない。
-resource "aws_athena_named_query" "create_partitioned_table" {
-  name      = "create-partitioned-cloudtrail-table"
-  database  = aws_athena_database.hannibal_logs.name
-  workgroup = aws_athena_workgroup.hannibal_analysis.name
+resource "aws_glue_catalog_table" "cloudtrail_logs_partitioned" {
+  name          = "cloudtrail_logs_partitioned"
+  database_name = aws_athena_database.hannibal_logs.name
+  table_type    = "EXTERNAL_TABLE"
 
-  query = <<EOF
-CREATE EXTERNAL TABLE IF NOT EXISTS hannibal_cloudtrail_db.cloudtrail_logs_partitioned (
-  eventVersion       STRING,
-  userIdentity       STRUCT<
-    type:            STRING,
-    principalId:     STRING,
-    arn:             STRING,
-    accountId:       STRING,
-    invokedBy:       STRING,
-    accessKeyId:     STRING,
-    userName:        STRING,
-    sessionContext:  STRUCT<
-      attributes:    STRUCT<
-        mfaAuthenticated: STRING,
-        creationDate:     STRING
-      >,
-      sessionIssuer: STRUCT<
-        type:        STRING,
-        principalId: STRING,
-        arn:         STRING,
-        accountId:   STRING,
-        userName:    STRING
-      >
-    >
-  >,
-  eventTime          STRING,
-  eventSource        STRING,
-  eventName          STRING,
-  awsRegion          STRING,
-  sourceIPAddress    STRING,
-  userAgent          STRING,
-  errorCode          STRING,
-  errorMessage       STRING,
-  requestParameters  STRING,
-  responseElements   STRING,
-  requestId          STRING,
-  eventId            STRING,
-  eventType          STRING,
-  readOnly           STRING,
-  recipientAccountId STRING
-)
-PARTITIONED BY (
-  year  STRING,
-  month STRING,
-  day   STRING
-)
-ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
-WITH SERDEPROPERTIES (
-  'serialization.format' = '1'
-)
-STORED AS INPUTFORMAT  'com.amazon.emr.cloudtrail.CloudTrailInputFormat'
-           OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
-LOCATION 's3://nestjs-hannibal-3-cloudtrail-logs/AWSLogs/${var.aws_account_id}/CloudTrail/ap-northeast-1/'
-TBLPROPERTIES (
-  'projection.enabled'='true',
-  'projection.year.type'='integer',
-  'projection.year.range'='2025,2030',
-  'projection.month.type'='integer',
-  'projection.month.range'='01,12',
-  'projection.month.digits'='2',
-  'projection.day.type'='integer',
-  'projection.day.range'='01,31',
-  'projection.day.digits'='2',
-  'storage.location.template'='s3://nestjs-hannibal-3-cloudtrail-logs/AWSLogs/${var.aws_account_id}/CloudTrail/ap-northeast-1/$${year}/$${month}/$${day}/'
-)
-EOF
+  parameters = {
+    EXTERNAL                    = "TRUE"
+    "projection.enabled"        = "true"
+    "projection.year.type"      = "integer"
+    "projection.year.range"     = "2025,2030"
+    "projection.month.type"     = "integer"
+    "projection.month.range"    = "01,12"
+    "projection.month.digits"   = "2"
+    "projection.day.type"       = "integer"
+    "projection.day.range"      = "01,31"
+    "projection.day.digits"     = "2"
+    "storage.location.template" = "s3://${aws_s3_bucket.cloudtrail_logs.bucket}/AWSLogs/${var.aws_account_id}/CloudTrail/ap-northeast-1/$${year}/$${month}/$${day}/"
+  }
 
-  description = "パーティション対応CloudTrailテーブル作成（CloudTrailInputFormat / JsonSerDe）"
+  partition_keys {
+    name = "year"
+    type = "string"
+  }
+
+  partition_keys {
+    name = "month"
+    type = "string"
+  }
+
+  partition_keys {
+    name = "day"
+    type = "string"
+  }
+
+  storage_descriptor {
+    location                  = "s3://${aws_s3_bucket.cloudtrail_logs.bucket}/AWSLogs/${var.aws_account_id}/CloudTrail/ap-northeast-1"
+    input_format              = "com.amazon.emr.cloudtrail.CloudTrailInputFormat"
+    output_format             = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+    compressed                = false
+    number_of_buckets         = -1
+    stored_as_sub_directories = false
+
+    ser_de_info {
+      serialization_library = "org.openx.data.jsonserde.JsonSerDe"
+
+      parameters = {
+        "serialization.format" = "1"
+      }
+    }
+
+    columns {
+      name = "eventversion"
+      type = "string"
+    }
+
+    columns {
+      name = "useridentity"
+      type = "struct<type:string,principalId:string,arn:string,accountId:string,invokedBy:string,accessKeyId:string,userName:string,sessionContext:struct<attributes:struct<mfaAuthenticated:string,creationDate:string>,sessionIssuer:struct<type:string,principalId:string,arn:string,accountId:string,userName:string>>>"
+    }
+
+    columns {
+      name = "eventtime"
+      type = "string"
+    }
+
+    columns {
+      name = "eventsource"
+      type = "string"
+    }
+
+    columns {
+      name = "eventname"
+      type = "string"
+    }
+
+    columns {
+      name = "awsregion"
+      type = "string"
+    }
+
+    columns {
+      name = "sourceipaddress"
+      type = "string"
+    }
+
+    columns {
+      name = "useragent"
+      type = "string"
+    }
+
+    columns {
+      name = "errorcode"
+      type = "string"
+    }
+
+    columns {
+      name = "errormessage"
+      type = "string"
+    }
+
+    columns {
+      name = "requestparameters"
+      type = "string"
+    }
+
+    columns {
+      name = "responseelements"
+      type = "string"
+    }
+
+    columns {
+      name = "requestid"
+      type = "string"
+    }
+
+    columns {
+      name = "eventid"
+      type = "string"
+    }
+
+    columns {
+      name = "eventtype"
+      type = "string"
+    }
+
+    columns {
+      name = "readonly"
+      type = "string"
+    }
+
+    columns {
+      name = "recipientaccountid"
+      type = "string"
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # 権限分析クエリ
