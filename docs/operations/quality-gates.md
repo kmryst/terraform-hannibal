@@ -43,13 +43,23 @@
 Issue #226 の初期導入では、`TFLint` / `Trivy Config Scan` / `Gitleaks Secret Scan` を PR で自動実行するチェックとして追加します。
 branch protection の required status checks にはすぐ追加しません。
 
+ここでいう `job fail` と `required status check` は別のものです。
+
+| 用語 | 意味 | 今回の扱い |
+|---|---|---|
+| `job fail` | GitHub Actions の job が失敗し、PR上で赤く表示される | `TFLint` / `Gitleaks Secret Scan` は検出時に fail。`Trivy Config Scan` は初期導入時点では fail させない |
+| `required status check` | branch protection で、その check が成功しないとマージできないようにする設定 | #226 時点では3jobとも required にしない |
+
 理由:
 
 - `Trivy Config Scan` は既存設計の意図的な例外も検出する
 - 既存 IaC に対する false positive / accepted risk の棚卸しが必要
 - 実行時間と運用安定性を見てから required 化したほうが、日常PRを詰まらせにくい
 
-required status checks への追加は、運用が安定してから後続 Issue で判断します。
+required status checks への追加は、#228 で判断します。
+
+#228 では、#227 マージから約1週間後の **2026年5月21日 JST 目安**で、false positive・実行時間・PR運用への影響を確認し、`TFLint` / `Gitleaks Secret Scan` / `Trivy Config Scan` を required 化するか判断します。
+ただし `Gitleaks` で secret 検出、または `TFLint` で明確な設定ミスが出た場合は、2026年5月21日を待たずに優先判断します。
 
 ## ローカル検証
 
