@@ -1,10 +1,10 @@
 # terraform/foundation/iam.tf
-# 基盤IAMリソース（Terraformで作成後、管理から除外・永続保持）
+# 基盤IAMリソース（terraform/foundation で管理し、dev 環境 destroy から分離して永続保持）
 # AWS Professional設計: Infrastructure as Code + 永続管理
 
 # --- 0. GitHub Actions OIDC Provider ---
 # GitHub Actions が発行する短期トークンを AWS が検証するための IdP 登録
-# 適用: aws iam create-open-id-connect-provider で実施（state管理外）
+# 管理: terraform/foundation
 # 参考: https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
@@ -41,7 +41,7 @@ resource "aws_iam_role" "hannibal_developer_role" {
 # --- 2. HannibalCICDRole-Dev (自動デプロイロール) ---
 # 信頼ポリシー: GitHub OIDC による AssumeRoleWithWebIdentity（長期キー不要）
 # 許可範囲: kmryst/terraform-hannibal の main ブランチからの workflow_dispatch のみ
-# 適用: aws iam update-assume-role-policy で実施（state管理外）
+# 管理: terraform/foundation
 resource "aws_iam_role" "hannibal_cicd_role" {
   name                 = "HannibalCICDRole-Dev"
   permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/HannibalCICDBoundary"

@@ -61,7 +61,8 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 
 | リソース | 名前 | 目的 | 理由 | 管理方法 |
 |---------|------|------|------|----------|
-| S3バケット | `nestjs-hannibal-3-terraform-state` | Terraform状態ファイル | 基盤リソース | **手動管理** |
+| S3バケット | `nestjs-hannibal-3-terraform-state` | Terraform状態ファイル / S3 lockfile | state backend 本体。Terraform で管理すると、管理対象の state を保存する先も同じ Terraform で作るニワトリと卵の状態になるため | **手動管理** |
+| DynamoDBテーブル | `terraform-state-lock` | Terraform legacy state lock | DynamoDB-based locking から S3 lockfile へ移行する間のレガシーリソース。S3 lockfile 安定後に削除予定 | **手動管理（移行期間のみ）** |
 | S3バケット | `nestjs-hannibal-3-cloudtrail-logs` | CloudTrail監査ログ | セキュリティ監査 | **Terraform foundation管理** |
 | S3バケット | `nestjs-hannibal-3-athena-results` | Athena分析結果 | 権限分析基盤 | **Terraform foundation管理** |
 | Athenaテーブル | `cloudtrail_logs_partitioned` | CloudTrail分析 | 権限最適化 | **Terraform管理** |
@@ -72,7 +73,7 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 - 🔒 **セキュリティ監査**: API呼び出しの証跡保存
 - 📊 **権限分析**: 将来の最小権限最適化
 - 💰 **コスト最適化**: ストレージ料金は数セント程度
-- 📝 **注意**: 手動管理または `prevent_destroy` により、通常のdestroy対象から外しています
+- 📝 **注意**: 意図的な手動管理または `prevent_destroy` により、通常のdestroy対象から外しています
 
 永続リソースの全体一覧（IAM / ECR / Route53 / ACM 含む）は [docs/operations/aws-resources.md](../operations/aws-resources.md) を参照。
 
@@ -84,7 +85,7 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 - **GitHub Actions OIDC Provider**: `token.actions.githubusercontent.com` — 長期 Access Key 不要
 - **HannibalCICDRole-Dev**: deploy/destroy workflow が OIDC で AssumeRoleWithWebIdentity するロール
 - **HannibalPRPlanRole-Dev**: PR terraform plan 用ロール（read-only）
-- **HannibalCICDPolicy-Dev**: CI/CD用ポリシー（現在 attach 中）
+- **HannibalCICDPolicy-Dev-compute / storage / deploy**: CI/CD用ポリシー（3分割して attach 中）
 
 > ※ GitHub Actions から AWS への認証は OIDC を使います。AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY の GitHub Secrets 登録は不要です。
 
