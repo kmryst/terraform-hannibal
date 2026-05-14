@@ -474,12 +474,12 @@ module "storage" {
 ### 品質向上
 - **Infrastructure as Code**: 全リソースをコード管理
 - **State管理**: S3 backend + S3 lockfile（DynamoDB Lock は移行期間中のみ併用）
-- **セキュリティ**: tfsecによる自動検証
+- **セキュリティ**: Trivy Config による IaC security scan と Gitleaks による secret scan
 
 ### コスト最適化
 - **停止運用**: 月額 $30-50 → $5（94%削減）
 - **起動/停止自動化**: GitHub Actions (約15分)
 
 ---
-**最終更新**: 2025年10月12日  
+**最終更新**: 2026年5月14日
 **実装状況**: 全モジュール完了

@@ -1,22 +1,24 @@
 # Security Design - NestJS Hannibal 3
 
 ## セキュリティ概要
-4層防御 + IAM最小権限によるDevSecOps実践
+PR品質ゲート + 手動セキュリティスキャン + IAM最小権限によるDevSecOps実践
 
 ## 実装済みセキュリティ対策
 
-### 1. 自動セキュリティスキャン（4層防御）
+### 1. PR品質ゲート / セキュリティスキャン
 
-**GitHub Actions: `security-scan.yml`**
+**GitHub Actions: `pr-check.yml` / `security-scan.yml`**
 
 | スキャン種別 | ツール | 対象 | 実行タイミング |
 |-------------|--------|------|----------------|
-| **SAST** | CodeQL | ソースコード脆弱性 | PR + 週次 |
-| **SCA** | Trivy | 依存関係/コンテナ | PR + 週次 |
-| **IaC** | tfsec | Terraform設定ミス | PR + 週次 |
-| **Secrets** | Gitleaks | シークレット漏洩 | PR + 週次 |
+| **Terraform lint** | TFLint | Terraform / AWS provider lint | PR |
+| **IaC Security** | Trivy Config | Terraform / Dockerfile 設定ミス | PR（初期導入時は review signal） |
+| **Secrets** | Gitleaks | Git履歴の secret 漏洩 | PR |
+| **SAST** | CodeQL | ソースコード脆弱性 | 手動実行 |
+| **SCA** | Trivy | 依存関係/コンテナ | 手動実行 |
 
-**統合管理**: 全結果を GitHub Security タブに集約
+IaC security は `tfsec` を新規採用せず、Aqua Security の `Trivy Config` に寄せる。
+品質ゲートの詳細は [docs/operations/quality-gates.md](../operations/quality-gates.md) を参照。
 
 ### 2. ネットワークセキュリティ（実装済み）
 
@@ -233,18 +235,17 @@ resource "aws_guardduty_detector" "hannibal" {
 
 ### PR時の自動スキャン
 ```yaml
-# .github/workflows/security-scan.yml
+# .github/workflows/pr-check.yml
 on:
   pull_request:
     branches: [main]
-  schedule:
-        - cron: '0 0 * * 0'  # 週次
 ```
 
 ### 脆弱性管理
 - **Dependabot**: GitHub標準機能で依存関係を自動更新
-- **CodeQL/Trivy/tfsec/Gitleaks**: 4層防御で全PRをスキャン
-- **結果統合**: GitHub Security タブで一元管理
+- **TFLint/Trivy Config/Gitleaks**: PRでTerraform lint、IaC security、secret scanを実行
+- **CodeQL/Trivy**: 手動のセキュリティスキャンでSAST/SCA/コンテナを確認
+- **結果統合**: SARIF対応スキャンはGitHub Securityタブへ集約
 
 ## 8. セキュリティ運用（実装済み）
 
@@ -255,7 +256,7 @@ on:
 
 ### 実績メトリクス
 - **IAM権限最適化**: 160権限中76使用 (47.5% 削減達成)
-- **セキュリティスキャン**: PR毎に4種類自動実行
+- **PR品質ゲート**: Terraform公式チェックに加え、TFLint / Trivy Config / Gitleaks を自動実行
 - **脆弱性修正**: Dependabot PR を週次マージ
 
 ## セキュリティ成熟度評価

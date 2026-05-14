@@ -120,8 +120,8 @@ nestjs-hannibal-3/
 │   └── environments/dev/  # 環境別設定
 ├── .github/workflows/
 │   ├── deploy.yml         # 3モード対応 (provisioning/bluegreen/canary)
-│   ├── security-scan.yml  # CodeQL/Trivy/tfsec/Gitleaks
-│   └── pr-check.yml       # Lint + Build
+│   ├── security-scan.yml  # 手動 CodeQL/Trivy scan
+│   └── pr-check.yml       # Lint + Build + quality gates
 ├── appspec.yml           # CodeDeploy設定
 └── Dockerfile            # Multi-stage build (node:20-alpine)
 ```
@@ -343,18 +343,20 @@ hannibal-cicd (IAM User)
 
 **Permission Boundary**: ECS/RDS/S3のみ操作可能、IAM/Billing/GuardDuty は禁止。
 
-### セキュリティスキャン（自動実行）
+### PR品質ゲート / セキュリティスキャン
 
-**GitHub Actions**: `security-scan.yml`
-- **CodeQL**: ソースコード脆弱性（SAST）
-- **Trivy**: Dockerイメージ脆弱性（SCA）
-- **tfsec**: Terraform設定ミス検出（IaC）
-- **Gitleaks**: シークレット漏洩検出
+**GitHub Actions**: `pr-check.yml`
+- **TFLint**: Terraform / AWS provider lint
+- **Trivy Config**: Terraform / Dockerfile の設定ミス検出（IaC）
+- **Gitleaks**: Git履歴のシークレット漏洩検出
 
 **実行タイミング:**
-- PR作成時（必須チェック）
-- 週次スケジュール実行
-- 検出結果は GitHub Security タブへ集約
+- PR作成・更新時
+- 初期導入時点では branch protection の required status checks には追加しない
+
+**手動セキュリティスキャン**: `security-scan.yml`
+- **CodeQL**: ソースコード脆弱性（SAST）
+- **Trivy**: 依存関係/コンテナ脆弱性（SCA）
 
 ---
 
@@ -394,7 +396,7 @@ npm run test:cov      # Coverage Report
 terraform validate
 
 # セキュリティスキャン
-tfsec terraform/
+trivy config terraform/
 
 # 変更プレビュー（破壊的変更の確認）
 terraform plan -out=tfplan

@@ -377,6 +377,126 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+  tflint:
+    name: TFLint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v6
+        with:
+          tflint_version: v0.62.1
+          cache: true
+
+      - name: Show TFLint version
+        run: tflint --version
+
+      - name: Init TFLint plugins
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: tflint --init
+
+      - name: Run TFLint
+        run: tflint --recursive --config "$GITHUB_WORKSPACE/.tflint.hcl" --format compact
+
+      - name: Write TFLint summary
+        if: success()
+        run: |
+          {
+            echo "## TFLint"
+            echo ""
+            echo "Terraform lint completed successfully."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  trivy-config:
+    name: Trivy Config Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          scanners: misconfig
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+          hide-progress: true
+          output: trivy-config.txt
+          skip-dirs: docs/worklogs,docs/llm-repo-bundle,client/dist
+
+      - name: Publish Trivy config summary
+        if: always()
+        run: |
+          {
+            echo "## Trivy Config Scan"
+            echo ""
+            echo "Trivy config scans IaC and Dockerfile settings as review signals."
+            echo ""
+            echo "Initial rollout note: this job currently reports findings without failing the workflow. Required status check promotion is deferred until false positives, runtime, and operational stability are reviewed."
+            echo ""
+            if [ -s trivy-config.txt ]; then
+              echo "<details><summary>Trivy output</summary>"
+              echo ""
+              echo '```text'
+              cat trivy-config.txt
+              echo '```'
+              echo "</details>"
+            else
+              echo "No Trivy output was generated."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Trivy config report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-config-${{ github.event.pull_request.number }}
+          path: trivy-config.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+  gitleaks:
+    name: Gitleaks Secret Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Gitleaks
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o gitleaks.tar.gz
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          rm gitleaks.tar.gz
+          gitleaks version
+
+      - name: Run Gitleaks
+        run: gitleaks git --no-banner --redact --config .gitleaks.toml
+
+      - name: Write Gitleaks summary
+        if: success()
+        run: |
+          {
+            echo "## Gitleaks Secret Scan"
+            echo ""
+            echo "No secrets were detected in the scanned git history."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   terraform-plan-changes:
     name: Terraform Plan Change Detection
     runs-on: ubuntu-latest
