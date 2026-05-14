@@ -7,6 +7,7 @@
 **関連ドキュメント:**
 - [iam-management.md](./iam-management.md) - IAM権限最適化（Athena分析）
 - [monitoring.md](./monitoring.md) - CloudWatch監視・CloudTrail分析
+- [quality-gates.md](./quality-gates.md) - PR品質ゲート（Terraform lint / IaC security / secret scan）
 - [pr-terraform-plan-role-design.md](./pr-terraform-plan-role-design.md) - PR terraform plan用AWS Role/OIDC権限設計補足
 - [docs/deployment/codedeploy-blue-green.md](../deployment/codedeploy-blue-green.md) - デプロイ詳細
 
@@ -355,8 +356,13 @@ gh pr list --label dependencies
 ### セキュリティスキャン結果確認
 
 **GitHub Security タブ:**
-- CodeQL / Trivy / tfsec / Gitleaks の結果を統合表示
+- CodeQL / Trivy 依存関係・コンテナスキャンの結果を統合表示
 - Critical/High の脆弱性は即座対応
+
+**PR品質ゲート:**
+- `TFLint` / `Trivy Config Scan` / `Gitleaks Secret Scan` は PR Check で確認
+- `Trivy Config Scan` は初期導入時点では review signal として扱い、required status check 化は後続 Issue で判断
+- 詳細は [quality-gates.md](./quality-gates.md) を参照
 
 ---
 

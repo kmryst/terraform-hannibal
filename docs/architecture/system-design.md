@@ -134,9 +134,9 @@ type Query {
 - **Terraform State管理**: S3 backend + S3 lockfile（DynamoDB Lock は移行期間中のみ併用）
 
 ### セキュリティ（実装済み）
-- **4層防御**: CodeQL (SAST) / Trivy (SCA) / tfsec (IaC) / Gitleaks (Secrets)
-- **自動スキャン**: PR作成時 + 週次スケジュール実行
-- **GitHub Security統合**: 全結果を一元管理
+- **PR品質ゲート**: TFLint (Terraform lint) / Trivy Config (IaC security) / Gitleaks (Secrets)
+- **手動セキュリティスキャン**: CodeQL (SAST) / Trivy (SCA・コンテナ)
+- **GitHub Security統合**: SARIF対応スキャン結果を一元管理
 
 ### 監視・ログ（実装済み）
 - **CloudWatch Logs**: ECS タスクログ
@@ -155,6 +155,7 @@ type Query {
 - **TypeScript**: 型安全性
 - **ESLint/Prettier**: コード規約
 - **Jest**: 単体・統合テスト
+- **TFLint / Trivy Config / Gitleaks**: Terraform lint、IaC security、secret scan
 
 ### 依存関係管理
 - **Renovate**: 自動依存関係更新
