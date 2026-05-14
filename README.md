@@ -1,181 +1,146 @@
-# ハンニバルのアルプス越えルートアプリケーション
-A production-like AWS infrastructure portfolio with Terraform, ECS Fargate, Blue/Green CI/CD, and security automation.
+# terraform-hannibal
+
+Terraform / AWS / GitHub Actions を使い、ECS Fargate ベースのアプリケーション基盤と、Issue → Branch → PR → CI → Merge の変更管理ガードレールを構築した DevOps / SRE / Platform Engineering 向けポートフォリオ。
 
 ## 採用担当者向けサマリー（30秒）
-- 対象ロール: DevOps / SRE / インフラ（Terraform × AWS × GitHub Actions）
 
-**実績**
-- 無停止切替（Blue/Green）で[約5分のスイッチ](./docs/deployment/codedeploy-blue-green.md)を実現。
-- 段階配信（Canary）で10%→100%を段階展開。
-- 停止運用により月額約$30-50→[停止時約$5](./terraform/foundation/billing.tf)を実現（[コスト設計](./terraform/foundation/billing.tf)）。
-- PR時に Terraform lint / IaC security / secret scan を自動実行し、品質ゲートを継続運用。
-- 要件整理・設計・技術選定・実装・運用フロー整備までを一人で主導。
+- **対象ロール**: DevOps Engineer / SRE / Platform Engineer / インフラエンジニア
+- **基盤構成**: Terraform で ECS Fargate / ALB / CloudFront / RDS / S3 / Route53 / CloudTrail / Athena を管理
+- **CI/CD**: GitHub Actions から provisioning / Blue-Green / Canary / destroy を実行
+- **変更管理**: Issue / Branch / PR / Label / CI により、目的・影響範囲・rollback・レビュー観点を追跡
+- **AI Agent 対応**: AI Agent / CLI / GitHub UI 経由の作業でも、人間確認とCIによりレビュー可能な履歴を残す設計
+- **セルフサービス運用**: デモ環境を必要時に起動し、不要時に停止できるワークフローを整備
+- **コスト設計**: 通常停止運用により、稼働時の月額約 $30-50 から停止時約 $5 まで抑制
 
-**再現性**
-- S3 backend と S3 lockfile で Terraform State 管理を実施（DynamoDB lock は移行期間中のみ併用）。
-- GitHub Actionsで[ワンクリック起動/停止](./.github/workflows/deploy.yml)に対応（[起動完了まで約15分](./.github/workflows/deploy.yml)）。
-- Terraformモジュール化、PR時のfmt/validate自動チェック、運用SOP整備により、変更の再現性とレビュー容易性を向上。
+## このプロジェクトで示すこと
 
-**デモ**
-- hamilcar-hannibal.click（現在は停止中。起動はGitHub Actionsから[約15分](./.github/workflows/deploy.yml)・要依頼）
+このプロジェクトの主役は「AWS 上にアプリケーションを作ったこと」ではなく、開発者・運用者・AI Agent が安全に変更を流せる Platform / DevOps 基盤の設計。Terraform / AWS / GitHub Actions / IAM / OIDC / security scan を組み合わせ、変更の目的・影響・検証・戻し方を追える状態にしている。
 
-## 採用担当者向け確認フロー（5分）
-- 起動依頼: `.github/ISSUE_TEMPLATE/demo-request.md` を使用（テンプレート不在時は下記をコピー）
-  
-  <details>
-  <summary>依頼文サンプル（3行）</summary>
-  
-  ```
-  タイトル: デモ起動依頼（希望日時: YYYY-MM-DD HH:MM JST / 確認観点: 切替・API・セキュリティ）。
-  本文: hamilcar-hannibal.click の起動をお願いします。希望開始: YYYY-MM-DD HH:MM JST、確認観点は無停止切替（Blue/Green）履歴・セキュリティスキャン結果、連絡先は @YourGitHubID。
-  備考: 起動から確認まで約15分、終了後は停止運用を実施。
-  ```
-  </details>
+## 一番見てほしいポイント
 
-- 起動: GitHub Actionsで[deploy.yml](./.github/workflows/deploy.yml)のprovisioningを実行（[完了まで約15分](./.github/workflows/deploy.yml)）
-- 稼働確認: 起動後に [hamilcar-hannibal.click](https://hamilcar-hannibal.click) のURLで確認
-- 静的証跡: 起動前でも下記で確認可能（各フォルダに代表サンプルを配置）
-  - 構成図: [docs/architecture/](./docs/architecture/)
-  - セキュリティレポート: [docs/security/](./docs/security/)
-  - トラブルシュート: [docs/troubleshooting/](./docs/troubleshooting/)
-- 補足: 停止前提でも静的成果物で価値が伝わるよう成果物を常時更新
+### 1. 変更管理のガードレール
 
-## 設計判断の理由
-- コスト最適化: Fargate 0.25vCPUと停止運用を組み合わせ、月額約$30-50→停止時約$5を維持（[billing.tf](./terraform/foundation/billing.tf)）。
-- リリース戦略: 無停止切替（Blue/Green）で並行環境の即時ロールバックを確保し、段階配信（Canary）で10%→100%の段階展開を採用（[デプロイ手順](./docs/deployment/codedeploy-blue-green.md)）。
-- セキュリティ運用: Terraform公式チェックに加え、TFLint / Trivy Config / Gitleaks で lint・IaC security・secret scan を補完。
+Issue では `目的` / `対象` / `受け入れ条件` と `type` / `area` / `risk` / `cost` ラベルを必須化。PR では Issue link、必須ラベル、厳密運用時の rollback 欄を `PR Policy Check` で検査する。運用ルールは [CONTRIBUTING.md](./CONTRIBUTING.md)、設計意図は [GitHub Flow Guardrails](./docs/operations/github-flow-guardrails.md) に分離。
 
-## スクリーンショット
-- Actions実行履歴: docs/images/actions-deploy.png（provisioning成功の実行履歴）
-- Blue/Green切替履歴: docs/images/bluegreen-history.png（切替結果の履歴）
-- Securityレポート例: docs/images/security-report.png（検出→修正→再スキャン）
-- アーキテクチャ図: docs/images/architecture-latest.png（最新構成図・GitHub Actionsで自動更新）
+### 2. セルフサービス運用と品質ゲート
 
-## 課題解決事例（3件）
-- CodeDeploy権限不足 → 段階的IAM拡張で無停止切替を安定化 → 切替約5分を安定運用（[トラブルシュート](./docs/troubleshooting/README.md)）。
-- RDS削除順の依存性 → Terraformの依存制御で安全破棄 → 破棄エラーをゼロ化。
-- NATコストとDB非公開 → 3層VPC/ルート最適化で整合 → 月額固定費を抑制。
+GitHub Actions から provisioning / Blue-Green / Canary / destroy を実行できる。PR では Terraform fmt/validate、TFLint、Trivy Config、Gitleaks を実行し、手動の [Security Scan](./.github/workflows/security-scan.yml) で CodeQL と Trivy dependency/container scan を確認する。
+
+### 3. AI Agent が関与してもレビュー可能な運用
+
+AI Agent の作業は、実装前の計画提示を運用ルールとし、PR 作成後は Issue link / label / rollback 欄 / CI で機械的に検査する。AI が関与した変更でも、意図・判断・差分・検証結果を追跡できる。
+
+## アーキテクチャ概要
+
+<div align="center">
+  <img src="docs/architecture/aws/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="850">
+</div>
+
+| レイヤー | 構成 |
+|---|---|
+| Edge / DNS | Route53、CloudFront |
+| Load Balancing | ALB、Blue/Green 用 target group |
+| Compute | ECS Fargate、CodeDeploy Blue/Green |
+| Data | RDS PostgreSQL、private data subnet |
+| Static frontend | S3 + CloudFront OAC |
+| Audit / Cost | CloudTrail、Athena、CloudWatch、Billing alarm |
+| State | S3 backend + S3 lockfile（DynamoDB lock は移行期間中のみ併用） |
+
+詳細な構成は [Architecture Docs](./docs/architecture/) と [Terraform Modules](./docs/architecture/terraform-modules.md) を参照。
+
+## GitHub運用と品質ゲート
+
+| 領域 | 実装内容 | 証跡 |
+|---|---|---|
+| Issue | 最小本文項目と必須ラベルを検査 | [Issue Form](./.github/ISSUE_TEMPLATE/feature_request.yml) |
+| PR | Issue link、必須ラベル、rollback 欄を検査 | [PR template](./.github/pull_request_template.md) |
+| Policy | 軽運用 / 厳密運用を判定 | [pr-check.yml](./.github/workflows/pr-check.yml) |
+| Commit | PR title とコミットメッセージを Conventional Commits で統一 | [CONTRIBUTING.md](./CONTRIBUTING.md) |
+| IaC | Terraform fmt/validate、plan artifact、TFLint | [Quality Gates](./docs/operations/quality-gates.md) |
+| Security | Trivy Config、Gitleaks、CodeQL、Trivy dependency/container scan | [Security Design](./docs/architecture/security-design.md) |
+
+Trivy Config の検出結果は初期導入時点では review signal として扱い、即時修正・accepted risk・後続検討に分けて Issue 化している（例: [#231](https://github.com/kmryst/terraform-hannibal/issues/231), [#233](https://github.com/kmryst/terraform-hannibal/issues/233)）。
+
+## CI/CD と運用
+
+| Workflow | 役割 |
+|---|---|
+| [deploy.yml](./.github/workflows/deploy.yml) | `provisioning` / `bluegreen` / `canary` を手動選択し、Terraform apply と CodeDeploy を実行 |
+| [destroy.yml](./.github/workflows/destroy.yml) | デモ終了後に `DESTROY` 入力で AWS リソースを停止・削除 |
+| [pr-check.yml](./.github/workflows/pr-check.yml) | PR policy、backend/frontend build、Terraform check、TFLint、Trivy Config、Gitleaks |
+| [security-scan.yml](./.github/workflows/security-scan.yml) | 手動の CodeQL、Trivy dependency scan、container scan |
+| [sync-labels.yml](./.github/workflows/sync-labels.yml) | `.github/labels.yml` を GitHub labels に同期 |
+
+Blue/Green / Canary の詳細は [CodeDeploy Blue/Green](./docs/deployment/codedeploy-blue-green.md) を参照。
+
+## セキュリティとコスト設計
+
+| 観点 | 設計 |
+|---|---|
+| IAM | Permission Boundary + GitHub OIDC AssumeRole で自動化権限を制御 |
+| Network | 3層 VPC、private subnet 上の ECS / RDS、DB 層は外部非公開 |
+| Audit | CloudTrail を S3 に集約し、Athena で監査ログを分析 |
+| Secrets | Gitleaks で secret 混入を PR 時に検出 |
+| IaC security | Trivy Config で Terraform / Dockerfile の設定ミスを review signal として検出 |
+| Cost | デモ環境を通常停止し、必要時だけ起動する運用で固定費を抑制。コスト前提は [Operations Docs](./docs/operations/README.md) に記録 |
+| Accepted risk | WAF / GuardDuty などコスト影響が大きい機能は、デモ用途・外部公開範囲・コスト影響・再検討条件を docs に残す方針 |
+
+IAM / OIDC / Permission Boundary の詳細は [IAM Management](./docs/operations/iam-management.md) と [PR Terraform Plan Role Design](./docs/operations/pr-terraform-plan-role-design.md) を参照。
+
+## デモと証跡
+
+デモ環境はコスト抑制のため通常停止。必要時は GitHub Actions から provisioning / deploy / destroy を実行でき、起動前でも docs / Actions / Issues / PRs から設計意図と運用履歴を確認できる。
+
+- デモURL: [hamilcar-hannibal.click](https://hamilcar-hannibal.click)（通常停止中）
+- 起動: [deploy.yml](./.github/workflows/deploy.yml) の `provisioning` / `bluegreen` / `canary`
+- 停止: [destroy.yml](./.github/workflows/destroy.yml) の `DESTROY` 確認付き workflow
+- 構成図: [docs/architecture/](./docs/architecture/)
+- セキュリティ・IAM: [Security Design](./docs/architecture/security-design.md) / [IAM Analysis](./docs/security/iam-analysis/README.md)
+- トラブルシュート: [docs/troubleshooting/README.md](./docs/troubleshooting/README.md)
+
+## 代表的な改善と学び
+
+Issue / PR / Label / CI のガードレール整備後から、面接で深掘りしやすい実例を抜粋。詳細な問題・対応・結果は [Quality Gates](./docs/operations/quality-gates.md)、[GitHub Flow Guardrails](./docs/operations/github-flow-guardrails.md)、[Troubleshooting](./docs/troubleshooting/README.md) を参照。
+
+- **Issue / PR / Label / CI のガードレール整備**<br>
+  AI Agent / CLI / GitHub UI 経由の作業でも、本文項目・ラベル・Issue link・rollback 観点が残るように整備（例: [#92](https://github.com/kmryst/terraform-hannibal/issues/92), [#93](https://github.com/kmryst/terraform-hannibal/pull/93)）
+- **PR Terraform plan レビュー基盤の追加**<br>
+  PR plan 専用 OIDC Role、plan artifact、Job Summary、危険シグナル抽出により、apply 前に差分・影響範囲・危険操作をレビューできる状態にした（例: [#121](https://github.com/kmryst/terraform-hannibal/issues/121), [#135](https://github.com/kmryst/terraform-hannibal/pull/135)）
+- **AI Agent 作業の履歴品質改善**<br>
+  commitlint、PR title 検査、実装前計画提示ルールにより、AI Agent が関与しても履歴を追いやすくした（例: [#152](https://github.com/kmryst/terraform-hannibal/issues/152), [#200](https://github.com/kmryst/terraform-hannibal/issues/200)）
+- **IaC security scan 導入と Trivy 検出の棚卸し**<br>
+  TFLint / Trivy Config / Gitleaks を PR CI に追加し、検出結果を修正対象・accepted risk・後続検討に分類（例: [#226](https://github.com/kmryst/terraform-hannibal/issues/226), [#227](https://github.com/kmryst/terraform-hannibal/pull/227)）
+- **IAM / OIDC 権限の段階的な最小権限化**<br>
+  deploy / foundation apply / PR plan の責務を分離し、権限追加理由と戻し方を PR 上で追跡可能にした（例: [#129](https://github.com/kmryst/terraform-hannibal/issues/129), [#179](https://github.com/kmryst/terraform-hannibal/pull/179)）
+
+## 技術スタック
+
+### Primary stack
+
+| 領域 | 技術 |
+|---|---|
+| IaC | Terraform 1.12.1 |
+| AWS | ECS Fargate、ALB、CloudFront、RDS PostgreSQL、S3、Route53、CloudTrail、Athena、CloudWatch |
+| CI/CD | GitHub Actions、CodeDeploy Blue/Green、Canary deployment |
+| Identity / Security | IAM、OIDC、Permission Boundary、TFLint、Trivy、Gitleaks、CodeQL |
+| Operations | Issue Forms、PR template、label policy、required checks、deploy / destroy workflows |
+
+### Application used as deployment target
+
+| 領域 | 技術 |
+|---|---|
+| Backend | NestJS、TypeScript、GraphQL、PostgreSQL |
+| Frontend | React、Vite、Apollo Client、Mapbox GL JS |
 
 ## 詳細ドキュメント
-設計・手順・根拠・追加スクリーンショットは下記を参照。代表リンク: [構成図](./docs/architecture/) / [デプロイ手順](./docs/deployment/codedeploy-blue-green.md) / [セキュリティレポート](./docs/security/)
 
-<div align="center">
-  
-![AWS](https://img.shields.io/badge/AWS-Route53%20%7C%20CloudFront%20%7C%20ALB%20%7C%20ECS%20%7C%20RDS%20%7C%20S3-orange?logo=amazon-aws)
-![Terraform](https://img.shields.io/badge/Terraform-1.12.1-purple?logo=terraform)
-![Docker](https://img.shields.io/badge/Docker-node:20--alpine-blue?logo=docker)
-![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?logo=github-actions)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue?logo=typescript)
-![NestJS](https://img.shields.io/badge/NestJS-10.0-red?logo=nestjs)
-![React](https://img.shields.io/badge/React-19.0-blue?logo=react)
-
-</div>
-
-<div align="center">
-  <img src="docs/screenshots/hannibal-route.png" alt="ハンニバルのアルプス越えルート" width="800">
-</div>
-
-<div align="center">
-  <img src="docs/screenshots/hannibal_1_middle.gif" alt="ハンニバルデモ" width="800">
-</div>
-
-**プロジェクト概要**
-
-要件整理からアーキテクチャ設計、技術選定、実装、運用フロー整備までを一人で主導し、本番運用を想定したAWS基盤を構築。
-
-**設計方針**
-- 本番環境を想定したセキュアなネットワーク設計（3層VPC）
-- コスト効率を重視したサービス選定（Fargate 0.25vCPU）
-- 完全自動化されたCI/CDパイプライン（無停止切替（Blue/Green）と段階配信（Canary）に対応）
-
-**デモサイト**
-- [hamilcar-hannibal.click](https://hamilcar-hannibal.click) は通常停止中（起動はGitHub Actions経由で[約15分](./.github/workflows/deploy.yml)・要依頼）
-- アプリケーション層を停止し月額コストを約$30-50から[約$5以下](./terraform/foundation/billing.tf)に最適化
-- GitHub Actionsでワンクリック起動/停止（起動完了まで[約15分](./.github/workflows/deploy.yml)）
-- 基盤リソース（S3 State管理、CloudTrail等）は常時稼働
-
-**AWS Architecture Diagram**
-
-<div align="center">
-  <img src="docs/architecture/aws/cacoo/architecture.svg" alt="AWS Architecture Diagram" width="800">
-</div>
-
-**Infrastructure as Code**
-- Terraformリソース数: 約50リソース
-- 月額コスト: 約$30-50（停止時約$5以下、[billing.tf](./terraform/foundation/billing.tf)）
-- デプロイ時間: [約15分](./.github/workflows/deploy.yml)（無停止切替（Blue/Green）は[約5分で切替](./docs/deployment/codedeploy-blue-green.md)）
-- コード行数: Backend 5,000行 / Frontend 3,000行 / Terraform 2,000行
-
-```
-terraform/
-├── foundation/          # 基盤リソース
-│   ├── iam.tf          # Permission Boundary + AssumeRole
-│   ├── athena.tf       # CloudTrail分析
-│   ├── billing.tf      # コスト監視
-│   └── guardduty.tf    # 脅威検知（コスト削減のため無効化中）
-├── environments/dev/    # 環境別設定
-│   └── main.tf         # モジュール統合
-└── modules/            # 再利用可能なモジュール
-    ├── cdn/            # CloudFront
-    ├── cicd/           # CodeDeploy Blue/Green
-    ├── compute/        # ECS Fargate + ALB
-    ├── networking/     # 3層VPC（Public/App/Data）+ Route53
-    ├── observability/  # CloudWatch監視
-    ├── security/       # Security Groups + IAM
-    └── storage/        # RDS + S3
-```
-
-State管理: S3 backend + S3 lockfile（DynamoDB lock は移行期間中のみ併用）
-
-- deploy.yml: provisioning / bluegreen / canary を選択可能（無停止切替（Blue/Green）と段階配信（Canary）を実装）
-- destroy.yml: ワンクリックでAWSリソース削除
-- pr-check.yml: Backend ESLint+Build、Frontend TypeScript+Build、Terraform Format+Validate、TFLint、Trivy Config、Gitleaks
-- security-scan.yml: 手動実行でCodeQL、Trivy依存関係/コンテナスキャンを実行しGitHub Securityへ集約
-- 構成図の自動生成Workflowは廃止済み（経緯: `docs/architecture/diagram-automation-history.md`）
-
-<div align="center">
-  <img src="docs/screenshots/github-actions-demo.gif?v=20250108165536" alt="GitHub Actions Demo" width="800">
-</div>
-
-**技術スタック**
-- インフラ: Terraform 1.12.1、AWS（ECS Fargate / RDS PostgreSQL / CloudFront / Route53）
-- CI/CD: GitHub Actions（無停止切替（Blue/Green）と段階配信（Canary）に対応）
-- バックエンド: NestJS 10.0、TypeScript 5.8、GraphQL Code First、PostgreSQL 15
-- フロントエンド: React 19.0、TypeScript 5.8、Vite、Mapbox GL JS、Apollo Client
-
-**セキュリティ対策**
-- IAM: Permission Boundary + AssumeRoleで最小権限を徹底
-- ネットワーク: 3層VPCとPrivate SubnetでDB層を外部非公開
-- 暗号化: RDS暗号化とSecrets Managerで認証情報を管理
-- 監査: CloudTrail + Athena分析で全操作ログを90日保持
-- 脆弱性: CodeQL、Trivy、Gitleaksを組み合わせたSAST/SCA/Secrets/IaCスキャン（IaC security は tfsec ではなく Trivy Config に寄せる）
-- WAF: CloudFront + ALB対応（コスト最適化のため現在無効化）
-
-**技術的な挑戦と成果**
-- 無停止切替（Blue/Green）: IAM権限の段階的追加で並行環境から[約5分の切替](./docs/deployment/codedeploy-blue-green.md)と即時ロールバックを実現
-- 最小権限設計: Permission Boundaryでセキュリティと自動化を両立
-- 3層VPCアーキテクチャ: NAT Gateway設計でDB層を完全非公開化
-- Terraform State管理: S3 backend + S3 lockfile でチーム開発に対応可能な排他制御基盤を構築
-- 依存関係の最適化: リソース削除順序の制御で安全に環境破棄
-
-**参考ドキュメント**
-- [docs/setup/README.md](./docs/setup/README.md): 環境構築・事前準備
-- [docs/deployment/codedeploy-blue-green.md](./docs/deployment/codedeploy-blue-green.md): 無停止切替（Blue/Green）と段階配信（Canary）のデプロイ手順
-- [docs/operations/README.md](./docs/operations/README.md): IAM管理・監視・分析
-- [docs/operations/quality-gates.md](./docs/operations/quality-gates.md): PR品質ゲートとセキュリティチェックの役割
-- [docs/architecture/aws/mermaid/README.md](./docs/architecture/aws/mermaid/README.md): システム構成図
-- [docs/troubleshooting/README.md](./docs/troubleshooting/README.md): 実装時の課題と解決方法
-- [CONTRIBUTING.md](./CONTRIBUTING.md): Issue駆動開発フロー・貢献ガイド
-- [CLAUDE.md](./CLAUDE.md): Claude Code 向け作業ルール
-
-**GitHub運用**
-- Issue作成 → ブランチ作成 → 実装 → PR → マージの一連フローを徹底
-- AI下書きと人間確認を前提にしつつ、Issue / PR の品質は GitHub Actions とラベル運用で担保
-- `.github/labels.yml` でラベルをコード管理し、GitHub Actionsで自動同期
-- ブランチは `issue番号-kebab-case要約`、コミットはConventional Commits、PR本文に `Closes #issue番号`
-- `gh done XX` でPRマージ後にmainへ戻り最新を取得
-
-詳細な運用ルールは [CONTRIBUTING.md](./CONTRIBUTING.md)、設計意図と将来候補は [docs/operations/github-flow-guardrails.md](./docs/operations/github-flow-guardrails.md) を参照してください。
+- [CONTRIBUTING.md](./CONTRIBUTING.md) / [GitHub Flow Guardrails](./docs/operations/github-flow-guardrails.md): GitHub運用ルールと設計意図
+- [Quality Gates](./docs/operations/quality-gates.md): PR 品質ゲートとセキュリティチェック
+- [IAM Management](./docs/operations/iam-management.md) / [PR Terraform Plan Role Design](./docs/operations/pr-terraform-plan-role-design.md): IAM / OIDC / Permission Boundary
+- [CodeDeploy Blue/Green](./docs/deployment/codedeploy-blue-green.md): 無停止切替と段階配信
+- [Architecture Docs](./docs/architecture/) / [Security Design](./docs/architecture/security-design.md): システム構成とセキュリティ設計
+- [Troubleshooting](./docs/troubleshooting/README.md): 実装時の課題と解決
 
 ---
+
 **最終更新**: 2026年5月14日 JST
