@@ -215,6 +215,26 @@ LIMIT 20;
 
 ## 6. 脅威検知・対応
 
+### WAF 無効化の accepted risk
+
+CloudFront / ALB の WAF は、現時点では有効化していません。
+この判断は、ポートフォリオ / デモ用途の短時間公開と、通常 destroy 済みで停止しておく運用を前提にした accepted risk です。
+
+**今すぐ有効化しない理由:**
+- デモ環境は常時公開ではなく、必要時に起動して確認後に停止する
+- WAF を常時有効化すると、停止運用で抑えている固定費が増える
+- 公開対象はデモアプリで、DB は private subnet 上にあり、RDS は外部非公開
+- PR 時の Trivy Config / Gitleaks、手動の CodeQL / Trivy scan で構成と依存関係の確認は継続する
+
+**再検討条件:**
+- デモ環境を継続公開する運用へ変える
+- 外部利用者が増え、CloudFront / ALB への不特定アクセスが増える
+- 攻撃的なアクセス、bot、異常な 4xx / 5xx の増加を観測する
+- 本番相当環境や共有環境として扱う段階に入る
+
+Trivy Config の WAF 検出は、現時点では CI を止める修正対象ではなく、review signal / accepted risk として追跡します。
+将来 WAF を有効化する場合は、CloudFront Web ACL を優先候補とし、必要に応じて ALB 側の保護も検討します。
+
 ### GuardDuty設定 (コスト最適化のため無効化中)
 ```hcl
 # terraform/foundation/guardduty.tf

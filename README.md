@@ -81,7 +81,7 @@ Blue/Green / Canary の詳細は [CodeDeploy Blue/Green](./docs/deployment/coded
 | Secrets | Gitleaks で secret 混入を PR 時に検出 |
 | IaC security | Trivy Config で Terraform / Dockerfile の設定ミスを review signal として検出 |
 | Cost | デモ環境を通常停止し、必要時だけ起動する運用で固定費を抑制。コスト前提は [Operations Docs](./docs/operations/README.md) に記録 |
-| Accepted risk | WAF / GuardDuty などコスト影響が大きい機能は、デモ用途・外部公開範囲・コスト影響・再検討条件を docs に残す方針 |
+| Accepted risk | WAF / GuardDuty などコスト影響が大きい機能は、デモ用途・外部公開範囲・コスト影響・再検討条件を [Security Design](./docs/architecture/security-design.md) に残す方針 |
 
 IAM / OIDC / Permission Boundary の詳細は [IAM Management](./docs/operations/iam-management.md) と [PR Terraform Plan Role Design](./docs/operations/pr-terraform-plan-role-design.md) を参照。
 
