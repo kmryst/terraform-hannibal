@@ -85,7 +85,8 @@ trivy config \
 
 - `tflint --recursive --config "$(pwd)/.tflint.hcl"` は通過
 - `gitleaks git --no-banner --redact --config .gitleaks.toml` は no leaks
-- `trivy config` は Dockerfile の root user、CloudFormation 旧資産、WAF 無効化、HTTP ALB listener、public subnet、security group egress などを検出
+- `trivy config` は Dockerfile の root user、CloudFormation 旧資産、WAF 無効化、HTTP ALB listener、security group egress などを検出
+  - `public subnet` の `map_public_ip_on_launch = true` は Issue #231 / PR #242 で修正済み（2026-05-17）
 
 `trivy config` の検出結果は初期導入時点ではレビュー補助として扱います。
 コスト最適化やデモ用途で意図的に採用している設計も含まれるため、後続作業で accepted risk / 修正対象 / 除外対象を整理します。
