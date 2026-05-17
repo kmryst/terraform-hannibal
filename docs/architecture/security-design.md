@@ -37,6 +37,8 @@ Data Subnet (RDS) ← 完全非公開（Public IP なし）
 - DB層は完全非公開（インターネットアクセス不可）
 - ECSはNAT Gateway経由でDockerイメージ取得
 - ALBのみがインターネットからアクセス可能
+- Public Subnet は ALB / NAT Gateway 用に維持するが、サブネット内のリソースへ Public IP を自動付与しない
+- NAT Gateway は明示的に割り当てた Elastic IP を使うため、Public IP 自動付与の無効化による影響はない
 
 ### セキュリティグループ
 ```hcl
