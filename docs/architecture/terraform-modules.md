@@ -66,6 +66,7 @@ module "vpc" {
 
 **特徴:**
 - DB層は完全非公開（Public IPなし、インターネットアクセスなし）
+- Public Subnet は ALB / NAT Gateway 用に維持し、リソース起動時の Public IP 自動付与は無効化
 - NAT Gateway経由でECSからのアウトバウンド通信を実現
 - Route53でドメイン管理（hamilcar-hannibal.click）
 
