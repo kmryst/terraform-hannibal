@@ -33,15 +33,15 @@ resource "aws_cloudfront_distribution" "main" {
 
   origin { # API Backend Origin
 
-    domain_name = var.api_alb_dns_name
-    # バックエンドAPIのALB DNS名
-    # 例: api-alb-123456789.ap-northeast-1.elb.amazonaws.com
+    domain_name = var.api_origin_domain_name
+    # バックエンドAPIの独自ドメイン名
+    # 例: api.hamilcar-hannibal.click
 
     origin_id = "ALB-${var.project_name}-API" # CloudFrontに複数の origin がある場合の識別に使用する
     custom_origin_config {
-      http_port                = 80 # ALBがHTTPでリッスンしている場合
+      http_port                = 80
       https_port               = 443
-      origin_protocol_policy   = "http-only" # ALBがHTTPのみなら "http-only", HTTPSなら "https-only"
+      origin_protocol_policy   = "https-only"
       origin_ssl_protocols     = ["TLSv1.2"]
       origin_read_timeout      = 30 # オリジンからの応答タイムアウト
       origin_keepalive_timeout = 5  # TCP接続の維持時間

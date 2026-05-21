@@ -14,7 +14,7 @@ output "alb_zone_id" {
 }
 
 output "http_listener_arn" {
-  description = "ARN of the HTTP listener"
+  description = "ARN of the HTTP redirect listener"
   value       = aws_lb_listener.http.arn
 }
 

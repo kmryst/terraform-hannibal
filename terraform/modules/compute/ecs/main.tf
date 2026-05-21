@@ -153,7 +153,7 @@ resource "aws_ecs_service" "api" {
     container_port = var.container_port              # タスク定義のportMappings[0].containerPort
   }
 
-  depends_on = [var.alb_listener_http_arn, var.alb_listener_test_arn, var.rds_endpoint]
+  depends_on = [var.alb_listener_production_arn, var.alb_listener_test_arn, var.rds_endpoint]
 
   lifecycle {
     ignore_changes = [task_definition, load_balancer]

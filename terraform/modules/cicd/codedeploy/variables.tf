@@ -41,8 +41,8 @@ variable "ecs_service_name" {
   type        = string
 }
 
-variable "alb_listener_http_arn" {
-  description = "ARN of the ALB HTTP listener"
+variable "alb_listener_production_arn" {
+  description = "ARN of the ALB production listener"
   type        = string
 }
 

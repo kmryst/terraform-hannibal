@@ -24,8 +24,8 @@ variable "s3_bucket_regional_domain_name" {
   type        = string
 }
 
-variable "api_alb_dns_name" {
-  description = "DNS name of the backend API's Application Load Balancer"
+variable "api_origin_domain_name" {
+  description = "Custom domain name of the backend API origin"
   type        = string
 }
 

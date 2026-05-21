@@ -155,7 +155,7 @@ resource "aws_codedeploy_deployment_group" "main" {
   load_balancer_info {
     target_group_pair_info {
       prod_traffic_route {
-        listener_arns = [var.alb_listener_http_arn]
+        listener_arns = [var.alb_listener_production_arn]
       }
       test_traffic_route {
         listener_arns = [var.alb_listener_test_arn]

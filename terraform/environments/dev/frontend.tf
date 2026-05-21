@@ -1,6 +1,10 @@
 # terraform/environments/dev/frontend.tf
 # Frontend モジュール統合設定
 
+locals {
+  api_domain_name = "api.${var.domain_name}"
+}
+
 # --- CDN Pillar: S3 Static Hosting ---
 module "s3_frontend" {
   source = "../../modules/storage/s3"
@@ -19,7 +23,7 @@ module "cloudfront" {
   domain_name                    = var.domain_name
   s3_bucket_name                 = var.s3_bucket_name
   s3_bucket_regional_domain_name = module.s3_frontend.bucket_regional_domain_name
-  api_alb_dns_name               = module.load_balancer.alb_dns_name
+  api_origin_domain_name         = local.api_domain_name
   acm_certificate_arn_us_east_1  = var.acm_certificate_arn_us_east_1
 }
 
@@ -32,4 +36,7 @@ module "dns_frontend" {
   hosted_zone_id            = var.hosted_zone_id
   cloudfront_domain_name    = module.cloudfront.distribution_domain_name
   cloudfront_hosted_zone_id = module.cloudfront.distribution_hosted_zone_id
+  api_domain_name           = local.api_domain_name
+  api_alb_dns_name          = module.load_balancer.alb_dns_name
+  api_alb_zone_id           = module.load_balancer.alb_zone_id
 }

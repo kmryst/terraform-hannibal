@@ -49,7 +49,7 @@ module "codedeploy" {
   deployment_type                 = var.deployment_type
   ecs_cluster_name                = module.ecs.cluster_name
   ecs_service_name                = module.ecs.service_name
-  alb_listener_http_arn           = module.load_balancer.http_listener_arn
+  alb_listener_production_arn     = module.load_balancer.https_listener_arn
   alb_listener_test_arn           = module.load_balancer.test_listener_arn
   canary_error_rate_alarm_name    = module.monitoring.canary_error_rate_alarm_name
   canary_response_time_alarm_name = module.monitoring.canary_response_time_alarm_name
@@ -85,7 +85,7 @@ module "ecs" {
   app_subnet_ids              = module.vpc.app_subnet_ids
   ecs_security_group_id       = module.security_groups.ecs_security_group_id
   blue_target_group_arn       = module.codedeploy.blue_target_group_arn
-  alb_listener_http_arn       = module.load_balancer.http_listener_arn
+  alb_listener_production_arn = module.load_balancer.https_listener_arn
   alb_listener_test_arn       = module.load_balancer.test_listener_arn
   rds_endpoint                = module.rds.db_instance_endpoint
 }
