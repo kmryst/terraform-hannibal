@@ -1,9 +1,5 @@
 # Security Groups for Three-tier Architecture (Least Privilege)
 
-data "aws_ec2_managed_prefix_list" "cloudfront_origin_facing" {
-  name = "com.amazonaws.global.cloudfront.origin-facing"
-}
-
 # --- ALB Security Group ---
 resource "aws_security_group" "alb" {
   name        = "${var.project_name}-alb-sg"
@@ -17,7 +13,7 @@ resource "aws_security_group" "alb" {
     from_port       = 80
     to_port         = 8080
     protocol        = "tcp"
-    prefix_list_ids = [data.aws_ec2_managed_prefix_list.cloudfront_origin_facing.id]
+    prefix_list_ids = [var.cloudfront_origin_facing_prefix_list_id]
   }
 
   # Allow all outbound traffic

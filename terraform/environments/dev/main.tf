@@ -7,10 +7,11 @@
 module "security_groups" {
   source = "../../modules/security/security-groups"
 
-  vpc_id         = module.vpc.vpc_id
-  project_name   = var.project_name
-  environment    = var.environment
-  container_port = var.container_port
+  vpc_id                                  = module.vpc.vpc_id
+  project_name                            = var.project_name
+  environment                             = var.environment
+  container_port                          = var.container_port
+  cloudfront_origin_facing_prefix_list_id = "pl-58a04531"
 }
 
 # --- Security Pillar: IAM ---

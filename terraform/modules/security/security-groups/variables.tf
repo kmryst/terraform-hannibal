@@ -18,3 +18,8 @@ variable "container_port" {
   type        = number
   default     = 3000
 }
+
+variable "cloudfront_origin_facing_prefix_list_id" {
+  description = "AWS managed prefix list ID for CloudFront origin-facing addresses (com.amazonaws.global.cloudfront.origin-facing)"
+  type        = string
+}
