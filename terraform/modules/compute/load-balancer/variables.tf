@@ -14,7 +14,7 @@ variable "public_subnet_ids" {
 }
 
 variable "alb_listener_port" {
-  description = "Port for ALB listener"
+  description = "Port for ALB HTTP redirect listener"
   type        = number
   default     = 80
 }

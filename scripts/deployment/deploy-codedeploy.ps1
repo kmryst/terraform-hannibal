@@ -18,6 +18,7 @@ $ErrorActionPreference = "Stop"
 $PROJECT_NAME = "nestjs-hannibal-3"
 $AWS_REGION = "ap-northeast-1"
 $AWS_ACCOUNT_ID = "258632448142"
+$API_DOMAIN = "api.hamilcar-hannibal.click"
 
 Write-Host "🚀 Starting CodeDeploy Canary Deployment" -ForegroundColor Green
 Write-Host "📋 Configuration:" -ForegroundColor Cyan
@@ -147,14 +148,9 @@ Resources:
     }
     
     # 結果表示
-    if (Test-Path "tf_outputs_backend.json") {
-        $outputs = Get-Content "tf_outputs_backend.json" | ConvertFrom-Json
-        $ALB_DNS = $outputs.alb_dns_name.value
-        
-        Write-Host "🌐 Deployment URLs:" -ForegroundColor Cyan
-        Write-Host "  Production: http://$ALB_DNS" -ForegroundColor Green
-        Write-Host "  Test: http://$ALB_DNS`:8080" -ForegroundColor Yellow
-    }
+    Write-Host "🌐 Deployment URLs:" -ForegroundColor Cyan
+    Write-Host "  Production: https://$API_DOMAIN" -ForegroundColor Green
+    Write-Host "  Test: https://$($API_DOMAIN):8080" -ForegroundColor Yellow
     
     Write-Host "🎉 CodeDeploy Canary deployment completed successfully!" -ForegroundColor Green
     

@@ -80,7 +80,7 @@ module "security_groups" {
   vpc_id       = module.vpc.vpc_id
   project_name = var.project_name
   
-  # ALB: HTTP/HTTPS + Test Listener (8080)
+  # ALB: HTTP redirect + HTTPS Production/Test Listener
   alb_ingress_ports = [80, 443, 8080]
   
   # ECS: アプリケーションポート
@@ -94,6 +94,8 @@ module "security_groups" {
 **特徴:**
 - 最小権限の原則に基づくセキュリティグループ設定
 - ALB → ECS → RDS の通信経路のみ許可
+- 外部公開面は HTTPS。HTTP 80 は redirect 専用、test listener 8080 も HTTPS
+- ALB → ECS は private subnet と security group で制限した内部 HTTP として維持
 - IAMモジュール（security/iam）でPermission Boundary実装
 
 ### 3. コンピュートモジュール（compute/ecs + load-balancer）
@@ -204,8 +206,8 @@ module "codedeploy" {
   green_target_group_name = module.load_balancer.green_target_group_name
   
   # ALB Listeners
-  prod_listener_arn = module.load_balancer.http_listener_arn
-  test_listener_arn = module.load_balancer.test_listener_arn
+  alb_listener_production_arn = module.load_balancer.https_listener_arn
+  alb_listener_test_arn       = module.load_balancer.test_listener_arn
   
   # デプロイ設定
   deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
@@ -232,7 +234,7 @@ module "cloudfront" {
   
   # Origin設定
   s3_bucket_domain = module.s3.bucket_domain
-  alb_domain       = module.load_balancer.alb_dns_name
+  api_origin_domain_name = "api.hamilcar-hannibal.click"
   
   # キャッシュ設定
   default_ttl = 86400    # 1日
@@ -245,7 +247,8 @@ module "cloudfront" {
 
 **特徴:**
 - グローバルCDN配信
-- Route53統合（hamilcar-hannibal.click）
+- Route53統合（hamilcar-hannibal.click / api.hamilcar-hannibal.click）
+- API origin は `api.hamilcar-hannibal.click` を使い、CloudFront → ALB は `https-only`
 - WAFは予算制約で無効化（将来実装予定）
 
 ### 7. 監視モジュール（observability/monitoring）

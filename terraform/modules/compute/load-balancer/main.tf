@@ -1,4 +1,8 @@
 # --- ALB (Application Load Balancer) ---
+locals {
+  alb_certificate_arn = "arn:aws:acm:ap-northeast-1:258632448142:certificate/9ab350e8-1748-4e17-aa89-9db7c889b146"
+}
+
 resource "aws_lb" "main" {
   name                       = "${var.project_name}-alb"
   internal                   = false
@@ -11,17 +15,19 @@ resource "aws_lb" "main" {
 
 # Blue/Green Target Groups are defined in codedeploy.tf
 
-# --- ALB Listener (Production HTTP) ---
+# --- ALB Listener (HTTP Redirect) ---
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = var.alb_listener_port
   protocol          = "HTTP"
+
   default_action {
-    type = "fixed-response"
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "Not Found"
-      status_code  = "404"
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
     }
   }
 }
@@ -32,7 +38,7 @@ resource "aws_lb_listener" "https" {
   port              = "443"
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
-  certificate_arn   = "arn:aws:acm:ap-northeast-1:258632448142:certificate/9ab350e8-1748-4e17-aa89-9db7c889b146"
+  certificate_arn   = local.alb_certificate_arn
 
   default_action {
     type = "forward"
@@ -49,7 +55,10 @@ resource "aws_lb_listener" "https" {
 resource "aws_lb_listener" "test" {
   load_balancer_arn = aws_lb.main.arn
   port              = 8080
-  protocol          = "HTTP"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
+  certificate_arn   = local.alb_certificate_arn
+
   default_action {
     type = "forward"
     forward {
@@ -63,36 +72,6 @@ resource "aws_lb_listener" "test" {
 
 # --- ALB Listener Rules for Blue/Green ---
 # 初期状態でBlue環境に100%トラフィックを送信、CodeDeployの動的切替と競合しない構成
-resource "aws_lb_listener_rule" "production_http" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 100
-
-  action {
-    type = "forward"
-    forward {
-      target_group {
-        arn    = var.blue_target_group_arn
-        weight = 100 # 初期Blue 100%
-      }
-      target_group {
-        arn    = var.green_target_group_arn
-        weight = 0 # 初期Green 0%
-      }
-    }
-  }
-
-  condition {
-    path_pattern {
-      values = ["/*"]
-    }
-  }
-
-  lifecycle {
-    # CodeDeployによる動的切替を許容
-    ignore_changes = [action]
-  }
-}
-
 resource "aws_lb_listener_rule" "production_https" {
   listener_arn = aws_lb_listener.https.arn
   priority     = 100

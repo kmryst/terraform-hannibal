@@ -15,7 +15,7 @@ graph TB
     S3[📦 S3 Bucket<br/>nestjs-hannibal-3-frontend<br/>Static Files]
     
     %% Load Balancer Layer
-    ALB[⚖️ Application Load Balancer<br/>Port 80 Production<br/>Port 8080 Test]
+    ALB[⚖️ Application Load Balancer<br/>Port 443 HTTPS Production<br/>Port 8080 HTTPS Test<br/>Port 80 Redirect to HTTPS]
     
     %% Container Layer
     ECS[🐳 ECS Fargate Service<br/>Blue/Green Deployment<br/>NestJS API]
@@ -31,7 +31,7 @@ graph TB
     
     %% Security Layer
     subgraph "🔒 Security Groups"
-        ALB_SG[ALB SG<br/>Port 80 8080 from Internet]
+        ALB_SG[ALB SG<br/>Port 80 443 8080 from Internet]
         ECS_SG[ECS SG<br/>Port 3000 from ALB only]
         RDS_SG[RDS SG<br/>Port 5432 from ECS only]
     end

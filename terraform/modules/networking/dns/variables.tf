@@ -26,3 +26,21 @@ variable "cloudfront_hosted_zone_id" {
   type        = string
   default     = ""
 }
+
+variable "api_domain_name" {
+  description = "API custom domain name to point at the Application Load Balancer"
+  type        = string
+  default     = ""
+}
+
+variable "api_alb_dns_name" {
+  description = "DNS name of the API Application Load Balancer"
+  type        = string
+  default     = ""
+}
+
+variable "api_alb_zone_id" {
+  description = "Hosted zone ID of the API Application Load Balancer"
+  type        = string
+  default     = ""
+}

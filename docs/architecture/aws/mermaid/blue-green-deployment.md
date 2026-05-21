@@ -17,8 +17,8 @@ graph LR
     end
     
     %% Load Balancer
-    ALB_Prod[ALB Production<br/>Port 80]
-    ALB_Test[ALB Test<br/>Port 8080]
+    ALB_Prod[ALB Production<br/>Port 443 HTTPS]
+    ALB_Test[ALB Test<br/>Port 8080 HTTPS]
     
     %% Traffic Flow
     Users[👥 Users]
@@ -62,10 +62,10 @@ graph LR
 ### 2. デプロイフェーズ
 - Green環境でECSタスクを起動
 - ヘルスチェックで正常性を確認
-- テストリスナー（Port 8080）で事前検証
+- テストリスナー（Port 8080 HTTPS）で事前検証
 
 ### 3. 切り替えフェーズ
-- プロダクションリスナー（Port 80）をGreenに切り替え
+- プロダクションリスナー（Port 443 HTTPS）をGreenに切り替え
 - Blue環境のタスクを自動終了
 - 完全な無停止デプロイメント完了
 

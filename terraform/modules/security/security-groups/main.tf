@@ -6,7 +6,7 @@ resource "aws_security_group" "alb" {
   description = "ALB security group for three-tier architecture"
   vpc_id      = var.vpc_id
 
-  # Production Listener (Port 80)
+  # HTTP Redirect Listener (Port 80)
   ingress {
     description = "HTTP from internet"
     from_port   = 80
@@ -17,7 +17,7 @@ resource "aws_security_group" "alb" {
 
   # Test Listener for Blue/Green (Port 8080)
   ingress {
-    description = "Test HTTP from internet"
+    description = "Test HTTPS from internet"
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"

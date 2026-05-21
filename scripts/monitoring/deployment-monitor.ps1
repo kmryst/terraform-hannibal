@@ -12,6 +12,9 @@ param(
     
     [Parameter(Mandatory=$false)]
     [string]$Region = "ap-northeast-1",
+
+    [Parameter(Mandatory=$false)]
+    [string]$ApiDomainName = "api.hamilcar-hannibal.click",
     
     [Parameter(Mandatory=$false)]
     [int]$MonitorInterval = 15,
@@ -143,11 +146,11 @@ function Get-TrafficDistribution {
     
     try {
         $albArn = aws elbv2 describe-load-balancers --names "$ProjectName-alb" --region $Region --query 'LoadBalancers[0].LoadBalancerArn' --output text
-        $prodListenerArn = aws elbv2 describe-listeners --load-balancer-arn $albArn --region $Region --query 'Listeners[?Port==`80`].ListenerArn' --output text
+        $prodListenerArn = aws elbv2 describe-listeners --load-balancer-arn $albArn --region $Region --query 'Listeners[?Port==`443`].ListenerArn' --output text
         
         $rules = aws elbv2 describe-rules --listener-arn $prodListenerArn --region $Region | ConvertFrom-Json
         
-        Write-Host "Production Listener (Port 80):" -ForegroundColor Yellow
+        Write-Host "Production Listener (Port 443 HTTPS):" -ForegroundColor Yellow
         
         $totalWeight = 0
         $blueWeight = 0
@@ -211,15 +214,15 @@ function Get-TrafficDistribution {
         try {
             $albDns = aws elbv2 describe-load-balancers --names "$ProjectName-alb" --region $Region --query 'LoadBalancers[0].DNSName' --output text 2>$null
             if ($albDns -and $albDns -ne "None" -and $albDns -ne "") {
-                Write-Host "  Production: http://$albDns" -ForegroundColor White
-                Write-Host "  Test: http://$albDns:8080" -ForegroundColor White
+                Write-Host "  Production: https://$ApiDomainName" -ForegroundColor White
+                Write-Host "  Test: https://$($ApiDomainName):8080" -ForegroundColor White
             } else {
-                Write-Host "  Production: http://" -ForegroundColor Red
-                Write-Host "  Test: http://" -ForegroundColor Red
+                Write-Host "  Production: https://$ApiDomainName" -ForegroundColor Red
+                Write-Host "  Test: https://$($ApiDomainName):8080" -ForegroundColor Red
             }
         } catch {
-            Write-Host "  Production: http://" -ForegroundColor Red
-            Write-Host "  Test: http://" -ForegroundColor Red
+            Write-Host "  Production: https://$ApiDomainName" -ForegroundColor Red
+            Write-Host "  Test: https://$($ApiDomainName):8080" -ForegroundColor Red
         }
         
     } catch {
