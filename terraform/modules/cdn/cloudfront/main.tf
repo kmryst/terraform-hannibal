@@ -38,6 +38,11 @@ resource "aws_cloudfront_distribution" "main" {
     # 例: api.hamilcar-hannibal.click
 
     origin_id = "ALB-${var.project_name}-API" # CloudFrontに複数の origin がある場合の識別に使用する
+    custom_header {
+      name  = var.alb_origin_verify_header_name
+      value = var.alb_origin_verify_header_value
+    }
+
     custom_origin_config {
       http_port                = 80
       https_port               = 443

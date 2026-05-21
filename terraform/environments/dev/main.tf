@@ -59,12 +59,14 @@ module "codedeploy" {
 module "load_balancer" {
   source = "../../modules/compute/load-balancer"
 
-  project_name           = var.project_name
-  alb_security_group_id  = module.security_groups.alb_security_group_id
-  public_subnet_ids      = module.vpc.public_subnet_ids
-  alb_listener_port      = var.alb_listener_port
-  blue_target_group_arn  = module.codedeploy.blue_target_group_arn
-  green_target_group_arn = module.codedeploy.green_target_group_arn
+  project_name                   = var.project_name
+  alb_security_group_id          = module.security_groups.alb_security_group_id
+  public_subnet_ids              = module.vpc.public_subnet_ids
+  alb_listener_port              = var.alb_listener_port
+  blue_target_group_arn          = module.codedeploy.blue_target_group_arn
+  green_target_group_arn         = module.codedeploy.green_target_group_arn
+  alb_origin_verify_header_name  = local.alb_origin_verify_header_name
+  alb_origin_verify_header_value = random_password.alb_origin_verify_header.result
 }
 
 # --- Performance + Cost Optimization Pillar: ECS ---

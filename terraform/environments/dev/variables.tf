@@ -170,3 +170,9 @@ variable "enable_cloudfront" {
   type        = bool
   default     = true
 }
+
+variable "alb_origin_secret_rotation_version" {
+  description = "Version string used to rotate the CloudFront-to-ALB origin verification secret."
+  type        = string
+  default     = "v1"
+}

@@ -20,6 +20,10 @@ terraform {
       source  = "hashicorp/aws" # HashiCorp 公式 AWS プロバイダー
       version = "~> 6.8.0"      # 6.8.x 系列の最新版を使用
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.7"
+    }
   }
   # Terraform コアの最低バージョン要件
   # 1.0 以上で安定した HCL 構文と機能を保証

@@ -33,3 +33,14 @@ variable "acm_certificate_arn_us_east_1" {
   description = "ACM Certificate ARN for CloudFront (must be in us-east-1)"
   type        = string
 }
+
+variable "alb_origin_verify_header_name" {
+  description = "Header name CloudFront adds when forwarding API requests to the ALB origin"
+  type        = string
+}
+
+variable "alb_origin_verify_header_value" {
+  description = "Secret header value CloudFront adds when forwarding API requests to the ALB origin"
+  type        = string
+  sensitive   = true
+}

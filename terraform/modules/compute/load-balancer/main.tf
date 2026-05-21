@@ -96,6 +96,13 @@ resource "aws_lb_listener_rule" "production_https" {
     }
   }
 
+  condition {
+    http_header {
+      http_header_name = var.alb_origin_verify_header_name
+      values           = [var.alb_origin_verify_header_value]
+    }
+  }
+
   lifecycle {
     # CodeDeployによる動的切替を許容
     ignore_changes = [action]
@@ -126,7 +133,56 @@ resource "aws_lb_listener_rule" "test" {
     }
   }
 
+  condition {
+    http_header {
+      http_header_name = var.alb_origin_verify_header_name
+      values           = [var.alb_origin_verify_header_value]
+    }
+  }
+
   lifecycle {
     ignore_changes = [action]
+  }
+}
+
+resource "aws_lb_listener_rule" "production_https_deny_without_origin_header" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 200
+
+  action {
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Access denied"
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "test_deny_without_origin_header" {
+  listener_arn = aws_lb_listener.test.arn
+  priority     = 200
+
+  action {
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Access denied"
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
   }
 }
