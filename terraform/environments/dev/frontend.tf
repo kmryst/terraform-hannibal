@@ -2,7 +2,17 @@
 # Frontend モジュール統合設定
 
 locals {
-  api_domain_name = "api.${var.domain_name}"
+  api_domain_name               = "api.${var.domain_name}"
+  alb_origin_verify_header_name = "X-Hannibal-Origin-Verify"
+}
+
+resource "random_password" "alb_origin_verify_header" {
+  length  = 48
+  special = false
+
+  keepers = {
+    rotation_version = var.alb_origin_secret_rotation_version
+  }
 }
 
 # --- CDN Pillar: S3 Static Hosting ---
@@ -25,6 +35,8 @@ module "cloudfront" {
   s3_bucket_regional_domain_name = module.s3_frontend.bucket_regional_domain_name
   api_origin_domain_name         = local.api_domain_name
   acm_certificate_arn_us_east_1  = var.acm_certificate_arn_us_east_1
+  alb_origin_verify_header_name  = local.alb_origin_verify_header_name
+  alb_origin_verify_header_value = random_password.alb_origin_verify_header.result
 }
 
 # --- Reliability Pillar: DNS ---

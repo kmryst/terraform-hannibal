@@ -6,31 +6,14 @@ resource "aws_security_group" "alb" {
   description = "ALB security group for three-tier architecture"
   vpc_id      = var.vpc_id
 
-  # HTTP Redirect Listener (Port 80)
+  # CloudFront managed prefix list has weight 55, so the ALB listener range is kept
+  # in one rule to stay within the default security group rule quota.
   ingress {
-    description = "HTTP from internet"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Test Listener for Blue/Green (Port 8080)
-  ingress {
-    description = "Test HTTPS from internet"
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # HTTPS Listener (Port 443)
-  ingress {
-    description = "HTTPS from internet"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "ALB listeners from CloudFront origin-facing addresses"
+    from_port       = 80
+    to_port         = 8080
+    protocol        = "tcp"
+    prefix_list_ids = [var.cloudfront_origin_facing_prefix_list_id]
   }
 
   # Allow all outbound traffic

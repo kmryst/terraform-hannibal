@@ -28,3 +28,14 @@ variable "green_target_group_arn" {
   description = "ARN of the green target group"
   type        = string
 }
+
+variable "alb_origin_verify_header_name" {
+  description = "Header name required for CloudFront-originated ALB requests"
+  type        = string
+}
+
+variable "alb_origin_verify_header_value" {
+  description = "Secret header value required for CloudFront-originated ALB requests"
+  type        = string
+  sensitive   = true
+}

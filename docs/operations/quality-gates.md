@@ -112,6 +112,20 @@ ALB から ECS target group への通信は HTTP のまま維持します。
 ECS task は private subnet にあり、ingress は ALB security group から container port への通信に限定しているため、これは外部公開面ではなく内部経路として扱います。
 今後 `trivy config` で HTTP listener / HTTP origin finding を確認する場合は、CloudFront origin の `https-only` と ALB 80 の redirect 専用化が崩れていないかを優先して見ます。
 
+### Public ALB 直アクセス制限の扱い
+
+Issue #232 で、ALB は internet-facing のまま維持しつつ、CloudFront 経由の API origin 通信だけを通す二段制限を追加しました。
+
+- ALB security group の ingress は `0.0.0.0/0` ではなく、AWS managed prefix list `com.amazonaws.global.cloudfront.origin-facing` からの TCP `80-8080` に限定する
+- CloudFront の ALB origin は `X-Hannibal-Origin-Verify` custom header を付ける
+- ALB の 443 / 8080 listener rule は header が一致する場合のみ forward し、header がないリクエストは `403` を返す
+
+`aws_lb.main.internal = true` は今回採用しません。
+現在の CloudFront custom origin は public DNS の `api.hamilcar-hannibal.click` を使うため、internal ALB 化は CloudFront VPC origins を含む private origin 構成への移行として別 Issue で検討します。
+
+CloudFront managed prefix list は weight 55 のため、80 / 443 / 8080 を個別 ingress rule にすると security group rule quota を超えやすくなります。
+そのため TCP `80-8080` を1本の rule にまとめ、HTTP 層では secret header による listener rule でさらに制限します。
+
 ### 導入時に実施した検証
 
 Issue #226 の実装時点で、ローカルで実行可能な範囲のチェックを実行しました。

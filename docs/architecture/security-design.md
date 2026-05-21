@@ -26,7 +26,7 @@ IaC security は `tfsec` を新規採用せず、Aqua Security の `Trivy Config
 ```
 Internet Gateway
     ↓
-Public Subnet (ALB) ← インターネット公開
+Public Subnet (ALB) ← CloudFront origin-facing traffic のみ許可
     ↓
 App Subnet (ECS) ← NAT Gateway経由でアウトバウンドのみ
     ↓
@@ -36,25 +36,23 @@ Data Subnet (RDS) ← 完全非公開（Public IP なし）
 **特徴:**
 - DB層は完全非公開（インターネットアクセス不可）
 - ECSはNAT Gateway経由でDockerイメージ取得
-- ALBのみがインターネットからアクセス可能
+- ALB は internet-facing のまま維持するが、CloudFront 経由の API origin 通信だけを通すように制限する
 - Public Subnet は ALB / NAT Gateway 用に維持するが、サブネット内のリソースへ Public IP を自動付与しない
 - NAT Gateway は明示的に割り当てた Elastic IP を使うため、Public IP 自動付与の無効化による影響はない
 
 ### セキュリティグループ
 ```hcl
 # ALB Security Group
+data "aws_ec2_managed_prefix_list" "cloudfront_origin_facing" {
+  name = "com.amazonaws.global.cloudfront.origin-facing"
+}
+
 resource "aws_security_group" "alb" {
   ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port       = 80
+    to_port         = 8080
+    protocol        = "tcp"
+    prefix_list_ids = [data.aws_ec2_managed_prefix_list.cloudfront_origin_facing.id]
   }
 }
 
@@ -78,6 +76,27 @@ resource "aws_security_group" "rds" {
   }
 }
 ```
+
+#### Public ALB 直アクセス制限
+
+CloudFront の API origin は `api.hamilcar-hannibal.click` を参照し、その DNS は Route53 alias で ALB に向いています。
+そのため `aws_lb.main.internal = true` を単純に採用すると、現在の CloudFront custom origin から ALB へ到達できなくなる可能性があります。
+internal ALB 化は CloudFront VPC origins を含む private origin 構成への移行として別途設計します。
+
+Issue #232 では、既存の CloudFront 経由公開を維持しながら ALB への直接アクセスを減らすため、次の二段制限を採用します。
+
+- Security Group は AWS managed prefix list `com.amazonaws.global.cloudfront.origin-facing` からの TCP `80-8080` のみ許可する
+- CloudFront の ALB origin に `X-Hannibal-Origin-Verify` custom header を追加する
+- ALB の 443 / 8080 listener rule は、上記 header の値が一致する場合のみ target group へ forward する
+- header が一致しないリクエストは fallback listener rule で `403 Access denied` を返す
+
+CloudFront managed prefix list の weight は 55 で、default security group rule quota に近い値です。
+80 / 443 / 8080 を個別 rule にすると quota を超える可能性が高いため、ALB listener 範囲として TCP `80-8080` を1本の rule にまとめます。
+未使用ポートは ALB listener が存在しないため application traffic にはなりません。
+
+origin verify header の値は Terraform の `random_password` で生成し、Git には保存しません。
+ただし値は Terraform state に保存されるため、state bucket と state 操作用 IAM のアクセス管理を前提にします。
+ローテーションする場合は `alb_origin_secret_rotation_version` を `v1` から `v2` などへ更新して `terraform apply` します。
 
 ## IAM設計
 
