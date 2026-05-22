@@ -30,6 +30,8 @@
 - Issue 本文に専用の運用区分欄は追加せず、軽運用 / 厳密運用の判定は起票前プランと PR 作成前プランで確認する
 - PR テンプレの `目的 / 変更内容 / 影響範囲` は推奨に留め、厳密運用PRでは `ロールバック` を必須にする
 - PR title と PR 内コミットメッセージは `Commitlint` job で Conventional Commits 形式を検査する
+- `TFLint` と `Gitleaks Secret Scan` は #228 で required status checks に追加した
+- `Trivy Config Scan` は HIGH / CRITICAL finding を review signal として表示するが、#228 時点では blocking gate にしない
 
 ### 軽運用 / 厳密運用
 
@@ -89,6 +91,17 @@ commitlint / Conventional Commits の運用ルール正本は [CONTRIBUTING.md](
 `Commitlint` job は独立した check として追加します。
 これにより、ラベル・Issueリンク・ロールバック欄を見る `PR Policy Check` と、コミット/PR title の形式検査を分離し、失敗時の原因を読み取りやすくします。
 required status check として扱う場合は、workflow 追加後に GitHub の branch protection 設定も同期します。
+
+### PR 品質ゲート required 化方針
+
+#227 で追加した `TFLint` / `Trivy Config Scan` / `Gitleaks Secret Scan` は、初期導入時点では branch protection の required status checks に含めず、観察期間後に #228 で判断しました。
+
+#228 では、#227 マージ後の `PR Check` workflow 実行履歴を確認し、`TFLint` と `Gitleaks Secret Scan` を required status checks に追加しました。
+どちらも観察期間中の実行が安定しており、検出時に PR を止める価値が高いためです。
+
+`Trivy Config Scan` は #228 時点では required status check に追加しません。
+現在の workflow は `exit-code: 0` で、HIGH / CRITICAL finding があっても job を成功させます。
+既存の finding には、旧 CloudFormation 資産、Dockerfile root user、WAF 無効化、KMS / CMK 系の accepted risk 候補が含まれるため、blocking gate にする前に修正対象・accepted risk・ignore 対象を整理します。
 
 ## 未採用案と理由
 
@@ -182,9 +195,9 @@ gate job の役割:
 
 **現在の required status checks（参考）**
 
-`PR Policy Check` / `Backend Lint & Build` / `Frontend Build` / `Terraform Format & Validate`
+`PR Policy Check` / `Commitlint` / `Backend Lint & Build` / `Frontend Build` / `Terraform Format & Validate` / `TFLint` / `Gitleaks Secret Scan`
 
-`Terraform Plan Change Detection` / `Terraform Plan Artifact` はいずれも required に含まれていない。
+`Trivy Config Scan` / `Terraform Plan Change Detection` / `Terraform Plan Artifact` は required に含まれていない。
 
 ## 将来の再検討条件
 
