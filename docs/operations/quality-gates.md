@@ -97,6 +97,33 @@ required status checks への追加は、#228 で判断しました。
 required 化後に運用上の問題が出た場合は、branch protection の required status checks から `TFLint` / `Gitleaks Secret Scan` を外します。
 この docs 更新自体は該当 PR を revert して戻します。
 
+branch protection は Git 管理外の GitHub 設定です。
+そのため、docs の revert だけでは required status checks は戻りません。
+設定変更後は次のコマンドで実設定を確認します。
+
+```bash
+gh api repos/:owner/:repo/branches/main/protection/required_status_checks \
+  --jq '{strict, contexts}'
+```
+
+`TFLint` / `Gitleaks Secret Scan` を required status checks から外す場合は、`contexts` から2つを除いた一覧で branch protection を更新します。
+
+```bash
+jq -n '{
+  strict: false,
+  contexts: [
+    "PR Policy Check",
+    "Backend Lint & Build",
+    "Frontend Build",
+    "Terraform Format & Validate",
+    "Commitlint"
+  ]
+}' \
+  | gh api --method PATCH \
+      repos/:owner/:repo/branches/main/protection/required_status_checks \
+      --input -
+```
+
 ## ローカル検証
 
 ```bash
