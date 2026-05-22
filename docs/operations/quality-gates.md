@@ -10,12 +10,12 @@
 
 ## PR チェック
 
-| Job | ツール | 役割 | 初期導入時の扱い |
+| Job | ツール | 役割 | 2026-05-22 時点の扱い |
 |---|---|---|---|
 | `Terraform Format & Validate` | `terraform fmt` / `terraform validate` | HCL の整形と Terraform 構成の基本整合性を確認 | required status check 対象 |
-| `TFLint` | `tflint` | Terraform / AWS provider 向けの lint。非推奨設定、未使用宣言、provider 固有のミスを検出 | PR で自動実行し、検出時は fail |
-| `Trivy Config Scan` | `trivy config` | Terraform / Dockerfile などの IaC・設定ミスを検出 | PR で自動実行。初期導入時点では review signal として扱い、検出しても fail しない |
-| `Gitleaks Secret Scan` | `gitleaks` | Git 履歴に混入した API key / token / password などの secret を検出 | PR で自動実行し、検出時は fail |
+| `TFLint` | `tflint` | Terraform / AWS provider 向けの lint。非推奨設定、未使用宣言、provider 固有のミスを検出 | required status check 対象。検出時は fail |
+| `Trivy Config Scan` | `trivy config` | Terraform / Dockerfile などの IaC・設定ミスを検出 | PR で自動実行。review signal として扱い、検出しても fail しない |
+| `Gitleaks Secret Scan` | `gitleaks` | Git 履歴に混入した API key / token / password などの secret を検出 | required status check 対象。検出時は fail |
 
 ## ツールの位置づけ
 
@@ -56,10 +56,46 @@ branch protection の required status checks にはすぐ追加しません。
 - 既存 IaC に対する false positive / accepted risk の棚卸しが必要
 - 実行時間と運用安定性を見てから required 化したほうが、日常PRを詰まらせにくい
 
-required status checks への追加は、#228 で判断します。
+required status checks への追加は、#228 で判断しました。
 
-#228 では、#227 マージから約1週間後の **2026年5月21日 JST 目安**で、false positive・実行時間・PR運用への影響を確認し、`TFLint` / `Gitleaks Secret Scan` / `Trivy Config Scan` を required 化するか判断します。
-ただし `Gitleaks` で secret 検出、または `TFLint` で明確な設定ミスが出た場合は、2026年5月21日を待たずに優先判断します。
+## #228 required 化判断
+
+#227 は 2026年5月14日 15:25 JST にマージされました。
+#228 では、観察期間後の 2026年5月22日 JST に、false positive・実行時間・PR運用への影響を確認しました。
+
+### 実行結果
+
+#227 以降の `PR Check` workflow 実行履歴を確認した結果、対象3jobはいずれも安定して完了していました。
+
+| Job | 結果 | 実行時間 | 判断 |
+|---|---:|---:|---|
+| `TFLint` | 54 / 54 success | 平均19秒、最大26秒 | required 化する |
+| `Gitleaks Secret Scan` | 54 / 54 success | 平均23秒、最大27秒 | required 化する |
+| `Trivy Config Scan` | 54 / 54 success | 平均19秒、最大46秒 | required 化しない |
+
+同期間に `PR Check` workflow 全体の失敗はありましたが、失敗した job は `Terraform Plan Artifact` であり、`TFLint` / `Gitleaks Secret Scan` / `Trivy Config Scan` ではありませんでした。
+
+### 判断
+
+`TFLint` は、観察期間中に false positive や実行時間の問題が見られず、Terraform / AWS provider 向けの実務 lint として PR を止める価値が高いため required status check に追加します。
+
+`Gitleaks Secret Scan` は、secret 混入時に PR マージを止めるべき性質が強く、観察期間中も安定していたため required status check に追加します。
+
+`Trivy Config Scan` は、引き続き review signal として扱います。
+現在の workflow は `exit-code: 0` のため、HIGH / CRITICAL finding が存在しても job は成功します。
+そのため `Trivy Config Scan` を required status check に追加しても、現状では finding を理由に PR を止める gate にはなりません。
+
+`Trivy Config Scan` を blocking gate にする場合は、次の整理を先に行います。
+
+- 旧 CloudFormation 資産を scan 対象に残すか、別管理に切り分けるか判断する
+- Dockerfile の root user を修正するか accepted risk として扱うか判断する
+- WAF 無効化、KMS / CMK、CloudTrail / Athena / SNS 暗号化の finding を修正対象・accepted risk・ignore 対象に分類する
+- accepted risk / ignore の理由を docs に残したうえで、`exit-code: 1` への変更を別 Issue で検討する
+
+### ロールバック
+
+required 化後に運用上の問題が出た場合は、branch protection の required status checks から `TFLint` / `Gitleaks Secret Scan` を外します。
+この docs 更新自体は該当 PR を revert して戻します。
 
 ## ローカル検証
 
