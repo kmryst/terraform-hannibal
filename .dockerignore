@@ -14,11 +14,13 @@ test
 # src 
 client/
 cloudformation/
+docs/archive/cloudformation/
 terraform/
 memo/
 current_template.yml
+.github_all_files.txt
+*.bak
 SessionManagerPluginSetup.exe
-ync function bootstrap() {
 # Mac特有のファイル
 .DS_Store
 

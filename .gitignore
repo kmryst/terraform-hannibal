@@ -42,6 +42,9 @@ lerna-debug.log*
 
 # Build analysis
 stats.html
+.github_all_files.txt
+current_template.yml
+*.bak
 
 # Personal TODO management
 TODO.md
@@ -58,7 +61,9 @@ docs/worklogs/
 
 # 環境変数ファイル（ランタイムは ECS タスク定義から注入。.env.example のみ管理）
 .env
-.env.local
+.env.*
+!.env.example
+!**/.env.example
 
 # LLM 向けリポジトリ連結（この配下はローカル専用・Git 管理外）
 # docs/llm-repo-bundle/repository-bundle.txt と exclude-rules.md を手元に置く
