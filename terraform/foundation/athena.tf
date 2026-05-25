@@ -92,7 +92,7 @@ resource "aws_glue_catalog_table" "cloudtrail_logs_partitioned" {
     "projection.day.type"       = "integer"
     "projection.day.range"      = "01,31"
     "projection.day.digits"     = "2"
-    "storage.location.template" = "s3://${aws_s3_bucket.cloudtrail_logs.bucket}/AWSLogs/${var.aws_account_id}/CloudTrail/ap-northeast-1/$${year}/$${month}/$${day}/"
+    "storage.location.template" = "s3://${aws_s3_bucket.cloudtrail_logs.bucket}/AWSLogs/${data.aws_caller_identity.current.account_id}/CloudTrail/ap-northeast-1/$${year}/$${month}/$${day}/"
   }
 
   partition_keys {
@@ -111,7 +111,7 @@ resource "aws_glue_catalog_table" "cloudtrail_logs_partitioned" {
   }
 
   storage_descriptor {
-    location                  = "s3://${aws_s3_bucket.cloudtrail_logs.bucket}/AWSLogs/${var.aws_account_id}/CloudTrail/ap-northeast-1"
+    location                  = "s3://${aws_s3_bucket.cloudtrail_logs.bucket}/AWSLogs/${data.aws_caller_identity.current.account_id}/CloudTrail/ap-northeast-1"
     input_format              = "com.amazon.emr.cloudtrail.CloudTrailInputFormat"
     output_format             = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
     compressed                = false

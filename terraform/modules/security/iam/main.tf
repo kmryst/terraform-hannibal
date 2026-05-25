@@ -2,6 +2,8 @@
 # IAMロール・ポリシーは terraform/foundation/ で管理
 # 永続化済み（手動管理・destroy対象外）
 
+data "aws_caller_identity" "current" {}
+
 # --- Application Resources (アプリケーションリソース) ---
 
 # Note: ECS service role removed - using standard ECS service linking
@@ -12,7 +14,7 @@
 # このロールは、ECSタスクがAWSのサービスを利用する際の認証に使用されます
 resource "aws_iam_role" "ecs_task_execution_role" {
   name                 = "${var.project_name}-ecs-task-execution-role" # プロジェクト名をプレフィックスとして使用
-  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/HannibalECSBoundary"
+  permissions_boundary = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/HannibalECSBoundary"
 
   # このロールをECSタスクが引き受けることができるようにするポリシー
   # assume_role_policyは、どのAWSサービスがこのロールを引き受けることができるかを定義します
@@ -52,9 +54,9 @@ resource "aws_iam_policy" "ecs_task_execution_secrets_manager_read" {
         ]
         Resource = [
           # RDS managed secret (name starts with "rds!")
-          "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:rds!*",
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:rds!*",
           # (Optional) project-prefixed secrets for future extensions
-          "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:${var.project_name}*"
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}*"
         ]
       }
     ]

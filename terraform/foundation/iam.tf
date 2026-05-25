@@ -2,6 +2,8 @@
 # 基盤IAMリソース（terraform/foundation で管理し、dev 環境 destroy から分離して永続保持）
 # AWS Professional設計: Infrastructure as Code + 永続管理
 
+data "aws_caller_identity" "current" {}
+
 # --- 0. GitHub Actions OIDC Provider ---
 # GitHub Actions が発行する短期トークンを AWS が検証するための IdP 登録
 # 管理: terraform/foundation
@@ -26,7 +28,7 @@ resource "aws_iam_role" "hannibal_developer_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::${var.aws_account_id}:user/hannibal"
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/hannibal"
         }
         Condition = {
           StringEquals = {
@@ -44,7 +46,7 @@ resource "aws_iam_role" "hannibal_developer_role" {
 # 管理: terraform/foundation
 resource "aws_iam_role" "hannibal_cicd_role" {
   name                 = "HannibalCICDRole-Dev"
-  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/HannibalCICDBoundary"
+  permissions_boundary = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/HannibalCICDBoundary"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -53,7 +55,7 @@ resource "aws_iam_role" "hannibal_cicd_role" {
         Effect = "Allow"
         Action = "sts:AssumeRoleWithWebIdentity"
         Principal = {
-          Federated = "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
+          Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
         }
         Condition = {
           StringEquals = {
@@ -187,7 +189,7 @@ locals {
         "ecr:PutImage",
         "ecr:UploadLayerPart"
       ]
-      Resource = "arn:aws:ecr:ap-northeast-1:${var.aws_account_id}:repository/nestjs-hannibal-3"
+      Resource = "arn:aws:ecr:ap-northeast-1:${data.aws_caller_identity.current.account_id}:repository/nestjs-hannibal-3"
     },
     {
       Sid    = "ECSExecAndOperationalChange"
@@ -219,9 +221,9 @@ locals {
         "codedeploy:StopDeployment"
       ]
       Resource = [
-        "arn:aws:codedeploy:ap-northeast-1:${var.aws_account_id}:application:nestjs-hannibal-3-*",
-        "arn:aws:codedeploy:ap-northeast-1:${var.aws_account_id}:deploymentgroup:nestjs-hannibal-3-*/nestjs-hannibal-3-*",
-        "arn:aws:codedeploy:ap-northeast-1:${var.aws_account_id}:deploymentconfig:*"
+        "arn:aws:codedeploy:ap-northeast-1:${data.aws_caller_identity.current.account_id}:application:nestjs-hannibal-3-*",
+        "arn:aws:codedeploy:ap-northeast-1:${data.aws_caller_identity.current.account_id}:deploymentgroup:nestjs-hannibal-3-*/nestjs-hannibal-3-*",
+        "arn:aws:codedeploy:ap-northeast-1:${data.aws_caller_identity.current.account_id}:deploymentconfig:*"
       ]
     },
     {
@@ -295,7 +297,7 @@ locals {
       Sid      = "TerraformDevStateLockTableDescribe"
       Effect   = "Allow"
       Action   = "dynamodb:DescribeTable"
-      Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
+      Resource = "arn:aws:dynamodb:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/terraform-state-lock"
     },
     {
       Sid    = "TerraformDevStateLockItems"
@@ -305,7 +307,7 @@ locals {
         "dynamodb:GetItem",
         "dynamodb:PutItem"
       ]
-      Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
+      Resource = "arn:aws:dynamodb:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/terraform-state-lock"
       Condition = {
         StringLike = {
           "dynamodb:LeadingKeys" = "nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate*"
@@ -322,8 +324,8 @@ locals {
         "secretsmanager:ListSecretVersionIds"
       ]
       Resource = [
-        "arn:aws:secretsmanager:ap-northeast-1:${var.aws_account_id}:secret:nestjs-hannibal-3*",
-        "arn:aws:secretsmanager:ap-northeast-1:${var.aws_account_id}:secret:rds!*"
+        "arn:aws:secretsmanager:ap-northeast-1:${data.aws_caller_identity.current.account_id}:secret:nestjs-hannibal-3*",
+        "arn:aws:secretsmanager:ap-northeast-1:${data.aws_caller_identity.current.account_id}:secret:rds!*"
       ]
     },
     {
@@ -333,7 +335,7 @@ locals {
         "kms:Decrypt",
         "kms:DescribeKey"
       ]
-      Resource = "arn:aws:kms:ap-northeast-1:${var.aws_account_id}:key/*"
+      Resource = "arn:aws:kms:ap-northeast-1:${data.aws_caller_identity.current.account_id}:key/*"
       Condition = {
         StringEquals = {
           "kms:ViaService" = "secretsmanager.ap-northeast-1.amazonaws.com"
@@ -344,7 +346,7 @@ locals {
       Sid      = "PassECSTaskExecutionRoleOnly"
       Effect   = "Allow"
       Action   = "iam:PassRole"
-      Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-ecs-task-execution-role"
+      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/nestjs-hannibal-3-ecs-task-execution-role"
       Condition = {
         StringEquals = {
           "iam:PassedToService" = "ecs-tasks.amazonaws.com"
@@ -473,7 +475,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_compute" {
           "ecr:ListImages", "ecr:ListTagsForResource", "ecr:PutImage",
           "ecr:PutLifecyclePolicy", "ecr:TagResource", "ecr:UntagResource", "ecr:UploadLayerPart",
         ]
-        Resource = "arn:aws:ecr:ap-northeast-1:${var.aws_account_id}:repository/nestjs-hannibal-3"
+        Resource = "arn:aws:ecr:ap-northeast-1:${data.aws_caller_identity.current.account_id}:repository/nestjs-hannibal-3"
       },
       {
         Sid      = "ECRAuthToken"
@@ -488,13 +490,13 @@ resource "aws_iam_policy" "hannibal_cicd_policy_compute" {
           "ecs:CreateCluster", "ecs:DeleteCluster", "ecs:DescribeClusters",
           "ecs:ListClusters", "ecs:PutClusterCapacityProviders", "ecs:TagResource", "ecs:UntagResource",
         ]
-        Resource = "arn:aws:ecs:ap-northeast-1:${var.aws_account_id}:cluster/nestjs-hannibal-3-*"
+        Resource = "arn:aws:ecs:ap-northeast-1:${data.aws_caller_identity.current.account_id}:cluster/nestjs-hannibal-3-*"
       },
       {
         Sid      = "ECSService"
         Effect   = "Allow"
         Action   = ["ecs:CreateService", "ecs:DeleteService", "ecs:DescribeServices", "ecs:UpdateService"]
-        Resource = "arn:aws:ecs:ap-northeast-1:${var.aws_account_id}:service/nestjs-hannibal-3-*/*"
+        Resource = "arn:aws:ecs:ap-northeast-1:${data.aws_caller_identity.current.account_id}:service/nestjs-hannibal-3-*/*"
       },
       {
         Sid    = "ECSTaskDefinition"
@@ -587,9 +589,9 @@ resource "aws_iam_policy" "hannibal_cicd_policy_storage" {
           "rds:ModifyDBParameterGroup", "rds:RemoveTagsFromResource", "rds:ResetDBParameterGroup",
         ]
         Resource = [
-          "arn:aws:rds:ap-northeast-1:${var.aws_account_id}:db:nestjs-hannibal-3-*",
-          "arn:aws:rds:ap-northeast-1:${var.aws_account_id}:subgrp:nestjs-hannibal-3-*",
-          "arn:aws:rds:ap-northeast-1:${var.aws_account_id}:pg:nestjs-hannibal-3-*",
+          "arn:aws:rds:ap-northeast-1:${data.aws_caller_identity.current.account_id}:db:nestjs-hannibal-3-*",
+          "arn:aws:rds:ap-northeast-1:${data.aws_caller_identity.current.account_id}:subgrp:nestjs-hannibal-3-*",
+          "arn:aws:rds:ap-northeast-1:${data.aws_caller_identity.current.account_id}:pg:nestjs-hannibal-3-*",
         ]
       },
       {
@@ -602,7 +604,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_storage" {
         Sid      = "DynamoDBTerraformLock"
         Effect   = "Allow"
         Action   = ["dynamodb:DeleteItem", "dynamodb:DescribeTable", "dynamodb:GetItem", "dynamodb:PutItem"]
-        Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
+        Resource = "arn:aws:dynamodb:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/terraform-state-lock"
       },
       {
         Sid    = "SecretsManagerForRDS"
@@ -614,15 +616,15 @@ resource "aws_iam_policy" "hannibal_cicd_policy_storage" {
           "secretsmanager:TagResource", "secretsmanager:UntagResource",
         ]
         Resource = [
-          "arn:aws:secretsmanager:ap-northeast-1:${var.aws_account_id}:secret:nestjs-hannibal-3*",
-          "arn:aws:secretsmanager:ap-northeast-1:${var.aws_account_id}:secret:rds!*",
+          "arn:aws:secretsmanager:ap-northeast-1:${data.aws_caller_identity.current.account_id}:secret:nestjs-hannibal-3*",
+          "arn:aws:secretsmanager:ap-northeast-1:${data.aws_caller_identity.current.account_id}:secret:rds!*",
         ]
       },
       {
         Sid      = "KMSGrantForSecretsAndLogs"
         Effect   = "Allow"
         Action   = ["kms:CreateGrant", "kms:DescribeKey"]
-        Resource = "arn:aws:kms:ap-northeast-1:${var.aws_account_id}:key/*"
+        Resource = "arn:aws:kms:ap-northeast-1:${data.aws_caller_identity.current.account_id}:key/*"
         Condition = {
           StringEquals = {
             "kms:ViaService" = [
@@ -656,10 +658,10 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
           "logs:TagLogGroup", "logs:TagResource", "logs:UntagLogGroup", "logs:UntagResource",
         ]
         Resource = [
-          "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:/ecs/nestjs-hannibal-3-*",
-          "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:/ecs/nestjs-hannibal-3-*:*",
-          "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:/aws/codedeploy/nestjs-hannibal-3-*",
-          "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:/aws/codedeploy/nestjs-hannibal-3-*:*",
+          "arn:aws:logs:ap-northeast-1:${data.aws_caller_identity.current.account_id}:log-group:/ecs/nestjs-hannibal-3-*",
+          "arn:aws:logs:ap-northeast-1:${data.aws_caller_identity.current.account_id}:log-group:/ecs/nestjs-hannibal-3-*:*",
+          "arn:aws:logs:ap-northeast-1:${data.aws_caller_identity.current.account_id}:log-group:/aws/codedeploy/nestjs-hannibal-3-*",
+          "arn:aws:logs:ap-northeast-1:${data.aws_caller_identity.current.account_id}:log-group:/aws/codedeploy/nestjs-hannibal-3-*:*",
         ]
       },
       {
@@ -715,9 +717,9 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
           "codedeploy:TagResource", "codedeploy:UntagResource", "codedeploy:UpdateDeploymentGroup",
         ]
         Resource = [
-          "arn:aws:codedeploy:ap-northeast-1:${var.aws_account_id}:application:nestjs-hannibal-3-*",
-          "arn:aws:codedeploy:ap-northeast-1:${var.aws_account_id}:deploymentgroup:nestjs-hannibal-3-*/nestjs-hannibal-3-*",
-          "arn:aws:codedeploy:ap-northeast-1:${var.aws_account_id}:deploymentconfig:*",
+          "arn:aws:codedeploy:ap-northeast-1:${data.aws_caller_identity.current.account_id}:application:nestjs-hannibal-3-*",
+          "arn:aws:codedeploy:ap-northeast-1:${data.aws_caller_identity.current.account_id}:deploymentgroup:nestjs-hannibal-3-*/nestjs-hannibal-3-*",
+          "arn:aws:codedeploy:ap-northeast-1:${data.aws_caller_identity.current.account_id}:deploymentconfig:*",
         ]
       },
       {
@@ -729,7 +731,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
           "sns:ListTopics", "sns:SetTopicAttributes", "sns:Subscribe",
           "sns:TagResource", "sns:UntagResource", "sns:Unsubscribe",
         ]
-        Resource = "arn:aws:sns:ap-northeast-1:${var.aws_account_id}:nestjs-hannibal-3-*"
+        Resource = "arn:aws:sns:ap-northeast-1:${data.aws_caller_identity.current.account_id}:nestjs-hannibal-3-*"
       },
       {
         Sid    = "CloudTrail"
@@ -739,7 +741,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
           "cloudtrail:DescribeTrails", "cloudtrail:GetTrailStatus", "cloudtrail:ListTags",
           "cloudtrail:PutEventSelectors", "cloudtrail:RemoveTags", "cloudtrail:StartLogging",
         ]
-        Resource = "arn:aws:cloudtrail:ap-northeast-1:${var.aws_account_id}:trail/nestjs-hannibal-3-*"
+        Resource = "arn:aws:cloudtrail:ap-northeast-1:${data.aws_caller_identity.current.account_id}:trail/nestjs-hannibal-3-*"
       },
       {
         Sid    = "AccessAnalyzer"
@@ -767,7 +769,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
           "iam:ListInstanceProfilesForRole", "iam:ListRolePolicies", "iam:PutRolePolicy",
           "iam:PutRolePermissionsBoundary", "iam:TagRole", "iam:UntagRole", "iam:UpdateAssumeRolePolicy",
         ]
-        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-*"
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/nestjs-hannibal-3-*"
       },
       {
         Sid    = "IAMPolicyForProjectPoliciesOnly"
@@ -777,13 +779,13 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
           "iam:DeletePolicyVersion", "iam:GetPolicy", "iam:GetPolicyVersion",
           "iam:ListPolicyVersions", "iam:SetDefaultPolicyVersion", "iam:TagPolicy", "iam:UntagPolicy",
         ]
-        Resource = "arn:aws:iam::${var.aws_account_id}:policy/nestjs-hannibal-3-*"
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/nestjs-hannibal-3-*"
       },
       {
         Sid      = "IAMPassRoleForECSTaskExecutionOnly"
         Effect   = "Allow"
         Action   = ["iam:PassRole"]
-        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-ecs-task-execution-role"
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/nestjs-hannibal-3-ecs-task-execution-role"
         Condition = {
           StringEquals = { "iam:PassedToService" = ["ecs-tasks.amazonaws.com"] }
         }
@@ -792,7 +794,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
         Sid      = "IAMPassRoleForCodeDeployOnly"
         Effect   = "Allow"
         Action   = ["iam:PassRole"]
-        Resource = "arn:aws:iam::${var.aws_account_id}:role/nestjs-hannibal-3-codedeploy-service-role"
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/nestjs-hannibal-3-codedeploy-service-role"
         Condition = {
           StringEquals = { "iam:PassedToService" = ["codedeploy.amazonaws.com"] }
         }
@@ -910,7 +912,7 @@ resource "aws_iam_role" "hannibal_pr_plan_role" {
         Effect = "Allow"
         Action = "sts:AssumeRoleWithWebIdentity"
         Principal = {
-          Federated = "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
+          Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
         }
         Condition = {
           StringEquals = {
@@ -1012,7 +1014,7 @@ resource "aws_iam_role_policy_attachment" "hannibal_pr_plan_policy_attachment" {
 # 用の高権限操作はこのロールへ分離する。
 
 locals {
-  hannibal_foundation_approved_boundary_arn_pattern = "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*Boundary*"
+  hannibal_foundation_approved_boundary_arn_pattern = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/Hannibal*Boundary*"
 
   hannibal_foundation_boundary_statements = [
     {
@@ -1024,13 +1026,13 @@ locals {
         "iam:DeletePolicyVersion",
         "iam:SetDefaultPolicyVersion"
       ]
-      Resource = "arn:aws:iam::${var.aws_account_id}:policy/HannibalFoundationBoundary-Dev"
+      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/HannibalFoundationBoundary-Dev"
     },
     {
       Sid      = "DenyRemovingHannibalRoleBoundaries"
       Effect   = "Deny"
       Action   = "iam:DeleteRolePermissionsBoundary"
-      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/Hannibal*"
     },
     {
       Sid    = "AllowIAMFoundationServices"
@@ -1113,7 +1115,7 @@ locals {
         "dynamodb:GetItem",
         "dynamodb:PutItem"
       ]
-      Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
+      Resource = "arn:aws:dynamodb:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/terraform-state-lock"
     },
     {
       Sid    = "AllowFoundationManagedServices"
@@ -1143,13 +1145,13 @@ locals {
         "iam:DeletePolicyVersion",
         "iam:SetDefaultPolicyVersion"
       ]
-      Resource = "arn:aws:iam::${var.aws_account_id}:policy/HannibalFoundationBoundary-Dev"
+      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/HannibalFoundationBoundary-Dev"
     },
     {
       Sid      = "DenyRemovingHannibalRoleBoundaries"
       Effect   = "Deny"
       Action   = "iam:DeleteRolePermissionsBoundary"
-      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/Hannibal*"
     },
     {
       Sid    = "ReadHannibalIAMResources"
@@ -1159,9 +1161,9 @@ locals {
         "iam:List*"
       ]
       Resource = [
-        "arn:aws:iam::${var.aws_account_id}:role/Hannibal*",
-        "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*",
-        "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
+        "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/Hannibal*",
+        "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/Hannibal*",
+        "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
       ]
     },
     {
@@ -1171,7 +1173,7 @@ locals {
         "iam:CreateRole",
         "iam:PutRolePermissionsBoundary"
       ]
-      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/Hannibal*"
       Condition = {
         ArnLike = {
           "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arn_pattern
@@ -1186,7 +1188,7 @@ locals {
         "iam:UpdateRole",
         "iam:UpdateAssumeRolePolicy"
       ]
-      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/Hannibal*"
       Condition = {
         ArnLike = {
           "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arn_pattern
@@ -1200,7 +1202,7 @@ locals {
         "iam:PutRolePolicy",
         "iam:DeleteRolePolicy"
       ]
-      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/Hannibal*"
       Condition = {
         ArnLike = {
           "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arn_pattern
@@ -1214,11 +1216,11 @@ locals {
         "iam:AttachRolePolicy",
         "iam:DetachRolePolicy"
       ]
-      Resource = "arn:aws:iam::${var.aws_account_id}:role/Hannibal*"
+      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/Hannibal*"
       Condition = {
         ArnLike = {
           "iam:PermissionsBoundary" = local.hannibal_foundation_approved_boundary_arn_pattern
-          "iam:PolicyARN"           = "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*"
+          "iam:PolicyARN"           = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/Hannibal*"
         }
       }
     },
@@ -1232,7 +1234,7 @@ locals {
         "iam:DeletePolicyVersion",
         "iam:SetDefaultPolicyVersion"
       ]
-      Resource = "arn:aws:iam::${var.aws_account_id}:policy/Hannibal*"
+      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/Hannibal*"
     },
     {
       Sid    = "ManageGitHubOIDCProvider"
@@ -1245,13 +1247,13 @@ locals {
         "iam:AddClientIDToOpenIDConnectProvider",
         "iam:RemoveClientIDFromOpenIDConnectProvider"
       ]
-      Resource = "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
+      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
     },
     {
       Sid      = "PassCloudTrailCloudWatchLogsRole"
       Effect   = "Allow"
       Action   = "iam:PassRole"
-      Resource = "arn:aws:iam::${var.aws_account_id}:role/HannibalCloudTrailCloudWatchLogsRole-Dev"
+      Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/HannibalCloudTrailCloudWatchLogsRole-Dev"
       Condition = {
         StringEquals = {
           "iam:PassedToService" = "cloudtrail.amazonaws.com"
@@ -1312,7 +1314,7 @@ locals {
         "dynamodb:PutItem",
         "dynamodb:DeleteItem"
       ]
-      Resource = "arn:aws:dynamodb:ap-northeast-1:${var.aws_account_id}:table/terraform-state-lock"
+      Resource = "arn:aws:dynamodb:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/terraform-state-lock"
     },
     {
       Sid    = "ManageAthenaFoundation"
@@ -1571,7 +1573,7 @@ resource "aws_iam_role" "hannibal_foundation_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::${var.aws_account_id}:user/hannibal"
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/hannibal"
         }
         Condition = {
           StringEquals = {

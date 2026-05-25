@@ -68,7 +68,7 @@ resource "aws_s3_bucket_policy" "cloudtrail_logs" {
         Resource = "arn:aws:s3:::${aws_s3_bucket.cloudtrail_logs.bucket}"
         Condition = {
           StringEquals = {
-            "aws:SourceArn" = "arn:aws:cloudtrail:ap-northeast-1:${var.aws_account_id}:trail/nestjs-hannibal-3"
+            "aws:SourceArn" = "arn:aws:cloudtrail:ap-northeast-1:${data.aws_caller_identity.current.account_id}:trail/nestjs-hannibal-3"
           }
         }
       },
@@ -79,11 +79,11 @@ resource "aws_s3_bucket_policy" "cloudtrail_logs" {
           Service = "cloudtrail.amazonaws.com"
         }
         Action   = "s3:PutObject"
-        Resource = "arn:aws:s3:::${aws_s3_bucket.cloudtrail_logs.bucket}/AWSLogs/${var.aws_account_id}/*"
+        Resource = "arn:aws:s3:::${aws_s3_bucket.cloudtrail_logs.bucket}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"
         Condition = {
           StringEquals = {
             "s3:x-amz-acl"  = "bucket-owner-full-control"
-            "aws:SourceArn" = "arn:aws:cloudtrail:ap-northeast-1:${var.aws_account_id}:trail/nestjs-hannibal-3"
+            "aws:SourceArn" = "arn:aws:cloudtrail:ap-northeast-1:${data.aws_caller_identity.current.account_id}:trail/nestjs-hannibal-3"
           }
         }
       }
