@@ -87,7 +87,7 @@ required status checks への追加は、#228 で判断しました。
 
 `Trivy Config Scan` を blocking gate にする場合は、次の整理を先に行います。
 
-- 旧 CloudFormation 資産を scan 対象に残すか、別管理に切り分けるか判断する
+- 参照頻度の低いアーカイブ資料を scan 対象に残すか、別管理に切り分けるか判断する
 - Dockerfile の root user を修正するか accepted risk として扱うか判断する
 - WAF 無効化、KMS / CMK、CloudTrail / Athena / SNS 暗号化の finding を修正対象・accepted risk・ignore 対象に分類する
 - accepted risk / ignore の理由を docs に残したうえで、`exit-code: 1` への変更を別 Issue で検討する
@@ -148,7 +148,7 @@ trivy config \
 
 - `tflint --recursive --config "$(pwd)/.tflint.hcl"` は通過
 - `gitleaks git --no-banner --redact --config .gitleaks.toml` は no leaks
-- `trivy config` は Dockerfile の root user、CloudFormation 旧資産、WAF 無効化、security group egress などを検出
+- `trivy config` は Dockerfile の root user、WAF 無効化、security group egress などを検出
   - `public subnet` の `map_public_ip_on_launch = true` は Issue #231 / PR #242 で修正済み（2026-05-17）
 
 `trivy config` の検出結果は初期導入時点ではレビュー補助として扱います。
