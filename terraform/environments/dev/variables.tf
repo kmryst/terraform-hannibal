@@ -11,12 +11,6 @@ variable "project_name" {
   default     = "nestjs-hannibal-3"
 }
 
-variable "aws_account_id" {
-  description = "AWS account ID"
-  type        = string
-  default     = "258632448142"
-}
-
 variable "ecr_repository_url" {
   description = "ECR repository URL (manually created)"
   type        = string

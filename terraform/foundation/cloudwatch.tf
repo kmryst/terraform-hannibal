@@ -2,8 +2,8 @@
 
 locals {
   cloudtrail_cloudwatch_log_group_name = "/aws/cloudtrail/nestjs-hannibal-3"
-  cloudtrail_cloudwatch_log_group_arn  = "arn:aws:logs:ap-northeast-1:${var.aws_account_id}:log-group:${local.cloudtrail_cloudwatch_log_group_name}"
-  cloudtrail_cloudwatch_log_stream_arn = "${local.cloudtrail_cloudwatch_log_group_arn}:log-stream:${var.aws_account_id}_CloudTrail_*"
+  cloudtrail_cloudwatch_log_group_arn  = "arn:aws:logs:ap-northeast-1:${data.aws_caller_identity.current.account_id}:log-group:${local.cloudtrail_cloudwatch_log_group_name}"
+  cloudtrail_cloudwatch_log_stream_arn = "${local.cloudtrail_cloudwatch_log_group_arn}:log-stream:${data.aws_caller_identity.current.account_id}_CloudTrail_*"
   cloudtrail_security_metric_namespace = "Hannibal/CloudTrailSecurity"
 
   cloudtrail_security_alerts = {

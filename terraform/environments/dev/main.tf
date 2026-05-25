@@ -18,9 +18,8 @@ module "security_groups" {
 module "iam" {
   source = "../../modules/security/iam"
 
-  project_name   = var.project_name
-  aws_region     = var.aws_region
-  aws_account_id = var.aws_account_id
+  project_name = var.project_name
+  aws_region   = var.aws_region
 }
 
 # --- Reliability + Performance Pillar: VPC ---
