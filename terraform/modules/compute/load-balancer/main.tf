@@ -1,8 +1,3 @@
-# --- ALB (Application Load Balancer) ---
-locals {
-  alb_certificate_arn = "arn:aws:acm:ap-northeast-1:258632448142:certificate/9ab350e8-1748-4e17-aa89-9db7c889b146"
-}
-
 resource "aws_lb" "main" {
   name                       = "${var.project_name}-alb"
   internal                   = false
@@ -38,7 +33,7 @@ resource "aws_lb_listener" "https" {
   port              = "443"
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
-  certificate_arn   = local.alb_certificate_arn
+  certificate_arn   = var.alb_certificate_arn
 
   default_action {
     type = "forward"
@@ -57,7 +52,7 @@ resource "aws_lb_listener" "test" {
   port              = 8080
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
-  certificate_arn   = local.alb_certificate_arn
+  certificate_arn   = var.alb_certificate_arn
 
   default_action {
     type = "forward"

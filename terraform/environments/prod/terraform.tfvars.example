@@ -10,8 +10,11 @@ aws_region   = "ap-northeast-1"
 domain_name    = "prod.hamilcar-hannibal.click"
 hosted_zone_id = "<prod 用 Route53 Hosted Zone ID>"
 
-# ACM 証明書（us-east-1 で発行した prod 用 ARN）
+# ACM 証明書（CloudFront 用。us-east-1 で発行した prod 用 ARN）
 acm_certificate_arn_us_east_1 = "arn:aws:acm:us-east-1:<account-id>:certificate/<cert-id>"
+
+# ACM 証明書（ALB 用。aws_region と同じリージョンで発行した prod 用 ARN）
+alb_certificate_arn = "arn:aws:acm:ap-northeast-1:<account-id>:certificate/<cert-id>"
 
 # CORS
 client_url_for_cors = "https://prod.hamilcar-hannibal.click"

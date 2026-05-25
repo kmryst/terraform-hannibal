@@ -28,7 +28,8 @@
    - `environment = "prod"`
    - `domain_name`（prod ドメインまたはサブドメイン）
    - `hosted_zone_id`
-   - `acm_certificate_arn_us_east_1`（us-east-1 の ACM ARN）
+   - `acm_certificate_arn_us_east_1`（CloudFront 用。us-east-1 の ACM ARN）
+   - `alb_certificate_arn`（ALB 用。`aws_region` と同じリージョンの ACM ARN）
    - `db_instance_class`（prod は `db.t3.small` 以上推奨）
    - `desired_task_count`（prod は `2` 以上推奨）
 
