@@ -34,6 +34,11 @@ variable "acm_certificate_arn_us_east_1" {
   type        = string
 }
 
+variable "cloudfront_oac_id" {
+  description = "ID of the existing CloudFront Origin Access Control for S3."
+  type        = string
+}
+
 variable "alb_origin_verify_header_name" {
   description = "Header name CloudFront adds when forwarding API requests to the ALB origin"
   type        = string

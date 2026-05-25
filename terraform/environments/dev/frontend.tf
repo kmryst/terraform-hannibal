@@ -35,6 +35,7 @@ module "cloudfront" {
   s3_bucket_regional_domain_name = module.s3_frontend.bucket_regional_domain_name
   api_origin_domain_name         = local.api_domain_name
   acm_certificate_arn_us_east_1  = var.acm_certificate_arn_us_east_1
+  cloudfront_oac_id              = var.cloudfront_oac_id
   alb_origin_verify_header_name  = local.alb_origin_verify_header_name
   alb_origin_verify_header_value = random_password.alb_origin_verify_header.result
 }

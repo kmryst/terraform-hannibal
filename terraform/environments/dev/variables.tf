@@ -171,6 +171,12 @@ variable "acm_certificate_arn_us_east_1" {
   default     = "arn:aws:acm:us-east-1:258632448142:certificate/85268053-8bc9-4210-a855-50530d41116d"
 }
 
+variable "cloudfront_oac_id" {
+  description = "ID of the existing CloudFront Origin Access Control for S3. The OAC is managed outside Terraform (manually created)."
+  type        = string
+  default     = "E1EA19Y8SLU52D"
+}
+
 variable "enable_cloudfront" {
   description = "Enable CloudFront distribution (disable for dev to save time)"
   type        = bool
