@@ -64,6 +64,7 @@ module "load_balancer" {
   alb_security_group_id          = module.security_groups.alb_security_group_id
   public_subnet_ids              = module.vpc.public_subnet_ids
   alb_listener_port              = var.alb_listener_port
+  alb_certificate_arn            = var.alb_certificate_arn
   blue_target_group_arn          = module.codedeploy.blue_target_group_arn
   green_target_group_arn         = module.codedeploy.green_target_group_arn
   alb_origin_verify_header_name  = local.alb_origin_verify_header_name

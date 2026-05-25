@@ -53,6 +53,12 @@ variable "alb_listener_port" {
   default     = 80
 }
 
+variable "alb_certificate_arn" {
+  description = "ACM certificate ARN for ALB HTTPS listeners. The certificate must exist in aws_region."
+  type        = string
+  default     = "arn:aws:acm:ap-northeast-1:258632448142:certificate/9ab350e8-1748-4e17-aa89-9db7c889b146"
+}
+
 variable "health_check_path" {
   description = "Path for ALB health check"
   type        = string

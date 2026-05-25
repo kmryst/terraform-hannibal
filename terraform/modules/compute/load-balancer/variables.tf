@@ -19,6 +19,11 @@ variable "alb_listener_port" {
   default     = 80
 }
 
+variable "alb_certificate_arn" {
+  description = "ACM certificate ARN for ALB HTTPS listeners. The certificate must exist in the ALB region."
+  type        = string
+}
+
 variable "blue_target_group_arn" {
   description = "ARN of the blue target group"
   type        = string
