@@ -27,8 +27,8 @@
         "logs:PutRetentionPolicy"
       ],
       "Resource": [
-        "arn:aws:logs:ap-northeast-1:258632448142:log-group:/ecs/nestjs-hannibal-3-*",
-        "arn:aws:logs:ap-northeast-1:258632448142:log-group:/ecs/nestjs-hannibal-3-*:*"
+        "arn:aws:logs:ap-northeast-1:${account_id}:log-group:/ecs/nestjs-hannibal-3-*",
+        "arn:aws:logs:ap-northeast-1:${account_id}:log-group:/ecs/nestjs-hannibal-3-*:*"
       ]
     },
     {
@@ -39,9 +39,9 @@
         "secretsmanager:DescribeSecret"
       ],
       "Resource": [
-        "arn:aws:secretsmanager:ap-northeast-1:258632448142:secret:nestjs-hannibal-3/*",
-        "arn:aws:secretsmanager:ap-northeast-1:258632448142:secret:nestjs-hannibal-3-*",
-        "arn:aws:secretsmanager:ap-northeast-1:258632448142:secret:rds!*"
+        "arn:aws:secretsmanager:ap-northeast-1:${account_id}:secret:nestjs-hannibal-3/*",
+        "arn:aws:secretsmanager:ap-northeast-1:${account_id}:secret:nestjs-hannibal-3-*",
+        "arn:aws:secretsmanager:ap-northeast-1:${account_id}:secret:rds!*"
       ]
     },
     {
@@ -52,7 +52,7 @@
         "kms:DescribeKey",
         "kms:GenerateDataKey"
       ],
-      "Resource": "arn:aws:kms:ap-northeast-1:258632448142:key/*",
+      "Resource": "arn:aws:kms:ap-northeast-1:${account_id}:key/*",
       "Condition": {
         "StringEquals": {
           "kms:ViaService": [
@@ -69,7 +69,7 @@
       "Action": [
         "rds-db:connect"
       ],
-      "Resource": "arn:aws:rds-db:ap-northeast-1:258632448142:dbuser:nestjs-hannibal-3-*/*"
+      "Resource": "arn:aws:rds-db:ap-northeast-1:${account_id}:dbuser:nestjs-hannibal-3-*/*"
     },
     {
       "Sid": "CodeDeployECS",

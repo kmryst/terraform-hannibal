@@ -428,7 +428,7 @@ resource "aws_iam_policy" "hannibal_ecs_boundary" {
   name        = "HannibalECSBoundary"
   description = "Permission Boundary for ECS Task Execution Role - Hannibal Project"
 
-  policy = file("${path.module}/HannibalECSBoundary.json")
+  policy = templatefile("${path.module}/HannibalECSBoundary.json", { account_id = data.aws_caller_identity.current.account_id })
 }
 
 # --- 8. HannibalCICDPolicy-Dev-* (CI/CD最小権限ポリシー・3分割) ---
