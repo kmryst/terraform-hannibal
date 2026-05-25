@@ -9,8 +9,6 @@ permissions:
   contents: read
 
 env:
-  AWS_ACCOUNT_ID: "258632448142"
-  AWS_REGION: "ap-northeast-1"
   TERRAFORM_VERSION: "1.12.1"
   NODE_VERSION: "20"
 
@@ -564,8 +562,8 @@ jobs:
       - name: Configure AWS credentials for PR plan
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalPRPlanRole-Dev
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_PR_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Terraform Init (dev backend)
         working-directory: ./terraform/environments/dev
