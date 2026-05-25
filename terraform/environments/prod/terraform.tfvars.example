@@ -16,11 +16,14 @@ acm_certificate_arn_us_east_1 = "arn:aws:acm:us-east-1:<account-id>:certificate/
 # ACM 証明書（ALB 用。aws_region と同じリージョンで発行した prod 用 ARN）
 alb_certificate_arn = "arn:aws:acm:ap-northeast-1:<account-id>:certificate/<cert-id>"
 
+# CloudFront OAC（S3 向け Origin Access Control の ID。手動作成済みのものを指定）
+cloudfront_oac_id = "<CloudFront OAC ID>"
+
 # CORS
 client_url_for_cors = "https://prod.hamilcar-hannibal.click"
 
 # ECR（dev と同一リポジトリを使う場合はそのまま）
-ecr_repository_url = "258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3"
+ecr_repository_url = "<account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3"
 
 # ECS スケール（prod は 2 以上推奨）
 desired_task_count = 2

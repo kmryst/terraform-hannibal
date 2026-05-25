@@ -3,7 +3,7 @@
 # Origin は、CloudFrontが配信するコンテンツの「取得元」のことです。S3, ALB/ELBなど
 # --- CloudFront Origin Access Control (OAC) ---
 data "aws_cloudfront_origin_access_control" "s3_oac" {
-  id = "E1EA19Y8SLU52D" # 既存のOACのIDを直接指定
+  id = var.cloudfront_oac_id
 }
 
 # --- CloudFront Distribution ---

@@ -43,6 +43,7 @@
 | `hosted_zone_id` | 既存 Zone ID | prod 用 Route53 Zone を用意（または同一 Zone でサブドメイン分離） |
 | `acm_certificate_arn_us_east_1` | dev 用 CloudFront ACM ARN | prod 用 CloudFront 証明書（us-east-1 必須） |
 | `alb_certificate_arn` | dev 用 ALB ACM ARN | prod 用 ALB 証明書（ALB と同じリージョン） |
+| `cloudfront_oac_id` | dev 用 OAC ID | prod 用 OAC を手動作成して指定 |
 | `client_url_for_cors` | `"https://hamilcar-hannibal.click"` | prod ドメインに変更 |
 | `db_instance_class` | `db.t3.micro` | prod は `db.t3.small` 以上推奨 |
 | `desired_task_count` | `1` | prod は `2` 以上推奨（Multi-AZ と合わせて） |
