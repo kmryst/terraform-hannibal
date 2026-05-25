@@ -22,13 +22,13 @@ blueGreen:
   termination:
     waitTimeInMinutes: 5
   prodTrafficRoute:
-    listenerArn: arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:listener/app/nestjs-hannibal-3-alb/80
+    listenerArn: arn:aws:elasticloadbalancing:ap-northeast-1:<account-id>:listener/app/nestjs-hannibal-3-alb/80
     targetGroupArns:
-      - arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:targetgroup/nestjs-hannibal-3-blue-tg/abc123
+      - arn:aws:elasticloadbalancing:ap-northeast-1:<account-id>:targetgroup/nestjs-hannibal-3-blue-tg/abc123
   testTrafficRoute:
-    listenerArn: arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:listener/app/nestjs-hannibal-3-alb/8080
+    listenerArn: arn:aws:elasticloadbalancing:ap-northeast-1:<account-id>:listener/app/nestjs-hannibal-3-alb/8080
     targetGroupArns:
-      - arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:targetgroup/nestjs-hannibal-3-green-tg/def456
+      - arn:aws:elasticloadbalancing:ap-northeast-1:<account-id>:targetgroup/nestjs-hannibal-3-green-tg/def456
 
 # デプロイフェーズごとのコマンド
 phases:
@@ -49,7 +49,7 @@ phases:
 # IAM 権限定義（最小限）
 iam:
   assumeRole:
-    RoleArn: arn:aws:iam::258632448142:role/HannibalCICDRole-Dev
+    RoleArn: arn:aws:iam::<account-id>:role/HannibalCICDRole-Dev
   policies:
     - Effect: Allow
       Action:
@@ -67,8 +67,8 @@ iam:
         - ecs:UpdateServicePrimaryTaskSet
         - ecs:DeleteTaskSet
       Resource:
-        - arn:aws:ecs:ap-northeast-1:258632448142:service/nestjs-hannibal-3-cluster/nestjs-hannibal-3-api-service
-        - arn:aws:ecs:ap-northeast-1:258632448142:task-definition/nestjs-hannibal-3-api-task*
+        - arn:aws:ecs:ap-northeast-1:<account-id>:service/nestjs-hannibal-3-cluster/nestjs-hannibal-3-api-service
+        - arn:aws:ecs:ap-northeast-1:<account-id>:task-definition/nestjs-hannibal-3-api-task*
     - Effect: Allow
       Action:
         - elasticloadbalancing:ModifyListener
@@ -80,7 +80,7 @@ iam:
     - Effect: Allow
       Action:
         - iam:PassRole
-      Resource: arn:aws:iam::258632448142:role/HannibalCICDRole-Dev
+      Resource: arn:aws:iam::<account-id>:role/HannibalCICDRole-Dev
     - Effect: Allow
       Action:
         - cloudwatch:DescribeAlarms
@@ -88,7 +88,7 @@ iam:
     - Effect: Allow
       Action:
         - sns:Publish
-      Resource: arn:aws:sns:ap-northeast-1:258632448142:nestjs-hannibal-3-alerts
+      Resource: arn:aws:sns:ap-northeast-1:<account-id>:nestjs-hannibal-3-alerts
 
 # Terraform 実装設定
 terraform:
@@ -98,11 +98,11 @@ terraform:
       # 本番トラフィック用リスナー（ポート80）
       prod_traffic_route:
         listener_arns:
-          - arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:listener/app/nestjs-hannibal-3-alb/80
+          - arn:aws:elasticloadbalancing:ap-northeast-1:<account-id>:listener/app/nestjs-hannibal-3-alb/80
       # テストトラフィック用リスナー（ポート8080）
       test_traffic_route:
         listener_arns:
-          - arn:aws:elasticloadbalancing:ap-northeast-1:258632448142:listener/app/nestjs-hannibal-3-alb/8080
+          - arn:aws:elasticloadbalancing:ap-northeast-1:<account-id>:listener/app/nestjs-hannibal-3-alb/8080
       # Blue/Green ターゲットグループ
       target_group:
         - name: nestjs-hannibal-3-blue-tg
@@ -150,6 +150,6 @@ monitoring:
 # 通知設定
 notifications:
   onSuccess:
-    - sns: arn:aws:sns:ap-northeast-1:258632448142:nestjs-hannibal-3-alerts
+    - sns: arn:aws:sns:ap-northeast-1:<account-id>:nestjs-hannibal-3-alerts
   onFailure:
-    - sns: arn:aws:sns:ap-northeast-1:258632448142:nestjs-hannibal-3-alerts
+    - sns: arn:aws:sns:ap-northeast-1:<account-id>:nestjs-hannibal-3-alerts
