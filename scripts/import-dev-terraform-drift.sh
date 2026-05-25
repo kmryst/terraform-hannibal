@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../terraform/environments/dev"
 
-ACCOUNT_ID="${AWS_ACCOUNT_ID:-258632448142}"
+ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 PROJECT="nestjs-hannibal-3"
 ZONE_ID="Z06663901XRPJ5V5J5GIW"
 DOMAIN="hamilcar-hannibal.click"
