@@ -1,9 +1,7 @@
 name: Destroy AWS Infrastructure (Reliable)
 
 env:
-  AWS_ACCOUNT_ID: "258632448142"
   PROJECT_NAME: "nestjs-hannibal-3"
-  AWS_REGION: "ap-northeast-1"
   TERRAFORM_VERSION: "1.12.1"
 
 on:
@@ -26,8 +24,8 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/HannibalCICDRole-Dev
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_CICD_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Install prerequisites
         run: |
