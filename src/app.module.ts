@@ -61,5 +61,3 @@ function buildDatabaseUrlFromParts(): string | undefined {
   ],
 })
 export class AppModule {}
-
-

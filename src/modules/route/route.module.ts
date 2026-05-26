@@ -1,4 +1,3 @@
-
 // C:\code\javascript\nestjs-hannibal-1\src\modules\route\route.module.ts
 
 import { Module } from '@nestjs/common';

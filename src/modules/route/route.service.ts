@@ -1,7 +1,6 @@
-
 /**
  * ハンニバルルートサービス
- * 
+ *
  * ルートデータのビジネスロジックを担当するサービスクラス。
  * PostgreSQL データベースとのデータ操作、ビジネスルールの適用、
  * レガシーデータとの互換性維持を行う。
@@ -97,7 +96,7 @@ export class RouteService {
         geometry: {
           ...feature.geometry,
           coordinates:
-            feature.geometry.type === "LineString"
+            feature.geometry.type === 'LineString'
               ? feature.geometry.coordinates
               : [feature.geometry.coordinates],
         },

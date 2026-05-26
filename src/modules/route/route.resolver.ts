@@ -1,6 +1,6 @@
 /**
  * ハンニバルルート GraphQL リゾルバー
- * 
+ *
  * GraphQL API のエントリーポイントとして、フロントエンドからの
  * クエリ・ミューテーションリクエストを処理し、ビジネスロジックを
  * RouteService に委譲する役割を担う。
@@ -30,7 +30,9 @@ export class RouteResolver {
    * ID を指定して特定のルートデータを取得
    */
   @Query(() => Route, { nullable: true }) // GraphQL: Route 型、null 許可
-  async route(@Args('id', { type: () => Int }) id: number): Promise<Route | null> {
+  async route(
+    @Args('id', { type: () => Int }) id: number,
+  ): Promise<Route | null> {
     return this.routeService.findOne(id);
   }
 
@@ -59,7 +61,7 @@ export class RouteResolver {
   }
 
   // --- レガシー API（後方互換性のため保持） ---
-  
+
   /**
    * ハンニバルルート取得（レガシー）
    * @deprecated 新しい routes() クエリを使用してください
