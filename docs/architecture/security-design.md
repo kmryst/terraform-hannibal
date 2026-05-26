@@ -119,6 +119,31 @@ origin verify header の値は Terraform の `random_password` で生成し、Gi
 
 ## アプリケーションセキュリティ
 
+### コンテナセキュリティ（実装済み）
+
+**非 root ユーザー実行**
+
+`node:20-alpine` に組み込みの `node` ユーザーで ECS タスクを実行する。コンテナの脆弱性を突かれた場合のホスト影響を最小化する。
+
+```dockerfile
+RUN chmod 644 /opt/rds-ca-2019-root.pem
+USER node
+CMD ["node", "dist/main.js"]
+```
+
+### GraphQL セキュリティ（実装済み）
+
+**本番環境での playground / introspection 無効化**
+
+`NODE_ENV=production` のとき、GraphQL playground と introspection を無効化する。スキーマ情報の外部公開を防ぎ、攻撃面を縮小する。
+
+```typescript
+GraphQLModule.forRoot<ApolloDriverConfig>({
+  playground: process.env.NODE_ENV !== 'production',
+  introspection: process.env.NODE_ENV !== 'production',
+})
+```
+
 ### 認証・認可
 ```typescript
 // JWT認証 (将来実装)
@@ -315,6 +340,6 @@ on:
 **総合評価**: DevSecOps実践レベル（認証機能は将来実装）
 
 ---
-**最終更新**: 2025年10月12日  
+**最終更新**: 2026年5月26日  
 **セキュリティレベル**: ポートフォリオ向けDevSecOps実装  
 **実装範囲**: ネットワーク層・インフラ層・CI/CD層のセキュリティ対策完了
