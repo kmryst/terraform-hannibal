@@ -1,4 +1,3 @@
-
 // C:\code\javascript\nestjs-hannibal-3\src\app.controller.ts
 
 import { Controller, Get } from '@nestjs/common';
