@@ -14,7 +14,6 @@ variable "project_name" {
 variable "ecr_repository_url" {
   description = "ECR repository URL (manually created)"
   type        = string
-  default     = "258632448142.dkr.ecr.ap-northeast-1.amazonaws.com/nestjs-hannibal-3"
 }
 
 variable "container_port" {
@@ -50,7 +49,6 @@ variable "alb_listener_port" {
 variable "alb_certificate_arn" {
   description = "ACM certificate ARN for ALB HTTPS listeners. The certificate must exist in aws_region."
   type        = string
-  default     = "arn:aws:acm:ap-northeast-1:258632448142:certificate/9ab350e8-1748-4e17-aa89-9db7c889b146"
 }
 
 variable "health_check_path" {
@@ -156,13 +154,11 @@ variable "domain_name" {
 variable "hosted_zone_id" {
   description = "Route 53 Hosted Zone ID for the domain_name"
   type        = string
-  default     = "Z06663901XRPJ5V5J5GIW"
 }
 
 variable "acm_certificate_arn_us_east_1" {
   description = "ACM Certificate ARN for CloudFront (must be in us-east-1)"
   type        = string
-  default     = "arn:aws:acm:us-east-1:258632448142:certificate/85268053-8bc9-4210-a855-50530d41116d"
 }
 
 variable "cloudfront_oac_id" {
