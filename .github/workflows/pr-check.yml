@@ -313,6 +313,22 @@ jobs:
         working-directory: ./client
         run: npm run build
 
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t hannibal-test .
+
+      - name: Verify non-root user
+        run: |
+          user=$(docker run --rm hannibal-test whoami)
+          echo "Container running as: $user"
+          [ "$user" = "node" ] || { echo "::error::Expected 'node' user, got '$user'"; exit 1; }
+
   terraform-check:
     name: Terraform Format & Validate
     runs-on: ubuntu-latest
