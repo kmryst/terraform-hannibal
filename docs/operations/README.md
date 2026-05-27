@@ -7,6 +7,8 @@
 **関連ドキュメント:**
 - [iam-management.md](./iam-management.md) - IAM権限最適化（Athena分析）
 - [monitoring.md](./monitoring.md) - CloudWatch監視・CloudTrail分析
+- [slo.md](./slo.md) - SLO（レスポンスタイム・エラー率・稼働率）
+- [runbook.md](./runbook.md) - CloudWatch Alarm / ECS / デプロイ失敗時の対応手順
 - [quality-gates.md](./quality-gates.md) - PR品質ゲート（Terraform lint / IaC security / secret scan）
 - [pr-terraform-plan-role-design.md](./pr-terraform-plan-role-design.md) - PR terraform plan用AWS Role/OIDC権限設計補足
 - [docs/deployment/codedeploy-blue-green.md](../deployment/codedeploy-blue-green.md) - デプロイ詳細
