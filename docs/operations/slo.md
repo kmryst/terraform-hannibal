@@ -34,8 +34,8 @@
 | ---------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | レスポンスタイム | 起動期間中の 5分平均 `TargetResponseTime` を 1秒未満に保つ。通常時の運用目安は 200ms 未満                    | `nestjs-hannibal-3-alb-response-time-high` が 1秒超過を 2期間連続で検知する                                          |
 | エラー率         | 起動期間中の target 5xx rate を 0.1% 未満に保つ。低トラフィック時は 5分あたり 5件以上の 5xx を調査対象にする | `nestjs-hannibal-3-alb-5xx-error-rate-high` が 5分合計 5件超過を検知する                                             |
-| 稼働率           | 起動期間中の月次可用性 99.5% 以上を目標にする                                                                | ECS task 停止、ALB 5xx、CodeDeploy 失敗を利用者影響のシグナルとして扱う                                              |
-| Canary 安全性    | canary 中は 1分単位で 5xx と応答時間を監視し、悪化時は CodeDeploy の auto rollback を優先する                | `nestjs-hannibal-3-canary-error-rate` と `nestjs-hannibal-3-canary-response-time` を CodeDeploy alarm として利用する |
+| 稼働率           | 起動期間中の月次可用性 99.5% 以上を目標にする                                                                | `nestjs-hannibal-3-ecs-task-stopped` または `nestjs-hannibal-3-alb-5xx-error-rate-high` が ALARM 状態だった時間の合計を月次停止時間として扱う。本環境は destroy/deploy 運用のため外形監視（CloudWatch Synthetics 等）は導入していない。本番相当環境では Synthetics Canary による black-box 監視を追加する |
+| Canary 安全性    | canary 中は 1分単位で 5xx と応答時間を監視し、悪化時は CodeDeploy の auto rollback を優先する                | `nestjs-hannibal-3-canary-error-rate` と `nestjs-hannibal-3-canary-response-time` を CodeDeploy alarm として利用する。canary 用応答時間アラームの閾値は 2秒（定常 SLO の 1秒より緩め）。デプロイ時のコンテナ起動・接続プール初期化による一時的な遅延と実際の品質劣化を切り分けるため意図的に乖離させている |
 
 ## 計測方法
 

@@ -126,6 +126,21 @@ aws ecs describe-tasks \
 4. canary 中の 5xx であれば auto rollback を待つ。止まらない場合は手動停止する。
 
 ```bash
+for tg in nestjs-hannibal-3-blue-tg nestjs-hannibal-3-green-tg; do
+  TG_ARN=$(aws elbv2 describe-target-groups \
+    --names "$tg" \
+    --query 'TargetGroups[0].TargetGroupArn' \
+    --output text \
+    --region ap-northeast-1 2>/dev/null) || continue
+  echo "=== $tg ==="
+  aws elbv2 describe-target-health \
+    --target-group-arn "$TG_ARN" \
+    --query 'TargetHealthDescriptions[*].{Target:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason}' \
+    --region ap-northeast-1
+done
+```
+
+```bash
 aws deploy list-deployments \
   --application-name nestjs-hannibal-3-app \
   --deployment-group-name nestjs-hannibal-3-dg \
