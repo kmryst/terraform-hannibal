@@ -4,9 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    
-    "test": "echo \"No frontend tests to run.\" && exit 0",
-    
+    "test": "vitest run",
+    "test:watch": "vitest",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview"
@@ -22,11 +21,15 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/mapbox-gl": "^3.4.1",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^26.1.0",
     "typescript": "^5.8.2",
-    "vite": "^6.2.2"
+    "vite": "^6.2.2",
+    "vitest": "^3.2.4"
   }
 }
