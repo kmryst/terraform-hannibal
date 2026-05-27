@@ -134,7 +134,9 @@ resource "aws_iam_role_policy" "codedeploy_enhanced_policy" {
 
 ## 🚀 デプロイメント手順
 
-### 1. GitHub Actions（自動デプロイ）
+### 1. GitHub Actions（手動デプロイ）
+
+`deploy.yml` は `workflow_dispatch` で `main` から手動実行する。backend/frontend の build・test は PR gate（`pr-check.yml`）に一本化し、deploy workflow では再実行しない。
 
 #### Canaryデプロイ
 ```yaml

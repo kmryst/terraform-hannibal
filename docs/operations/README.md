@@ -32,6 +32,11 @@
 - **Athena分析**: 月次で権限使用状況レビュー
 - **GitHub Actions Log**: デプロイ履歴の完全記録
 
+### 4. PR gate と deploy workflow の分離
+- **品質保証**: backend/frontend の build・test は PR gate（`pr-check.yml`）で確認する
+- **デプロイ**: `deploy.yml` は PR gate 通過済みの `main` を手動実行する前提で、test job は持たない
+- **責務分離**: deploy workflow は Terraform apply、frontend build、S3 sync、ECR push、CodeDeploy に集中する
+
 ---
 
 ## � 日常運用タスク
@@ -43,7 +48,6 @@
 Workflow: deploy.yml
 Inputs:
   - deployment_mode: provisioning
-  - environment: dev
 ```
 
 **所要時間**: 約15分  
@@ -69,7 +73,6 @@ terraform destroy -target=module.storage
 Workflow: deploy.yml
 Inputs:
   - deployment_mode: bluegreen
-  - environment: dev
 ```
 
 **所要時間**: 約5分  
@@ -80,7 +83,6 @@ Inputs:
 Workflow: deploy.yml
 Inputs:
   - deployment_mode: canary
-  - environment: dev
 ```
 
 **所要時間**: 約7分  

@@ -191,10 +191,11 @@ GitHub Actions の deploy workflow を手動実行します。
 Workflow: deploy.yml
 Inputs:
   - deployment_mode: provisioning
-  - environment: dev
 ```
 
 **所要時間**: 約15分
+
+`deploy.yml` は PR gate 通過済みの `main` から手動実行する前提です。backend/frontend の build・test は `pr-check.yml` に委譲し、deploy workflow では再実行しません。
 
 **デプロイフロー:**
 ```

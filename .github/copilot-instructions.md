@@ -121,7 +121,7 @@ nestjs-hannibal-3/
 ├── .github/workflows/
 │   ├── deploy.yml         # 3モード対応 (provisioning/bluegreen/canary)
 │   ├── security-scan.yml  # 手動 CodeQL/Trivy scan
-│   └── pr-check.yml       # Lint + Build + quality gates
+│   └── pr-check.yml       # PR policy + Build/Test + quality gates
 ├── appspec.yml           # CodeDeploy設定
 └── Dockerfile            # Multi-stage build (node:20-alpine)
 ```
@@ -284,7 +284,7 @@ deployment_mode: canary
 ```
 GitHub Actions (deploy.yml)
   ↓
-1. Test実行 (npm test)
+1. PR gate通過済みの main を手動実行
   ↓
 2. AWS認証 (Assume HannibalCICDRole)
   ↓
@@ -346,13 +346,16 @@ hannibal-cicd (IAM User)
 ### PR品質ゲート / セキュリティスキャン
 
 **GitHub Actions**: `pr-check.yml`
+- **Backend/Frontend**: lint、build、unit test
+- **Docker**: image build と non-root user 確認
+- **Commitlint**: PR title と commit message の形式確認
 - **TFLint**: Terraform / AWS provider lint
 - **Trivy Config**: Terraform / Dockerfile の設定ミス検出（IaC）
 - **Gitleaks**: Git履歴のシークレット漏洩検出
 
 **実行タイミング:**
 - PR作成・更新時
-- 初期導入時点では branch protection の required status checks には追加しない
+- deploy workflow では backend/frontend test を再実行せず、品質保証は PR gate に一本化する
 
 **手動セキュリティスキャン**: `security-scan.yml`
 - **CodeQL**: ソースコード脆弱性（SAST）

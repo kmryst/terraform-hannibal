@@ -116,16 +116,14 @@ CREATE INDEX idx_routes_geojson ON routes USING GIN (geojson);
 ## 🚀 CI/CDパイプライン詳細
 
 ### GitHub Actions ワークフロー
-1. **テスト実行**: Jest + E2Eテスト
-2. **Docker Build**: マルチステージビルド
-3. **セキュリティスキャン**: 脆弱性チェック
-4. **ECRプッシュ**: コンテナイメージ保存
-5. **ECS Deploy**: Blue/Green自動デプロイ
+1. **PR gate (`pr-check.yml`)**: backend/frontend の build・unit test、Docker build、Terraform check、secret scan を merge 前に確認
+2. **Deploy (`deploy.yml`)**: PR gate 通過済みの `main` を手動実行し、Terraform apply、frontend build、ECR push、CodeDeploy を実行
+3. **Security scan (`security-scan.yml`)**: CodeQL、Trivy dependency/container scan を手動実行
 
 ### デプロイメント戦略
-- **開発環境**: Rolling Update（コスト最適化）
-- **本番環境**: Blue/Green Deployment（無停止）
-- **ロールバック**: 自動ヘルスチェック失敗時
+- **初期構築**: `provisioning`
+- **通常デプロイ**: `bluegreen` または `canary`
+- **ロールバック**: CodeDeploy のヘルスチェック失敗時に自動 rollback
 
 ## 📊 メトリクス・監視
 

@@ -199,6 +199,13 @@ gate job の役割:
 
 `Trivy Config Scan` / `Terraform Plan Change Detection` / `Terraform Plan Artifact` は required に含まれていない。
 
+### deploy workflow と PR gate の責務分離
+
+`deploy.yml` は `workflow_dispatch` で `main` から手動実行する CD workflow として扱います。
+backend/frontend の build・test は PR gate（`pr-check.yml`）に集約し、deploy workflow では再実行しません。
+
+この分離により、品質保証は merge 前の PR に寄せ、merge 後の deploy は Terraform apply、frontend build、S3 sync、ECR push、CodeDeploy へ集中させます。
+
 ## 将来の再検討条件
 
 ### approval 再検討条件
