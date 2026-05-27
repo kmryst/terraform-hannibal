@@ -5,17 +5,31 @@
 ## 目的
 
 - Terraform / Dockerfile / Git 履歴を PR 時に自動確認する
+- backend/frontend の build・test を deploy workflow ではなく PR gate に集約する
 - Terraform 公式チェックだけでは見つけにくい provider 固有のミス、IaC セキュリティ設定、secret 混入を早期に検出する
 - DevOps ポートフォリオとして、単に CI を並べるのではなく、目的別に品質ゲートを設計していることを示す
 
 ## PR チェック
 
-| Job | ツール | 役割 | 2026-05-22 時点の扱い |
+| Job | ツール | 役割 | 2026-05-27 時点の扱い |
 |---|---|---|---|
+| `PR Policy Check` | `gh` / `jq` / shell | Issue link、必須ラベル、厳密運用時の rollback 欄を確認 | required status check 対象 |
+| `Commitlint` | `commitlint` | PR title と PR 内コミットメッセージを Conventional Commits 形式で確認 | required status check 対象 |
+| `Backend Lint & Build` | ESLint / Nest build | backend の lint と build を確認 | required status check 対象 |
+| `Backend Test` | Jest | backend unit test を確認 | PR で自動実行 |
+| `Frontend Build` | TypeScript / Vite build | frontend の型チェックと build を確認 | required status check 対象 |
+| `Frontend Test` | Vitest | frontend unit test を確認 | PR で自動実行 |
+| `Docker Build` | Docker | backend image build と non-root user を確認 | PR で自動実行 |
 | `Terraform Format & Validate` | `terraform fmt` / `terraform validate` | HCL の整形と Terraform 構成の基本整合性を確認 | required status check 対象 |
 | `TFLint` | `tflint` | Terraform / AWS provider 向けの lint。非推奨設定、未使用宣言、provider 固有のミスを検出 | required status check 対象。検出時は fail |
 | `Trivy Config Scan` | `trivy config` | Terraform / Dockerfile などの IaC・設定ミスを検出 | PR で自動実行。review signal として扱い、検出しても fail しない |
 | `Gitleaks Secret Scan` | `gitleaks` | Git 履歴に混入した API key / token / password などの secret を検出 | required status check 対象。検出時は fail |
+
+## deploy workflow との役割分担
+
+`deploy.yml` は `workflow_dispatch` による `main` からの手動デプロイに限定する。backend/frontend の build・test は PR gate（`pr-check.yml`）に集約し、deploy workflow では再実行しない。
+
+これにより、merge 前の品質確認は PR に寄せ、merge 後の deploy は Terraform apply、frontend build、S3 sync、ECR push、CodeDeploy に集中させる。
 
 ## ツールの位置づけ
 
