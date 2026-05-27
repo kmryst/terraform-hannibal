@@ -29,10 +29,12 @@ RUN apk add --no-cache wget && \
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# distディレクトリとnode_modulesをコピー
+# コンパイル済み JS
 COPY --from=builder /usr/src/app/dist ./dist
-COPY --from=builder /usr/src/app/src ./src
-COPY --from=builder /usr/src/app/node_modules ./node_modules
+
+# Apollo Server schema-first: typePaths が ./**/*.graphql をランタイムに読む
+# definitions.path が src/graphql/graphql.schema.ts に書き出すためディレクトリも必要
+COPY --from=builder /usr/src/app/src/graphql/schema ./src/graphql/schema
 
 ENV NODE_ENV=production
 ENV PORT=3000
