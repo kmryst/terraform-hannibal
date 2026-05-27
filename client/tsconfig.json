@@ -16,9 +16,8 @@
       "noEmit": true,
       "jsx": "react-jsx",
       "moduleDetection": "force", // 追加
-      "types": ["vite/client"]    // 追加
+      "types": ["vite/client", "vitest", "@testing-library/jest-dom"]    // 追加
     },
     "include": ["src"],
     "references": [{ "path": "./tsconfig.node.json" }]
   }
-  
