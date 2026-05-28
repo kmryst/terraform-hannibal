@@ -25,6 +25,22 @@
 | `Trivy Config Scan` | `trivy config` | Terraform / Dockerfile などの IaC・設定ミスを検出 | PR で自動実行。review signal として扱い、検出しても fail しない |
 | `Gitleaks Secret Scan` | `gitleaks` | Git 履歴に混入した API key / token / password などの secret を検出 | required status check 対象。検出時は fail |
 
+## 定期 Security Scan
+
+`security-scan.yml` は `workflow_dispatch` と週次 `schedule` で実行し、CodeQL と Trivy の結果を GitHub Security に残します。
+PR ごとの早期検知は `pr-check.yml` に寄せ、Docker build や CodeQL 解析を含む重めの scan は定期監査として分けます。
+
+| 観点 | `pr-check.yml` | `security-scan.yml` |
+|---|---|---|
+| 主目的 | PR の merge 前品質ゲート | 定期/手動のセキュリティ監査 |
+| 実行タイミング | `pull_request` to `main` | 毎週月曜 00:15 UTC（09:15 JST）と手動実行 |
+| セキュリティ範囲 | Secret 混入、IaC/Dockerfile 設定ミス、Terraform lint | 依存関係脆弱性、コンテナ脆弱性、CodeQL SAST |
+| マージ可否への影響 | required status check を含み、PR を止める | 原則として PR merge gate にはしない |
+| 結果の使い方 | PR 上の修正判断と Job Summary | GitHub Security / Code scanning alerts の定期確認 |
+
+schedule は `15 0 * * 1` とし、毎時0分付近の GitHub Actions 混雑を避けるため15分にずらします。
+GitHub Actions の schedule は UTC を基準にし、毎時0分付近では遅延や queued job の drop が起こる可能性があるためです（[GitHub Docs](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)）。
+
 ## deploy workflow との役割分担
 
 `deploy.yml` は `workflow_dispatch` による `main` からの手動デプロイに限定する。backend/frontend の build・test は PR gate（`pr-check.yml`）に集約し、deploy workflow では再実行しない。

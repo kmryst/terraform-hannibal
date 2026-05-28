@@ -135,7 +135,7 @@ type Query {
 
 ### セキュリティ（実装済み）
 - **PR品質ゲート**: TFLint (Terraform lint) / Trivy Config (IaC security) / Gitleaks (Secrets)
-- **手動セキュリティスキャン**: CodeQL (SAST) / Trivy (SCA・コンテナ)
+- **週次/手動セキュリティスキャン**: CodeQL (SAST) / Trivy (SCA・コンテナ)
 - **GitHub Security統合**: SARIF対応スキャン結果を一元管理
 
 ### 監視・ログ（実装済み）
