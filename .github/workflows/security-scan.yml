@@ -4,11 +4,12 @@
 name: Security Scan
 on:
   workflow_dispatch:
-    # 手動実行のみ許可（PRやスケジュールでは実行されない）
+  schedule:
+    # 毎週月曜 00:15 UTC / 09:15 JST。
+    # 毎時0分付近の GitHub Actions 混雑を避けるため15分にずらす。
+    - cron: "15 0 * * 1"
   # pull_request:
   #   branches: [main]
-  # schedule:
-  #   - cron: "0 0 * * 1"
 
 permissions:
   contents: read
@@ -80,6 +81,8 @@ jobs:
           languages: javascript-typescript
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
+      - name: Analyze CodeQL
+        uses: github/codeql-action/analyze@v3
   summary:
     name: Security Scan Summary
     runs-on: ubuntu-latest

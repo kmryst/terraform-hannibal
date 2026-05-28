@@ -361,6 +361,7 @@ gh pr list --label dependencies
 
 **GitHub Security タブ:**
 - CodeQL / Trivy 依存関係・コンテナスキャンの結果を統合表示
+- `security-scan.yml` は毎週月曜 00:15 UTC（09:15 JST）と手動実行で確認
 - Critical/High の脆弱性は即座対応
 
 **PR品質ゲート:**
@@ -376,6 +377,7 @@ gh pr list --label dependencies
 |------|--------|---------|
 | **日次** | CloudWatch Alarm確認 | 5分 |
 | **週次** | Dependabot PR マージ | 15分 |
+| **週次** | Security Scan 結果確認 | 10分 |
 | **月次** | IAM権限レビュー (Athena) | 30分 |
 | **月次** | コスト分析 (Cost Explorer) | 15分 |
 | **四半期** | CloudTrail ログ分析 | 1時間 |

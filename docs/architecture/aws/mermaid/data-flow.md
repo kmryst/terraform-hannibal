@@ -118,7 +118,7 @@ CREATE INDEX idx_routes_geojson ON routes USING GIN (geojson);
 ### GitHub Actions ワークフロー
 1. **PR gate (`pr-check.yml`)**: backend/frontend の build・unit test、Docker build、Terraform check、secret scan を merge 前に確認
 2. **Deploy (`deploy.yml`)**: PR gate 通過済みの `main` を手動実行し、Terraform apply、frontend build、ECR push、CodeDeploy を実行
-3. **Security scan (`security-scan.yml`)**: CodeQL、Trivy dependency/container scan を手動実行
+3. **Security scan (`security-scan.yml`)**: CodeQL、Trivy dependency/container scan を週次/手動実行
 
 ### デプロイメント戦略
 - **初期構築**: `provisioning`

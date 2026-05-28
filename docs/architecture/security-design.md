@@ -1,7 +1,7 @@
 # Security Design - NestJS Hannibal 3
 
 ## セキュリティ概要
-PR品質ゲート + 手動セキュリティスキャン + IAM最小権限によるDevSecOps実践
+PR品質ゲート + 週次/手動セキュリティスキャン + IAM最小権限によるDevSecOps実践
 
 ## 実装済みセキュリティ対策
 
@@ -14,8 +14,8 @@ PR品質ゲート + 手動セキュリティスキャン + IAM最小権限によ
 | **Terraform lint** | TFLint | Terraform / AWS provider lint | PR |
 | **IaC Security** | Trivy Config | Terraform / Dockerfile 設定ミス | PR（初期導入時は review signal） |
 | **Secrets** | Gitleaks | Git履歴の secret 漏洩 | PR |
-| **SAST** | CodeQL | ソースコード脆弱性 | 手動実行 |
-| **SCA** | Trivy | 依存関係/コンテナ | 手動実行 |
+| **SAST** | CodeQL | ソースコード脆弱性 | 週次/手動実行 |
+| **SCA** | Trivy | 依存関係/コンテナ | 週次/手動実行 |
 
 IaC security は `tfsec` を新規採用せず、Aqua Security の `Trivy Config` に寄せる。
 品質ゲートの詳細は [docs/operations/quality-gates.md](../operations/quality-gates.md) を参照。
@@ -270,7 +270,7 @@ CloudFront / ALB の WAF は、現時点では有効化していません。
 - デモ環境は常時公開ではなく、必要時に起動して確認後に停止する
 - WAF を常時有効化すると、停止運用で抑えている固定費が増える
 - 公開対象はデモアプリで、DB は private subnet 上にあり、RDS は外部非公開
-- PR 時の Trivy Config / Gitleaks、手動の CodeQL / Trivy scan で構成と依存関係の確認は継続する
+- PR 時の Trivy Config / Gitleaks、週次/手動の CodeQL / Trivy scan で構成と依存関係の確認は継続する
 
 **再検討条件:**
 - デモ環境を継続公開する運用へ変える
