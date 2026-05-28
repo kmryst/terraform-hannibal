@@ -19,7 +19,7 @@ graph TB
         CloudTrail[CloudTrail<br/>API Call Logs]
         S3_Logs[S3 Bucket<br/>nestjs-hannibal-3-cloudtrail-logs]
         Athena_DB[Athena Database<br/>hannibal_cloudtrail_db]
-        Analysis[Permission Analysis<br/>76/160 Permissions Used]
+        Analysis[Permission Analysis<br/>CloudTrail + Athena]
         
         CloudTrail --> S3_Logs
         S3_Logs --> Athena_DB
@@ -56,10 +56,10 @@ graph TB
 
 CloudTrailログからCI/CD権限の実際の使用状況を分析し、最小権限の原則に基づいた権限最適化を実施します。
 
-### **分析結果**
-- **現在のポリシー**: 160ちょいの権限
+### **分析例（2025年7月27日時点）**
+- **分析時点のポリシー**: 160権限
 - **実際に使用**: **76個の権限**（2025年7月27日15-20時JST分析）
-- **削減可能**: 約52%の権限削減が可能
+- この分析を起点に最小権限化を進め、#164 / #293 で設計を確定済み
 
 ### **企業レベル分析手順**
 ```bash

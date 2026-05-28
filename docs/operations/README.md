@@ -23,8 +23,8 @@
 - **環境分離**: `terraform/environments/dev/` で管理
 
 ### 2. 最小権限原則
-- **IAM最適化**: 160権限 → 76権限 (47.5%削減達成)
-- **Permission Boundary**: HannibalCICDBoundary で上限設定
+- **IAM設計**: role 分離・write/exec action 列挙・read 系プレフィックス wildcard・Permission Boundary による最小権限設計（#164, #293）
+- **Permission Boundary**: 全 Hannibal 系 Role に専用 Boundary を付与し最大権限を制限
 - **AssumeRole**: 一時的な権限昇格のみ
 
 ### 3. 監査性・トレーサビリティ
