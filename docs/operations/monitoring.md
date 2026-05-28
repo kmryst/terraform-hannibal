@@ -31,7 +31,7 @@ graph TB
         GitHub_Code[GitHub Repository<br/>Source Code]
         Docker_Build[Docker Build<br/>Multi-stage]
         ECR_Push[ECR Push<br/>Container Image]
-        ECS_Deploy[ECS Deploy<br/>Blue/Green]
+        ECS_Deploy[CodeDeploy<br/>Canary / Blue-Green]
         
         GitHub_Code --> Docker_Build
         Docker_Build --> ECR_Push
@@ -176,15 +176,22 @@ ORDER BY usage_count DESC
 
 ## 📊 メトリクス・監視
 
-### アプリケーションメトリクス
-- **レスポンス時間**: 平均 < 200ms
-- **エラー率**: < 0.1%
-- **スループット**: 1000 req/min
+SLO の数値目標は [slo.md](./slo.md) を正本とする。
+この文書では、Terraform で作成している CloudWatch Dashboard / Alarm と、日常確認で見るメトリクスに絞って整理する。
 
-### インフラメトリクス
-- **CPU使用率**: < 70%
-- **メモリ使用率**: < 80%
-- **ディスク使用率**: < 85%
+### 利用者影響を見るメトリクス
+
+- **レスポンスタイム**: `AWS/ApplicationELB` の `TargetResponseTime`
+- **サーバ側エラー**: `AWS/ApplicationELB` の `HTTPCode_Target_5XX_Count`
+- **稼働状態**: ECS `RunningTaskCount`、ALB target health、CodeDeploy deployment status
+- **デプロイ健全性**: `nestjs-hannibal-3-canary-error-rate` と `nestjs-hannibal-3-canary-response-time`
+
+### インフラ健全性を見るメトリクス
+
+- **ECS**: `CPUUtilization`、`MemoryUtilization`、`RunningTaskCount`
+- **RDS**: `CPUUtilization`、`DatabaseConnections`
+- **ALB**: `TargetResponseTime`、`HTTPCode_Target_2XX_Count`、`HTTPCode_Target_4XX_Count`、`HTTPCode_Target_5XX_Count`
+- **Logs**: `/ecs/nestjs-hannibal-3-api-task`
 
 ## 🚀 CI/CDパイプライン詳細
 
@@ -194,18 +201,17 @@ ORDER BY usage_count DESC
 3. **Security scan (`security-scan.yml`)**: CodeQL、Trivy dependency/container scan を週次/手動実行
 
 ### デプロイメント戦略
-- **初期構築**: `provisioning`
-- **通常デプロイ**: `bluegreen` または `canary`
-- **ロールバック**: CodeDeploy のヘルスチェック失敗時に自動 rollback
+- **初期構築**: `provisioning`。Terraform apply で基盤を作成し、CodeDeploy の deployment step は実行しない
+- **Canary**: `canary`。`CodeDeployDefault.ECSCanary10Percent5Minutes` で 10% から 100% へ段階的に切り替える
+- **Blue/Green**: `bluegreen`。`CodeDeployDefault.ECSAllAtOnce` で Blue / Green target group を即時切り替えする
+- **ロールバック**: CodeDeploy の失敗または canary 用 CloudWatch Alarm で auto rollback
 
 ## 📈 データ処理パフォーマンス
 
-### GraphQL最適化
-- **DataLoader**: N+1問題の解決
-- **Query Complexity**: 複雑なクエリの制限
-- **Caching**: Redis活用（将来実装）
+アプリケーション固有の詳細メトリクスやキャッシュ層は、必要になった時点で設計・実装する。
+現時点の監視は ALB / ECS / RDS / CodeDeploy の CloudWatch メトリクスを中心に扱う。
 
-### データベース設計
+### データベース設計（参考）
 ```sql
 -- ルートデータテーブル
 CREATE TABLE routes (
