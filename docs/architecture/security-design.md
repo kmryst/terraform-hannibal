@@ -101,21 +101,10 @@ origin verify header の値は Terraform の `random_password` で生成し、Gi
 ## IAM設計
 
 ### 最小権限原則
-- **環境別ロール分離**: Dev/Staging/Prod
-- **AssumeRole**: クロスアカウント権限委譲
-- **Permission Boundary**: 権限上限設定
-
-### 実装済み権限分析
-```
-総権限数: 160
-使用権限: 76 (47.5%)
-未使用権限: 84 (52.5%)
-```
-
-### 権限最適化計画
-1. **Phase 1**: 未使用権限の削除 (84権限)
-2. **Phase 2**: 条件付きアクセス導入
-3. **Phase 3**: 時限権限の実装
+- **role 分離**: CICDRole（deploy/destroy）/ PRPlanRole（PR plan）/ DeveloperRole（日常開発）/ FoundationRole（foundation apply）を用途ごとに分離
+- **write/exec の action 列挙**: 書き込み・実行系は必要な action を明示列挙し、Resource も対象リソースに絞る
+- **read 系のプレフィックス wildcard**: `Get*` / `Describe*` / `List*` は意図的な wildcard 設計。AWS が API を追加した際に policy 変更なしで対応できる。read-only のため情報漏洩以外のリスクがない
+- **Permission Boundary**: 全 Hannibal 系 Role に専用 Boundary を付与し、最大権限の上限を設定する
 
 ## アプリケーションセキュリティ
 
@@ -321,7 +310,7 @@ on:
 - **随時**: Dependabot Alert対応
 
 ### 実績メトリクス
-- **IAM権限最適化**: 160権限中76使用 (47.5% 削減達成)
+- **IAM権限最適化**: role 分離・write/exec 列挙・Permission Boundary による最小権限設計を実装済み（#164, #293）
 - **PR品質ゲート**: Terraform公式チェックに加え、TFLint / Trivy Config / Gitleaks を自動実行
 - **脆弱性修正**: Dependabot PR を週次マージ
 

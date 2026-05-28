@@ -641,7 +641,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_storage" {
   })
 }
 
-# deploy: CloudWatch, Logs, CloudFront, Route53, CodeDeploy, SNS, CloudTrail, AccessAnalyzer, STS, IAM
+# deploy: CloudWatch, Logs, CloudFront, Route53, CodeDeploy, SNS, CloudTrail, STS, IAM
 resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
   name        = "HannibalCICDPolicy-Dev-deploy"
   description = "CI/CD permissions for deploy operations - CloudWatch, Logs, CloudFront, Route53, CodeDeploy, SNS, CloudTrail, IAM"
@@ -744,16 +744,6 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
         Resource = "arn:aws:cloudtrail:ap-northeast-1:${data.aws_caller_identity.current.account_id}:trail/nestjs-hannibal-3-*"
       },
       {
-        Sid    = "AccessAnalyzer"
-        Effect = "Allow"
-        Action = [
-          "access-analyzer:CreateAnalyzer", "access-analyzer:DeleteAnalyzer",
-          "access-analyzer:GetAnalyzer", "access-analyzer:ListAnalyzers",
-          "access-analyzer:TagResource", "access-analyzer:UntagResource",
-        ]
-        Resource = "*"
-      },
-      {
         Sid      = "STSReadOnly"
         Effect   = "Allow"
         Action   = ["sts:GetCallerIdentity"]
@@ -798,12 +788,6 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
         Condition = {
           StringEquals = { "iam:PassedToService" = ["codedeploy.amazonaws.com"] }
         }
-      },
-      {
-        Sid      = "IAMReadOnlyForCheck"
-        Effect   = "Allow"
-        Action   = ["iam:SimulatePrincipalPolicy", "iam:ListRoles", "iam:ListPolicies"]
-        Resource = "*"
       },
     ]
   })
