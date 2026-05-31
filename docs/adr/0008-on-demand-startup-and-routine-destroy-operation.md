@@ -14,7 +14,7 @@ Accepted
 
 state backend・IAM / OIDC・CloudTrail / Athena・Route53・ACM などの永続リソースは destroy 後も残す（`docs/operations/aws-resources.md` の永続リソース一覧が正本）。
 
-この運用は、コストを理由に引いている子 ADR（[0001](./0001-disable-guardduty-for-cost.md) / [0002](./0002-accept-waf-disabled-for-demo-environment.md) / [0004](./0004-keep-internet-facing-alb-with-cloudfront-origin-controls.md)）が共通して依存する**親の前提**として位置づける。
+この運用は、コストを理由に引いている子 ADR（[0001](./0001-disable-guardduty-for-cost.md) / [0002](./0002-accept-waf-disabled-for-ephemeral-environment.md) / [0004](./0004-keep-internet-facing-alb-with-cloudfront-origin-controls.md)）が共通して依存する**親の前提**として位置づける。
 
 ## 背景
 
@@ -55,7 +55,7 @@ state backend・IAM / OIDC・CloudTrail / Athena・Route53・ACM などの永続
 
 - `terraform/environments/dev/` は通常 destroy 済みが既定状態であり、デモには起動（provisioning、目安15分）の準備時間が必要になる
 - 永続リソース（state backend・IAM / OIDC・CloudTrail / Athena・Route53・ACM など）は destroy 後も残り、待機中も月額 $5 程度が発生する
-- 停止中はサービスが稼働しないため、リアルタイムの脅威検知・監視は動作しない。監査は CloudTrail / Athena の蓄積ログで担保する
+- 停止中は ECS / RDS / ALB などアプリ実行系のリソースが存在しないため、その監視対象はなくなる。一方で CloudTrail と CloudWatch metric filter / alarm（root 使用・IAM 変更・MFA なしサインイン等）による foundation レベルの監査・即時検知は永続リソースとして継続する。長期監査は CloudTrail / Athena の蓄積ログで担保する
 - コスト系の子 ADR（0001 / 0002 / 0004）は本 ADR の運用前提に依存する。常時起動・継続公開・本番相当へ移行する場合は、本 ADR と各子 ADR をあわせて再検討する
 
 ## 関連
@@ -65,5 +65,5 @@ state backend・IAM / OIDC・CloudTrail / Athena・Route53・ACM などの永続
 - [docs/operations/README.md](../operations/README.md#-日常運用タスク) — サービス起動 / 停止の手順
 - [docs/architecture/system-design.md](../architecture/system-design.md#コスト最適化実装済み) — コスト内訳の試算根拠
 - [0001](./0001-disable-guardduty-for-cost.md) — GuardDuty 無効化（本 ADR を前提とする子）
-- [0002](./0002-accept-waf-disabled-for-demo-environment.md) — WAF accepted risk（本 ADR を前提とする子）
+- [0002](./0002-accept-waf-disabled-for-ephemeral-environment.md) — WAF accepted risk（本 ADR を前提とする子）
 - [0004](./0004-keep-internet-facing-alb-with-cloudfront-origin-controls.md) — internet-facing ALB 維持（本 ADR を前提とする子）
