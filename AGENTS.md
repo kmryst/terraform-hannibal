@@ -61,6 +61,12 @@ git switch -c <issue番号>-<kebab-case要約>
 ./scripts/github/cleanup-merged-pr-branch.sh <PR番号>
 ```
 
+## 設計文書の更新と設計判断の記録 (ADR)
+
+実装によって設計・運用・構成が変わった場合は、まず正本である設計文書（`docs/` 配下の該当ドキュメント）を追記・新規作成して現状を反映します。
+そのうえで、トレードオフを伴う設計判断は `docs/adr/` に ADR (Architecture Decision Record) として残します。ADR には決定内容に加えて、検討した代替案とそのトレードオフ（なぜ他の案ではなくその選択にしたか）を記載します。
+設計文書が現在の正本であり、ADR は設計文書の丸写しではなく「なぜその判断にしたか」の履歴として扱います。採番・形式・ステータスの正本は `docs/adr/README.md` に従います（番号は ADR を追加する PR の時点で確定し、Issue / ブランチ段階では予約しません）。
+
 ## コミットメッセージ
 
 コミットを作成する場合は、必ず `CONTRIBUTING.md` の Conventional Commits / commitlint ルールに従います。
