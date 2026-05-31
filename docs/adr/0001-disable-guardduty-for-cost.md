@@ -10,7 +10,7 @@ Accepted
 
 ## 決定内容
 
-GuardDuty は Terraform で再有効化できる候補として残すが、現在の dev / ポートフォリオ環境では常時有効化しない。
+GuardDuty は Terraform で再有効化できる候補として残すが、現在の dev / ephemeral environment では常時有効化しない。
 
 脅威検知は CloudTrail、Athena、CloudWatch、PR / 定期 Security Scan を中心に確認し、GuardDuty は本番相当・継続公開・外部利用増加の段階で再検討する。
 
