@@ -84,10 +84,10 @@ Blue/Green / Canary の詳細は [CodeDeploy Blue/Green](./docs/deployment/coded
 | Audit | CloudTrail を S3 に集約し、Athena で監査ログを分析 |
 | Secrets | Gitleaks で secret 混入を PR 時に検出 |
 | IaC security | Trivy Config で Terraform / Dockerfile の設定ミスを review signal として検出 |
-| Cost | 環境を通常停止し、必要時だけ起動する運用で固定費を抑制（運用判断は [ADR 0008](./docs/adr/0008-on-demand-startup-and-routine-destroy-operation.md)）。コスト前提は [Operations Docs](./docs/operations/README.md) に記録 |
-| Accepted risk | WAF（[ADR 0002](./docs/adr/0002-accept-waf-disabled-for-ephemeral-environment.md)）/ GuardDuty（[ADR 0001](./docs/adr/0001-disable-guardduty-for-cost.md)）などコスト影響が大きい機能は、showcase 用途・外部公開範囲・コスト影響・再検討条件を [Security Design](./docs/architecture/security-design.md) に残す方針 |
+| Cost | 環境を通常停止し、必要時だけ起動する運用で固定費を抑制。コスト前提は [Operations Docs](./docs/operations/README.md) に記録 |
+| Accepted risk | WAF / GuardDuty などコスト影響が大きい機能は、showcase 用途・外部公開範囲・コスト影響・再検討条件を [Security Design](./docs/architecture/security-design.md) に残す方針 |
 
-IAM / OIDC / Permission Boundary の詳細は [IAM Management](./docs/operations/iam-management.md) と [PR Terraform Plan Role Design](./docs/operations/pr-terraform-plan-role-design.md) を参照。
+IAM / OIDC / Permission Boundary の詳細は [IAM Management](./docs/operations/iam-management.md) と [PR Terraform Plan Role Design](./docs/operations/pr-terraform-plan-role-design.md) を参照。主要な設計判断の根拠は ADR（[docs/adr/](./docs/adr/README.md)）に記録。
 
 ## デモと証跡
 
