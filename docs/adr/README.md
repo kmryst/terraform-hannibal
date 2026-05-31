@@ -41,7 +41,7 @@
 | ADR | ステータス | 決定 |
 |---|---|---|
 | [0001](./0001-disable-guardduty-for-cost.md) | Accepted | GuardDuty はコスト優先のため常時有効化しない |
-| [0002](./0002-accept-waf-disabled-for-demo-environment.md) | Accepted | WAF 無効化をデモ環境の accepted risk として扱う |
+| [0002](./0002-accept-waf-disabled-for-demo-environment.md) | Accepted | WAF 無効化を ephemeral environment の accepted risk として扱う |
 | [0003](./0003-migrate-terraform-state-locking-to-s3-lockfile.md) | Accepted | Terraform state locking は S3 lockfile を正とする |
 | [0004](./0004-keep-internet-facing-alb-with-cloudfront-origin-controls.md) | Accepted | ALB は internet-facing のまま CloudFront 経由制限を追加する |
 | [0005](./0005-separate-cicd-and-pr-plan-roles.md) | Accepted | deploy/destroy 用 Role と PR plan 用 Role を分離する |
