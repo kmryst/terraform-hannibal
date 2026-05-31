@@ -45,6 +45,7 @@ state locking はインフラ変更の安全性に直結するため、二段階
 
 ## 影響
 
+- 2026-05-31 時点: `use_lockfile = true` 有効 / DynamoDB lock table は併用継続 / DynamoDB 削除（#189）は未実施
 - 現在の正は S3 lockfile 方式
 - DynamoDB lock table は移行期間中のみ残す
 - DynamoDB 削除は #189 で扱う

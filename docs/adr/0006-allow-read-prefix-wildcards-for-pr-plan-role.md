@@ -18,7 +18,7 @@ write / mutate 系権限は明示的に含めず、Permission Boundary でも re
 
 Terraform plan は refresh の過程で、provider version や既存リソース状態に応じて複数の read API を呼び出す。
 
-特に S3 は `GetBucketCORS`、`GetBucketWebsite`、`GetAccelerateConfiguration`、object metadata 参照など、個別列挙にすると provider 更新のたびに不足権限が発生しやすい。実際の PR plan を安定運用するには、read-only の範囲で whack-a-mole を避ける必要がある。
+特に S3 は `GetBucketCORS`、`GetBucketWebsite`、`GetAccelerateConfiguration`、object metadata 参照など、個別列挙にすると provider 更新のたびに不足権限が発生しやすい。実際の PR plan を安定運用するには、read-only の範囲で個別追加のいたちごっこを避ける必要がある。
 
 ## 検討した選択肢
 
