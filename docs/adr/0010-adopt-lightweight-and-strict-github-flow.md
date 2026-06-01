@@ -12,13 +12,15 @@ Accepted
 
 `terraform-hannibal` では、Issue -> Branch -> PR -> Merge を基本としつつ、変更内容に応じて軽運用と厳密運用を分ける GitHub Flow モデルを採用する。
 
-共通の必須条件として、Issue / PR には `type / area / risk / cost` ラベルを付け、PR には `Closes / Fixes / Refs #<issue番号>` のいずれかを記載する。`main` への direct push は避け、PR と required status checks を通してから squash merge する。
+判断の核は次の 3 点である。
 
-軽運用では、Issue / PR 本文を最小限に保ち、Issue リンク、必須ラベル、CI によって最低限の構造と品質を担保する。厳密運用では、`risk:medium/high`、`cost:medium/large`、`terraform/**`、`.github/workflows/**`、IAM / OIDC / deploy / destroy / Security などの影響範囲を基準に、PR 本文のロールバック手順を必須にする。
+- すべての変更に共通の最低限のゲート（Issue リンク、必須ラベル、PR、required status checks）を課す
+- 軽微な変更（軽運用）は Issue / PR 本文を最小限に保ち、速度を落とさない
+- リスクの高い変更（厳密運用）はロールバック手順と影響範囲の明示を求め、確認を厚くする
 
-AI Agent / CLI / API からの起票や PR 作成も許容するが、Issue 作成前、ブランチ作成後の実装前、PR 作成前には人間が確認する計画提示を挟む。Issue / PR の正規作成経路は既存 helper を使い、最終的な形式チェックは GitHub Actions に任せる。
+`main` への direct push は branch protection で禁止し、PR と required status checks を通したうえで squash merge する。AI Agent / CLI / API からの起票や PR 作成も許容するが、Issue 作成前・ブランチ作成後の実装前・PR 作成前に人間が確認する計画提示を挟み、最終的な形式チェックは GitHub Actions に委ねる。
 
-なお、運用ルールの正本は `CONTRIBUTING.md` とし、本 ADR はその判断理由を記録する履歴として扱う。設計意図、未採用案、将来の再検討条件は `docs/operations/github-flow-guardrails.md` に置く。
+運用ルールの具体（必須ラベルの種類、`Closes / Fixes / Refs` の記法、軽運用 / 厳密運用に該当する変更の判定基準など）の正本は `CONTRIBUTING.md` とする。本 ADR はその具体を再掲せず、なぜこのモデルにしたかの判断理由を記録する履歴として扱う。設計意図、未採用案、将来の再検討条件は `docs/operations/github-flow-guardrails.md` に置く。
 
 ## 背景
 
