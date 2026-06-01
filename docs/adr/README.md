@@ -49,3 +49,4 @@
 | [0007](./0007-remove-unused-access-analyzer-permissions.md) | Accepted | 未使用の Access Analyzer / IAM read 権限を CICD Role から削除する |
 | [0008](./0008-on-demand-startup-and-routine-destroy-operation.md) | Accepted | オンデマンド起動 / 通常 destroy 運用を採用する（コスト系判断の親前提） |
 | [0009](./0009-keep-nestjs-hannibal-3-resource-names.md) | Accepted | 既存の AWS リソース名 nestjs-hannibal-3-* をリネームしない |
+| [0010](./0010-adopt-lightweight-and-strict-github-flow.md) | Accepted | 軽運用 / 厳密運用を分ける GitHub Flow モデルを採用する |
