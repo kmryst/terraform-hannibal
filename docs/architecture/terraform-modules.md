@@ -1,4 +1,4 @@
-# Terraform Modules 実装状況 - NestJS Hannibal 3
+# Terraform Modules 実装状況
 
 ## モジュール化完了
 

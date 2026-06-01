@@ -1,4 +1,4 @@
-# System Design - NestJS Hannibal 3
+# System Design
 
 ## 概要
 ハンニバルのアルプス越えルートを可視化するWebアプリケーションのシステム設計書

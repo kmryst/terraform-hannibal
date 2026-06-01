@@ -4,7 +4,7 @@
 # q-developer-rules.yml
 version: 1.0
 description: >
-  NestJS Hannibal 3 の CodeDeploy Blue/Green デプロイメントを自動化するためのルール。
+  CodeDeploy Blue/Green デプロイメントを自動化するためのルール。
 
 # デプロイ対象の ECS Service 定義
 targets:

@@ -1,4 +1,4 @@
-# Security Design - NestJS Hannibal 3
+# Security Design
 
 ## セキュリティ概要
 PR品質ゲート + 週次/手動セキュリティスキャン + IAM最小権限によるDevSecOps実践

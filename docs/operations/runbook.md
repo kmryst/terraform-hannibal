@@ -1,4 +1,4 @@
-# Runbook - NestJS Hannibal 3
+# Runbook
 
 この Runbook は、CloudWatch Alarm またはデプロイ失敗を受けた時の初動手順をまとめる。
 AWS CLI 例では `ap-northeast-1` と `nestjs-hannibal-3` を前提にする。
