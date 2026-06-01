@@ -1,4 +1,4 @@
-# Data Architecture - NestJS Hannibal 3
+# Data Architecture
 
 ## データアーキテクチャ概要
 ハンニバルのアルプス越えルートデータを効率的に管理・配信するためのデータ設計

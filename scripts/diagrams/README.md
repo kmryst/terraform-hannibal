@@ -1,7 +1,7 @@
 # AWS構成図生成（Diagrams）
 
 ## 概要
-Diagrams（Python）を使用して NestJS Hannibal 3 の AWS 構成図を手動生成します。
+Diagrams（Python）を使用して AWS 構成図を手動生成します。
 
 以前は GitHub Actions での自動生成Workflowもありましたが、リポジトリ構成との不整合により廃止しました。
 経緯は `docs/architecture/diagram-automation-history.md` を参照してください。

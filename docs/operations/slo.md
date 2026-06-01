@@ -1,4 +1,4 @@
-# SLO - NestJS Hannibal 3
+# SLO
 
 この文書は、`nestjs-hannibal-3` を起動している間の最小限の SLO
 （Service Level Objective）を定義する。

@@ -1,4 +1,4 @@
-# NestJS Hannibal 3 Project Rules
+# Project Rules
 
 ## Infrastructure
 - TerraformのstateファイルはS3で管理

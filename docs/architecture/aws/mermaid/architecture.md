@@ -1,4 +1,4 @@
-# NestJS Hannibal 3 Architecture
+# Architecture
 
 ## システム構成図
 

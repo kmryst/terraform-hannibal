@@ -43,7 +43,7 @@ from diagrams.aws.storage import S3
 from diagrams.aws.security import IAM
 from diagrams.aws.management import Cloudwatch
 
-with Diagram("NestJS Hannibal 3 Architecture", show=False):
+with Diagram("Architecture", show=False):
     dns = Route53("Route53")
     cf = CloudFront("CloudFront")
     s3 = S3("S3")
