@@ -48,3 +48,4 @@
 | [0006](./0006-allow-read-prefix-wildcards-for-pr-plan-role.md) | Accepted | PR plan Role の read 系 wildcard を限定的に許容する |
 | [0007](./0007-remove-unused-access-analyzer-permissions.md) | Accepted | 未使用の Access Analyzer / IAM read 権限を CICD Role から削除する |
 | [0008](./0008-on-demand-startup-and-routine-destroy-operation.md) | Accepted | オンデマンド起動 / 通常 destroy 運用を採用する（コスト系判断の親前提） |
+| [0009](./0009-keep-nestjs-hannibal-3-resource-names.md) | Accepted | 既存の AWS リソース名 nestjs-hannibal-3-* をリネームしない |
