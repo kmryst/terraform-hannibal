@@ -226,6 +226,28 @@ terraform -chdir=terraform/foundation force-unlock <LOCK_ID>
 force-unlock 後は必ず plan を再実行し、state と実リソースの整合を確認します。
 `.tflock` の手動削除は最終手段です。実行する場合は、対象 state、残留理由、並行実行がないことを確認し、厳密運用として扱います。
 
+**移行期間（#189 まで）の DynamoDB stale lock フォールバック**
+
+`terraform force-unlock` が失敗し、かつ S3 lockfile が存在しない場合、DynamoDB 側に stale エントリが残っている可能性があります。
+並行 Terraform 実行がないことを確認してから、以下で確認・削除します。
+
+```bash
+aws dynamodb get-item \
+  --table-name terraform-state-lock \
+  --key '{"LockID": {"S": "nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate"}}'
+```
+
+stale エントリが存在する場合は削除します。
+
+```bash
+aws dynamodb delete-item \
+  --table-name terraform-state-lock \
+  --key '{"LockID": {"S": "nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate"}}'
+```
+
+foundation の場合はキーを `nestjs-hannibal-3-terraform-state/foundation/terraform.tfstate` に変えて実行します。
+削除後は必ず plan を再実行し、state と実リソースの整合を確認します。
+
 ## S3 lockfile 実動作確認
 
 S3 lockfile が作成・削除されることだけを確認する場合は、lock あり plan を実行します。
