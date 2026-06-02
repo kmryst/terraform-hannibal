@@ -17,7 +17,6 @@ $ErrorActionPreference = "Stop"
 # プロジェクト設定
 $PROJECT_NAME = "nestjs-hannibal-3"
 $AWS_REGION = "ap-northeast-1"
-$AWS_ACCOUNT_ID = "258632448142"
 $API_DOMAIN = "api.hamilcar-hannibal.click"
 
 Write-Host "🚀 Starting CodeDeploy Canary Deployment" -ForegroundColor Green
@@ -50,7 +49,10 @@ try {
     }
 
     # ECRイメージ確認
-    $ECR_URI = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_NAME"
+    $ECR_URI = (aws ecr describe-repositories --repository-name $PROJECT_NAME --query 'repositories[0].repositoryUri' --output text --region $AWS_REGION)
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($ECR_URI)) {
+        throw "Failed to resolve ECR repository URI"
+    }
     $NEW_IMAGE = "$ECR_URI`:$ImageTag"
     
     Write-Host "🐳 Verifying Docker image: $NEW_IMAGE" -ForegroundColor Yellow
