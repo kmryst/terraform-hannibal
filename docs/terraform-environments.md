@@ -6,7 +6,8 @@
 
 ## State 管理方針
 
-- **バックエンド**: S3 バケット `nestjs-hannibal-3-terraform-state` + DynamoDB（State Lock）
+- **バックエンド**: S3 バケット `nestjs-hannibal-3-terraform-state`
+- **State lock**: S3 lockfile を正とする。DynamoDB lock table は #189 まで移行期間用として併用する
 - **State キーの命名規則**: `environments/<env>/terraform.tfstate`（環境ごとに key を分ける）
 - **バケットは共有可**（同一バケット内で key 分離すれば競合しない）
 
@@ -15,6 +16,9 @@
 | dev  | `environments/dev/terraform.tfstate` |
 | staging（未作成） | `environments/staging/terraform.tfstate` |
 | prod（未作成） | `environments/prod/terraform.tfstate` |
+
+Terraform の `init` / `plan` / `apply` / force-unlock / import / drift 確認は [Terraform Runbook](./operations/terraform-runbook.md) を参照します。
+state 復元や誤変更の rollback は [Terraform Rollback Plan](./operations/rollback-plan.md) を参照します。
 
 ## リソース命名方針
 

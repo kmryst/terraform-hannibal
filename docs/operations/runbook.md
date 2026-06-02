@@ -4,6 +4,9 @@
 AWS CLI 例では `ap-northeast-1` と `nestjs-hannibal-3` を前提にする。
 コマンド出力に secret や credential が含まれる可能性がある場合は、値を貼り付けずに状態だけ共有する。
 
+Terraform の `init` / `plan` / `apply` / state lock / import / drift 確認は [Terraform Runbook](./terraform-runbook.md) を参照する。
+Terraform apply 失敗、誤変更、state 復元の戻し方は [Terraform Rollback Plan](./rollback-plan.md) を参照する。
+
 ## 共通初動
 
 1. 通知された alarm 名、発生時刻、AWS region を確認する。

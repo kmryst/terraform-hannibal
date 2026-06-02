@@ -11,6 +11,38 @@
 
 ## 手動管理リソース一覧
 
+### S3 バケット（Terraform state backend）
+
+| 項目 | 値 |
+|---|---|
+| リソース | Amazon S3 |
+| バケット名 | nestjs-hannibal-3-terraform-state |
+| 用途 | Terraform state と S3 lockfile の保存先 |
+| Terraform 参照方法 | backend 設定で参照。Terraform resource としては管理しない |
+
+**手動管理の理由**
+
+state backend 本体を同じ Terraform state で管理すると、管理対象の state を保存する先も同じ Terraform で作るニワトリと卵の状態になる。削除すると state が失われ復旧困難になるため、手動管理の永続リソースとして扱う。
+
+運用手順は [terraform-runbook.md](./terraform-runbook.md)、state 復元手順は [rollback-plan.md](./rollback-plan.md) を参照する。
+
+---
+
+### DynamoDB テーブル（Terraform legacy state lock）
+
+| 項目 | 値 |
+|---|---|
+| リソース | Amazon DynamoDB |
+| テーブル名 | terraform-state-lock |
+| 用途 | DynamoDB-based locking から S3 lockfile へ移行する間の legacy lock |
+| Terraform 参照方法 | backend 設定の `dynamodb_table` で参照。Terraform resource としては管理しない |
+
+**手動管理の理由**
+
+現在の正は S3 lockfile です。DynamoDB table は移行期間中の互換用として保持し、S3 lockfile 安定後に #189 で backend / IAM / docs から削除可否を判断する。
+
+---
+
 ### ACM 証明書（ALB 用、ap-northeast-1）
 
 | 項目 | 値 |

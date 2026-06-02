@@ -112,29 +112,8 @@ terraform plan
 `terraform init -reconfigure` で backend 設定を再読込し、`terraform plan` で state 取得・ロック取得・差分確認が通ることを確認します。
 `terraform/environments/dev` は `client/dist` を参照するため、ローカルで plan する場合は事前に frontend build を実行します。
 
-S3 lockfile の実動作を確認する場合は、`terraform/environments/dev` で lock ありの plan を実行します。
-`apply` は不要です。
-
-```bash
-cd terraform/environments/dev
-terraform init -reconfigure
-terraform plan \
-  -lock=true \
-  -lock-timeout=20s \
-  -refresh=false \
-  -input=false \
-  -detailed-exitcode \
-  -var="client_url_for_cors=https://hamilcar-hannibal.click" \
-  -var="environment=dev" \
-  -var="deployment_type=canary" \
-  -var="enable_cloudfront=true"
-```
-
-確認観点:
-- plan 実行中だけ `s3://nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate.tflock` が作成される
-- plan 終了後に `.tflock` が削除される
-- exit code `0` は差分なし、`2` は差分あり、`1` はエラー
-- dev 環境が destroy 済みの場合、`Plan: ... to add` と exit code `2` は正常系
+S3 lockfile の実動作確認、force-unlock、drift 確認は [Terraform Runbook](../operations/terraform-runbook.md) を参照します。
+dev 環境が destroy 済みの場合、`Plan: ... to add` と exit code `2` は正常系です。
 
 ---
 
@@ -262,6 +241,8 @@ terraform apply
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) — Issue駆動開発フロー（必読）
 - [docs/setup/prerequisites.md](./prerequisites.md) — 手動作成リソース一覧
 - [docs/operations/aws-resources.md](../operations/aws-resources.md) — 永続リソース・一時リソース一覧
+- [docs/operations/terraform-runbook.md](../operations/terraform-runbook.md) — Terraform init / plan / apply / state lock / import / drift 確認
+- [docs/operations/rollback-plan.md](../operations/rollback-plan.md) — Terraform rollback / state 復元手順
 - [docs/operations/iam-management.md](../operations/iam-management.md) — IAM権限設計
 - [docs/architecture/](../architecture/) — システム設計詳細
 - [docs/deployment/](../deployment/) — Blue/Green・Canaryデプロイ手順
@@ -272,10 +253,9 @@ terraform apply
 
 ### Terraform State Lock エラー
 
-```bash
-# 原因: 別の操作が実行中 or 異常終了
-terraform force-unlock <LOCK_ID>
-```
+原因は別の操作が実行中、または前回実行の異常終了です。
+force-unlock 手順は [Terraform Runbook](../operations/terraform-runbook.md#force-unlock) を参照してください。
+state 復元が必要な場合は [Terraform Rollback Plan](../operations/rollback-plan.md) を参照してください。
 
 ### ECS Task起動失敗
 

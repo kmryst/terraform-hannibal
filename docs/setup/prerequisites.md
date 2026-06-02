@@ -76,6 +76,7 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 - 📝 **注意**: 意図的な手動管理または `prevent_destroy` により、通常のdestroy対象から外しています
 
 永続リソースの全体一覧（IAM / ECR / Route53 / ACM 含む）は [docs/operations/aws-resources.md](../operations/aws-resources.md) を参照。
+Terraform state backend の運用手順は [docs/operations/terraform-runbook.md](../operations/terraform-runbook.md)、state 復元手順は [docs/operations/rollback-plan.md](../operations/rollback-plan.md) を参照。
 
 ## ✅ IAM/OIDC設定（完了済み）
 
