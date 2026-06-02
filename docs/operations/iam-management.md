@@ -3,6 +3,7 @@
 この文書を IAM Role 一覧の正本とします。Role ごとの詳細設計は必要な時だけ個別文書に分け、通常はこの文書の Role カタログで用途・Assume元・権限方針を管理します。
 
 PR terraform plan 用 Role の詳細設計補足は [pr-terraform-plan-role-design.md](./pr-terraform-plan-role-design.md) に分けています。
+Terraform 操作時の Role 使い分け、`init` / `plan` / `apply` / state lock 手順は [terraform-runbook.md](./terraform-runbook.md) を参照します。
 
 ## Roleカタログ
 

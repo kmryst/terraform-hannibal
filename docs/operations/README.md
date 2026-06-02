@@ -9,6 +9,8 @@
 - [monitoring.md](./monitoring.md) - CloudWatch監視・CloudTrail分析
 - [slo.md](./slo.md) - SLO（レスポンスタイム・エラー率・稼働率）
 - [runbook.md](./runbook.md) - CloudWatch Alarm / ECS / デプロイ失敗時の対応手順
+- [terraform-runbook.md](./terraform-runbook.md) - Terraform init / plan / apply / state lock / import / drift 確認
+- [rollback-plan.md](./rollback-plan.md) - Terraform apply 失敗・誤変更・state 復元の rollback 手順
 - [quality-gates.md](./quality-gates.md) - PR品質ゲート（Terraform lint / IaC security / secret scan）
 - [pr-terraform-plan-role-design.md](./pr-terraform-plan-role-design.md) - PR terraform plan用AWS Role/OIDC権限設計補足
 - [docs/deployment/codedeploy-blue-green.md](../deployment/codedeploy-blue-green.md) - デプロイ詳細
@@ -39,7 +41,7 @@
 
 ---
 
-## � 日常運用タスク
+## 日常運用タスク
 
 ### サービス起動（月初など）
 
@@ -55,14 +57,15 @@ Inputs:
 
 ### サービス停止（月末など）
 
-**Terraform destroy実行:**
-```powershell
-cd terraform\environments\dev
-terraform destroy -target=module.compute
-terraform destroy -target=module.storage
-
-# 残すリソース: VPC, IAM, CloudTrail
+**GitHub Actions手動実行:**
 ```
+Workflow: destroy.yml
+Inputs:
+  - confirm: DESTROY
+```
+
+`destroy.yml` は CodeDeploy 停止、ECS scale down、Terraform destroy、S3/ECR/ELB の best-effort cleanup を順に実行します。
+永続リソースと一時リソースの境界は [aws-resources.md](./aws-resources.md) を参照してください。
 
 **コスト削減**: $30-50/月 → $5/月 (94%削減)
 
@@ -197,96 +200,9 @@ git push origin main
 
 **症状**: `Error: Error acquiring the state lock`
 
-**原因**: 前回の terraform apply が異常終了、または別操作実行中
-
-**解決方法:**
-```powershell
-# S3 lockfile方式では、Terraform のエラー出力に表示される Lock ID を確認
-# DynamoDB lock は移行期間中のみ確認
-aws dynamodb scan --table-name terraform-state-lock
-
-# Lock強制解除（他の操作がないことを確認）
-cd terraform\environments\dev
-terraform force-unlock <LOCK_ID>
-```
-
-**予防策**: `terraform apply` を Ctrl+C で中断しない
-
-**移行メモ**: 現在は `use_lockfile = true` と `dynamodb_table = "terraform-state-lock"` を併用する第1段階です。
-deploy / destroy の `terraform init` で S3 lockfile 設定を読み込み、安定後に後続作業で DynamoDB lock table と関連権限を削除します。
-
-**S3 lockfile 実動作確認**:
-
-`terraform/environments/dev` で `terraform plan -lock=true` を実行し、S3 lockfile が作成・削除されることを確認します。
-`apply` は実行しません。
-
-```bash
-LOCK_BUCKET="nestjs-hannibal-3-terraform-state"
-LOCK_KEY="environments/dev/terraform.tfstate.tflock"
-
-# 実行前は残留 lockfile がないことを確認
-if aws s3api head-object --bucket "$LOCK_BUCKET" --key "$LOCK_KEY" >/dev/null 2>&1; then
-  echo "before: present"
-else
-  echo "before: absent"
-fi
-```
-
-別ターミナルで plan 中の `.tflock` を観測します。
-
-```bash
-LOCK_BUCKET="nestjs-hannibal-3-terraform-state"
-LOCK_KEY="environments/dev/terraform.tfstate.tflock"
-
-while true; do
-  if aws s3api head-object --bucket "$LOCK_BUCKET" --key "$LOCK_KEY" >/dev/null 2>&1; then
-    echo "observed: present"
-    break
-  fi
-  sleep 0.5
-done
-```
-
-元のターミナルで lock ありの plan を実行します。
-
-```bash
-terraform -chdir=terraform/environments/dev plan \
-  -lock=true \
-  -lock-timeout=20s \
-  -refresh=false \
-  -input=false \
-  -detailed-exitcode \
-  -var="client_url_for_cors=https://hamilcar-hannibal.click" \
-  -var="environment=dev" \
-  -var="deployment_type=canary" \
-  -var="enable_cloudfront=true"
-```
-
-plan 終了後に lockfile が削除されていることを確認します。
-
-```bash
-LOCK_BUCKET="nestjs-hannibal-3-terraform-state"
-LOCK_KEY="environments/dev/terraform.tfstate.tflock"
-
-if aws s3api head-object --bucket "$LOCK_BUCKET" --key "$LOCK_KEY" >/dev/null 2>&1; then
-  echo "after: present"
-else
-  echo "after: absent"
-fi
-```
-
-期待結果:
-- plan 実行中に `.tflock` が一時的に存在する
-- plan 終了後、`.tflock` は存在しない
-- exit code `2` は「plan 成功、差分あり」。destroy 済み dev 環境では正常系
-- exit code `1` はエラーとして扱う
-
-Issue #183 の確認結果（2026-05-09）:
-- `before: absent`
-- `observed: present`
-- `after: absent`
-- `PLAN_EXIT=2`
-- destroy 済み dev 環境として全作成差分が出ることを確認
+Terraform state lock は S3 lockfile を正とし、DynamoDB lock table は #189 まで移行期間用として併用します。
+force-unlock、S3 lockfile 実動作確認、drift 確認は [Terraform Runbook](./terraform-runbook.md) を参照してください。
+apply 失敗や state 復元が必要な場合は [Terraform Rollback Plan](./rollback-plan.md) を参照してください。
 
 ### 4. RDS接続エラー
 
