@@ -81,6 +81,14 @@ GitHub Actions の Node 20 runtime deprecation と CodeQL Action v3 deprecation 
 Node 20 runtime を使う JS action が残っていれば version 更新または別 action への置換を検討します。
 Docker action / composite action / `actions/setup-node` でインストールしている Node.js 20 自体は、この warning とは別の扱いです。
 
+### action バージョン管理方針
+
+各 workflow の action は `@vX` メジャータグで固定し、Dependabot（`.github/dependabot.yml`）の週次スケジュールによる自動 PR で version drift を追跡します。
+
+メジャータグを使う理由は可読性の維持と GitHub 公式 action のリリース管理が厳格であることです。SHA ピンはサプライチェーンリスクをさらに下げますが、PR の diff が SHA の羅列になるためポートフォリオの文脈では採用しません。
+
+Dependabot が生成した PR は CI（`pr-check.yml`）を通過後にマージします。major version 更新は破壊的変更を含む可能性があるため、リリースノートを確認してからマージします。
+
 ## deploy workflow との役割分担
 
 `deploy.yml` は `workflow_dispatch` による `main` からの手動デプロイに限定する。backend/frontend の build・test は PR gate（`pr-check.yml`）に集約し、deploy workflow では再実行しない。
