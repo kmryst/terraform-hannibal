@@ -27,9 +27,9 @@ jobs:
       id-token: write   # GitHub OIDC トークン発行に必須
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_CICD_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -41,7 +41,7 @@ jobs:
           jq --version
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
@@ -55,7 +55,7 @@ jobs:
 
       # aws_s3_object の fileset 用。空 dist で apply すると state 上のオブジェクトが消えるため、Terraform より前にビルドする
       - name: Setup Node.js for frontend build
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
