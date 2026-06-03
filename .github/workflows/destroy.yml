@@ -20,9 +20,9 @@ jobs:
       id-token: write   # GitHub OIDC トークン発行に必須
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_CICD_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -32,7 +32,7 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y jq unzip
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
