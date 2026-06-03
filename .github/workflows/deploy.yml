@@ -55,7 +55,7 @@ jobs:
 
       # aws_s3_object の fileset 用。空 dist で apply すると state 上のオブジェクトが消えるため、Terraform より前にビルドする
       - name: Setup Node.js for frontend build
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
