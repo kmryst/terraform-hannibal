@@ -46,6 +46,13 @@ S3 bucket は共有してよいが、state key は `foundation/terraform.tfstate
 - 長所: `environments/<env>` の追加で将来の環境拡張に対応しやすい
 - 短所: Terraform 実行単位が増え、Role や runbook で「どちらを apply するか」を明示する必要がある
 
+### state backend 自体も Terraform 管理にする（bootstrap 用 root / 別 state を持つ）
+
+- 長所: S3 state bucket / DynamoDB lock table も IaC で再現でき、初期構築手順の drift を減らせる
+- 短所: bootstrap の state をどこに置くかが再帰し、local state か「同一 bucket + `prevent_destroy`」などの追加対策が必要になる
+- 短所: 誤 destroy / state 破損時の復旧コストが最大級の backend を、Terraform 実行経路に乗せることになる
+- 短所: 少人数・dev 中心運用では、bootstrap を IaC 化して得られる再現性の利点が薄い
+
 ## 採択理由
 
 foundation と environments では、保持すべき期間、変更頻度、必要な権限、レビュー観点が異なる。
@@ -55,6 +62,8 @@ foundation は環境を作るための土台であり、日常の deploy / destr
 一方で、`terraform/environments/dev` はアプリケーション環境の再作成・破棄を前提にした実行単位であり、dev 固有のオンデマンド運用と相性がよい。state key を環境ごとに分けることで、dev の destroy や将来の prod apply が他の環境 state と競合しない。
 
 同じ S3 bucket を共有しつつ key を分ける構成は、管理対象を増やしすぎずに state 境界を確保できる。state locking の方式自体は ADR 0003 の判断に従い、S3 lockfile を正とする。
+
+state backend 自体を Terraform 管理にする案は、bootstrap state の置き場所が再帰し、復旧コストの高い backend を Terraform 実行経路に乗せる短所が、再現性の利点を上回るため採らない。state backend は `manual-resources.md` の手動管理リソースとして維持する。
 
 ## 影響
 
@@ -72,6 +81,7 @@ foundation は環境を作るための土台であり、日常の deploy / destr
 - [ADR 0005: deploy/destroy 用 Role と PR plan 用 Role を分離する](./0005-separate-cicd-and-pr-plan-roles.md)
 - [ADR 0008: オンデマンド起動 / 通常 destroy 運用を採用する](./0008-on-demand-startup-and-routine-destroy-operation.md)
 - [Terraform 環境分離設計](../terraform-environments.md)
+- [手動管理 AWS リソース一覧](../operations/manual-resources.md)
 - [IAM権限管理](../operations/iam-management.md)
 - [terraform/foundation/backend.tf](../../terraform/foundation/backend.tf)
 - [terraform/environments/dev/backend.tf](../../terraform/environments/dev/backend.tf)
