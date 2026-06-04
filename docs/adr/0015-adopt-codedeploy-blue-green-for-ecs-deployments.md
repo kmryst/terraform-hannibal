@@ -14,6 +14,8 @@ Accepted
 
 ECS service は `deployment_controller { type = "CODE_DEPLOY" }` とし、CodeDeploy deployment group は `deployment_style` を `BLUE_GREEN` / `WITH_TRAFFIC_CONTROL` にする。ALB には production listener と test listener、blue / green target group pair を用意し、CodeDeploy が新しい task set の作成、target group への紐付け、traffic 切り替え、旧 task set の終了を管理する。
 
+デプロイの切り替え方式は二層の変数で表す。`deploy.yml` の workflow input である `deployment_mode` が `canary` / `bluegreen` / `provisioning` の運用モードを選び、Terraform var の `deployment_type`（`canary` / `bluegreen`）が CodeDeploy deployment config を決める。`provisioning` は `deployment_mode` 側だけの値で、その場合 workflow は `deployment_type=canary` に変換して基盤を作る。
+
 `deployment_type = "bluegreen"` では `CodeDeployDefault.ECSAllAtOnce` により Blue / Green を即時切り替え、`deployment_type = "canary"` では `CodeDeployDefault.ECSCanary10Percent5Minutes` により 10% から 100% へ段階的に切り替える。どちらも CodeDeploy の Blue/Green deployment style を使う。`deployment_mode = "provisioning"` は初期構築用で、Terraform apply により基盤を作成し、CodeDeploy deployment step は実行しない。
 
 この ADR は、すでに実装済みの構成を遡及的に記録するものであり、Terraform の現行設定や deploy workflow を変更するものではない。
@@ -89,7 +91,7 @@ rolling update は構成が軽いが、Blue / Green target group、test listener
 - `bluegreen` と `canary` は deployment config が異なるが、どちらも Blue/Green deployment style 上で動く
 - `provisioning` は初期構築用であり、CodeDeploy deployment step を実行しない
 - デプロイ中は一時的に新旧 task set が並行し、短時間の Fargate task 重複コストが発生する
-- Terraform の listener rule action は CodeDeploy の動的変更を許容するため、`ignore_changes` による境界管理が必要になる
+- Terraform と CodeDeploy の境界は `ignore_changes` で管理する。ECS service は `ignore_changes = [task_definition, load_balancer]` で、CodeDeploy が切り替えた task definition revision と target group を Terraform apply が巻き戻さないようにする。ALB listener rule は `ignore_changes = [action]` で、CodeDeploy の動的な traffic weight 変更を許容する
 - rolling update や recreate へ移行する場合は、ECS service deployment controller、CodeDeploy module、deploy workflow、rollback runbook をまとめて見直す必要がある
 - この ADR 自体は docs-only であり、新しい AWS リソースやコストは発生しない
 
@@ -101,9 +103,8 @@ rolling update は構成が軽いが、Blue / Green target group、test listener
 - [docs/operations/runbook.md](../operations/runbook.md) - CodeDeploy 失敗時の auto rollback / 手動 rollback
 - [docs/architecture/system-design.md](../architecture/system-design.md) - 運用設計と CI/CD の全体像
 - [.github/workflows/deploy.yml](../../.github/workflows/deploy.yml) - provisioning / bluegreen / canary の deploy workflow
-- [terraform/environments/dev/main.tf](../../terraform/environments/dev/main.tf) - dev 環境での CodeDeploy / ALB / ECS module 統合
-- [terraform/modules/cicd/codedeploy/main.tf](../../terraform/modules/cicd/codedeploy/main.tf) - CodeDeploy application / deployment group / target group pair
-- [terraform/modules/compute/ecs/main.tf](../../terraform/modules/compute/ecs/main.tf) - ECS service の `CODE_DEPLOY` deployment controller
-- [terraform/modules/compute/load-balancer/main.tf](../../terraform/modules/compute/load-balancer/main.tf) - production / test listener と listener rule
+
+CodeDeploy / ALB / ECS module や target group pair・listener・`ignore_changes` 境界の Terraform 実装は、正本である [codedeploy-blue-green.md](../deployment/codedeploy-blue-green.md) を起点に追う（module パスの直リンクは refactor で腐りやすいため ADR には固定しない）。
+
 - [0008](./0008-on-demand-startup-and-routine-destroy-operation.md) - オンデマンド起動 / 通常 destroy 運用
 - [0011](./0011-adopt-ecs-fargate-for-application-runtime.md) - アプリケーション実行基盤に ECS Fargate を採用する
