@@ -52,3 +52,4 @@
 | [0010](./0010-adopt-lightweight-and-strict-github-flow.md) | Accepted | 軽運用 / 厳密運用を分ける GitHub Flow モデルを採用する |
 | [0011](./0011-adopt-ecs-fargate-for-application-runtime.md) | Accepted | アプリケーション実行基盤に ECS Fargate を採用する |
 | [0012](./0012-consolidate-iac-security-scan-on-trivy-config.md) | Accepted | IaC security scan を Trivy Config に集約し tfsec を新規採用しない |
+| [0013](./0013-promote-quality-checks-to-required-gradually.md) | Accepted | 品質チェックを観察期間後に段階的 required 化する |
