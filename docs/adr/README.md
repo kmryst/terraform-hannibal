@@ -53,3 +53,4 @@
 | [0011](./0011-adopt-ecs-fargate-for-application-runtime.md) | Accepted | アプリケーション実行基盤に ECS Fargate を採用する |
 | [0012](./0012-consolidate-iac-security-scan-on-trivy-config.md) | Accepted | IaC security scan を Trivy Config に集約し tfsec を新規採用しない |
 | [0013](./0013-promote-quality-checks-to-required-gradually.md) | Accepted | 品質チェックを観察期間後に段階的 required 化する |
+| [0014](./0014-separate-terraform-foundation-and-environment-state.md) | Accepted | Terraform foundation / environments のルートモジュールと state を分離する |
