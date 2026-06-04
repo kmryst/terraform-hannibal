@@ -154,7 +154,7 @@ graph TD
     D --> E[Repository Layer]
     E --> F[PostgreSQL]
     
-    F --> G[JSONB Query + GIN Index]
+    F --> G[JSONB Query]
     G --> I[Results]
     I --> J[GraphQL Response]
     J --> K[Frontend Rendering]
@@ -166,8 +166,7 @@ graph LR
     A[Historical Data Sources] --> B[ETL Pipeline]
     B --> C[Data Validation]
     C --> D[PostgreSQL Insert]
-    D --> E[GIN Index Update]
-    E --> F[Cache Invalidation]
+    D --> F[Cache Invalidation]
 ```
 
 ## データクエリ最適化（実装済み）
@@ -182,10 +181,12 @@ SELECT id, name,
 FROM routes
 WHERE coordinates @> '[[7.0, 46.0]]';
 
--- GINインデックス作成（JSONB高速検索）
+-- GINインデックス作成（必要時に追加する候補・現在は未適用）
 CREATE INDEX idx_routes_coordinates 
 ON routes USING GIN (coordinates);
 ```
+
+> 現状 `routes.coordinates` は `@Column('jsonb')`（`src/entities/route.entity.ts`）で保持し、JSONB クエリは利用しているが、上記の GIN index は適用していない（`@Index` / migration / `CREATE INDEX` は未実装）。現在のルート数では index なしで十分なため、検索が要件化したときに追加する候補として扱う。判断の正本は [ADR 0016](../adr/0016-adopt-rds-postgresql-jsonb-over-aurora-and-postgis.md)。
 
 ### TypeORMによるクエリ最適化
 
@@ -229,17 +230,17 @@ export class RouteService {
 }
 ```
 
-## 将来実装予定の最適化
+## スコープ外とした最適化
 
-### PostGIS拡張機能（未実装）
+### PostGIS拡張機能（スコープ外・未実装）
 - 空間インデックス（GIST/GIN）
 - 地理的範囲検索（ST_Within、ST_DWithin）
 - ルート計算（ST_Length、ST_Distance）
 
-### 理由
+### スコープ外とする理由
 - 現在のデータ量では不要（ルート数が少ない）
 - JSONB型で十分なパフォーマンス
-- 将来的なデータ増加時に実装予定
+- 本プロジェクトの規模では採用しない。地理的範囲検索・距離計算が機能要件化したときに初めて再検討するが、demo / portfolio 用途でその要件が発生する想定はない。判断の正本は [ADR 0016](../adr/0016-adopt-rds-postgresql-jsonb-over-aurora-and-postgis.md)
 
 ## キャッシュ戦略（部分実装）
 
