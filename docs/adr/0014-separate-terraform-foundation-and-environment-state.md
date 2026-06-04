@@ -12,14 +12,14 @@ Accepted
 
 Terraform は `terraform/foundation` と `terraform/environments/<env>` を別のルートモジュールとして管理し、S3 backend の state key も分離する。
 
-- `terraform/foundation`: IAM / OIDC / Permission Boundary / CloudTrail / Athena / Budgets / Terraform backend state など、環境を作成・操作するための基盤リソースを扱う
+- `terraform/foundation`: IAM / OIDC / Permission Boundary / CloudTrail / Athena / Budgets など、環境を作成・操作するための基盤リソースを扱う。state backend の S3 bucket と DynamoDB lock table は bootstrap 上の理由で手動管理とし、foundation は IAM でこれらへのアクセス権のみを管理する
 - `terraform/environments/<env>`: ECS / ALB / RDS / S3 frontend / CodeDeploy など、アプリケーション環境のリソースを扱う
 
 S3 bucket は共有してよいが、state key は `foundation/terraform.tfstate` と `environments/<env>/terraform.tfstate` に分ける。現在の実稼働環境は `dev` のみであり、将来の `staging` / `prod` は `terraform/environments/<env>` 配下に追加する。
 
 ## 背景
 
-このプロジェクトでは、dev 環境を通常 destroy 済みにして必要な時だけ起動する運用を採用している。一方で、GitHub Actions OIDC、CICD Role、PR plan Role、Permission Boundary、CloudTrail / Athena / Budgets、Terraform backend state のような基盤リソースは、アプリケーション環境を destroy しても残す必要がある。
+このプロジェクトでは、dev 環境を通常 destroy 済みにして必要な時だけ起動する運用を採用している。一方で、GitHub Actions OIDC、CICD Role、PR plan Role、Permission Boundary、CloudTrail / Athena / Budgets のような基盤リソースは、アプリケーション環境を destroy しても残す必要がある。state backend の S3 bucket と DynamoDB lock table は bootstrap 上の理由（Terraform 管理の state 保存先を同じ Terraform で作ると鶏と卵になる）で手動管理としており、foundation は IAM でアクセス権のみを管理する。
 
 アプリケーション環境と foundation を同じ Terraform state に入れると、dev の destroy や環境追加のたびに、IAM / OIDC / state backend などの永続基盤まで同じ apply 境界に入る。これは blast radius が大きく、権限設計やレビュー観点も混ざりやすい。
 
@@ -50,7 +50,7 @@ S3 bucket は共有してよいが、state key は `foundation/terraform.tfstate
 
 foundation と environments では、保持すべき期間、変更頻度、必要な権限、レビュー観点が異なる。
 
-foundation は環境を作るための土台であり、日常の deploy / destroy から切り離して永続管理する必要がある。IAM / OIDC / Permission Boundary / backend state は誤変更時の影響が大きいため、`terraform/foundation` に閉じて厳密運用で扱う方が安全である。
+foundation は環境を作るための土台であり、日常の deploy / destroy から切り離して永続管理する必要がある。IAM / OIDC / Permission Boundary は誤変更時の影響が大きいため、`terraform/foundation` に閉じて厳密運用で扱う方が安全である。state backend の S3 bucket と DynamoDB lock table は Terraform 管理外だが、これらへのアクセス権は foundation の IAM で制御しており、foundation の apply 境界に含まれる。
 
 一方で、`terraform/environments/dev` はアプリケーション環境の再作成・破棄を前提にした実行単位であり、dev 固有のオンデマンド運用と相性がよい。state key を環境ごとに分けることで、dev の destroy や将来の prod apply が他の環境 state と競合しない。
 
@@ -61,7 +61,7 @@ foundation は環境を作るための土台であり、日常の deploy / destr
 - `terraform/foundation` の state key は `foundation/terraform.tfstate` とする
 - `terraform/environments/dev` の state key は `environments/dev/terraform.tfstate` とする
 - 将来の環境は `terraform/environments/<env>` に追加し、state key は `environments/<env>/terraform.tfstate` とする
-- foundation 変更は IAM / OIDC / Permission Boundary / backend state などを含むため、厳密運用で扱う
+- foundation 変更は IAM / OIDC / Permission Boundary などを含むため、厳密運用で扱う
 - dev 環境の deploy / destroy は environments 側の state に閉じ、foundation state を直接変更しない
 - PR plan / deploy / destroy 用 Role の分離は ADR 0005 の判断に従う
 
