@@ -138,6 +138,7 @@ branch protection の required status checks にはすぐ追加しません。
 - 実行時間と運用安定性を見てから required 化したほうが、日常PRを詰まらせにくい
 
 required status checks への追加は、#228 で判断しました。
+この段階的 required 化の判断背景、代替案、トレードオフは [ADR 0013](../adr/0013-promote-quality-checks-to-required-gradually.md) に記録します。
 
 ## #228 required 化判断
 
