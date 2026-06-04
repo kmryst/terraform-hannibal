@@ -50,3 +50,4 @@
 | [0008](./0008-on-demand-startup-and-routine-destroy-operation.md) | Accepted | オンデマンド起動 / 通常 destroy 運用を採用する（コスト系判断の親前提） |
 | [0009](./0009-keep-nestjs-hannibal-3-resource-names.md) | Accepted | 既存の AWS リソース名 nestjs-hannibal-3-* をリネームしない |
 | [0010](./0010-adopt-lightweight-and-strict-github-flow.md) | Accepted | 軽運用 / 厳密運用を分ける GitHub Flow モデルを採用する |
+| [0011](./0011-adopt-ecs-fargate-for-application-runtime.md) | Accepted | アプリケーション実行基盤に ECS Fargate を採用する |
