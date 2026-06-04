@@ -154,9 +154,8 @@ graph TD
     D --> E[Repository Layer]
     E --> F[PostgreSQL]
     
-    F --> G[PostGIS Extension]
-    G --> H[Spatial Queries]
-    H --> I[Optimized Results]
+    F --> G[JSONB Query + GIN Index]
+    G --> I[Results]
     I --> J[GraphQL Response]
     J --> K[Frontend Rendering]
 ```
@@ -167,7 +166,7 @@ graph LR
     A[Historical Data Sources] --> B[ETL Pipeline]
     B --> C[Data Validation]
     C --> D[PostgreSQL Insert]
-    D --> E[Spatial Index Update]
+    D --> E[GIN Index Update]
     E --> F[Cache Invalidation]
 ```
 
