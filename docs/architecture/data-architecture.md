@@ -154,7 +154,7 @@ graph TD
     D --> E[Repository Layer]
     E --> F[PostgreSQL]
     
-    F --> G[JSONB Query]
+    F --> G[PostgreSQL SELECT with JSONB coordinates]
     G --> I[Results]
     I --> J[GraphQL Response]
     J --> K[Frontend Rendering]
@@ -169,24 +169,35 @@ graph LR
     D --> F[Cache Invalidation]
 ```
 
-## データクエリ最適化（実装済み）
+## データクエリ（実装済み）
 
 ### JSONB型の活用
 
-**PostgreSQL JSONB クエリ例:**
+座標は `@Column('jsonb')` で保持し、`find()` / `findOne()` による全件取得・ID 検索で参照する。現状は JSONB operator（`@>`、`jsonb_array_length()` 等）は使っていない。
+
+**実装済みクエリ（TypeORM）:**
+```typescript
+// 全件取得
+this.routeRepository.find();
+
+// ID 検索
+this.routeRepository.findOne({ where: { id } });
+```
+
+**座標検索が要件化した場合の候補（未実装）:**
 ```sql
--- 座標データから特定地点を検索
+-- JSONB operator による座標検索
 SELECT id, name, 
        jsonb_array_length(coordinates) as point_count
 FROM routes
 WHERE coordinates @> '[[7.0, 46.0]]';
 
--- GINインデックス作成（必要時に追加する候補・現在は未適用）
+-- GIN インデックス（座標検索が要件化したときに追加する候補）
 CREATE INDEX idx_routes_coordinates 
 ON routes USING GIN (coordinates);
 ```
 
-> 現状 `routes.coordinates` は `@Column('jsonb')`（`src/entities/route.entity.ts`）で保持し、JSONB クエリは利用しているが、上記の GIN index は適用していない（`@Index` / migration / `CREATE INDEX` は未実装）。現在のルート数では index なしで十分なため、検索が要件化したときに追加する候補として扱う。判断の正本は [ADR 0016](../adr/0016-adopt-rds-postgresql-jsonb-over-aurora-and-postgis.md)。
+> JSONB operator クエリと GIN index はいずれも未実装。現在のルート数では不要で、座標検索が機能要件として発生したときに初めて追加する。判断の正本は [ADR 0016](../adr/0016-adopt-rds-postgresql-jsonb-over-aurora-and-postgis.md)。
 
 ### TypeORMによるクエリ最適化
 
