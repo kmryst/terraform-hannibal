@@ -24,6 +24,8 @@ Issue #226 で `TFLint` / `Trivy Config Scan` / `Gitleaks Secret Scan` を PR ch
 
 一方で、このリポジトリの IaC / security scan は Terraform だけを対象にしない。PR では Dockerfile の設定ミスも見たい。定期 Security Scan でも Trivy を dependency / container scan に使っており、Aqua Security 系の scan を Trivy に寄せると、ツール説明と運用のまとまりを保ちやすい。
 
+なお、`tfsec` は Aqua Security によって独立ツールとしての開発が停止され、その機能は `trivy config` に統合されている。同一ベンダーのツールが機能的に統合された状況で `tfsec` を新規採用することは、技術的な合理性に欠く。
+
 ## 検討した選択肢
 
 ### Trivy Config に集約し tfsec は新規採用しない（採択）
@@ -52,11 +54,9 @@ Issue #226 で `TFLint` / `Trivy Config Scan` / `Gitleaks Secret Scan` を PR ch
 
 ## 採択理由
 
-このプロジェクトでは、IaC security scan の目的は Terraform だけの static analysis ではなく、Terraform / Dockerfile などの設定ミスを PR 上で早期に見つけることである。そのため、横断的に扱える `trivy config` に寄せる方が、品質ゲートの責務を説明しやすい。
+`tfsec` は Aqua Security によって `trivy config` に機能統合済みであり、開発が停止された状態のツールを新規採用する技術的な根拠はない。機能的に重複するツールを追加しても、`Trivy Config Scan` が現在検出している finding の分類・整理という課題は解決しない。むしろ同カテゴリの finding と ignore ルールが増え、「何を修正対象にして何を accepted risk とするか」の判断が複雑になる。
 
-また、現時点での主要課題は scanner の数を増やすことではなく、`Trivy Config Scan` が検出している finding を修正対象、accepted risk、ignore 対象に分類し、blocking gate 化できる状態へ近づけることである。`tfsec` を追加しても、この分類作業は減らない。むしろ同じカテゴリの finding が増え、レビュー時に何を直すべきかが曖昧になりやすい。
-
-`terraform fmt` / `terraform validate`、`tflint`、`trivy config`、`gitleaks` の役割を分けることで、Terraform としての整合性、provider lint、IaC / Dockerfile misconfiguration、secret 混入をそれぞれ確認できる。ツール数を抑えながら目的別の品質ゲートを保つため、`tfsec` は新規採用しない。
+blocking gate 化に向けた優先順位は、ツールの追加ではなく既存 finding の棚卸しである。分類・記録が完了した段階で `exit-code: 1` 化を判断する、という段階的なアプローチを採ることで、品質ゲートの信頼性を実績として積み上げられる。
 
 ## 影響
 
