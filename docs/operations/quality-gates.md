@@ -117,6 +117,7 @@ Dependabot が生成した PR は CI（`pr-check.yml`）を通過後にマージ
 ただし現在は同じ Aqua Security の `Trivy` が Terraform を含む複数種類の設定ファイルを横断的に扱えるため、このプロジェクトでは新規の品質ゲートを `trivy config` に寄せます。
 
 これにより、Terraform だけでなく Dockerfile なども同じスキャン系統で確認できます。
+この判断の背景、代替案、トレードオフは [ADR 0012](../adr/0012-consolidate-iac-security-scan-on-trivy-config.md) に記録します。
 
 ## Required 化の方針
 
