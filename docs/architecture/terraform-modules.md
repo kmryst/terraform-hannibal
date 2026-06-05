@@ -23,7 +23,7 @@ terraform/
 │   ├── cicd/
 │   │   └── codedeploy/     # CodeDeploy (Blue/Green + Canary)
 │   ├── storage/
-│   │   ├── rds/            # PostgreSQL 15 (t4g.micro)
+│   │   ├── rds/            # PostgreSQL 15 (db.t3.micro)
 │   │   └── s3/             # Static Assets + Artifacts
 │   ├── cdn/
 │   │   └── cloudfront/     # CloudFront (グローバルCDN)
@@ -155,7 +155,7 @@ module "rds" {
   engine_version = "15"
   
   # コスト最適化構成（dev環境）
-  instance_class = "db.t4g.micro"
+  instance_class = "db.t3.micro"
   allocated_storage = 20
   
   # Single-AZ（コスト重視）
@@ -330,7 +330,7 @@ graph TD
 | **compute** | ecs | ✅ | Fargate 0.25vCPU / 0.5GB |
 | | load-balancer | ✅ | ALB (Blue/Green対応) |
 | **cicd** | codedeploy | ✅ | Blue/Green + Canary |
-| **storage** | rds | ✅ | PostgreSQL 15 (t4g.micro) |
+| **storage** | rds | ✅ | PostgreSQL 15 (db.t3.micro) |
 | | s3 | ✅ | Static Assets + Artifacts |
 | **cdn** | cloudfront | ✅ | グローバルCDN |
 | **security** | iam | ✅ | Permission Boundary |
@@ -345,26 +345,6 @@ graph TD
 4. **可用性**: Multi-AZ対応可能（現在はコスト重視でSingle-AZ）
 
 ## 品質保証
-
-### モジュールテスト
-```hcl
-# tests/network_test.go
-func TestNetworkModule(t *testing.T) {
-    terraformOptions := &terraform.Options{
-        TerraformDir: "../modules/network",
-        Vars: map[string]interface{}{
-            "project_name": "test-hannibal",
-            "vpc_cidr":     "10.0.0.0/16",
-        },
-    }
-    
-    defer terraform.Destroy(t, terraformOptions)
-    terraform.InitAndApply(t, terraformOptions)
-    
-    vpcId := terraform.Output(t, terraformOptions, "vpc_id")
-    assert.NotEmpty(t, vpcId)
-}
-```
 
 ### バリデーション
 ```hcl
@@ -445,7 +425,7 @@ module "compute" {
 module "storage" {
   source = "../../modules/storage/rds"
   
-  instance_class = "db.t4g.micro"
+  instance_class = "db.t3.micro"
   multi_az       = false  # Single-AZ
 }
 ```
