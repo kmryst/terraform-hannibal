@@ -413,7 +413,7 @@ terraform plan -out=tfplan
 
 **通常稼働時**: 月額 $30-50
 - ECS Fargate: 0.25vCPU / 0.5GB ($15-20)
-- RDS t4g.micro: ($10-15)
+- RDS db.t3.micro: ($10-15)
 - ALB: ($18)
 - NAT Gateway: ($32)
 

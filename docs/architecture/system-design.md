@@ -86,7 +86,7 @@ type Query {
 
 ### 水平スケーリング（実装済み）
 - **ECS Fargate**: 0.25vCPU / 0.5GB メモリ（コスト最適化構成）
-- **RDS**: PostgreSQL 15 - t4g.micro（Single-AZ、コスト重視）
+- **RDS**: PostgreSQL 15 - db.t3.micro（Single-AZ、コスト重視）
 - **CloudFront**: グローバルCDN配信
 
 ### パフォーマンス最適化（実装済み）
@@ -167,7 +167,7 @@ type Query {
 ### 停止運用による大幅削減
 - **通常稼働時**: 月額 $30-50
   - ECS Fargate: 0.25vCPU / 0.5GB ($15-20)
-  - RDS t4g.micro ($10-15)
+  - RDS db.t3.micro ($10-15)
   - ALB ($18)
   - NAT Gateway ($32)
 - **停止時**: 月額 $5以下
