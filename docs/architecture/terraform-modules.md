@@ -155,7 +155,7 @@ module "rds" {
   engine_version = "15"
   
   # コスト最適化構成（dev環境）
-  instance_class = "db.t3.micro"
+  db_instance_class = "db.t3.micro"
   allocated_storage = 20
   
   # Single-AZ（コスト重視）
@@ -425,8 +425,8 @@ module "compute" {
 module "storage" {
   source = "../../modules/storage/rds"
   
-  instance_class = "db.t3.micro"
-  multi_az       = false  # Single-AZ
+  db_instance_class = "db.t3.micro"
+  multi_az          = false  # Single-AZ
 }
 ```
 
