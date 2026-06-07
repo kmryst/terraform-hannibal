@@ -111,8 +111,8 @@ GitHub-owned actions は GitHub Actions platform に近い trust boundary とし
   - 同一行コメントの `# vX.Y.Z` には、その commit に対応する semver patch tag を記載する
   - pin 先の根拠は floating tag の現在参照先であり、「最新版への更新」ではない
 - `.github/dependabot.yml` の groups / open-pull-requests-limit を検討する
-- `docs/operations/quality-gates.md` の action バージョン管理方針を本方針に更新する
-- `docs/security/threat-model.md` の T10 を本方針に更新する
+- `docs/operations/quality-gates.md` の action バージョン管理方針を本方針に更新する ✅
+- `docs/security/threat-model.md` の T10 を本方針に更新する ✅
 - actionlint / CI で検証する
 - 移行後、Dependabot が SHA とコメントを更新する PR を作るか観測する
 
