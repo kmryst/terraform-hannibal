@@ -105,7 +105,13 @@ GitHub-owned actions は GitHub Actions platform に近い trust boundary とし
 - `.github/workflows` の `uses:` 一覧を棚卸しする
 - 各 action を Tier A / Tier B に分類する
 - Tier A を `@vX.Y.Z` に固定する
-- Tier B を `@<full-length-sha> # vX.Y.Z` に固定する（SHA は対応する tag が指す commit と一致させる）
+  - `git ls-remote <repo> refs/tags/vX 'refs/tags/vX^{}'` で floating major tag が現時点で指す commit SHA を取得する
+  - その commit SHA に対応する semver patch tag を全タグの逆引き（`git ls-remote --tags <repo> | grep <sha>`）で確認し、その版を `@vX.Y.Z` として使用する
+  - pin 先は「最新の patch version」ではなく「floating tag が今この瞬間に指している version」とし、pin 操作とバージョンアップを分離する
+- Tier B を `@<full-length-sha> # vX.Y.Z` に固定する
+  - Tier A と同じ手順で floating major tag が指す commit SHA を取得し、その SHA を `uses:` に記載する
+  - 同一行コメントの `# vX.Y.Z` には、その commit に対応する semver patch tag を記載する
+  - pin 先の根拠は floating tag の現在参照先であり、「最新版への更新」ではない
 - `.github/dependabot.yml` の groups / open-pull-requests-limit を検討する
 - `docs/operations/quality-gates.md` の action バージョン管理方針を本方針に更新する
 - `docs/security/threat-model.md` の T10 を本方針に更新する
