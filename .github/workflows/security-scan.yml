@@ -26,9 +26,9 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.3
       - name: Run Trivy vulnerability scanner (npm)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: "fs"
           scan-ref: "."
@@ -36,7 +36,7 @@ jobs:
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH"
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v4.36.2
         if: always()
         with:
           sarif_file: "trivy-results.sarif"
@@ -47,11 +47,11 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
       - name: Build Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           tags: nestjs-hannibal-3:${{ github.sha }}
@@ -59,14 +59,14 @@ jobs:
           cache-to: type=gha,mode=max
           load: true
       - name: Run Trivy vulnerability scanner (Docker)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: "nestjs-hannibal-3:${{ github.sha }}"
           format: "sarif"
           output: "trivy-container-results.sarif"
           severity: "CRITICAL,HIGH"
       - name: Upload Trivy container results
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v4.36.2
         if: always()
         with:
           sarif_file: "trivy-container-results.sarif"
@@ -78,15 +78,15 @@ jobs:
       actions: read
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.3
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@v4.36.2
         with:
           languages: javascript-typescript
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
+        uses: github/codeql-action/autobuild@v4.36.2
       - name: Analyze CodeQL
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@v4.36.2
   summary:
     name: Security Scan Summary
     runs-on: ubuntu-latest

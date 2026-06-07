@@ -85,11 +85,16 @@ Docker action / composite action / `actions/setup-node` でインストールし
 
 ### action バージョン管理方針
 
-各 workflow の action は `@vX` メジャータグで固定し、Dependabot（`.github/dependabot.yml`）の週次スケジュールによる自動 PR で version drift を追跡します。
+action の参照は owner の trust boundary で 2 tier に分けて固定します（[ADR 0017](../adr/0017-pin-github-actions-by-owner-tier.md)）。
 
-メジャータグを使う理由は可読性の維持と GitHub 公式 action のリリース管理が厳格であることです。SHA ピンはサプライチェーンリスクをさらに下げますが、PR の diff が SHA の羅列になるためポートフォリオの文脈では採用しません。
+| Tier | 対象 | 固定形式 | Dependabot alerts |
+|---|---|---|---|
+| A | GitHub-owned（`actions/*`, `github/codeql-action/*`） | `@vX.Y.Z` semver patch tag | 維持 |
+| B | non-GitHub-owned（上記以外の全外部 action） | `@<full-length-sha> # vX.Y.Z` SHA pin | 無効（version updates で補完） |
 
-Dependabot が生成した PR は CI（`pr-check.yml`）を通過後にマージします。major version 更新は破壊的変更を含む可能性があるため、リリースノートを確認してからマージします。
+**version / SHA の決定方法**: `@vX` floating major tag が現時点で指す commit SHA を `git ls-remote` で取得し、その commit に対応する semver patch tag を逆引きして固定します。pin 操作とバージョンアップを分離するため、「最新 patch を選ぶ」のではなく「floating tag が今この瞬間に指している version に固定する」方針を取ります。
+
+Dependabot の週次 version updates は継続し、SHA と `# vX.Y.Z` コメントを追従更新します。Dependabot が生成した PR は CI（`pr-check.yml`）を通過後にマージします。major version 更新はリリースノートを確認してからマージします。
 
 ## deploy workflow との役割分担
 

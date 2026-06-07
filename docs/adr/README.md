@@ -56,4 +56,4 @@
 | [0014](./0014-separate-terraform-foundation-and-environment-state.md) | Accepted | Terraform foundation / environments のルートモジュールと state を分離する |
 | [0015](./0015-adopt-codedeploy-blue-green-for-ecs-deployments.md) | Accepted | ECS デプロイに CodeDeploy Blue/Green を採用する |
 | [0016](./0016-adopt-rds-postgresql-jsonb-over-aurora-and-postgis.md) | Accepted | RDS PostgreSQL + JSONB を採用し、Aurora / PostGIS はスコープ外とする |
-| [0017](./0017-pin-github-actions-by-owner-tier.md) | Proposed | GitHub Actions の action 参照を owner tier で固定する（GitHub-owned は semver tag / 外部は SHA pin） |
+| [0017](./0017-pin-github-actions-by-owner-tier.md) | Accepted | GitHub Actions の action 参照を owner tier で固定する（GitHub-owned は semver tag / 外部は SHA pin） |

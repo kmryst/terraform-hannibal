@@ -2,9 +2,7 @@
 
 ## ステータス
 
-Proposed
-
-現時点の運用正本（`docs/operations/quality-gates.md` の action バージョン管理方針、`docs/security/threat-model.md` の T10）は依然 `@vX` 固定・SHA pin 不採用を正としている。本 ADR の 2 tier 方針はこれらの正本とワークフローを更新する後続の実装 PR で発効させ、その PR で正本を更新するのと同時に本 ADR を Accepted へ移行する。それまでは提案中として扱い、正本と矛盾させない。
+Accepted
 
 ## 日付
 
@@ -37,7 +35,7 @@ Proposed
 - 一方で、GitHub Actions の Dependabot alerts は semantic versioning を使う action に対して生成され、SHA pin された action には生成されない。SHA pin は改ざん耐性を上げるが Dependabot alerts を失うトレードオフがある。
 - `uses: owner/action@<full-length-sha> # vX.Y.Z` 形式にすれば、Dependabot version updates は SHA と同一行コメント上のバージョンを更新できる。version updates は定期更新であり脆弱性通知である alerts の代替ではないが、alert を失っても version drift を追従し続ける補完手段になる。
 - 本判断は `docs/security/threat-model.md` の T10（supply chain / GitHub Action 依存の侵害）が予告した「改ざんリスクが高まった場合は SHA pin を検討する」というエスカレーション条件に対応する。
-- `docs/operations/quality-gates.md` の「action バージョン管理方針」は現在 `@vX` 固定・SHA pin 不採用と記述しており、本 ADR の方針に合わせて後続 PR で更新する必要がある。
+- `docs/operations/quality-gates.md` の「action バージョン管理方針」は本 ADR の方針に合わせて更新した。
 
 ## 検討した選択肢
 
@@ -105,10 +103,16 @@ GitHub-owned actions は GitHub Actions platform に近い trust boundary とし
 - `.github/workflows` の `uses:` 一覧を棚卸しする
 - 各 action を Tier A / Tier B に分類する
 - Tier A を `@vX.Y.Z` に固定する
-- Tier B を `@<full-length-sha> # vX.Y.Z` に固定する（SHA は対応する tag が指す commit と一致させる）
+  - `git ls-remote <repo> refs/tags/vX 'refs/tags/vX^{}'` で floating major tag が現時点で指す commit SHA を取得する
+  - その commit SHA に対応する semver patch tag を全タグの逆引き（`git ls-remote --tags <repo> | grep <sha>`）で確認し、その版を `@vX.Y.Z` として使用する
+  - pin 先は「最新の patch version」ではなく「floating tag が今この瞬間に指している version」とし、pin 操作とバージョンアップを分離する
+- Tier B を `@<full-length-sha> # vX.Y.Z` に固定する
+  - Tier A と同じ手順で floating major tag が指す commit SHA を取得し、その SHA を `uses:` に記載する
+  - 同一行コメントの `# vX.Y.Z` には、その commit に対応する semver patch tag を記載する
+  - pin 先の根拠は floating tag の現在参照先であり、「最新版への更新」ではない
 - `.github/dependabot.yml` の groups / open-pull-requests-limit を検討する
-- `docs/operations/quality-gates.md` の action バージョン管理方針を本方針に更新する
-- `docs/security/threat-model.md` の T10 を本方針に更新する
+- `docs/operations/quality-gates.md` の action バージョン管理方針を本方針に更新する ✅
+- `docs/security/threat-model.md` の T10 を本方針に更新する ✅
 - actionlint / CI で検証する
 - 移行後、Dependabot が SHA とコメントを更新する PR を作るか観測する
 
@@ -117,6 +121,6 @@ GitHub-owned actions は GitHub Actions platform に近い trust boundary とし
 - [Issue #351](https://github.com/kmryst/terraform-hannibal/issues/351) - 本 ADR
 - [Issue #350](https://github.com/kmryst/terraform-hannibal/issues/350) - Renovate 導入検討。将来 Renovate を採る場合は本 ADR の Dependabot version updates 補完策を Renovate に読み替える
 - [Threat Model](../security/threat-model.md) - T10 supply chain / GitHub Action 依存の侵害（本 ADR が対応するエスカレーション条件）
-- [Quality Gates](../operations/quality-gates.md) - action バージョン管理方針（後続 PR で本方針に更新する）
+- [Quality Gates](../operations/quality-gates.md) - action バージョン管理方針
 - [0012](./0012-consolidate-iac-security-scan-on-trivy-config.md) - PR 品質ゲートの security scan 方針
 - [0013](./0013-promote-quality-checks-to-required-gradually.md) - 品質チェックの段階的 required 化
