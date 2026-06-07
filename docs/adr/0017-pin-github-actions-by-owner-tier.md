@@ -2,9 +2,7 @@
 
 ## ステータス
 
-Proposed
-
-現時点の運用正本（`docs/operations/quality-gates.md` の action バージョン管理方針、`docs/security/threat-model.md` の T10）は依然 `@vX` 固定・SHA pin 不採用を正としている。本 ADR の 2 tier 方針はこれらの正本とワークフローを更新する後続の実装 PR で発効させ、その PR で正本を更新するのと同時に本 ADR を Accepted へ移行する。それまでは提案中として扱い、正本と矛盾させない。
+Accepted
 
 ## 日付
 
