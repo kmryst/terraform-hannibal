@@ -26,7 +26,7 @@
 
 | Action | Pin | 利用 workflow |
 |---|---|---|
-| `actions/checkout` | `v6.0.3` | 全 workflow |
+| `actions/checkout` | `v6.0.3` | `sync-labels.yml`, `security-scan.yml`, `destroy.yml`, `deploy.yml`, `pr-check.yml` |
 | `actions/setup-node` | `v6.4.0` | `pr-check.yml`, `deploy.yml` |
 | `actions/upload-artifact` | `v7.0.1` | `pr-check.yml` |
 | `actions/github-script` | `v9.0.0` | `issue-template-check.yml` |
