@@ -264,14 +264,8 @@ ORDER BY usage_count DESC;
 
 ### Dependabot PR対応（週次）
 
-Dependabot / dependency graph 周辺は次の 4 要素で扱います。
-
-| 要素 | 運用上の意味 |
-|---|---|
-| Dependency graph | Dependabot alerts / security updates の土台となる依存関係データ |
-| Dependabot alerts / vulnerability alerts | 既知脆弱性の通知 |
-| Dependabot security updates | alert を解消する最小修正 PR |
-| Dependabot version updates | 脆弱性有無に関係なく定期更新する PR |
+Dependabot / dependency graph 周辺の用語整理と action pin の現行運用は [quality-gates.md](./quality-gates.md) と [action-pin-review.md](./action-pin-review.md) を参照します。
+[ADR 0017](../adr/0017-pin-github-actions-by-owner-tier.md) は、GitHub Actions action pin の Tier A / Tier B 方針とトレードオフを記録する背景文書です。
 
 **GitHub Dependabot 設定済み:**
 - Dependency graph / Dependabot alerts / Dependabot security updates は有効化済み（2026-06-10）
