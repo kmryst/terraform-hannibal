@@ -87,16 +87,33 @@ Docker action / composite action / `actions/setup-node` でインストールし
 
 action の参照は owner の trust boundary で 2 tier に分けて固定します（[ADR 0017](../adr/0017-pin-github-actions-by-owner-tier.md)）。
 
-| Tier | 対象 | 固定形式 | Dependabot alerts |
-|---|---|---|---|
-| A | GitHub-owned（`actions/*`, `github/codeql-action/*`） | `@vX.Y.Z` semver patch tag | 維持 |
-| B | non-GitHub-owned（上記以外の全外部 action） | `@<full-length-sha> # vX.Y.Z` SHA pin | 無効（version updates で補完） |
+Dependabot / dependency graph 周辺は次の 4 要素で区別します。
+
+| 要素 | 役割 |
+|---|---|
+| Dependency graph | alerts / security updates の土台となる依存関係データ |
+| Dependabot alerts / vulnerability alerts | dependency graph と advisory を照合して既知脆弱性を通知 |
+| Dependabot security updates | alert を解消する最小修正 PR を作成 |
+| Dependabot version updates | 脆弱性有無に関係なく、`dependabot.yml` に従って定期更新 PR を作成 |
+
+| Tier | 対象 | 固定形式 | Version updates | Alerts / security updates |
+|---|---|---|---|---|
+| A | GitHub-owned（`actions/*`, `github/codeql-action/*`） | `@vX.Y.Z` semver patch tag | 対象 | 対象 |
+| B | non-GitHub-owned（上記以外の全外部 action） | `@<full-length-sha> # vX.Y.Z` SHA pin | 対象 | SHA pin のため対象外 |
 
 **version / SHA の決定方法**: `@vX` floating major tag が現時点で指す commit SHA を `git ls-remote` で取得し、その commit に対応する semver patch tag を逆引きして固定します。pin 操作とバージョンアップを分離するため、「最新 patch を選ぶ」のではなく「floating tag が今この瞬間に指している version に固定する」方針を取ります。
 
 Dependabot の週次 version updates は継続し、SHA と `# vX.Y.Z` コメントを追従更新します。Dependabot が生成した PR は CI（`pr-check.yml`）を通過後にマージします。major version 更新はリリースノートを確認してからマージします。
 
 Dependency graph / Dependabot alerts (vulnerability alerts) / Dependabot security updates は有効化済みです（2026-06-10）。現在 pin している action の Tier 分類、SHA とコメントの対応確認、advisory 確認結果、Tier B の Dependabot version update PR レビュー手順は [action-pin-review.md](./action-pin-review.md) に記録します。
+
+Tier B action の Dependabot version update PR では、少なくとも次を確認します。
+
+- `@<sha>` と `# vX.Y.Z` の tag commit が一致すること
+- release notes / changelog の breaking change
+- GitHub Advisory Database / upstream advisory
+- workflow permissions / secrets / OIDC / artifact 入出力への影響
+- PR CI 結果、および PR で実行されない workflow の必要時手動確認
 
 ## deploy workflow との役割分担
 

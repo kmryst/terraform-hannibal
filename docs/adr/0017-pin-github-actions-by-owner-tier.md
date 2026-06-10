@@ -15,16 +15,30 @@ Accepted
 - **Tier A: GitHub-owned actions**（`actions/*`, `github/codeql-action/*`）
   - `@vX` 浮動メジャータグは使用しない
   - `@vX.Y.Z` の semver patch tag に固定する
-  - Dependabot alerts / security updates / version updates を維持する
+  - repository level で有効化した Dependency graph / Dependabot alerts / Dependabot security updates の対象として維持する
+  - Dependabot version updates で semver patch tag を追従更新する
   - SHA pin はしない
 - **Tier B: non-GitHub-owned actions**（`aws-actions/*`, `docker/*`, `hashicorp/*`, `aquasecurity/*`, `terraform-linters/*`, `micnncim/*`、その他 GitHub-owned でない外部 action）
   - `@vX` 浮動メジャータグは使用しない
   - `uses: owner/action@<full-length-sha> # vX.Y.Z` の形式で固定する
   - full-length SHA は、同一行コメントの `vX.Y.Z` tag が指す commit SHA と一致させる
   - Dependabot version updates で SHA と同一行コメントを更新する
-  - Dependabot alerts が効かなくなる点を明示的に受容する
+  - SHA pin のため Dependabot alerts / Dependabot security updates の対象外になる点を明示的に受容する
 
 `@vX` メジャータグは原則使わない。**具体的な action の version / SHA は本 ADR では固定せず、後続の実装 PR で決定する。**
+
+## Dependabot / Dependency graph の用語整理
+
+GitHub Actions action 管理では、Dependabot 周辺を次の 4 要素で整理する。
+
+| 要素 | 役割 | この ADR での扱い |
+|---|---|---|
+| Dependency graph | manifest / lockfile / workflow などから依存関係を認識する土台 | Dependabot alerts / security updates の前提。repository level で有効化する |
+| Dependabot alerts / vulnerability alerts | GitHub Advisory Database と dependency graph を照合して既知脆弱性を通知する | Tier A は対象。Tier B は SHA pin のため GitHub Actions alert 対象外 |
+| Dependabot security updates | Dependabot alert を解消する最小修正 PR を作る | Tier A は対象。Tier B は alert が生成されないため対象外 |
+| Dependabot version updates | 脆弱性有無に関係なく、`dependabot.yml` に従って定期更新 PR を作る | Tier A / Tier B の両方で継続する。Tier B の SHA と `# vX.Y.Z` コメント追従を補完策として使う |
+
+Dependency graph は Dependabot alerts / security updates の土台だが、Dependabot version updates は dependency graph ではなく package ecosystem の version 情報に基づいて動く。したがって本 ADR では「Dependabot 3 機能 + 土台の Dependency graph」として区別する。
 
 ## 背景
 
@@ -34,6 +48,7 @@ Accepted
 - OpenSSF Scorecard の Pinned-Dependencies でも、GitHub Actions などの build dependency を hash / SHA で pin する方向が示されている。
 - 一方で、GitHub Actions の Dependabot alerts は semantic versioning を使う action に対して生成され、SHA pin された action には生成されない。SHA pin は改ざん耐性を上げるが Dependabot alerts を失うトレードオフがある。
 - `uses: owner/action@<full-length-sha> # vX.Y.Z` 形式にすれば、Dependabot version updates は SHA と同一行コメント上のバージョンを更新できる。version updates は定期更新であり脆弱性通知である alerts の代替ではないが、alert を失っても version drift を追従し続ける補完手段になる。
+- PR #364 で repository level の Dependency graph / Dependabot alerts / Dependabot security updates を有効化し、現在の action pin と advisory 確認結果を `docs/operations/action-pin-review.md` に記録した。
 - 本判断は `docs/security/threat-model.md` の T10（supply chain / GitHub Action 依存の侵害）が予告した「改ざんリスクが高まった場合は SHA pin を検討する」というエスカレーション条件に対応する。
 - `docs/operations/quality-gates.md` の「action バージョン管理方針」は本 ADR の方針に合わせて更新した。
 
@@ -95,8 +110,8 @@ GitHub-owned actions は GitHub Actions platform に近い trust boundary とし
 ### 補完策
 
 - Dependabot version updates を継続し、SHA と `# vX.Y.Z` コメントを追従更新する
-- PR review 時に release notes / GitHub Advisory Database を確認する
-- SHA と `# vX.Y.Z` の対応検証を実装 PR の検証項目に入れる
+- Tier B action の Dependabot version update PR では、`@<sha>` と `# vX.Y.Z` の対応、release notes / changelog、GitHub Advisory Database / upstream advisory、workflow permissions / secrets / OIDC / artifact への影響、CI 結果を確認する
+- SHA と `# vX.Y.Z` の対応検証を実装 PR と Dependabot PR の検証項目に入れる
 
 ### 後続タスク（実装 PR で実施）
 
@@ -115,14 +130,17 @@ GitHub-owned actions は GitHub Actions platform に近い trust boundary とし
 - `.github/dependabot.yml` の groups / open-pull-requests-limit を検討する ✅（[action-pin-review.md](../operations/action-pin-review.md) section 5、現状維持で問題なしと判断）
 - `docs/operations/quality-gates.md` の action バージョン管理方針を本方針に更新する ✅
 - `docs/security/threat-model.md` の T10 を本方針に更新する ✅
-- actionlint / CI で検証する
-- 移行後、Dependabot が SHA とコメントを更新する PR を作るか観測する（[action-pin-review.md](../operations/action-pin-review.md) section 7 のチェック項目として記録）
+- actionlint / CI で検証する ✅
+  - actionlint は workflow 構文チェックであり、pin ポリシー遵守そのものを検証するものではない
+  - pin ポリシーは SHA/tag 対応確認、Dependabot version update PR の review、`action-pin-review.md` の手順で担保する
+- 移行後、Dependabot が SHA とコメントを更新する PR を作るか観測する（[Issue #366](https://github.com/kmryst/terraform-hannibal/issues/366)、[action-pin-review.md](../operations/action-pin-review.md) section 7）
 
 ## 関連
 
 - [Issue #351](https://github.com/kmryst/terraform-hannibal/issues/351) - 本 ADR
 - [Issue #356](https://github.com/kmryst/terraform-hannibal/issues/356) - Dependabot alerts 有効化と action pin の advisory 確認運用化
-- [Issue #350](https://github.com/kmryst/terraform-hannibal/issues/350) - Renovate 導入検討。将来 Renovate を採る場合は本 ADR の Dependabot version updates 補完策を Renovate に読み替える
+- [Issue #366](https://github.com/kmryst/terraform-hannibal/issues/366) - Tier B SHA pin の Dependabot version update 追従観測
+- [Issue #350](https://github.com/kmryst/terraform-hannibal/issues/350) - Renovate 導入検討。GitHub Actions だけなら Dependabot で管理できるため、Renovate は npm / Dockerfile / Terraform provider / RDS engine version などの拡張依存管理として扱う
 - [Threat Model](../security/threat-model.md) - T10 supply chain / GitHub Action 依存の侵害（本 ADR が対応するエスカレーション条件）
 - [Quality Gates](../operations/quality-gates.md) - action バージョン管理方針
 - [action-pin-review.md](../operations/action-pin-review.md) - action pin の Tier 分類・SHA 検証・advisory 確認結果と Tier B レビュー手順

@@ -264,14 +264,27 @@ ORDER BY usage_count DESC;
 
 ### Dependabot PR対応（週次）
 
-**GitHub Dependabot設定済み:**
-- 自動PR作成: 依存関係の脆弱性検出時
-- 対応: PR内容確認 → マージ
+Dependabot / dependency graph 周辺の用語整理と action pin の現行運用は [quality-gates.md](./quality-gates.md) と [action-pin-review.md](./action-pin-review.md) を参照します。
+[ADR 0017](../adr/0017-pin-github-actions-by-owner-tier.md) は、GitHub Actions action pin の Tier A / Tier B 方針とトレードオフを記録する背景文書です。
+
+**GitHub Dependabot 設定済み:**
+- Dependency graph / Dependabot alerts / Dependabot security updates は有効化済み（2026-06-10）
+- GitHub Actions の Dependabot version updates は `.github/dependabot.yml` で週次実行
+- npm ecosystem の version updates は #365 で追加対応する
+
+**対応方針:**
+- Dependabot security update PR は、対応する alert、修正 version、CI 結果を確認してマージする
+- Dependabot version update PR は、release notes / changelog、breaking change、CI 結果を確認してマージする
+- GitHub Actions の Tier B action（`@<sha> # vX.Y.Z`）を更新する PR では、`@<sha>` と `# vX.Y.Z` の tag commit が一致すること、workflow permissions / secrets / OIDC / artifact 入出力への影響を確認する
+- Tier B SHA pin の Dependabot 追従更新は #366 で次回 PR を観測する
 
 **確認コマンド:**
 ```powershell
 # 未対応PR一覧
 gh pr list --label dependencies
+
+# GitHub Actions 更新PR一覧
+gh pr list --label github_actions
 ```
 
 ### セキュリティスキャン結果確認
@@ -293,7 +306,7 @@ gh pr list --label dependencies
 | 頻度 | タスク | 所要時間 |
 |------|--------|---------|
 | **日次** | CloudWatch Alarm確認 | 5分 |
-| **週次** | Dependabot PR マージ | 15分 |
+| **週次** | Dependabot PR レビュー / マージ | 15分 |
 | **週次** | Security Scan 結果確認 | 10分 |
 | **月次** | IAM権限レビュー (Athena) | 30分 |
 | **月次** | コスト分析 (Cost Explorer) | 15分 |
@@ -323,6 +336,6 @@ function Get-Deployments {
 
 ---
 
-**最終更新**: 2025年10月12日  
+**最終更新**: 2026年06月10日
 **運用レベル**: ポートフォリオ向けDevOps実装（本番運用可能）  
 **サポート**: トラブル時は `docs/troubleshooting/README.md` 参照
