@@ -13,7 +13,7 @@
 | 項目 | 確認方法 | 結果 |
 |---|---|---|
 | Dependency graph | `GET /repos/{owner}/{repo}/dependency-graph/sbom` | 有効。SBOM に 1,143 packages が含まれる（vulnerability-alerts 有効化前は 404） |
-| Dependabot alerts / vulnerability alerts | `GET /repos/{owner}/{repo}/vulnerability-alerts` → 204、`GET /repos/{owner}/{repo}/dependabot/alerts` → 200 | 有効。現時点の alert 件数は 0 |
+| Dependabot alerts / vulnerability alerts | `GET /repos/{owner}/{repo}/vulnerability-alerts` → 204、`GET /repos/{owner}/{repo}/dependabot/alerts` → 200 | 有効。open alert は npm 依存で 65 件、github-actions ecosystem の alert は 0 件。本ドキュメントでは action pin の確認を対象とし、npm 依存の alert は対象外とする |
 | Dependabot security updates | `GET /repos/{owner}/{repo}/automated-security-fixes` → `{"enabled":true,"paused":false}`、`security_and_analysis.dependabot_security_updates.status` → `enabled` | 有効 |
 
 3 項目とも有効化できたため、代替運用の検討は不要。
