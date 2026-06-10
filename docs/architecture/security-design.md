@@ -299,7 +299,11 @@ on:
 ```
 
 ### 脆弱性管理
-- **Dependabot**: GitHub標準機能で依存関係を自動更新
+- **Dependency graph**: manifest / lockfile / workflow から依存関係を認識し、Dependabot alerts / security updates の土台として使用
+- **Dependabot alerts / vulnerability alerts**: dependency graph と GitHub Advisory Database を照合し、既知脆弱性を通知
+- **Dependabot security updates**: alert を解消する最小修正 PR を作成
+- **Dependabot version updates**: `.github/dependabot.yml` に従い、脆弱性有無に関係なく依存関係の定期更新 PR を作成
+- **GitHub Actions action pin**: GitHub-owned actions は `@vX.Y.Z`、non-GitHub-owned actions は `@<full-length-sha> # vX.Y.Z` で固定する（[ADR 0017](../adr/0017-pin-github-actions-by-owner-tier.md)）
 - **TFLint/Trivy Config/Gitleaks**: PRでTerraform lint、IaC security、secret scanを実行
 - **CodeQL/Trivy**: 手動のセキュリティスキャンでSAST/SCA/コンテナを確認
 - **結果統合**: SARIF対応スキャンはGitHub Securityタブへ集約
@@ -309,12 +313,12 @@ on:
 ### 定期監査（手動実施）
 - **月次**: IAM権限レビュー（Athena分析）
 - **四半期**: CloudTrail ログ分析
-- **随時**: Dependabot Alert対応
+- **随時**: Dependabot alerts / security update PR 対応
 
 ### 実績メトリクス
 - **IAM権限最適化**: role 分離・write/exec 列挙・Permission Boundary による最小権限設計を実装済み（#164, #293）
 - **PR品質ゲート**: Terraform公式チェックに加え、TFLint / Trivy Config / Gitleaks を自動実行
-- **脆弱性修正**: Dependabot PR を週次マージ
+- **脆弱性修正**: Dependabot alerts / security updates / version updates を用途別に確認し、PR をレビューしてマージ
 
 ## セキュリティ成熟度評価
 
