@@ -12,6 +12,7 @@
 - [terraform-runbook.md](./terraform-runbook.md) - Terraform init / plan / apply / state lock / import / drift 確認
 - [rollback-plan.md](./rollback-plan.md) - Terraform apply 失敗・誤変更・state 復元の rollback 手順
 - [quality-gates.md](./quality-gates.md) - PR品質ゲート（Terraform lint / IaC security / secret scan）
+- [action-pin-review.md](./action-pin-review.md) - GitHub Actions action pin の Tier分類・SHA検証・advisory確認とTier Bレビュー手順
 - [pr-terraform-plan-role-design.md](./pr-terraform-plan-role-design.md) - PR terraform plan用AWS Role/OIDC権限設計補足
 - [docs/deployment/codedeploy-blue-green.md](../deployment/codedeploy-blue-green.md) - デプロイ詳細
 

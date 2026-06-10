@@ -96,6 +96,8 @@ action の参照は owner の trust boundary で 2 tier に分けて固定しま
 
 Dependabot の週次 version updates は継続し、SHA と `# vX.Y.Z` コメントを追従更新します。Dependabot が生成した PR は CI（`pr-check.yml`）を通過後にマージします。major version 更新はリリースノートを確認してからマージします。
 
+Dependency graph / Dependabot alerts (vulnerability alerts) / Dependabot security updates は有効化済みです（2026-06-10）。現在 pin している action の Tier 分類、SHA とコメントの対応確認、advisory 確認結果、Tier B の Dependabot version update PR レビュー手順は [action-pin-review.md](./action-pin-review.md) に記録します。
+
 ## deploy workflow との役割分担
 
 `deploy.yml` は `workflow_dispatch` による `main` からの手動デプロイに限定する。backend/frontend の build・test は PR gate（`pr-check.yml`）に集約し、deploy workflow では再実行しない。

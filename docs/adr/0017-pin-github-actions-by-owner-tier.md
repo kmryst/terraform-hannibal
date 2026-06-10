@@ -100,27 +100,31 @@ GitHub-owned actions は GitHub Actions platform に近い trust boundary とし
 
 ### 後続タスク（実装 PR で実施）
 
-- `.github/workflows` の `uses:` 一覧を棚卸しする
-- 各 action を Tier A / Tier B に分類する
+- `.github/workflows` の `uses:` 一覧を棚卸しする ✅
+- 各 action を Tier A / Tier B に分類する ✅
 - Tier A を `@vX.Y.Z` に固定する
   - `git ls-remote <repo> refs/tags/vX 'refs/tags/vX^{}'` で floating major tag が現時点で指す commit SHA を取得する
   - その commit SHA に対応する semver patch tag を全タグの逆引き（`git ls-remote --tags <repo> | grep <sha>`）で確認し、その版を `@vX.Y.Z` として使用する
   - pin 先は「最新の patch version」ではなく「floating tag が今この瞬間に指している version」とし、pin 操作とバージョンアップを分離する
+  - ✅（[action-pin-review.md](../operations/action-pin-review.md) section 2）
 - Tier B を `@<full-length-sha> # vX.Y.Z` に固定する
   - Tier A と同じ手順で floating major tag が指す commit SHA を取得し、その SHA を `uses:` に記載する
   - 同一行コメントの `# vX.Y.Z` には、その commit に対応する semver patch tag を記載する
   - pin 先の根拠は floating tag の現在参照先であり、「最新版への更新」ではない
-- `.github/dependabot.yml` の groups / open-pull-requests-limit を検討する
+  - ✅（[action-pin-review.md](../operations/action-pin-review.md) section 2, 3）
+- `.github/dependabot.yml` の groups / open-pull-requests-limit を検討する ✅（[action-pin-review.md](../operations/action-pin-review.md) section 5、現状維持で問題なしと判断）
 - `docs/operations/quality-gates.md` の action バージョン管理方針を本方針に更新する ✅
 - `docs/security/threat-model.md` の T10 を本方針に更新する ✅
 - actionlint / CI で検証する
-- 移行後、Dependabot が SHA とコメントを更新する PR を作るか観測する
+- 移行後、Dependabot が SHA とコメントを更新する PR を作るか観測する（[action-pin-review.md](../operations/action-pin-review.md) section 7 のチェック項目として記録）
 
 ## 関連
 
 - [Issue #351](https://github.com/kmryst/terraform-hannibal/issues/351) - 本 ADR
+- [Issue #356](https://github.com/kmryst/terraform-hannibal/issues/356) - Dependabot alerts 有効化と action pin の advisory 確認運用化
 - [Issue #350](https://github.com/kmryst/terraform-hannibal/issues/350) - Renovate 導入検討。将来 Renovate を採る場合は本 ADR の Dependabot version updates 補完策を Renovate に読み替える
 - [Threat Model](../security/threat-model.md) - T10 supply chain / GitHub Action 依存の侵害（本 ADR が対応するエスカレーション条件）
 - [Quality Gates](../operations/quality-gates.md) - action バージョン管理方針
+- [action-pin-review.md](../operations/action-pin-review.md) - action pin の Tier 分類・SHA 検証・advisory 確認結果と Tier B レビュー手順
 - [0012](./0012-consolidate-iac-security-scan-on-trivy-config.md) - PR 品質ゲートの security scan 方針
 - [0013](./0013-promote-quality-checks-to-required-gradually.md) - 品質チェックの段階的 required 化
