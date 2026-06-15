@@ -31,6 +31,20 @@ class RuntimeTestModule {}
 
 describe('Node 24 / Express 5 / Apollo Server 5 runtime', () => {
   let app: INestApplication;
+  const originalEnv = {
+    nodeEnv: process.env.NODE_ENV,
+    devClientUrlLocal: process.env.DEV_CLIENT_URL_LOCAL,
+    devClientUrlIp: process.env.DEV_CLIENT_URL_IP,
+  };
+
+  function restoreEnv(name: string, value: string | undefined): void {
+    if (value === undefined) {
+      delete process.env[name];
+      return;
+    }
+
+    process.env[name] = value;
+  }
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'development';
@@ -47,7 +61,13 @@ describe('Node 24 / Express 5 / Apollo Server 5 runtime', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    try {
+      await app.close();
+    } finally {
+      restoreEnv('NODE_ENV', originalEnv.nodeEnv);
+      restoreEnv('DEV_CLIENT_URL_LOCAL', originalEnv.devClientUrlLocal);
+      restoreEnv('DEV_CLIENT_URL_IP', originalEnv.devClientUrlIp);
+    }
   });
 
   it('serves the root and health endpoints', async () => {
