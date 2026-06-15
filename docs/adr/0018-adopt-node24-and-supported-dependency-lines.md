@@ -102,4 +102,4 @@ Issue #369のPRをrevertし、root/clientのmanifestとlockfile、Docker base im
 - [Issue #369](https://github.com/kmryst/terraform-hannibal/issues/369) - 本ADRを実装する統合Issue
 - [Issue #365](https://github.com/kmryst/terraform-hannibal/issues/365) - client側dependency findingの追跡
 - [Dependency Management](../operations/dependency-management.md) - 現行の依存更新運用
-- 統合PR: 本ADRを含むPR（作成後に番号を追記する）
+- [PR #372](https://github.com/kmryst/terraform-hannibal/pull/372) - 本ADRを含む統合PR
