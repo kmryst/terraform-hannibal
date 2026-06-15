@@ -11,6 +11,23 @@ export interface IQuery {
     capitalCities(): Nullable<CapitalCityCollection> | Promise<Nullable<CapitalCityCollection>>;
     hannibalRoute(): Nullable<HannibalRouteCollection> | Promise<Nullable<HannibalRouteCollection>>;
     pointRoute(): Nullable<PointRouteCollection> | Promise<Nullable<PointRouteCollection>>;
+    routes(): Route[] | Promise<Route[]>;
+    route(id: number): Nullable<Route> | Promise<Nullable<Route>>;
+}
+
+export interface IMutation {
+    createRoute(name: string, description: string, coordinates: number[][], color?: Nullable<string>): Route | Promise<Route>;
+    seedRoutes(): string | Promise<string>;
+}
+
+export interface Route {
+    id: string;
+    name: string;
+    description: string;
+    coordinates: number[][];
+    color?: Nullable<string>;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface CapitalCityCollection {

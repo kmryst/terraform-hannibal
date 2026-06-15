@@ -13,6 +13,7 @@
 - [rollback-plan.md](./rollback-plan.md) - Terraform apply 失敗・誤変更・state 復元の rollback 手順
 - [quality-gates.md](./quality-gates.md) - PR品質ゲート（Terraform lint / IaC security / secret scan）
 - [action-pin-review.md](./action-pin-review.md) - GitHub Actions action pin の Tier分類・SHA検証・advisory確認とTier Bレビュー手順
+- [dependency-management.md](./dependency-management.md) - npm依存更新、lockfile、audit、既知peer warningの運用方針
 - [pr-terraform-plan-role-design.md](./pr-terraform-plan-role-design.md) - PR terraform plan用AWS Role/OIDC権限設計補足
 - [docs/deployment/codedeploy-blue-green.md](../deployment/codedeploy-blue-green.md) - デプロイ詳細
 
@@ -265,6 +266,7 @@ ORDER BY usage_count DESC;
 ### Dependabot PR対応（週次）
 
 Dependabot / dependency graph 周辺の用語整理と action pin の現行運用は [quality-gates.md](./quality-gates.md) と [action-pin-review.md](./action-pin-review.md) を参照します。
+[dependency-management.md](./dependency-management.md) は root / client のnpm依存、段階的lockfile更新、audit scope、既知peer warningの正本です。
 [ADR 0017](../adr/0017-pin-github-actions-by-owner-tier.md) は、GitHub Actions action pin の Tier A / Tier B 方針とトレードオフを記録する背景文書です。
 
 **GitHub Dependabot 設定済み:**
@@ -336,6 +338,6 @@ function Get-Deployments {
 
 ---
 
-**最終更新**: 2026年06月10日
+**最終更新**: 2026年06月15日
 **運用レベル**: ポートフォリオ向けDevOps実装（本番運用可能）  
 **サポート**: トラブル時は `docs/troubleshooting/README.md` 参照

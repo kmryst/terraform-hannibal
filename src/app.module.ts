@@ -1,13 +1,43 @@
 // C:\code\javascript\nestjs-hannibal-3\src\app.module.ts
-import { Module } from '@nestjs/common';
+import { DynamicModule, Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'path';
 import { MapModule } from './modules/map/map.module';
 import { RouteModule } from './modules/route/route.module';
 import { Route } from './entities';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+export function createGraphqlOptions(nodeEnv: string): ApolloDriverConfig {
+  const isDevelopment = nodeEnv !== 'production';
+
+  return {
+    driver: ApolloDriver,
+    typePaths: ['./**/*.graphql'],
+    path: '/graphql',
+    definitions: {
+      path: join(process.cwd(), 'src/graphql/graphql.schema.ts'),
+    },
+    context: ({ req }) => ({ req }),
+    csrfPrevention: true,
+    graphiql: isDevelopment,
+    introspection: isDevelopment,
+  };
+}
+
+export function createGraphqlModule(): DynamicModule {
+  return GraphQLModule.forRootAsync<ApolloDriverConfig>({
+    driver: ApolloDriver,
+    inject: [ConfigService],
+    useFactory: (configService: ConfigService) =>
+      createGraphqlOptions(
+        configService.get<string>('NODE_ENV', 'development'),
+      ),
+  });
+}
 
 function buildDatabaseUrlFromParts(): string | undefined {
   const host = process.env.DB_HOST;
@@ -44,20 +74,11 @@ function buildDatabaseUrlFromParts(): string | undefined {
       synchronize: process.env.NODE_ENV !== 'production', // 本番では false
       logging: process.env.NODE_ENV === 'development',
     }),
-    GraphQLModule.forRoot<ApolloDriverConfig>({
-      driver: ApolloDriver,
-      typePaths: ['./**/*.graphql'],
-      path: '/graphql',
-      definitions: {
-        path: join(process.cwd(), 'src/graphql/graphql.schema.ts'),
-      },
-      context: ({ req }) => ({ req }),
-      csrfPrevention: false,
-      playground: process.env.NODE_ENV !== 'production',
-      introspection: process.env.NODE_ENV !== 'production',
-    }),
+    createGraphqlModule(),
     MapModule,
     RouteModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}

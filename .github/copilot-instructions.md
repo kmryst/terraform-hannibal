@@ -8,7 +8,7 @@
 
 ### 技術スタック
 - **Frontend**: React 19 + TypeScript 5.8 + Vite + Mapbox GL JS + Apollo Client
-- **Backend**: NestJS 10 + TypeScript 5.8 + GraphQL (Code First) + TypeORM
+- **Backend**: Node.js 24 + NestJS 11 + Apollo Server 5 + TypeScript 5.2 + GraphQL (Schema First) + TypeORM
 - **Database**: PostgreSQL 15 (RDS)
 - **Infrastructure**: Terraform 1.12.1 + AWS (ECS Fargate / ALB / CloudFront / Route53)
 - **CI/CD**: GitHub Actions (Blue/Green & Canary Deployment)
@@ -123,12 +123,12 @@ nestjs-hannibal-3/
 │   ├── security-scan.yml  # 手動 CodeQL/Trivy scan
 │   └── pr-check.yml       # PR policy + Build/Test + quality gates
 ├── appspec.yml           # CodeDeploy設定
-└── Dockerfile            # Multi-stage build (node:20-alpine)
+└── Dockerfile            # Multi-stage build (node:24-alpine)
 ```
 
 ### 重要なアーキテクチャ決定
 
-1. **GraphQL Code First**: `route.resolver.ts`でデコレータ駆動開発、スキーマは自動生成
+1. **GraphQL Schema First**: `src/graphql/schema/*.graphql`を正本とし、TypeScript定義を生成
 2. **TypeORM + PostgreSQL**: `app.module.ts`でDATABASE_URL環境変数から接続
 3. **CORS設定**: `main.ts`で環境別Origin制御（本番=CLIENT_URL、開発=localhost:5173）
 4. **IAM最小権限**: `foundation/iam.tf`でPermission Boundary + HannibalCICDRole
