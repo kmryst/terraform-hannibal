@@ -1,5 +1,5 @@
 // C:\code\javascript\nestjs-hannibal-3\src\app.module.ts
-import { Module } from '@nestjs/common';
+import { DynamicModule, Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -26,6 +26,17 @@ export function createGraphqlOptions(nodeEnv: string): ApolloDriverConfig {
     graphiql: isDevelopment,
     introspection: isDevelopment,
   };
+}
+
+export function createGraphqlModule(): DynamicModule {
+  return GraphQLModule.forRootAsync<ApolloDriverConfig>({
+    driver: ApolloDriver,
+    inject: [ConfigService],
+    useFactory: (configService: ConfigService) =>
+      createGraphqlOptions(
+        configService.get<string>('NODE_ENV', 'development'),
+      ),
+  });
 }
 
 function buildDatabaseUrlFromParts(): string | undefined {
@@ -63,14 +74,7 @@ function buildDatabaseUrlFromParts(): string | undefined {
       synchronize: process.env.NODE_ENV !== 'production', // 本番では false
       logging: process.env.NODE_ENV === 'development',
     }),
-    GraphQLModule.forRootAsync<ApolloDriverConfig>({
-      driver: ApolloDriver,
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) =>
-        createGraphqlOptions(
-          configService.get<string>('NODE_ENV', 'development'),
-        ),
-    }),
+    createGraphqlModule(),
     MapModule,
     RouteModule,
   ],

@@ -1,12 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { GraphQLModule } from '@nestjs/graphql';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppController } from '../src/app.controller';
-import { createGraphqlOptions } from '../src/app.module';
+import { createGraphqlModule } from '../src/app.module';
 import { AppService } from '../src/app.service';
 import { configureApplication } from '../src/app.setup';
 import { MapModule } from '../src/modules/map/map.module';
@@ -14,14 +12,7 @@ import { MapModule } from '../src/modules/map/map.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    GraphQLModule.forRootAsync<ApolloDriverConfig>({
-      driver: ApolloDriver,
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) =>
-        createGraphqlOptions(
-          configService.get<string>('NODE_ENV', 'development'),
-        ),
-    }),
+    createGraphqlModule(),
     MapModule,
   ],
   controllers: [AppController],
