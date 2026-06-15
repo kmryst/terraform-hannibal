@@ -18,9 +18,13 @@ export function createGraphqlOptions(nodeEnv: string): ApolloDriverConfig {
     driver: ApolloDriver,
     typePaths: ['./**/*.graphql'],
     path: '/graphql',
-    definitions: {
-      path: join(process.cwd(), 'src/graphql/graphql.schema.ts'),
-    },
+    // definitions.path はスキーマからTS型を生成する開発用機能。
+    // 本番イメージではsrc/がread-onlyでEACCESになるため開発時のみ有効化する。
+    ...(isDevelopment && {
+      definitions: {
+        path: join(process.cwd(), 'src/graphql/graphql.schema.ts'),
+      },
+    }),
     context: ({ req }) => ({ req }),
     csrfPrevention: true,
     graphiql: isDevelopment,
