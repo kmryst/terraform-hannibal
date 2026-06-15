@@ -33,7 +33,6 @@ RUN npm ci --omit=dev
 COPY --from=builder /usr/src/app/dist ./dist
 
 # Apollo Server schema-first: typePaths が ./**/*.graphql をランタイムに読む
-# definitions.path が src/graphql/graphql.schema.ts に書き出すためディレクトリも必要
 COPY --from=builder /usr/src/app/src/graphql/schema ./src/graphql/schema
 
 ENV NODE_ENV=production
