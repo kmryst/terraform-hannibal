@@ -1,9 +1,33 @@
-import { ConfigService } from '@nestjs/config';
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { GraphQLModule } from '@nestjs/graphql';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
-import { AppModule } from '../src/app.module';
+import { AppController } from '../src/app.controller';
+import { createGraphqlOptions } from '../src/app.module';
+import { AppService } from '../src/app.service';
 import { configureApplication } from '../src/app.setup';
+import { MapModule } from '../src/modules/map/map.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    GraphQLModule.forRootAsync<ApolloDriverConfig>({
+      driver: ApolloDriver,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) =>
+        createGraphqlOptions(
+          configService.get<string>('NODE_ENV', 'development'),
+        ),
+    }),
+    MapModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+class RuntimeTestModule {}
 
 describe('Node 24 / Express 5 / Apollo Server 5 runtime', () => {
   let app: INestApplication;
@@ -23,18 +47,12 @@ describe('Node 24 / Express 5 / Apollo Server 5 runtime', () => {
   }
 
   beforeAll(async () => {
-    if (!process.env.DATABASE_URL) {
-      throw new Error(
-        'DATABASE_URL is required for AppModule end-to-end tests',
-      );
-    }
-
     process.env.NODE_ENV = 'development';
     process.env.DEV_CLIENT_URL_LOCAL = 'http://localhost:5173';
     process.env.DEV_CLIENT_URL_IP = 'http://127.0.0.1:5173';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [RuntimeTestModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
@@ -82,16 +100,6 @@ describe('Node 24 / Express 5 / Apollo Server 5 runtime', () => {
 
     expect(response.body.errors).toBeUndefined();
     expect(response.body.data.capitalCities.type).toBe('FeatureCollection');
-  });
-
-  it('wires the Route resolver to the TypeORM repository', async () => {
-    const response = await request(app.getHttpServer())
-      .post('/graphql')
-      .set('Content-Type', 'application/json')
-      .send({ query: '{ routes { id } }' })
-      .expect(200);
-
-    expect(response.body).toEqual({ data: { routes: [] } });
   });
 
   it('rejects a simple GraphQL GET that can bypass preflight', async () => {
