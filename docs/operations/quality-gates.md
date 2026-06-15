@@ -75,9 +75,9 @@ GitHub Actions の Node 20 runtime deprecation と CodeQL Action v3 deprecation 
 | `terraform-linters/setup-tflint@v6` | 現行 major tag の action metadata が Node 24 runtime を使う。 |
 | `micnncim/action-label-syncer@v1` | Docker action であり、GitHub-hosted JavaScript action の Node runtime warning 対象ではない。 |
 
-`NODE_VERSION: "20"` や `node-version: '20'` は、workflow 上で実行する backend/frontend build・test の Node.js version です。
-これは GitHub Actions の JavaScript action runtime warning とは別の互換性判断なので、本対応では変更しません。
-アプリ実行・CI テスト用 Node.js を 24 へ上げる場合は、backend/frontend の依存関係とテスト安定性を確認する別 Issue として扱います。
+Issue #369で application runtime / CI / container のsupport contractをNode.js 24へ統一しました。
+`NODE_VERSION: "24"` をbackend/frontend build・testとTerraform plan用frontend buildで共有し、root/clientの`engines.node`は`>=24 <25`、Docker imageは`node:24-alpine`とします。
+GitHub Actions自体が内部で使うJavaScript runtimeとは別の設定ですが、どちらもNode 24へ移行済みです。
 
 残る warning がある場合は、annotation が指している action の `action.yml` / `action.yaml` の `runs.using` を確認します。
 Node 20 runtime を使う JS action が残っていれば version 更新または別 action への置換を検討します。

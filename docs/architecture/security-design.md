@@ -114,7 +114,7 @@ origin verify header の値は Terraform の `random_password` で生成し、Gi
 
 **非 root ユーザー実行**
 
-`node:20-alpine` に組み込みの `node` ユーザーで ECS タスクを実行する。コンテナの脆弱性を突かれた場合のホスト影響を最小化する。
+`node:24-alpine` に組み込みの `node` ユーザーで ECS タスクを実行する。Node.js 24 LTSをruntime contractとし、コンテナの脆弱性を突かれた場合のホスト影響を最小化する。
 
 ```dockerfile
 RUN chmod 644 /opt/rds-ca-2019-root.pem
@@ -124,13 +124,14 @@ CMD ["node", "dist/main.js"]
 
 ### GraphQL セキュリティ（実装済み）
 
-**本番環境での playground / introspection 無効化**
+**開発環境限定のGraphiQL / introspectionとCSRF prevention**
 
-`NODE_ENV=production` のとき、GraphQL playground と introspection を無効化する。スキーマ情報の外部公開を防ぎ、攻撃面を縮小する。
+deprecatedなGraphQL Playgroundは使用しない。`NODE_ENV=production` のときGraphiQLとintrospectionを無効化し、スキーマ情報の外部公開を防ぐ。Apollo ServerのCSRF preventionは全環境で有効にし、frontendの`Content-Type: application/json`を伴うPOSTは許可し、preflight条件を満たさないsimple requestは拒否する。
 
 ```typescript
 GraphQLModule.forRoot<ApolloDriverConfig>({
-  playground: process.env.NODE_ENV !== 'production',
+  csrfPrevention: true,
+  graphiql: process.env.NODE_ENV !== 'production',
   introspection: process.env.NODE_ENV !== 'production',
 })
 ```
@@ -156,14 +157,19 @@ export class CreateRouteInput {
 
 **CORS設定** (実装済み)
 ```typescript
-// main.ts
+// app.setup.ts
 app.enableCors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.CLIENT_URL 
-    : ['http://localhost:5173'],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
+    else callback(new Error('Not allowed by CORS'));
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 });
 ```
+
+許可originは完全一致で比較する。将来multipart uploadまたはsimple GETを使うGraphQL clientを追加する場合は、`Apollo-Require-Preflight`とCORS allowlistを同時に更新し、CSRF preventionを無効化して回避しない。
 
 ### 3. アプリケーションセキュリティ（将来実装予定）
 

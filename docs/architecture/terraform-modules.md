@@ -132,7 +132,7 @@ module "load_balancer" {
 ```
 
 **特徴:**
-- Multi-stage Dockerビルド（node:20-alpine）
+- Multi-stage Dockerビルド（node:24-alpine）
 - Blue/Green Deployment対応のTarget Group構成
 - Health Check: 5回成功で正常判定
 

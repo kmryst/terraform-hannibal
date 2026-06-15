@@ -3,7 +3,7 @@ name: Deploy NestJS Hannibal
 env:
   PROJECT_NAME: "nestjs-hannibal-3"
   TERRAFORM_VERSION: "1.12.1"
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
 
 on:
   workflow_dispatch:
