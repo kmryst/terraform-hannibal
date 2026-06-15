@@ -16,7 +16,7 @@
 | `PR Policy Check` | `gh` / `jq` / shell | Issue link、必須ラベル、厳密運用時の rollback 欄を確認 | required status check 対象 |
 | `Commitlint` | `commitlint` | PR title と PR 内コミットメッセージを Conventional Commits 形式で確認 | required status check 対象 |
 | `Backend Lint & Build` | ESLint / Nest build | backend の lint と build を確認 | required status check 対象 |
-| `Backend Test` | Jest | backend unit test を確認 | PR で自動実行 |
+| `Backend Test` | Jest / PostgreSQL 15 | backend unit testと実`AppModule`のE2Eを確認 | PR で自動実行 |
 | `Frontend Build` | TypeScript / Vite build | frontend の型チェックと build を確認 | required status check 対象 |
 | `Frontend Test` | Vitest | frontend unit test を確認 | PR で自動実行 |
 | `Docker Build` | Docker | backend image build と non-root user を確認 | PR で自動実行 |

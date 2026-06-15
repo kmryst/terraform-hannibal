@@ -295,6 +295,23 @@ jobs:
   backend-test:
     name: Backend Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: hannibal_test
+          POSTGRES_USER: hannibal
+          POSTGRES_PASSWORD: hannibal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hannibal -d hannibal_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://hannibal:hannibal@localhost:5432/hannibal_test
+      NODE_ENV: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v6.0.3
@@ -310,6 +327,9 @@ jobs:
 
       - name: Run backend unit tests
         run: npm test -- --runInBand
+
+      - name: Run backend end-to-end tests
+        run: npm run test:e2e -- --runInBand
 
   frontend-check:
     name: Frontend Build
