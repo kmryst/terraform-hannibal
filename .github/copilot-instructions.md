@@ -110,14 +110,19 @@ nestjs-hannibal-3/
 │   │   ├── billing.tf   # コスト監視 ($30-50 → 停止時$5)
 │   │   └── athena.tf    # CloudTrail分析
 │   ├── modules/         # 再利用可能モジュール
-│   │   ├── networking/  # 3層VPC (Public/App/Data)
-│   │   ├── compute/     # ECS Fargate + ALB
-│   │   ├── cicd/        # CodeDeploy Blue/Green
-│   │   ├── storage/     # RDS + S3
-│   │   ├── cdn/         # CloudFront
-│   │   ├── security/    # Security Groups
-│   │   └── observability/ # CloudWatch
-│   └── environments/dev/  # 環境別設定
+│   │   ├── vpc/         # 3層VPC (Public/App/Data) + Security Groups
+│   │   ├── rds/         # RDS PostgreSQL
+│   │   ├── ecs/         # ECS Fargate + IAM
+│   │   ├── load-balancer/ # ALB + Target Groups
+│   │   ├── codedeploy/  # CodeDeploy Blue/Green
+│   │   ├── cloudfront/  # CloudFront
+│   │   ├── s3/          # S3
+│   │   ├── dns/         # Route53
+│   │   └── monitoring/  # CloudWatch
+│   ├── network/         # root module: VPC + SG
+│   ├── database/        # root module: RDS
+│   ├── service/         # root module: ECS + ALB + CodeDeploy + monitoring
+│   └── cdn/             # root module: CloudFront + S3 + DNS
 ├── .github/workflows/
 │   ├── deploy.yml         # 3モード対応 (provisioning/bluegreen/canary)
 │   ├── security-scan.yml  # 手動 CodeQL/Trivy scan
@@ -235,7 +240,8 @@ npm run build      # 本番ビルド
 ### Infrastructure開発 (Terraform)
 
 ```bash
-cd terraform/environments/dev
+# 4 root module 構成: network → database → service → cdn
+cd terraform/service
 terraform init     # S3バックエンド初期化
 terraform plan     # 変更プレビュー
 terraform apply    # リソース作成
@@ -425,11 +431,7 @@ terraform plan -out=tfplan
 
 **停止方法** (`terraform/foundation/billing.tf` 参照):
 ```bash
-# GitHub Actions: destroy.yml で実行
-# または手動:
-cd terraform/environments/dev
-terraform destroy -target=module.compute
-terraform destroy -target=module.storage
+# GitHub Actions: destroy.yml で実行（cdn → service → database → network の逆順）
 ```
 
 **起動方法**:
