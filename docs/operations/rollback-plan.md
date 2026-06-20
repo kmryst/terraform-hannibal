@@ -4,6 +4,8 @@
 通常の Terraform 操作手順は [terraform-runbook.md](./terraform-runbook.md) を参照します。
 CodeDeploy の auto rollback やアプリケーションデプロイ障害は [runbook.md](./runbook.md) を参照します。
 
+> **注意**: 以下のコマンド例は旧構成（`terraform/environments/dev`）に基づいています。state 分割後は、対象の root module ディレクトリ（`terraform/network`、`terraform/database`、`terraform/service`、`terraform/cdn`）に読み替えてください。
+
 ## 基本方針
 
 - まず Git / Terraform 設定 / 実 AWS リソース / state のどこが壊れたかを切り分ける。

@@ -17,8 +17,12 @@ Terraform apply 失敗、誤変更、state 復元の戻し方は [rollback-plan.
 | 対象 | ディレクトリ | State key | Lockfile key | 主な Role |
 |---|---|---|---|---|
 | foundation | `terraform/foundation` | `foundation/terraform.tfstate` | `foundation/terraform.tfstate.tflock` | `HannibalFoundationRole-Dev` |
-| dev application | `terraform/environments/dev` | `environments/dev/terraform.tfstate` | `environments/dev/terraform.tfstate.tflock` | local plan: `HannibalDeveloperRole-Dev`, deploy/destroy: `HannibalCICDRole-Dev` |
-| prod skeleton | `terraform/environments/prod` | `environments/prod/terraform.tfstate` | `environments/prod/terraform.tfstate.tflock` | 未作成。将来 prod 用 Role を別途設計する |
+| network | `terraform/network` | `network/terraform.tfstate` | `network/terraform.tfstate.tflock` | local plan: `HannibalDeveloperRole-Dev`, deploy/destroy: `HannibalCICDRole-Dev` |
+| database | `terraform/database` | `database/terraform.tfstate` | `database/terraform.tfstate.tflock` | local plan: `HannibalDeveloperRole-Dev`, deploy/destroy: `HannibalCICDRole-Dev` |
+| service | `terraform/service` | `service/terraform.tfstate` | `service/terraform.tfstate.tflock` | local plan: `HannibalDeveloperRole-Dev`, deploy/destroy: `HannibalCICDRole-Dev` |
+| cdn | `terraform/cdn` | `cdn/terraform.tfstate` | `cdn/terraform.tfstate.tflock` | local plan: `HannibalDeveloperRole-Dev`, deploy/destroy: `HannibalCICDRole-Dev` |
+
+> **注意**: 以下のコマンド例は旧構成（`terraform/environments/dev`）に基づいています。state 分割後は、対象の root module ディレクトリに読み替えてください。runbook の全面改訂は #398 で対応します。
 
 Role の正本は [iam-management.md](./iam-management.md) です。
 `HannibalDeveloperRole-Dev` は日常開発・アプリ運用と dev plan 用であり、`terraform/foundation` の apply には使いません。

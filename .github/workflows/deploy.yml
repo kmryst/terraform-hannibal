@@ -69,34 +69,44 @@ jobs:
           npm ci
           npm run build
 
-      - name: Deploy Infrastructure
-        # prod に切り替える場合は working-directory を ./terraform/environments/prod に変更するか
-        # inputs に environment を追加して -chdir で切り替える
-        working-directory: ./terraform/environments/dev
+      # TODO: #398 で network → database → service → cdn の順序 apply に対応する
+      - name: Deploy Infrastructure (service)
+        working-directory: ./terraform/service
         run: |
           set -e
           terraform init -input=false
-          
-          # deployment_typeを設定（provisioningの場合はcanaryをデフォルト使用）
+
           DEPLOYMENT_TYPE="${{ inputs.deployment_mode }}"
           if [ "$DEPLOYMENT_TYPE" = "provisioning" ]; then
             DEPLOYMENT_TYPE="canary"
           fi
-          
+
           terraform plan \
             -var="client_url_for_cors=https://hamilcar-hannibal.click" \
             -var="environment=dev" \
             -var="deployment_type=$DEPLOYMENT_TYPE" \
-            -var="enable_cloudfront=true" \
             -var="ecr_repository_url=${{ vars.ECR_REPOSITORY_URL }}" \
             -var="alb_certificate_arn=${{ vars.ALB_CERTIFICATE_ARN }}" \
-            -var="acm_certificate_arn_us_east_1=${{ vars.ACM_CERTIFICATE_ARN_US_EAST_1 }}" \
-            -var="hosted_zone_id=${{ vars.HOSTED_ZONE_ID }}" \
+            -var="db_name=nestjs_hannibal_db" \
             -out=tfplan
           terraform apply -auto-approve tfplan
-          
-          # Environment Variables方式でTerraform出力を設定
+
           echo "ALB_DNS=$(terraform output -raw alb_dns_name)" >> $GITHUB_ENV
+
+      - name: Deploy Infrastructure (cdn)
+        working-directory: ./terraform/cdn
+        run: |
+          set -e
+          terraform init -input=false
+
+          terraform plan \
+            -var="enable_cloudfront=true" \
+            -var="acm_certificate_arn_us_east_1=${{ vars.ACM_CERTIFICATE_ARN_US_EAST_1 }}" \
+            -var="hosted_zone_id=${{ vars.HOSTED_ZONE_ID }}" \
+            -var="alb_origin_verify_header_value=$(cd ../terraform/service && terraform output -raw alb_origin_verify_header_value 2>/dev/null || echo 'placeholder')" \
+            -out=tfplan
+          terraform apply -auto-approve tfplan
+
           echo "S3_BUCKET=$(terraform output -raw s3_bucket_name)" >> $GITHUB_ENV
           echo "CLOUDFRONT_ARN=$(terraform output -raw cloudfront_distribution_arn)" >> $GITHUB_ENV
 

@@ -1,5 +1,7 @@
 # Terraform Modules 実装状況
 
+> **注意**: このドキュメントは旧構成（7カテゴリ・11モジュール、`terraform/environments/dev/`）に基づいています。state 分割後はフラットな 9 モジュール構成に変更されています。最新の構成は [terraform-environments.md](../terraform-environments.md) を参照してください。
+
 ## モジュール化完了
 
 Terraformコードを**7カテゴリ・11モジュール**に分割し、再利用可能な構成を実現。

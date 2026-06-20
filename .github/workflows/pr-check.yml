@@ -388,14 +388,15 @@ jobs:
         id: fmt_check
         run: terraform fmt -check -recursive
 
-      - name: Terraform Init (dev)
-        working-directory: ./terraform/environments/dev
-        run: terraform init -backend=false
-
-      - name: Terraform Validate (dev)
+      - name: Terraform Init & Validate (all root modules)
         id: validate_dev
-        working-directory: ./terraform/environments/dev
-        run: terraform validate
+        run: |
+          set -e
+          for dir in terraform/foundation terraform/network terraform/database terraform/service terraform/cdn; do
+            echo "--- $dir ---"
+            terraform -chdir="$dir" init -backend=false
+            terraform -chdir="$dir" validate
+          done
 
       - name: Write Terraform Check Summary
         if: always()
@@ -623,13 +624,13 @@ jobs:
           role-to-assume: ${{ vars.AWS_PR_PLAN_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Terraform Init (dev backend)
-        working-directory: ./terraform/environments/dev
+      - name: Terraform Init (service backend)
+        working-directory: ./terraform/service
         run: terraform init -input=false
 
-      - name: Terraform Plan (dev)
+      - name: Terraform Plan (service)
         id: terraform_plan
-        working-directory: ./terraform/environments/dev
+        working-directory: ./terraform/service
         run: |
           set +e
           terraform plan \
@@ -642,11 +643,9 @@ jobs:
             -var="client_url_for_cors=https://hamilcar-hannibal.click" \
             -var="environment=dev" \
             -var="deployment_type=canary" \
-            -var="enable_cloudfront=true" \
             -var="ecr_repository_url=${{ vars.ECR_REPOSITORY_URL }}" \
             -var="alb_certificate_arn=${{ vars.ALB_CERTIFICATE_ARN }}" \
-            -var="acm_certificate_arn_us_east_1=${{ vars.ACM_CERTIFICATE_ARN_US_EAST_1 }}" \
-            -var="hosted_zone_id=${{ vars.HOSTED_ZONE_ID }}" \
+            -var="db_name=nestjs_hannibal_db" \
             > terraform-plan.txt 2>&1
           plan_exit=$?
           set -e
@@ -675,14 +674,14 @@ jobs:
         with:
           name: terraform-plan-dev-${{ github.event.pull_request.number }}
           path: |
-            terraform/environments/dev/terraform-plan.txt
-            terraform/environments/dev/terraform-plan-exitcode.txt
+            terraform/service/terraform-plan.txt
+            terraform/service/terraform-plan-exitcode.txt
           if-no-files-found: warn
           retention-days: 3
 
       - name: Analyze Terraform plan review signals
         if: always()
-        working-directory: ./terraform/environments/dev
+        working-directory: ./terraform/service
         run: |
           set -e
 
@@ -824,9 +823,9 @@ jobs:
         run: |
           set -e
 
-          plan_file="terraform/environments/dev/terraform-plan.txt"
-          exit_file="terraform/environments/dev/terraform-plan-exitcode.txt"
-          signal_file="terraform/environments/dev/terraform-plan-signals.md"
+          plan_file="terraform/service/terraform-plan.txt"
+          exit_file="terraform/service/terraform-plan-exitcode.txt"
+          signal_file="terraform/service/terraform-plan-signals.md"
           plan_exit="unknown"
           add_count="unknown"
           change_count="unknown"

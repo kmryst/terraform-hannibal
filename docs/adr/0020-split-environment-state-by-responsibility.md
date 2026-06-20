@@ -16,9 +16,9 @@ ADR 0014 で分離した `terraform/environments/dev/` の単一 state を、責
 
 | root module | state key | 内容 |
 |---|---|---|
-| `terraform/network/` | `network/terraform.tfstate` | VPC、subnet、Internet Gateway、NAT Gateway、route table |
-| `terraform/database/` | `database/terraform.tfstate` | RDS PostgreSQL、DB subnet group、RDS Security Group |
-| `terraform/service/` | `service/terraform.tfstate` | ECS、ALB、CodeDeploy、monitoring、ALB/ECS Security Group、ECS task execution IAM Role |
+| `terraform/network/` | `network/terraform.tfstate` | VPC、subnet、Internet Gateway、NAT Gateway、route table、ALB/ECS/RDS Security Group |
+| `terraform/database/` | `database/terraform.tfstate` | RDS PostgreSQL、DB subnet group |
+| `terraform/service/` | `service/terraform.tfstate` | ECS、ALB、CodeDeploy、monitoring、ECS task execution IAM Role |
 | `terraform/cdn/` | `cdn/terraform.tfstate` | CloudFront、S3 frontend、Route53 DNS record |
 
 `terraform/foundation/` は ADR 0014 で分離済みであり、変更しない。
@@ -27,7 +27,7 @@ ADR 0014 で分離した `terraform/environments/dev/` の単一 state を、責
 
 | 変更 | 内容 |
 |---|---|
-| Security Group の移動 | `modules/security-groups` を廃止し、ALB SG は ALB モジュール、ECS SG は ECS モジュール、RDS SG は RDS モジュールがそれぞれ所有する |
+| Security Group の統合 | `modules/security-groups` を廃止し、ALB/ECS/RDS の Security Group を VPC モジュールに統合する。SG 間の相互参照（ECS SG → ALB SG、RDS SG → ECS SG）により、SG を各モジュールに分散すると state 間の循環依存が発生するため、network state の VPC モジュールにまとめる |
 | IAM Role の移動 | `modules/iam` を廃止し、ECS task execution role は ECS モジュールが所有する |
 | Target Group の移動 | CodeDeploy モジュールから Target Group を ALB モジュールに移動する |
 | ディレクトリのフラット化 | `modules/compute/ecs/` → `modules/ecs/`、`modules/storage/rds/` → `modules/rds/` のように、カテゴリ層を廃止してフラットにする |
@@ -39,10 +39,10 @@ terraform/modules/
   cloudfront/
   codedeploy/
   dns/
-  ecs/          ← Security Group と IAM Role を内包
-  load-balancer/ ← Security Group と Target Group を内包
+  ecs/          ← IAM Role を内包
+  load-balancer/ ← Target Group を内包
   monitoring/
-  rds/          ← Security Group を内包
+  rds/
   s3/
   vpc/
 ```
@@ -54,8 +54,8 @@ state 間の参照は `terraform_remote_state` data source を使う。依存は
 ```text
 foundation   (独立)
 network/     (独立)
-database/    → network/  (vpc_id, data_subnet_ids)
-service/     → network/  (vpc_id, app_subnet_ids, public_subnet_ids)
+database/    → network/  (vpc_id, data_subnet_ids, rds_security_group_id)
+service/     → network/  (vpc_id, app_subnet_ids, public_subnet_ids, alb_security_group_id, ecs_security_group_id)
              → database/ (rds_endpoint, master_user_secret_arn)
 cdn/         → service/  (alb_dns_name, alb_zone_id)
 ```
