@@ -11,11 +11,12 @@ import { Route } from './entities';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
-export function createGraphqlOptions(nodeEnv: string): ApolloDriverConfig {
+export function createGraphqlOptions(
+  nodeEnv: string,
+): Omit<ApolloDriverConfig, 'driver'> {
   const isDevelopment = nodeEnv !== 'production';
 
   return {
-    driver: ApolloDriver,
     typePaths: ['./**/*.graphql'],
     path: '/graphql',
     // definitions.path はスキーマからTS型を生成する開発用機能。
