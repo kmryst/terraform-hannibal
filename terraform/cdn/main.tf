@@ -28,7 +28,7 @@ module "cloudfront" {
   acm_certificate_arn_us_east_1  = var.acm_certificate_arn_us_east_1
   cloudfront_oac_id              = var.cloudfront_oac_id
   alb_origin_verify_header_name  = "X-Hannibal-Origin-Verify"
-  alb_origin_verify_header_value = var.alb_origin_verify_header_value
+  alb_origin_verify_header_value = data.terraform_remote_state.service.outputs.alb_origin_verify_header_value
 }
 
 module "dns" {

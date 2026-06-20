@@ -86,8 +86,7 @@ jobs:
           terraform destroy -auto-approve \
             -var="enable_cloudfront=true" \
             -var="acm_certificate_arn_us_east_1=${{ vars.ACM_CERTIFICATE_ARN_US_EAST_1 }}" \
-            -var="hosted_zone_id=${{ vars.HOSTED_ZONE_ID }}" \
-            -var="alb_origin_verify_header_value=placeholder-for-destroy"
+            -var="hosted_zone_id=${{ vars.HOSTED_ZONE_ID }}"
 
       - name: Destroy Infrastructure (service)
         working-directory: ./terraform/service
