@@ -104,6 +104,37 @@ PR は原則として次のヘルパーで作成します。
   --head <branch>
 ```
 
+## Terraform 変更時の追加確認
+
+### 実行してよい検証コマンド
+
+```bash
+# フォーマットチェック（差分なしが正常）
+terraform fmt -check -recursive
+
+# 静的バリデーション（AWS 認証不要）
+for dir in terraform/foundation terraform/network terraform/database terraform/service terraform/cdn; do
+  terraform -chdir="$dir" init -backend=false
+  terraform -chdir="$dir" validate
+done
+```
+
+### ディレクトリ別の方針
+
+| ディレクトリ | 用途 | apply/destroy |
+|---|---|---|
+| `terraform/foundation/` | 基盤 IAM・OIDC 等（恒久リソース） | PR マージ後に人間が手動実行。`state rm` しない |
+| `terraform/network/` | VPC・subnet・Security Group | `deploy.yml` / `destroy.yml` から実行 |
+| `terraform/database/` | RDS PostgreSQL | `deploy.yml` / `destroy.yml` から実行 |
+| `terraform/service/` | ECS・ALB・CodeDeploy・monitoring | `deploy.yml` / `destroy.yml` から実行 |
+| `terraform/cdn/` | CloudFront・S3・DNS | `deploy.yml` / `destroy.yml` から実行 |
+
+### state 管理方針
+
+- `terraform/foundation/` の新規リソースは state に残して継続管理する
+- `terraform state rm` は原則行わない
+- `terraform/network/`、`terraform/database/`、`terraform/service/`、`terraform/cdn/` のリソースは deploy/destroy で自動管理される
+
 ## 禁止事項
 
 次は、ユーザーから明示された場合でも実行前に確認します。
