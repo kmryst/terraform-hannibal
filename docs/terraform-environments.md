@@ -134,7 +134,7 @@ state 分割後は、環境ごとに 4 root module（network / database / servic
 
 ### 4. CI/CD
 
-- [ ] `deploy.yml` の `working-directory: ./terraform/environments/dev` を `prod` に変更（または environment 入力で切り替え）
+- [ ] `deploy.yml` / `destroy.yml` の各 root module（network / database / service / cdn）に prod 用の変数を追加する
 - [ ] CodeDeploy アプリケーション・デプロイグループを prod 用に別途作成（Terraform が管理）
 
 ## 停止コスト運用（dev 固有）

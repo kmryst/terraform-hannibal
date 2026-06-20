@@ -136,8 +136,10 @@ terraform fmt -check -recursive
 terraform -chdir=terraform/foundation init -backend=false
 terraform -chdir=terraform/foundation validate
 
-terraform -chdir=terraform/environments/dev init -backend=false
-terraform -chdir=terraform/environments/dev validate
+for dir in terraform/foundation terraform/network terraform/database terraform/service terraform/cdn; do
+  terraform -chdir="$dir" init -backend=false
+  terraform -chdir="$dir" validate
+done
 ```
 
 ### ディレクトリ別の方針
@@ -145,13 +147,16 @@ terraform -chdir=terraform/environments/dev validate
 | ディレクトリ | 用途 | apply/destroy |
 |---|---|---|
 | `terraform/foundation/` | 基盤 IAM・OIDC 等（恒久リソース） | PR マージ後に人間が手動実行。`state rm` しない |
-| `terraform/environments/dev/` | アプリ全体インフラ（一時的） | `deploy.yml` / `destroy.yml` から実行 |
+| `terraform/network/` | VPC・subnet・Security Group | `deploy.yml` / `destroy.yml` から実行 |
+| `terraform/database/` | RDS PostgreSQL | `deploy.yml` / `destroy.yml` から実行 |
+| `terraform/service/` | ECS・ALB・CodeDeploy・monitoring | `deploy.yml` / `destroy.yml` から実行 |
+| `terraform/cdn/` | CloudFront・S3・DNS | `deploy.yml` / `destroy.yml` から実行 |
 
 ### state 管理方針
 
 - `terraform/foundation/` の新規リソースは **state に残して継続管理する**
 - `terraform state rm` は原則行わない
-- `terraform/environments/dev/` のリソースは deploy/destroy で自動管理される
+- `terraform/network/`、`terraform/database/`、`terraform/service/`、`terraform/cdn/` のリソースは deploy/destroy で自動管理される
 
 ### IAM / OIDC 変更時
 
