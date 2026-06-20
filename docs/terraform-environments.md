@@ -2,25 +2,86 @@
 
 ## 概要
 
-このプロジェクトは `terraform/environments/<env>/` 配下に環境ごとのルートモジュールを置き、State を分離する設計です。現在、AWS リソースを管理する環境は `dev` のみです。
+このプロジェクトは Terraform state を責務単位で分割し、plan/apply の影響範囲を限定する設計です。
 
-`preview` は PR ごとの一時 AWS 環境を作るための環境タイプとして検討していましたが、Terraform state をサービス単位で分割する設計を先に行う方針に変更しました。Preview 構成は state 分割後に再検討します。
+`terraform/foundation/` は IAM / OIDC / Permission Boundary などの永続基盤を管理します（ADR 0014）。アプリケーションリソースは責務ごとに 4 つの root module に分割します（ADR 0020）。
+
+Preview Environment は state 分割後の構成を前提に再検討します（ADR 0019 Superseded）。
 
 ## State 管理方針
 
 - **バックエンド**: S3 バケット `nestjs-hannibal-3-terraform-state`
 - **State lock**: S3 lockfile を正とする。DynamoDB lock table は #189 まで移行期間用として併用する
-- **State キーの命名規則**: 共有環境は `environments/<env>/terraform.tfstate`（環境ごとに key を分ける）
 - **バケットは共有可**（同一バケット内で key 分離すれば競合しない）
 
-| 環境 | State キー |
-|------|-----------|
-| dev  | `environments/dev/terraform.tfstate` |
-| staging（未作成） | `environments/staging/terraform.tfstate` |
-| prod（未作成） | `environments/prod/terraform.tfstate` |
+| root module | State キー | 内容 |
+|---|---|---|
+| `terraform/foundation/` | `foundation/terraform.tfstate` | IAM、OIDC、Permission Boundary、CloudTrail、Athena、Budgets |
+| `terraform/network/` | `network/terraform.tfstate` | VPC、subnet、Internet Gateway、NAT Gateway、route table |
+| `terraform/database/` | `database/terraform.tfstate` | RDS PostgreSQL、DB subnet group、RDS Security Group |
+| `terraform/service/` | `service/terraform.tfstate` | ECS、ALB、CodeDeploy、monitoring、ALB/ECS Security Group、ECS IAM Role |
+| `terraform/cdn/` | `cdn/terraform.tfstate` | CloudFront、S3 frontend、Route53 DNS record |
+
+### 分割の原則
+
+一方を変えても他方に影響しないものを別 state にする。逆に、一緒に変わるリソースは同じ state に置く。
+
+- VPC の CIDR を変えても CloudFront には影響しない → network と cdn は別 state
+- RDS のインスタンスサイズを変えても VPC には影響しない → database と network は別 state
+- ECS の task definition を変えても VPC と RDS の state には触れない → service は独立して apply できる
+- CloudFront の cache 設定を変えても ECS には影響しない → cdn と service は別 state
+- ECS を変えたら ALB の health check、CodeDeploy、Monitoring も確認が要る → service state にまとめる
+
+### state 間の依存関係
+
+依存は上位層から下位層への一方向とし、`terraform_remote_state` data source で参照する。循環参照は発生しない。
+
+```text
+foundation   (独立)
+network/     (独立)
+database/    → network/  (vpc_id, data_subnet_ids)
+service/     → network/  (vpc_id, app_subnet_ids, public_subnet_ids)
+             → database/ (rds_endpoint, master_user_secret_arn)
+cdn/         → service/  (alb_dns_name, alb_zone_id)
+```
+
+### apply 順序
+
+新規構築時は `network → database → service → cdn` の順で apply する。destroy は逆順とする。通常の変更では、変更対象の root module だけを apply すれば済む。
+
+### 既存 dev 環境からの移行
+
+既存の `terraform/environments/dev/` から 4 root module への移行は、`terraform state mv` を使う。移行手順の詳細は実装 Issue で定義する。
 
 Terraform の `init` / `plan` / `apply` / force-unlock / import / drift 確認は [Terraform Runbook](./operations/terraform-runbook.md) を参照します。
 state 復元や誤変更の rollback は [Terraform Rollback Plan](./operations/rollback-plan.md) を参照します。
+
+## 子モジュールの構成
+
+state 分割に伴い、子モジュールの責務を整理し、ディレクトリ階層をフラット化する。
+
+### 責務整理
+
+| 変更 | 内容 |
+|---|---|
+| Security Group の移動 | `modules/security-groups` を廃止し、ALB SG は ALB モジュール、ECS SG は ECS モジュール、RDS SG は RDS モジュールがそれぞれ所有する |
+| IAM Role の移動 | `modules/iam` を廃止し、ECS task execution role は ECS モジュールが所有する |
+| Target Group の移動 | CodeDeploy モジュールから Target Group を ALB モジュールに移動する |
+
+### フラット化後の構成
+
+```text
+terraform/modules/
+  cloudfront/
+  codedeploy/
+  dns/
+  ecs/          ← Security Group と IAM Role を内包
+  load-balancer/ ← Security Group と Target Group を内包
+  monitoring/
+  rds/          ← Security Group を内包
+  s3/
+  vpc/
+```
 
 ## リソース命名方針
 
@@ -30,24 +91,24 @@ state 復元や誤変更の rollback は [Terraform Rollback Plan](./operations/
 
 ## PR Preview Environment
 
-PR 単体の変更を一時 AWS 環境で確認する Preview Environment は、Terraform state のサービス単位分割を先に設計し、その上で構成を再検討します。以前の検討内容は [ADR 0019](./adr/0019-adopt-pr-preview-environment-with-isolated-state.md)（Superseded）を参照してください。
+PR 単体の変更を一時 AWS 環境で確認する Preview Environment は、state 分割後の構成を前提に再検討します。以前の検討内容は [ADR 0019](./adr/0019-adopt-pr-preview-environment-with-isolated-state.md)（Superseded）を参照してください。
 
 ## 後続フェーズ
 
-1. Terraform state をサービス単位で分割する設計を行う
-2. staging / production を独立した共有環境として整備し、直列 deploy と承認を設計する
-3. state 分割後の構成を前提に、Preview Environment を再検討する
+1. state 分割の実装（`terraform state mv` による既存リソースの移行）を行う
+2. 子モジュールの責務整理とディレクトリフラット化を実施する
+3. CI / workflow（`pr-check.yml`、`deploy.yml`、`destroy.yml`）を新しい root module 構成に対応させる
+4. staging / production を独立した共有環境として整備し、直列 deploy と承認を設計する
+5. state 分割後の構成を前提に、Preview Environment を再検討する
 
 ## 新環境（staging / prod）を追加するときのチェックリスト
 
-以下の手順で新環境を追加できます。
+state 分割後は、環境ごとに 4 root module（network / database / service / cdn）を用意します。以下は暫定チェックリストであり、state 分割の実装完了後に更新します。
 
 ### 1. Terraform
 
-- [ ] `terraform/environments/dev/` を `terraform/environments/prod/` にコピー
-- [ ] `backend.tf` の `key` を `environments/prod/terraform.tfstate` に変更
-- [ ] 各変数のデフォルト値・`terraform.tfvars` を prod 向けに更新（下表参照）
-- [ ] `terraform init && terraform plan` で差分を確認してから `terraform apply`
+- [ ] `terraform/network/`、`terraform/database/`、`terraform/service/`、`terraform/cdn/` の各 root module に prod 用の `backend.tf`（state key）と `terraform.tfvars` を用意する
+- [ ] 各 root module で `terraform init && terraform plan` を実行し、差分を確認してから `network → database → service → cdn` の順で `terraform apply`
 
 ### 2. 環境ごとに変わる主な設定値
 
