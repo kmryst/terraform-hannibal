@@ -43,34 +43,38 @@ PR ごとに Preview Environment を分けると、各 PR は自分専用の sta
 
 ## 検討した選択肢
 
-### 共有 dev 環境だけを使い続ける
+### 採用する選択肢
 
-- 長所: 追加する Terraform root module や workflow が少なく、運用が単純
-- 長所: AWS リソース数とコストを増やさずに済む
-- 短所: 複数 PR の同時検証で state、AWS リソース、deploy / destroy の競合が起きる
-- 短所: ある PR の検証中に別の PR が dev を変更・destroy すると、確認結果の信頼性が下がる
-
-### 既存の `terraform/environments/dev` を preview 兼用にする
-
-- 長所: 最小差分で実装でき、既存 dev root module をそのまま流用しやすい
-- 長所: 初期の Terraform コード重複を避けられる
-- 短所: dev と preview は lifecycle、命名、destroy 前提、コスト制約が異なるため、条件分岐が増えやすい
-- 短所: backend key の切り替えや `project_name` / `environment` の上書きが dev 運用と混ざり、誤操作時の影響範囲が読みづらくなる
-
-### `terraform/environments/preview/` を追加し、PR ごとは backend key / 変数で分ける（採用）
+#### `terraform/environments/preview/` を追加し、PR ごとは backend key / 変数で分ける
 
 - 長所: preview 固有の lifecycle、命名、低コスト設定、destroy 前提を root module 境界で表現できる
 - 長所: PR ごとにディレクトリを増やさず、同じ root module と別 state key で並列環境を作れる
 - 長所: dev が本番もどきの共有検証環境を兼ねている現状と、PR 単体確認用の短命環境を分離できる
 - 短所: preview 用 root module、workflow、IAM Role、runbook を追加で設計する必要がある
 
-### PR ごとに `terraform/environments/preview-pr-<number>/` を作る
+### 採用しない選択肢
+
+#### 共有 dev 環境だけを使い続ける
+
+- 長所: 追加する Terraform root module や workflow が少なく、運用が単純
+- 長所: AWS リソース数とコストを増やさずに済む
+- 短所: 複数 PR の同時検証で state、AWS リソース、deploy / destroy の競合が起きる
+- 短所: ある PR の検証中に別の PR が dev を変更・destroy すると、確認結果の信頼性が下がる
+
+#### 既存の `terraform/environments/dev` を preview 兼用にする
+
+- 長所: 最小差分で実装でき、既存 dev root module をそのまま流用しやすい
+- 長所: 初期の Terraform コード重複を避けられる
+- 短所: dev と preview は lifecycle、命名、destroy 前提、コスト制約が異なるため、条件分岐が増えやすい
+- 短所: backend key の切り替えや `project_name` / `environment` の上書きが dev 運用と混ざり、誤操作時の影響範囲が読みづらくなる
+
+#### PR ごとに `terraform/environments/preview-pr-<number>/` を作る
 
 - 長所: ファイル構造だけ見れば PR ごとの環境が分かりやすい
 - 短所: PR ごとにディレクトリや設定ファイルが増え、短命環境の管理方法として重い
 - 短所: PR close / merge 後の削除漏れや、同じ構成のコピー差分が増えやすい
 
-### staging / production も PR ごとに複製する
+#### staging / production も PR ごとに複製する
 
 - 長所: PR ごとの独立性を production 相当まで広げられる
 - 短所: staging / production は統合検証・本番提供の共有環境であり、PR 単位に増やす対象ではない
