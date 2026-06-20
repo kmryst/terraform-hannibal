@@ -49,9 +49,3 @@ variable "enable_cloudfront" {
   type        = bool
   default     = true
 }
-
-variable "alb_origin_verify_header_value" {
-  description = "Secret value for ALB origin verification header"
-  type        = string
-  sensitive   = true
-}

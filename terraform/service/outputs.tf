@@ -52,3 +52,9 @@ output "sns_topic_arn" {
   description = "SNS topic ARN for alarm notifications"
   value       = module.monitoring.sns_topic_arn
 }
+
+output "alb_origin_verify_header_value" {
+  description = "ALB origin verify header value for CloudFront"
+  value       = random_password.alb_origin_verify_header.result
+  sensitive   = true
+}
