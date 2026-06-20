@@ -78,7 +78,17 @@ jobs:
           aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE" || true
           echo "✅ ECS service scaled down or stable"
 
-      # TODO: #398 で cdn → service → database → network の逆順 destroy に対応する
+      - name: Destroy Infrastructure (cdn)
+        working-directory: ./terraform/cdn
+        run: |
+          set -e
+          terraform init -input=false
+          terraform destroy -auto-approve \
+            -var="enable_cloudfront=true" \
+            -var="acm_certificate_arn_us_east_1=${{ vars.ACM_CERTIFICATE_ARN_US_EAST_1 }}" \
+            -var="hosted_zone_id=${{ vars.HOSTED_ZONE_ID }}" \
+            -var="alb_origin_verify_header_value=placeholder-for-destroy"
+
       - name: Destroy Infrastructure (service)
         working-directory: ./terraform/service
         run: |
@@ -91,6 +101,23 @@ jobs:
             -var="ecr_repository_url=${{ vars.ECR_REPOSITORY_URL }}" \
             -var="alb_certificate_arn=${{ vars.ALB_CERTIFICATE_ARN }}" \
             -var="db_name=nestjs_hannibal_db"
+
+      - name: Destroy Infrastructure (database)
+        working-directory: ./terraform/database
+        run: |
+          set -e
+          terraform init -input=false
+          terraform destroy -auto-approve \
+            -var="environment=dev" \
+            -var="db_name=nestjs_hannibal_db"
+
+      - name: Destroy Infrastructure (network)
+        working-directory: ./terraform/network
+        run: |
+          set -e
+          terraform init -input=false
+          terraform destroy -auto-approve \
+            -var="environment=dev"
 
       - name: Cleanup S3 buckets (best-effort)
         run: |
@@ -135,5 +162,5 @@ jobs:
           echo "✅ Destroy workflow completed."
           echo "- CodeDeploy deployments stopped"
           echo "- ECS service scaled down and waited stable"
-          echo "- Terraform destroy (backend -> frontend) executed"
+          echo "- Terraform destroy (cdn → service → database → network) executed"
           echo "- Best-effort cleanup for S3/ECR/ELB/TG finished"
