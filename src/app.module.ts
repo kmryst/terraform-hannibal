@@ -11,9 +11,9 @@ import { Route } from './entities';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
-type GraphqlRuntimeOptions = Omit<ApolloDriverConfig, 'driver'>;
-
-export function createGraphqlOptions(nodeEnv: string): GraphqlRuntimeOptions {
+export function createGraphqlOptions(
+  nodeEnv: string,
+): Omit<ApolloDriverConfig, 'driver'> {
   const isDevelopment = nodeEnv !== 'production';
 
   return {
