@@ -58,4 +58,4 @@
 | [0016](./0016-adopt-rds-postgresql-jsonb-over-aurora-and-postgis.md) | Accepted | RDS PostgreSQL + JSONB を採用し、Aurora / PostGIS はスコープ外とする |
 | [0017](./0017-pin-github-actions-by-owner-tier.md) | Accepted | GitHub Actions の action 参照を owner tier で固定する（GitHub-owned は semver tag / 外部は SHA pin） |
 | [0018](./0018-adopt-node24-and-supported-dependency-lines.md) | Accepted | Node.js 24とsupported dependency lineをapplication runtime / CI / containerへ採用する |
-| [0019](./0019-adopt-pr-preview-environment-with-isolated-state.md) | Accepted | Terraform state を PR 単位で分離する Preview Environment を採用する |
+| [0019](./0019-adopt-pr-preview-environment-with-isolated-state.md) | Superseded | Terraform state を PR 単位で分離する Preview Environment を採用する |

@@ -2,7 +2,9 @@
 
 ## ステータス
 
-Accepted
+Superseded
+
+Terraform state をサービス単位で分割する設計を先に行い、その上で Preview 構成を再検討する方針に変更した。モノリシックな環境 state を前提に PR 単位で全リソースを複製する本 ADR の構成は、state 分割後には不要になる可能性が高い。
 
 ## 日付
 
