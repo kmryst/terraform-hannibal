@@ -57,7 +57,7 @@ PR ごとに Preview Environment を分けると、各 PR は自分専用の sta
 - 短所: dev と preview は lifecycle、命名、destroy 前提、コスト制約が異なるため、条件分岐が増えやすい
 - 短所: backend key の切り替えや `project_name` / `environment` の上書きが dev 運用と混ざり、誤操作時の影響範囲が読みづらくなる
 
-### `terraform/environments/preview/` を追加し、PR ごとは backend key / 変数で分ける（採択）
+### `terraform/environments/preview/` を追加し、PR ごとは backend key / 変数で分ける（採用）
 
 - 長所: preview 固有の lifecycle、命名、低コスト設定、destroy 前提を root module 境界で表現できる
 - 長所: PR ごとにディレクトリを増やさず、同じ root module と別 state key で並列環境を作れる
