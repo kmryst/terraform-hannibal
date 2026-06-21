@@ -110,27 +110,13 @@ terraform -chdir=terraform/environments/dev plan \
 
 ### PR plan
 
-PR plan は GitHub Actions の `pr-check.yml` で `HannibalPRPlanRole-Dev` を使って実行します。
-この Role は read-only のため、S3 lockfile の write/delete 権限を持ちません。
-そのため `-lock=false` が前提です。
+PR plan は #410 で一時停止しています。
+state 分割後の `terraform/service` は `terraform_remote_state` で `network` / `database` の outputs を参照しますが、dev 環境は通常 destroy 済みのため、上流 state outputs が存在せず service plan が構造的に失敗します。
 
-```bash
-terraform -chdir=terraform/environments/dev plan \
-  -refresh=true \
-  -lock=false \
-  -input=false \
-  -no-color \
-  -detailed-exitcode \
-  -out=tfplan \
-  -var="client_url_for_cors=https://hamilcar-hannibal.click" \
-  -var="environment=dev" \
-  -var="deployment_type=canary" \
-  -var="enable_cloudfront=true" \
-  -var="ecr_repository_url=${ECR_REPOSITORY_URL}" \
-  -var="alb_certificate_arn=${ALB_CERTIFICATE_ARN}" \
-  -var="acm_certificate_arn_us_east_1=${ACM_CERTIFICATE_ARN_US_EAST_1}" \
-  -var="hosted_zone_id=${HOSTED_ZONE_ID}"
-```
+そのため、`pr-check.yml` から `Terraform Plan Change Detection` / `Terraform Plan Artifact` を外し、PR 時の Terraform 自動確認は `terraform fmt` / `terraform validate` / `TFLint` / `Trivy Config Scan` / `Gitleaks Secret Scan` に寄せています。
+
+再導入する場合は、destroy 済み通常運用でも意味のある plan artifact を出せる構成を設計します。
+候補は PR plan 専用 composite root module で、`network -> database -> service` 相当を 1 つの Terraform graph として評価し、実運用 root modules との drift 対策をセットで扱います。
 
 ### target 指定
 
