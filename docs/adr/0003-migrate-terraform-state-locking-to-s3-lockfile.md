@@ -46,15 +46,20 @@ state locking はインフラ変更の安全性に直結するため、二段階
 ## 影響
 
 - 2026-05-31 時点: `use_lockfile = true` 有効 / DynamoDB lock table は併用継続 / DynamoDB 削除（#189）は未実施
+- 2026-06-21 時点: state 分割（#397）で新設した network / database / service / cdn の 4 root module を `use_lockfile = true` 単独に移行（#408）。`dynamodb_table` を削除し S3 lockfile のみで運用
+- 2026-06-21 動作確認: 全 4 root module で `terraform plan -lock=true` 実行中に `.tflock` の作成を確認、plan 終了後に削除を確認。DynamoDB なしで S3 lockfile が正常に機能している
 - 現在の正は S3 lockfile 方式
-- DynamoDB lock table は移行期間中のみ残す
-- DynamoDB 削除は #189 で扱う
+- foundation のみ `use_lockfile = true` + `dynamodb_table` 併用が残っている（#189 でテーブル削除と合わせて対応）
 - PR plan Role は `terraform plan -lock=false` 前提のため、S3 lockfile の write/delete 権限を持たない
 
 ## 関連
 
 - [Issue #183](https://github.com/kmryst/terraform-hannibal/issues/183)
 - [Issue #189](https://github.com/kmryst/terraform-hannibal/issues/189)
+- [Issue #408](https://github.com/kmryst/terraform-hannibal/issues/408)
 - [terraform/foundation/backend.tf](../../terraform/foundation/backend.tf)
-- [terraform/environments/dev/backend.tf](../../terraform/environments/dev/backend.tf)
+- [terraform/network/backend.tf](../../terraform/network/backend.tf)
+- [terraform/database/backend.tf](../../terraform/database/backend.tf)
+- [terraform/service/backend.tf](../../terraform/service/backend.tf)
+- [terraform/cdn/backend.tf](../../terraform/cdn/backend.tf)
 - [terraform/foundation/dynamodb.tf](../../terraform/foundation/dynamodb.tf)
