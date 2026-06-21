@@ -12,7 +12,7 @@ Accepted
 
 Terraform の S3 backend では `use_lockfile = true` による S3 lockfile 方式を正とする。
 
-DynamoDB state locking は移行期間中のみ併用し、安定確認後に `dynamodb_table`、DynamoDB lock 用 IAM 権限、関連 docs を削除する。
+DynamoDB state locking は使用せず、全 root module の backend と IAM 権限を S3 lockfile 単独運用に統一する。移行期間に使用した手動管理の DynamoDB table は、S3 lockfile の実動作確認後に削除する。
 
 ## 背景
 
@@ -48,8 +48,10 @@ state locking はインフラ変更の安全性に直結するため、二段階
 - 2026-05-31 時点: `use_lockfile = true` 有効 / DynamoDB lock table は併用継続 / DynamoDB 削除（#189）は未実施
 - 2026-06-21 時点: state 分割（#397）で新設した network / database / service / cdn の 4 root module を `use_lockfile = true` 単独に移行（#408）。`dynamodb_table` を削除し S3 lockfile のみで運用
 - 2026-06-21 動作確認: 全 4 root module で `terraform plan -lock=true` 実行中に `.tflock` の作成を確認、plan 終了後に削除を確認。DynamoDB なしで S3 lockfile が正常に機能している
-- 現在の正は S3 lockfile 方式
-- foundation のみ `use_lockfile = true` + `dynamodb_table` 併用が残っている（#189 でテーブル削除と合わせて対応）
+- 2026-06-21 #189: foundation の `dynamodb_table` と全 Role / Permission Boundary の DynamoDB lock 権限を削除し、全 5 root module を S3 lockfile 単独構成へ統一
+- 2026-06-21 #189 マージ前確認: Foundation Role で `terraform init -reconfigure` と lock あり real plan を実行し、`.tflock` の作成・終了後削除を確認。plan は IAM policy 6件の in-place 更新のみ（`0 to add, 6 to change, 0 to destroy`）
+- 手動管理の旧 `terraform-state-lock` table は、#189 のマージ後に foundation apply と S3 lockfile 単独の real plan を確認してから削除する。実施結果は Issue #189 に記録する
+- 現在の正は全 5 root module の S3 lockfile 単独運用
 - PR plan Role は `terraform plan -lock=false` 前提のため、S3 lockfile の write/delete 権限を持たない
 
 ## 関連
@@ -62,4 +64,3 @@ state locking はインフラ変更の安全性に直結するため、二段階
 - [terraform/database/backend.tf](../../terraform/database/backend.tf)
 - [terraform/service/backend.tf](../../terraform/service/backend.tf)
 - [terraform/cdn/backend.tf](../../terraform/cdn/backend.tf)
-- [terraform/foundation/dynamodb.tf](../../terraform/foundation/dynamodb.tf)

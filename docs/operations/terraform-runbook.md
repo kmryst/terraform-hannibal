@@ -8,7 +8,7 @@ Terraform apply 失敗、誤変更、state 復元の戻し方は [rollback-plan.
 
 - AWS region は `ap-northeast-1` を基本とする。
 - Terraform state は S3 bucket `nestjs-hannibal-3-terraform-state` に保存する。
-- state lock は S3 lockfile（`use_lockfile = true`）を使用する。DynamoDB lock table `terraform-state-lock` は全 root module で不使用（テーブル削除は #189）。
+- state lock は全 5 root module で S3 lockfile（`use_lockfile = true`）を使用する。
 - `terraform apply` / `terraform destroy` / `terraform state rm` は厳密運用の対象として扱い、事前確認なしに実行しない。
 - コマンド出力に secret や credential が含まれる可能性がある場合は、値を貼り付けずに状態だけ共有する。
 
@@ -229,15 +229,6 @@ terraform -chdir=terraform/foundation force-unlock <LOCK_ID>
 
 force-unlock 後は必ず plan を再実行し、state と実リソースの整合を確認します。
 `.tflock` の手動削除は最終手段です。実行する場合は、対象 state、残留理由、並行実行がないことを確認し、厳密運用として扱います。
-
-**レガシー DynamoDB stale lock の確認**
-
-全 root module が S3 lockfile に移行済みのため、通常は DynamoDB に lock エントリが作られることはありません。
-万が一、過去の stale エントリが残っている場合は以下で確認・削除します。DynamoDB テーブル本体の削除は #189 で扱います。
-
-```bash
-aws dynamodb scan --table-name terraform-state-lock
-```
 
 ## S3 lockfile 実動作確認
 

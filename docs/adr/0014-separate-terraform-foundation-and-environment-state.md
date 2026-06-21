@@ -12,14 +12,14 @@ Accepted
 
 Terraform は `terraform/foundation` と `terraform/environments/<env>` を別のルートモジュールとして管理し、S3 backend の state key も分離する。
 
-- `terraform/foundation`: IAM / OIDC / Permission Boundary / CloudTrail / Athena / Budgets など、環境を作成・操作するための基盤リソースを扱う。state backend の S3 bucket と DynamoDB lock table は bootstrap 上の理由で手動管理とし、foundation は IAM でこれらへのアクセス権のみを管理する
+- `terraform/foundation`: IAM / OIDC / Permission Boundary / CloudTrail / Athena / Budgets など、環境を作成・操作するための基盤リソースを扱う。state backend の S3 bucket は bootstrap 上の理由で手動管理とし、foundation は IAM で state と S3 lockfile へのアクセス権を管理する
 - `terraform/environments/<env>`: ECS / ALB / RDS / S3 frontend / CodeDeploy など、アプリケーション環境のリソースを扱う
 
 S3 bucket は共有してよいが、state key は `foundation/terraform.tfstate` と `environments/<env>/terraform.tfstate` に分ける。現在の実稼働環境は `dev` のみであり、将来の `staging` / `prod` は `terraform/environments/<env>` 配下に追加する。
 
 ## 背景
 
-このプロジェクトでは、dev 環境を通常 destroy 済みにして必要な時だけ起動する運用を採用している。一方で、GitHub Actions OIDC、CICD Role、PR plan Role、Permission Boundary、CloudTrail / Athena / Budgets のような基盤リソースは、アプリケーション環境を destroy しても残す必要がある。state backend の S3 bucket と DynamoDB lock table は bootstrap 上の理由（Terraform 管理の state 保存先を同じ Terraform で作ると鶏と卵になる）で手動管理としており、foundation は IAM でアクセス権のみを管理する。
+このプロジェクトでは、dev 環境を通常 destroy 済みにして必要な時だけ起動する運用を採用している。一方で、GitHub Actions OIDC、CICD Role、PR plan Role、Permission Boundary、CloudTrail / Athena / Budgets のような基盤リソースは、アプリケーション環境を destroy しても残す必要がある。state backend の S3 bucket は bootstrap 上の理由（Terraform 管理の state 保存先を同じ Terraform で作ると鶏と卵になる）で手動管理としており、foundation は IAM で state と S3 lockfile へのアクセス権を管理する。
 
 アプリケーション環境と foundation を同じ Terraform state に入れると、dev の destroy や環境追加のたびに、IAM / OIDC / state backend などの永続基盤まで同じ apply 境界に入る。これは blast radius が大きく、権限設計やレビュー観点も混ざりやすい。
 
@@ -48,7 +48,7 @@ S3 bucket は共有してよいが、state key は `foundation/terraform.tfstate
 
 ### state backend 自体も Terraform 管理にする（bootstrap 用 root / 別 state を持つ）
 
-- 長所: S3 state bucket / DynamoDB lock table も IaC で再現でき、初期構築手順の drift を減らせる
+- 長所: S3 state bucket と lock 設定も IaC で再現でき、初期構築手順の drift を減らせる
 - 短所: bootstrap の state をどこに置くかが再帰し、local state か「同一 bucket + `prevent_destroy`」などの追加対策が必要になる
 - 短所: 誤 destroy / state 破損時の復旧コストが最大級の backend を、Terraform 実行経路に乗せることになる
 - 短所: 少人数・dev 中心運用では、bootstrap を IaC 化して得られる再現性の利点が薄い
@@ -57,7 +57,7 @@ S3 bucket は共有してよいが、state key は `foundation/terraform.tfstate
 
 foundation と environments では、保持すべき期間、変更頻度、必要な権限、レビュー観点が異なる。
 
-foundation は環境を作るための土台であり、日常の deploy / destroy から切り離して永続管理する必要がある。IAM / OIDC / Permission Boundary は誤変更時の影響が大きいため、`terraform/foundation` に閉じて厳密運用で扱う方が安全である。state backend の S3 bucket と DynamoDB lock table は Terraform 管理外だが、これらへのアクセス権は foundation の IAM で制御しており、foundation の apply 境界に含まれる。
+foundation は環境を作るための土台であり、日常の deploy / destroy から切り離して永続管理する必要がある。IAM / OIDC / Permission Boundary は誤変更時の影響が大きいため、`terraform/foundation` に閉じて厳密運用で扱う方が安全である。state backend の S3 bucket は Terraform 管理外だが、state と S3 lockfile へのアクセス権は foundation の IAM で制御しており、foundation の apply 境界に含まれる。
 
 一方で、`terraform/environments/dev` はアプリケーション環境の再作成・破棄を前提にした実行単位であり、dev 固有のオンデマンド運用と相性がよい。state key を環境ごとに分けることで、dev の destroy や将来の prod apply が他の環境 state と競合しない。
 

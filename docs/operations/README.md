@@ -23,7 +23,7 @@
 
 ### 1. Infrastructure as Code
 - **Terraform管理**: 全リソースをコード化（手動変更禁止）
-- **State管理**: S3 backend + S3 lockfile で一貫性確保（DynamoDB Lock は移行期間中のみ併用）
+- **State管理**: 全 5 root module で S3 backend + S3 lockfile を使用して一貫性を確保
 - **環境分離**: `terraform/environments/dev/` で管理
 
 ### 2. 最小権限原則

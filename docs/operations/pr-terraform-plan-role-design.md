@@ -84,7 +84,6 @@ jobs:
 - `iam:PassRole`
 - `terraform apply` や `terraform destroy` に必要な create / update / delete / put / modify / attach / detach 系権限
 - S3 backend state / lockfile への `s3:PutObject` / `s3:DeleteObject`
-- DynamoDB lock table への `dynamodb:PutItem` / `dynamodb:DeleteItem`（レガシー。全 root module は S3 lockfile に移行済み）
 - Secrets Manager の `secretsmanager:GetSecretValue`
 - ECR image push / upload 系権限
 
@@ -106,7 +105,6 @@ jobs:
 
 - `iam:PassRole`
 - `s3:PutObject` / `s3:DeleteObject`
-- `dynamodb:PutItem` / `dynamodb:DeleteItem`
 - `secretsmanager:GetSecretValue`
 - create / update / delete / put / modify / attach / detach 系の write 権限
 
@@ -142,7 +140,6 @@ jobs:
 
 - PR plan は `-lock=false` で実行する
 - S3 lockfile 用の `s3:PutObject` / `s3:DeleteObject` は PR plan Role に付与しない
-- DynamoDB lock table への write 権限は付けない（全 root module が S3 lockfile に移行済みのため不要）
 
 ## Terraform Read Permissions
 
@@ -209,7 +206,7 @@ jobs:
 - `HannibalPRPlanRole-Dev` の policy attachment を外す
 - 必要なら `HannibalPRPlanRole-Dev` と inline / managed policy を削除する
 - 既存の `HannibalCICDRole-Dev` には触れない
-- state backend bucket / DynamoDB table / deploy / destroy workflow には触れない
+- state backend bucket / deploy / destroy workflow には触れない
 
 ## 参考
 

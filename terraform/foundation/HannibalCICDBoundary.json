@@ -49,8 +49,7 @@
         "iam:ListInstanceProfilesForRole",
         "cloudfront:*",
         "route53:*",
-        "codedeploy:*",
-        "dynamodb:*"
+        "codedeploy:*"
       ],
       "Resource": "*"
     },

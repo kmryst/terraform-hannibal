@@ -294,27 +294,6 @@ locals {
       Resource = "arn:aws:s3:::nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate.tflock"
     },
     {
-      Sid      = "TerraformDevStateLockTableDescribe"
-      Effect   = "Allow"
-      Action   = "dynamodb:DescribeTable"
-      Resource = "arn:aws:dynamodb:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/terraform-state-lock"
-    },
-    {
-      Sid    = "TerraformDevStateLockItems"
-      Effect = "Allow"
-      Action = [
-        "dynamodb:DeleteItem",
-        "dynamodb:GetItem",
-        "dynamodb:PutItem"
-      ]
-      Resource = "arn:aws:dynamodb:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/terraform-state-lock"
-      Condition = {
-        StringLike = {
-          "dynamodb:LeadingKeys" = "nestjs-hannibal-3-terraform-state/environments/dev/terraform.tfstate*"
-        }
-      }
-    },
-    {
       Sid    = "SecretsManagerReadForApplicationDebug"
       Effect = "Allow"
       Action = [
@@ -398,7 +377,6 @@ resource "aws_iam_policy" "hannibal_cicd_boundary" {
           "cloudfront:*",
           "route53:*",
           "codedeploy:*",
-          "dynamodb:*",
         ]
         Resource = "*"
       },
@@ -531,7 +509,8 @@ resource "aws_iam_policy" "hannibal_cicd_policy_compute" {
   })
 }
 
-# storage: S3, RDS, DynamoDB, SecretsManager, KMS
+# storage: S3, RDS, SecretsManager, KMS
+# Keep the existing description to avoid ForceNew replacement.
 resource "aws_iam_policy" "hannibal_cicd_policy_storage" {
   name        = "HannibalCICDPolicy-Dev-storage"
   description = "CI/CD permissions for storage resources - S3, RDS, DynamoDB, SecretsManager, KMS"
@@ -599,12 +578,6 @@ resource "aws_iam_policy" "hannibal_cicd_policy_storage" {
         Effect   = "Allow"
         Action   = ["rds:DescribeDBInstances"]
         Resource = "*"
-      },
-      {
-        Sid      = "DynamoDBTerraformLock"
-        Effect   = "Allow"
-        Action   = ["dynamodb:DeleteItem", "dynamodb:DescribeTable", "dynamodb:GetItem", "dynamodb:PutItem"]
-        Resource = "arn:aws:dynamodb:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/terraform-state-lock"
       },
       {
         Sid    = "SecretsManagerForRDS"
@@ -912,7 +885,7 @@ resource "aws_iam_role" "hannibal_pr_plan_role" {
 # --- 9. HannibalPRPlanPolicy-Dev (PR terraform plan専用ポリシー) ---
 # terraform plan に必要な read/list/describe/get 権限のみ
 # 含めない: iam:PassRole / create・update・delete・put・modify 系 /
-#           s3:PutObject・DeleteObject / dynamodb:PutItem・DeleteItem /
+#           s3:PutObject・DeleteObject /
 #           secretsmanager:GetSecretValue / ECR push・upload 系
 resource "aws_iam_policy" "hannibal_pr_plan_policy" {
   name        = "HannibalPRPlanPolicy-Dev"
@@ -1089,17 +1062,6 @@ locals {
         "s3:PutBucketPolicy"
       ]
       Resource = "arn:aws:s3:::nestjs-hannibal-3-cloudtrail-logs"
-    },
-    {
-      Sid    = "AllowFoundationDynamoDBLock"
-      Effect = "Allow"
-      Action = [
-        "dynamodb:DeleteItem",
-        "dynamodb:DescribeTable",
-        "dynamodb:GetItem",
-        "dynamodb:PutItem"
-      ]
-      Resource = "arn:aws:dynamodb:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/terraform-state-lock"
     },
     {
       Sid    = "AllowFoundationManagedServices"
@@ -1288,17 +1250,6 @@ locals {
         "arn:aws:s3:::nestjs-hannibal-3-terraform-state/foundation/terraform.tfstate",
         "arn:aws:s3:::nestjs-hannibal-3-terraform-state/foundation/terraform.tfstate.tflock"
       ]
-    },
-    {
-      Sid    = "TerraformFoundationStateLock"
-      Effect = "Allow"
-      Action = [
-        "dynamodb:DescribeTable",
-        "dynamodb:GetItem",
-        "dynamodb:PutItem",
-        "dynamodb:DeleteItem"
-      ]
-      Resource = "arn:aws:dynamodb:ap-northeast-1:${data.aws_caller_identity.current.account_id}:table/terraform-state-lock"
     },
     {
       Sid    = "ManageAthenaFoundation"
@@ -1500,8 +1451,7 @@ locals {
   hannibal_foundation_policy_state_sids = [
     "TerraformFoundationStateBucketLocation",
     "TerraformFoundationStateBucketList",
-    "TerraformFoundationStateObject",
-    "TerraformFoundationStateLock"
+    "TerraformFoundationStateObject"
   ]
 
   hannibal_foundation_policy_services_sids = [
