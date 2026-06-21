@@ -12,7 +12,7 @@ CodeDeploy の auto rollback やアプリケーションデプロイ障害は [r
 - 正常な Terraform apply の取り消しは、原則として Git revert した設定を再 apply して戻す。
 - state 復元は「state 自体が壊れた、誤って上書きされた、実リソースと対応しなくなった」場合の最終手段として扱う。
 - `terraform state rm`、S3 state object の復元、lockfile の手動削除は厳密運用として扱い、事前確認なしに実行しない。
-- state lock は S3 lockfile を正とし、DynamoDB lock table `terraform-state-lock` は #189 まで移行期間用として併用する。force-unlock や state 操作を行う際は [terraform-runbook.md](./terraform-runbook.md) の前提セクションを参照する。
+- state lock は S3 lockfile（`use_lockfile = true`）を使用する。force-unlock や state 操作を行う際は [terraform-runbook.md](./terraform-runbook.md) の前提セクションを参照する。
 - state / plan / logs に secret が含まれる可能性があるため、値を貼り付けずに状態だけ共有する。
 
 ## 初動

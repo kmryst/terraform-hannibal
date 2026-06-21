@@ -202,7 +202,7 @@ git push origin main
 
 **症状**: `Error: Error acquiring the state lock`
 
-Terraform state lock は S3 lockfile を正とし、DynamoDB lock table は #189 まで移行期間用として併用します。
+Terraform state lock は S3 lockfile（`use_lockfile = true`）を使用します。
 force-unlock、S3 lockfile 実動作確認、drift 確認は [Terraform Runbook](./terraform-runbook.md) を参照してください。
 apply 失敗や state 復元が必要な場合は [Terraform Rollback Plan](./rollback-plan.md) を参照してください。
 

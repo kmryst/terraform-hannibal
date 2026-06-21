@@ -62,7 +62,6 @@ data "aws_cloudfront_origin_access_control" "s3_oac" {
 | リソース | 名前 | 目的 | 理由 | 管理方法 |
 |---------|------|------|------|----------|
 | S3バケット | `nestjs-hannibal-3-terraform-state` | Terraform状態ファイル / S3 lockfile | state backend 本体。Terraform で管理すると、管理対象の state を保存する先も同じ Terraform で作るニワトリと卵の状態になるため | **手動管理** |
-| DynamoDBテーブル | `terraform-state-lock` | Terraform legacy state lock | DynamoDB-based locking から S3 lockfile へ移行する間のレガシーリソース。S3 lockfile 安定後に削除予定 | **手動管理（移行期間のみ）** |
 | S3バケット | `nestjs-hannibal-3-cloudtrail-logs` | CloudTrail監査ログ | セキュリティ監査 | **Terraform foundation管理** |
 | S3バケット | `nestjs-hannibal-3-athena-results` | Athena分析結果 | 権限分析基盤 | **Terraform foundation管理** |
 | Athenaテーブル | `cloudtrail_logs_partitioned` | CloudTrail分析 | 権限最適化 | **Terraform管理** |

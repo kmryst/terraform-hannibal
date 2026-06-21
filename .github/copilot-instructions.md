@@ -456,8 +456,10 @@ aws logs tail /ecs/nestjs-hannibal-3 --follow
 
 #### 2. Terraform State Lock
 ```bash
-# DynamoDB Lock確認（移行期間中のみ）
-aws dynamodb scan --table-name terraform-state-lock
+# S3 lockfile 残留確認
+aws s3api head-object \
+  --bucket nestjs-hannibal-3-terraform-state \
+  --key "<state-key>.tflock"
 
 # 強制解除（注意: 他の操作がないことを確認）
 terraform force-unlock <LOCK_ID>

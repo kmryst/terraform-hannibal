@@ -4,7 +4,7 @@
 
 このプロジェクトは **人に見せるときだけ deploy、見せ終わったら destroy** する運用を基本とする。
 
-- `terraform/environments/dev/` 配下のリソースは destroy 済みが通常状態
+- `terraform/network/`、`terraform/database/`、`terraform/service/`、`terraform/cdn/` 配下のリソースは destroy 済みが通常状態
 - 以下に示す永続リソースは destroy 後も残り続ける（意図的）
 - destroy を実行しても永続リソースは削除されない
 
@@ -18,7 +18,7 @@
 |---------|------|---------|
 | S3 バケット | `nestjs-hannibal-3-terraform-state` | Terraform state と S3 lockfile の保存先。削除すると state が失われ復旧困難。state 復元手順は [rollback-plan.md](./rollback-plan.md) を参照 |
 | S3 バケット | `nestjs-hannibal-3-frontend` | フロントエンド静的ファイル。Terraform は data 参照のみでバケット本体は管理外 |
-| DynamoDB テーブル | `terraform-state-lock` | Terraform DynamoDB lock の移行期間用。S3 lockfile 安定後に #189 で削除可否を判断する |
+| DynamoDB テーブル | `terraform-state-lock` | Terraform DynamoDB lock のレガシーリソース。全 root module が S3 lockfile に移行済み。#189 で削除予定 |
 | ECR リポジトリ | `nestjs-hannibal-3` | コンテナイメージの保存先。deploy 時にイメージ push が必要 |
 | CloudFront OAC | `nestjs-hannibal-3-oac` | S3 フロントエンドバケットへのアクセス制御。CloudFront distribution が参照する |
 | Route53 Hosted Zone | `hamilcar-hannibal.click` | DNS 管理。削除するとドメインが引けなくなる |
@@ -28,7 +28,7 @@
 補足:
 
 - `nestjs-hannibal-3-terraform-state` は state backend 本体。Terraform で管理すると、管理対象の state を保存する先も同じ Terraform で作るニワトリと卵の状態になるため、意図的に手動管理する。
-- `terraform-state-lock` は DynamoDB-based locking から S3 lockfile へ移行する間のレガシーリソース。S3 lockfile 安定後に #189 で削除予定。
+- `terraform-state-lock` は DynamoDB-based locking のレガシーリソース。全 root module が S3 lockfile（`use_lockfile = true`）に移行済み。#189 でテーブル削除予定。
 
 ### Terraform foundation 管理（`terraform/foundation/`）
 
