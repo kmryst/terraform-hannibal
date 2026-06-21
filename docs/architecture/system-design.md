@@ -131,7 +131,7 @@ type Query {
 - **Blue/Green Deployment**: 約5分で無停止切替
 - **Canary Deployment**: 10% → 100% 段階的配信
 - **自動ロールバック**: ヘルスチェック失敗時の自動復旧
-- **Terraform State管理**: S3 backend + S3 lockfile（DynamoDB Lock は移行期間中のみ併用）
+- **Terraform State管理**: S3 backend + S3 lockfile
 
 ### セキュリティ（実装済み）
 - **PR品質ゲート**: TFLint (Terraform lint) / Trivy Config (IaC security) / Gitleaks (Secrets)

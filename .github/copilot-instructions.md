@@ -138,7 +138,7 @@ nestjs-hannibal-3/
 3. **CORS設定**: `main.ts`で環境別Origin制御（本番=CLIENT_URL、開発=localhost:5173）
 4. **IAM最小権限**: `foundation/iam.tf`でPermission Boundary + HannibalCICDRole
 5. **Blue/Green Deployment**: `modules/cicd/`でCodeDeploy、約5分で無停止切替
-6. **State管理**: S3 backend + S3 lockfile（DynamoDB Lock は移行期間中のみ併用）
+6. **State管理**: S3 backend + S3 lockfile
 
 ---
 

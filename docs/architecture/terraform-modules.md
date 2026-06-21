@@ -459,7 +459,7 @@ module "storage" {
 
 ### 品質向上
 - **Infrastructure as Code**: 全リソースをコード管理
-- **State管理**: S3 backend + S3 lockfile（DynamoDB Lock は移行期間中のみ併用）
+- **State管理**: S3 backend + S3 lockfile
 - **セキュリティ**: Trivy Config による IaC security scan と Gitleaks による secret scan
 
 ### コスト最適化

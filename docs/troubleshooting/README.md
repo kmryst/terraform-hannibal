@@ -57,7 +57,7 @@
 **課題**: State Lockによる並行実行制御
 
 **対応内容**:
-- S3 backend + S3 lockfileでState管理を実装（DynamoDB Lock は移行期間中のみ併用）
+- S3 backend + S3 lockfileでState管理を実装
 - State Lockの仕組みを理解し、異常終了時の対処方法を確立
 - GitHub Actionsで排他制御を実装
 

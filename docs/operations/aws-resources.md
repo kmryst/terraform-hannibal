@@ -18,7 +18,6 @@
 |---------|------|---------|
 | S3 バケット | `nestjs-hannibal-3-terraform-state` | Terraform state と S3 lockfile の保存先。削除すると state が失われ復旧困難。state 復元手順は [rollback-plan.md](./rollback-plan.md) を参照 |
 | S3 バケット | `nestjs-hannibal-3-frontend` | フロントエンド静的ファイル。Terraform は data 参照のみでバケット本体は管理外 |
-| DynamoDB テーブル | `terraform-state-lock` | Terraform DynamoDB lock のレガシーリソース。全 root module が S3 lockfile に移行済み。#189 で削除予定 |
 | ECR リポジトリ | `nestjs-hannibal-3` | コンテナイメージの保存先。deploy 時にイメージ push が必要 |
 | CloudFront OAC | `nestjs-hannibal-3-oac` | S3 フロントエンドバケットへのアクセス制御。CloudFront distribution が参照する |
 | Route53 Hosted Zone | `hamilcar-hannibal.click` | DNS 管理。削除するとドメインが引けなくなる |
@@ -28,7 +27,7 @@
 補足:
 
 - `nestjs-hannibal-3-terraform-state` は state backend 本体。Terraform で管理すると、管理対象の state を保存する先も同じ Terraform で作るニワトリと卵の状態になるため、意図的に手動管理する。
-- `terraform-state-lock` は DynamoDB-based locking のレガシーリソース。全 root module が S3 lockfile（`use_lockfile = true`）に移行済み。#189 でテーブル削除予定。
+- DynamoDB-based locking は現行構成で使用しない。移行履歴と旧 `terraform-state-lock` table の cleanup は [ADR 0003](../adr/0003-migrate-terraform-state-locking-to-s3-lockfile.md) と Issue #189 を参照する。
 
 ### Terraform foundation 管理（`terraform/foundation/`）
 
