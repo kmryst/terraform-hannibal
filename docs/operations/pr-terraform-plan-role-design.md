@@ -84,7 +84,7 @@ jobs:
 - `iam:PassRole`
 - `terraform apply` や `terraform destroy` に必要な create / update / delete / put / modify / attach / detach 系権限
 - S3 backend state / lockfile への `s3:PutObject` / `s3:DeleteObject`
-- DynamoDB lock table への `dynamodb:PutItem` / `dynamodb:DeleteItem`
+- DynamoDB lock table への `dynamodb:PutItem` / `dynamodb:DeleteItem`（レガシー。全 root module は S3 lockfile に移行済み）
 - Secrets Manager の `secretsmanager:GetSecretValue`
 - ECR image push / upload 系権限
 
@@ -142,8 +142,7 @@ jobs:
 
 - PR plan は `-lock=false` で実行する
 - S3 lockfile 用の `s3:PutObject` / `s3:DeleteObject` は PR plan Role に付与しない
-- DynamoDB lock table への write 権限は付けない
-- `terraform init` の挙動確認で必要になった場合のみ `dynamodb:DescribeTable` などの read 権限を追加検討する
+- DynamoDB lock table への write 権限は付けない（全 root module が S3 lockfile に移行済みのため不要）
 
 ## Terraform Read Permissions
 

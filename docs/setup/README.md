@@ -12,63 +12,43 @@ GitHub Actions から AWS への認証は **OIDC（OpenID Connect）** を使い
 
 ## ステップ1: Terraform State初期化（初回のみ）
 
-### 1-1. S3 state bucket + DynamoDB lock table 作成
+### 1-1. S3 state bucket 作成
 
 Terraform state 用のバックエンドリソースを手動で作成します。
-State lock は S3 lockfile を正とします。DynamoDB lock table は移行期間中の互換用として残します。
+State lock は S3 lockfile（`use_lockfile = true`）を使用します。
 
 ```bash
 aws s3 mb s3://nestjs-hannibal-3-terraform-state --region ap-northeast-1
 aws s3api put-bucket-versioning \
   --bucket nestjs-hannibal-3-terraform-state \
   --versioning-configuration Status=Enabled
-
-aws dynamodb create-table \
-  --table-name terraform-state-lock \
-  --attribute-definitions AttributeName=LockID,AttributeType=S \
-  --key-schema AttributeName=LockID,KeyType=HASH \
-  --billing-mode PAY_PER_REQUEST \
-  --region ap-northeast-1
 ```
 
 ### 1-2. Backend設定確認
 
 ```
 terraform/
-├── foundation/          # 基盤（IAM/OIDC/Athena等。S3 backend）
-└── environments/dev/    # アプリ環境（S3 backend）
+├── foundation/   # 基盤（IAM/OIDC/Athena等）
+├── network/      # VPC・subnet・Security Group
+├── database/     # RDS PostgreSQL
+├── service/      # ECS・ALB・CodeDeploy・monitoring
+└── cdn/          # CloudFront・S3・DNS
 ```
 
-`terraform/foundation/backend.tf`:
+各 root module の `backend.tf` 例（`terraform/service/backend.tf`）:
 ```hcl
 terraform {
   backend "s3" {
-    bucket         = "nestjs-hannibal-3-terraform-state"
-    key            = "foundation/terraform.tfstate"
-    region         = "ap-northeast-1"
-    use_lockfile   = true
-    dynamodb_table = "terraform-state-lock"
-    encrypt        = true
-  }
-}
-```
-
-`terraform/environments/dev/backend.tf`:
-```hcl
-terraform {
-  backend "s3" {
-    bucket         = "nestjs-hannibal-3-terraform-state"
-    key            = "environments/dev/terraform.tfstate"
-    region         = "ap-northeast-1"
-    use_lockfile   = true
-    dynamodb_table = "terraform-state-lock"
-    encrypt        = true
+    bucket       = "nestjs-hannibal-3-terraform-state"
+    key          = "service/terraform.tfstate"
+    region       = "ap-northeast-1"
+    use_lockfile = true
+    encrypt      = true
   }
 }
 ```
 
 `use_lockfile = true` により、Terraform は state key に対応する `.tflock` オブジェクトを S3 上で作成・削除してロックします。
-`dynamodb_table` は移行期間中のみ併用し、安定後に backend / IAM / docs から削除します。
 
 ### 1-3. tfvars ファイル作成
 
@@ -92,24 +72,14 @@ alert_email = "your-email@example.com"
 cd terraform/foundation
 terraform init
 
-cd ../environments/dev
-terraform init
+for dir in network database service cdn; do
+  cd ../terraform/$dir
+  terraform init
+done
 ```
 
-既存 checkout で S3 lockfile 方式へ移行する場合:
-
-```bash
-cd terraform/foundation
-terraform init -reconfigure
-terraform plan
-
-cd ../environments/dev
-terraform init -reconfigure
-terraform plan
-```
-
-`terraform init -reconfigure` で backend 設定を再読込し、`terraform plan` で state 取得・ロック取得・差分確認が通ることを確認します。
-`terraform/environments/dev` は `client/dist` を参照するため、ローカルで plan する場合は事前に frontend build を実行します。
+`terraform init -reconfigure` で backend 設定を再読込できます。
+`terraform/cdn` は `client/dist` を参照するため、ローカルで plan する場合は事前に frontend build を実行します。
 
 S3 lockfile の実動作確認、force-unlock、drift 確認は [Terraform Runbook](../operations/terraform-runbook.md) を参照します。
 dev 環境が destroy 済みの場合、`Plan: ... to add` と exit code `2` は正常系です。
@@ -236,11 +206,9 @@ npm run dev  # http://localhost:5173
 ### Infrastructure (Terraform)
 
 ```bash
-cd terraform/environments/dev
-
-# terraform/environments/dev は HannibalDeveloperRole-Dev を AssumeRole してから実行
-terraform plan
-terraform apply
+# HannibalDeveloperRole-Dev を AssumeRole してから実行
+# 通常の deploy/destroy は deploy.yml / destroy.yml を使用する
+terraform -chdir=terraform/service plan
 ```
 
 ---
