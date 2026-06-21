@@ -60,3 +60,4 @@
 | [0018](./0018-adopt-node24-and-supported-dependency-lines.md) | Accepted | Node.js 24とsupported dependency lineをapplication runtime / CI / containerへ採用する |
 | [0019](./0019-adopt-pr-preview-environment-with-isolated-state.md) | Superseded | Terraform state を PR 単位で分離する Preview Environment を採用する |
 | [0020](./0020-split-environment-state-by-responsibility.md) | Accepted | 環境 state を責務単位で分割する |
+| [0021](./0021-pause-pr-terraform-plan-artifact.md) | Accepted | PR Terraform Plan Artifact を一時停止する |

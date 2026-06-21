@@ -25,6 +25,18 @@
 | `Trivy Config Scan` | `trivy config` | Terraform / Dockerfile などの IaC・設定ミスを検出 | PR で自動実行。review signal として扱い、検出しても fail しない |
 | `Gitleaks Secret Scan` | `gitleaks` | Git 履歴に混入した API key / token / password などの secret を検出 | required status check 対象。検出時は fail |
 
+### 2026-06-21 PR Terraform Plan Artifact 一時停止
+
+`Terraform Plan Change Detection` / `Terraform Plan Artifact` は #410 で `pr-check.yml` から一時的に削除しました。
+
+理由:
+
+- state 分割後の `terraform/service` plan は `terraform_remote_state.network` / `terraform_remote_state.database` の outputs に依存する
+- dev 環境は通常 destroy 済みのため、上流 state outputs が存在せず、通常運用で plan が構造的に失敗する
+- required ではない review signal が通常失敗し続けると、PR check の signal quality が下がる
+
+再導入する場合は、destroy 済み通常運用でも意味のある plan artifact を出せる構成（例: PR plan 専用 composite root module）と、実運用 root modules との drift 対策を先に設計します。
+
 ## 定期 Security Scan
 
 `security-scan.yml` は `workflow_dispatch` と週次 `schedule` で実行し、CodeQL と Trivy の結果を GitHub Security に残します。
