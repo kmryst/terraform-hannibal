@@ -102,9 +102,14 @@ type Query {
 
 ## 可用性設計
 
-### Multi-AZ構成
-- **ECS**: 複数AZでタスク実行
-- **RDS**: Multi-AZ配置
+### dev構成
+- **ECS**: 複数AZの app subnet に配置可能だが、停止運用とコスト最適化を優先して desired count は小さく保つ
+- **RDS**: db.t3.micro / Single-AZ（コスト重視）
+- **ALB**: 複数AZの public subnet でロードバランシング
+
+### prod相当へ拡張する場合
+- **ECS**: 複数AZでタスクを冗長化し、必要に応じて Auto Scaling を有効化
+- **RDS**: 実メトリクスを見て instance class 引き上げや Multi-AZ 配置を検討
 - **ALB**: 複数AZでロードバランシング
 
 ### 障害対応
