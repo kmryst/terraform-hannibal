@@ -230,7 +230,7 @@ module "s3" {
 }
 ```
 
-`frontend_build_path` の既定値は `../../client/dist` です。
+`frontend_build_path` の既定値は `../../../client/dist` です。
 
 ### cloudfront
 
