@@ -1,471 +1,318 @@
 # Terraform Modules 実装状況
 
-> **注意**: このドキュメントは旧構成（7カテゴリ・11モジュール、`terraform/environments/dev/`）に基づいています。state 分割後はフラットな 9 モジュール構成に変更されています。最新の構成は [terraform-environments.md](../terraform-environments.md) を参照してください。
+このドキュメントは、state 分割後の現行 Terraform 構成に基づくモジュール実装状況をまとめます。
+環境 root module の全体像は [terraform-environments.md](../terraform-environments.md) も参照してください。
 
-## モジュール化完了
+## 現行構成
 
-Terraformコードを**7カテゴリ・11モジュール**に分割し、再利用可能な構成を実現。
+Terraform は、責務ごとの root module と再利用可能な local module に分かれています。
 
-## 実装済みモジュール構成
-
-```
+```text
 terraform/
-├── foundation/              # 基盤リソース（永続管理）
-│   ├── iam.tf              # IAM User/Role (AssumeRole + Permission Boundary)
-│   ├── billing.tf          # コスト監視 ($30-50 → 停止時$5)
-│   ├── athena.tf           # CloudTrail分析
-│   └── backend.tf          # Terraform State管理 (S3 backend + S3 lockfile)
-├── modules/                # 再利用可能モジュール
-│   ├── networking/
-│   │   ├── vpc/            # 3層VPC (Public/App/Data)
-│   │   └── dns/            # Route53 (hamilcar-hannibal.click)
-│   ├── compute/
-│   │   ├── ecs/            # ECS Fargate (0.25vCPU / 0.5GB)
-│   │   └── load-balancer/  # ALB (Blue/Green対応)
-│   ├── cicd/
-│   │   └── codedeploy/     # CodeDeploy (Blue/Green + Canary)
-│   ├── storage/
-│   │   ├── rds/            # PostgreSQL 15 (db.t3.micro)
-│   │   └── s3/             # Static Assets + Artifacts
-│   ├── cdn/
-│   │   └── cloudfront/     # CloudFront (グローバルCDN)
-│   ├── security/
-│   │   ├── iam/            # IAM Roles/Policies
-│   │   └── security-groups/ # Security Groups
-│   └── observability/
-│       └── monitoring/      # CloudWatch (Logs + Metrics)
-└── environments/
-    └── dev/                # 環境別設定
-        └── main.tf         # モジュール統合
+├── foundation/          # 基盤 IAM / OIDC / CloudTrail / billing などの永続リソース
+├── network/             # VPC、subnet、Security Group
+├── database/            # RDS PostgreSQL
+├── service/             # ALB、ECS、CodeDeploy、CloudWatch monitoring
+├── cdn/                 # S3、CloudFront、Route53 DNS
+└── modules/             # root module から参照する local module
+    ├── cloudfront/
+    ├── codedeploy/
+    ├── dns/
+    ├── ecs/
+    ├── load-balancer/
+    ├── monitoring/
+    ├── rds/
+    ├── s3/
+    └── vpc/
 ```
 
-## 実装済みモジュール詳細
-
-### 1. ネットワークモジュール（networking/vpc）
-**実装状況**: ✅ 完了
-
-```hcl
-# 3層VPCアーキテクチャ
-module "vpc" {
-  source = "../../modules/networking/vpc"
-  
-  project_name = var.project_name
-  environment  = var.environment
-  vpc_cidr     = "10.0.0.0/16"
-  
-  availability_zones = ["ap-northeast-1a", "ap-northeast-1c"]
-  
-  # Public Subnet: ALB配置
-  public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
-  
-  # App Subnet: ECS Fargate配置（NAT Gateway経由でインターネットアクセス）
-  private_subnets = ["10.0.11.0/24", "10.0.12.0/24"]
-  
-  # Data Subnet: RDS配置（完全非公開）
-  data_subnets    = ["10.0.21.0/24", "10.0.22.0/24"]
-}
-```
-
-**特徴:**
-- DB層は完全非公開（Public IPなし、インターネットアクセスなし）
-- Public Subnet は ALB / NAT Gateway 用に維持し、リソース起動時の Public IP 自動付与は無効化
-- NAT Gateway経由でECSからのアウトバウンド通信を実現
-- Route53でドメイン管理（hamilcar-hannibal.click）
-
-### 2. セキュリティモジュール（security/security-groups）
-**実装状況**: ✅ 完了
-
-```hcl
-module "security_groups" {
-  source = "../../modules/security/security-groups"
-  
-  vpc_id       = module.vpc.vpc_id
-  project_name = var.project_name
-  
-  # ALB: HTTP redirect + HTTPS Production/Test Listener
-  alb_ingress_ports = [80, 443, 8080]
-  
-  # ECS: アプリケーションポート
-  ecs_port = 3000
-  
-  # RDS: PostgreSQL
-  rds_port = 5432
-}
-```
-
-**特徴:**
-- 最小権限の原則に基づくセキュリティグループ設定
-- ALB → ECS → RDS の通信経路のみ許可
-- 外部公開面は HTTPS。HTTP 80 は redirect 専用、test listener 8080 も HTTPS
-- ALB → ECS は private subnet と security group で制限した内部 HTTP として維持
-- IAMモジュール（security/iam）でPermission Boundary実装
-
-### 3. コンピュートモジュール（compute/ecs + load-balancer）
-**実装状況**: ✅ 完了
-
-```hcl
-# ECS Fargate
-module "ecs" {
-  source = "../../modules/compute/ecs"
-  
-  project_name = var.project_name
-  environment  = var.environment
-  
-  vpc_id             = module.vpc.vpc_id
-  private_subnet_ids = module.vpc.private_subnet_ids
-  security_group_id  = module.security.ecs_security_group_id
-  
-  # コスト最適化構成
-  cpu    = 256   # 0.25vCPU
-  memory = 512   # 0.5GB
-  
-  container_image = "${var.ecr_repository_url}:latest"
-  container_port  = 3000
-}
-
-# ALB (Blue/Green対応)
-module "load_balancer" {
-  source = "../../modules/compute/load-balancer"
-  
-  # Blue/Green Deployment用のTarget Group設定
-  enable_blue_green = true
-  health_check_path = "/health"
-}
-```
-
-**特徴:**
-- Multi-stage Dockerビルド（node:24-alpine）
-- Blue/Green Deployment対応のTarget Group構成
-- Health Check: 5回成功で正常判定
-
-### 4. ストレージモジュール（storage/rds + s3）
-**実装状況**: ✅ 完了
-
-```hcl
-# RDS PostgreSQL
-module "rds" {
-  source = "../../modules/storage/rds"
-  
-  project_name = var.project_name
-  environment  = var.environment
-  
-  vpc_id            = module.vpc.vpc_id
-  data_subnet_ids   = module.vpc.data_subnet_ids
-  security_group_id = module.security.rds_security_group_id
-  
-  # PostgreSQL 15
-  engine_version = "15"
-  
-  # コスト最適化構成（dev環境）
-  db_instance_class = "db.t3.micro"
-  allocated_storage = 20
-  
-  # Single-AZ（コスト重視）
-  multi_az = false
-  
-  # バックアップ（開発環境は7日）
-  backup_retention_days = 7
-  
-  # 削除保護なし（開発環境）
-  deletion_protection = false
-}
-
-# S3 (Static Assets + CodeDeploy Artifacts)
-module "s3" {
-  source = "../../modules/storage/s3"
-  
-  project_name = var.project_name
-  
-  # CodeDeploy Artifacts用バケット
-  enable_versioning = true
-  
-  # 暗号化
-  sse_algorithm = "AES256"
-}
-```
-
-**特徴:**
-- RDSは完全非公開（Private Subnet、Public IPなし）
-- Secrets Managerでデータベース認証情報を管理
-- S3はCodeDeploy Artifactsとして使用
-
-### 5. CI/CDモジュール（cicd/codedeploy）
-**実装状況**: ✅ 完了
-
-```hcl
-module "codedeploy" {
-  source = "../../modules/cicd/codedeploy"
-  
-  project_name = var.project_name
-  environment  = var.environment
-  
-  # ECS Service情報
-  ecs_cluster_name = module.ecs.cluster_name
-  ecs_service_name = module.ecs.service_name
-  
-  # ALB Target Groups (Blue/Green)
-  blue_target_group_name  = module.load_balancer.blue_target_group_name
-  green_target_group_name = module.load_balancer.green_target_group_name
-  
-  # ALB Listeners
-  alb_listener_production_arn = module.load_balancer.https_listener_arn
-  alb_listener_test_arn       = module.load_balancer.test_listener_arn
-  
-  # デプロイ設定
-  deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
-  
-  # 自動ロールバック
-  auto_rollback_enabled = true
-}
-```
-
-**特徴:**
-- Blue/Green Deployment: 約5分で無停止切替
-- Canary Deployment: 10% → 100% 段階的配信
-- 自動ロールバック: ヘルスチェック失敗時
-
-### 6. CDNモジュール（cdn/cloudfront）
-**実装状況**: ✅ 完了
-
-```hcl
-module "cloudfront" {
-  source = "../../modules/cdn/cloudfront"
-  
-  project_name = var.project_name
-  environment  = var.environment
-  
-  # Origin設定
-  s3_bucket_domain = module.s3.bucket_domain
-  api_origin_domain_name = "api.hamilcar-hannibal.click"
-  
-  # キャッシュ設定
-  default_ttl = 86400    # 1日
-  max_ttl     = 31536000 # 1年
-  
-  # カスタムドメイン
-  aliases = ["hamilcar-hannibal.click"]
-}
-```
-
-**特徴:**
-- グローバルCDN配信
-- Route53統合（hamilcar-hannibal.click / api.hamilcar-hannibal.click）
-- API origin は `api.hamilcar-hannibal.click` を使い、CloudFront → ALB は `https-only`
-- WAFは予算制約で無効化（将来実装予定）
-
-### 7. 監視モジュール（observability/monitoring）
-**実装状況**: ✅ 完了
-
-```hcl
-module "monitoring" {
-  source = "../../modules/observability/monitoring"
-  
-  project_name = var.project_name
-  
-  # CloudWatch Logs
-  ecs_log_group_name = "/ecs/${var.project_name}"
-  log_retention_days = 7
-  
-  # CloudWatch Metrics
-  enable_ecs_metrics = true
-  enable_rds_metrics = true
-  enable_alb_metrics = true
-}
-```
-
-**特徴:**
-- ECS/RDS/ALBの統合監視
-- CloudTrail: 全API呼び出しを90日保持
-- Athena: CloudTrail分析基盤
-
-## 環境別設定
-
-### 開発環境 (dev)
-```hcl
-# environments/dev/terraform.tfvars
-project_name = "nestjs-hannibal-3"
-environment  = "dev"
-
-# コスト最適化
-rds_instance_class = "db.t3.micro"
-ecs_cpu           = 256
-ecs_memory        = 512
-enable_multi_az   = false
-```
-
-### 本番環境 (prod)
-```hcl
-# environments/prod/terraform.tfvars
-project_name = "nestjs-hannibal-3"
-environment  = "prod"
-
-# 高可用性・パフォーマンス
-rds_instance_class = "db.r5.large"
-ecs_cpu           = 1024
-ecs_memory        = 2048
-enable_multi_az   = true
-```
-
-## モジュール間依存関係
+`network` / `database` / `service` / `cdn` は state を分割して管理します。
+`database`、`service`、`cdn` は `terraform_remote_state` で前段の outputs を参照します。
 
 ```mermaid
 graph TD
-    A[Network Module] --> B[Security Module]
-    A --> C[Database Module]
-    A --> D[Load Balancer Module]
-    B --> E[Compute Module]
-    B --> C
-    B --> D
-    D --> E
-    F[Storage Module] --> G[CDN Module]
-    E --> H[Monitoring Module]
+    Foundation[foundation]
+    Network[network]
+    Database[database]
+    Service[service]
+    Cdn[cdn]
+
+    Network --> Database
+    Network --> Service
+    Database --> Service
+    Service --> Cdn
+    Foundation -. IAM/OIDC .-> Network
+    Foundation -. IAM/OIDC .-> Database
+    Foundation -. IAM/OIDC .-> Service
+    Foundation -. IAM/OIDC .-> Cdn
 ```
 
-## 実装完了状況
+## 実装済みモジュール
 
-### ✅ 全モジュール実装完了（2025年10月時点）
+| root module          | local module                      | 主な責務                                                             |
+| -------------------- | --------------------------------- | -------------------------------------------------------------------- |
+| `terraform/network`  | `terraform/modules/vpc`           | VPC、public/app/data subnet、NAT Gateway、ALB/ECS/RDS Security Group |
+| `terraform/database` | `terraform/modules/rds`           | RDS PostgreSQL、Subnet Group、RDS managed master user secret         |
+| `terraform/service`  | `terraform/modules/load-balancer` | ALB、production/test listener、blue/green target group               |
+| `terraform/service`  | `terraform/modules/ecs`           | ECS cluster/service/task definition、task execution role             |
+| `terraform/service`  | `terraform/modules/monitoring`    | CloudWatch alarm / SNS topic                                         |
+| `terraform/service`  | `terraform/modules/codedeploy`    | ECS Blue/Green / Canary deployment group                             |
+| `terraform/cdn`      | `terraform/modules/s3`            | frontend static asset bucket and bucket policy                       |
+| `terraform/cdn`      | `terraform/modules/cloudfront`    | CloudFront distribution and origin settings                          |
+| `terraform/cdn`      | `terraform/modules/dns`           | Route53 alias records                                                |
 
-| モジュールカテゴリ | モジュール | 状態 | 備考 |
-|-------------------|-----------|------|------|
-| **networking** | vpc | ✅ | 3層VPC (Public/App/Data) |
-| | dns | ✅ | Route53 (hamilcar-hannibal.click) |
-| **compute** | ecs | ✅ | Fargate 0.25vCPU / 0.5GB |
-| | load-balancer | ✅ | ALB (Blue/Green対応) |
-| **cicd** | codedeploy | ✅ | Blue/Green + Canary |
-| **storage** | rds | ✅ | PostgreSQL 15 (db.t3.micro) |
-| | s3 | ✅ | Static Assets + Artifacts |
-| **cdn** | cloudfront | ✅ | グローバルCDN |
-| **security** | iam | ✅ | Permission Boundary |
-| | security-groups | ✅ | 最小権限設定 |
-| **observability** | monitoring | ✅ | CloudWatch統合監視 |
+`security-groups` は独立した local module ではなく、現在は `terraform/modules/vpc/security_groups.tf` として VPC module に含めています。
 
-### 実装成果
+## モジュール利用例
 
-1. **コスト最適化**: 月額 $30-50 → 停止時 $5（94%削減）
-2. **デプロイ時間**: 初期構築 約15分、Blue/Green 約5分
-3. **セキュリティ**: 4層防御（SAST/SCA/IaC/Secrets）
-4. **可用性**: Multi-AZ対応可能（現在はコスト重視でSingle-AZ）
+### vpc
+
+`terraform/network` から `terraform/modules/vpc` を呼び出します。
+
+```hcl
+module "vpc" {
+  source = "../modules/vpc"
+
+  project_name                            = var.project_name
+  environment                             = var.environment
+  container_port                          = var.container_port
+  cloudfront_origin_facing_prefix_list_id = var.cloudfront_origin_facing_prefix_list_id
+}
+```
+
+`vpc` module は VPC と subnet に加えて、ALB / ECS / RDS 用 Security Group も作成します。
+Security Group の standalone module は現行構成にはありません。
+
+### security-groups
+
+Security Group は `terraform/modules/vpc/security_groups.tf` として `vpc` module に含まれます。
+そのため、現行構成では `module "security_groups"` の呼び出しはありません。
+Security Group に関係する入力も `vpc` module の変数として渡します。
+
+```hcl
+module "vpc" {
+  source = "../modules/vpc"
+
+  project_name                            = var.project_name
+  environment                             = var.environment
+  container_port                          = var.container_port
+  cloudfront_origin_facing_prefix_list_id = var.cloudfront_origin_facing_prefix_list_id
+}
+```
+
+### rds
+
+`terraform/database` は network state の outputs を参照して RDS を作成します。
+
+```hcl
+module "rds" {
+  source = "../modules/rds"
+
+  project_name                = var.project_name
+  environment                 = var.environment
+  db_instance_class           = var.db_instance_class
+  db_allocated_storage        = var.db_allocated_storage
+  db_engine_version           = var.db_engine_version
+  db_name                     = var.db_name
+  db_username                 = var.db_username
+  db_password                 = var.db_password
+  manage_master_user_password = var.manage_master_user_password
+  data_subnet_ids             = data.terraform_remote_state.network.outputs.data_subnet_ids
+  rds_security_group_id       = data.terraform_remote_state.network.outputs.rds_security_group_id
+}
+```
+
+`db_instance_class` の既定値は `db.t3.micro`、`db_engine_version` の既定値は `15.14` です。
+
+### load-balancer
+
+`terraform/service` は network state の outputs を使って ALB を作成します。
+
+```hcl
+module "load_balancer" {
+  source = "../modules/load-balancer"
+
+  project_name                   = var.project_name
+  environment                    = var.environment
+  vpc_id                         = data.terraform_remote_state.network.outputs.vpc_id
+  alb_security_group_id          = data.terraform_remote_state.network.outputs.alb_security_group_id
+  public_subnet_ids              = data.terraform_remote_state.network.outputs.public_subnet_ids
+  container_port                 = var.container_port
+  health_check_path              = var.health_check_path
+  alb_certificate_arn            = var.alb_certificate_arn
+  alb_origin_verify_header_name  = local.alb_origin_verify_header_name
+  alb_origin_verify_header_value = random_password.alb_origin_verify_header.result
+}
+```
+
+### ecs
+
+ECS は database state と network state の outputs、ALB module の outputs を参照します。
+
+```hcl
+module "ecs" {
+  source = "../modules/ecs"
+
+  project_name                = var.project_name
+  aws_region                  = var.aws_region
+  ecr_repository_url          = var.ecr_repository_url
+  container_port              = var.container_port
+  desired_task_count          = var.desired_task_count
+  cpu                         = var.cpu
+  memory                      = var.memory
+  client_url_for_cors         = var.client_url_for_cors
+  db_name                     = var.db_name
+  db_credentials_secret_arn   = data.terraform_remote_state.database.outputs.master_user_secret_arn
+  app_subnet_ids              = data.terraform_remote_state.network.outputs.app_subnet_ids
+  ecs_security_group_id       = data.terraform_remote_state.network.outputs.ecs_security_group_id
+  blue_target_group_arn       = module.load_balancer.blue_target_group_arn
+  alb_listener_production_arn = module.load_balancer.https_listener_arn
+  alb_listener_test_arn       = module.load_balancer.test_listener_arn
+  rds_endpoint                = data.terraform_remote_state.database.outputs.db_instance_endpoint
+}
+```
+
+既定の Fargate task size は `cpu = 256`、`memory = 512` です。
+
+### monitoring
+
+Monitoring は ECS、RDS、ALB の識別子を受け取り、アラームと通知先を作成します。
+
+```hcl
+module "monitoring" {
+  source = "../modules/monitoring"
+
+  project_name     = var.project_name
+  aws_region       = var.aws_region
+  alert_email      = var.alert_email
+  ecs_service_name = module.ecs.service_name
+  ecs_cluster_name = module.ecs.cluster_name
+  rds_instance_id  = data.terraform_remote_state.database.outputs.db_instance_id
+  alb_arn_suffix   = module.load_balancer.alb_arn
+}
+```
+
+### codedeploy
+
+CodeDeploy は ALB、ECS、monitoring の outputs を使って deployment group を作成します。
+
+```hcl
+module "codedeploy" {
+  source = "../modules/codedeploy"
+
+  project_name                    = var.project_name
+  environment                     = var.environment
+  deployment_type                 = var.deployment_type
+  blue_target_group_name          = module.load_balancer.blue_target_group_name
+  green_target_group_name         = module.load_balancer.green_target_group_name
+  ecs_cluster_name                = module.ecs.cluster_name
+  ecs_service_name                = module.ecs.service_name
+  alb_listener_production_arn     = module.load_balancer.https_listener_arn
+  alb_listener_test_arn           = module.load_balancer.test_listener_arn
+  canary_error_rate_alarm_name    = module.monitoring.canary_error_rate_alarm_name
+  canary_response_time_alarm_name = module.monitoring.canary_response_time_alarm_name
+}
+```
+
+`deployment_type` は `canary` / `bluegreen` を指定します。
+
+### s3
+
+`terraform/cdn` で frontend static asset 用 bucket を作成します。
+
+```hcl
+module "s3" {
+  source = "../modules/s3"
+
+  s3_bucket_name              = var.s3_bucket_name
+  frontend_build_path         = var.frontend_build_path
+  cloudfront_distribution_arn = var.enable_cloudfront ? module.cloudfront.distribution_arn : null
+}
+```
+
+`frontend_build_path` の既定値は `../../client/dist` です。
+
+### cloudfront
+
+CloudFront は S3 module の outputs と service state の ALB origin verification header を参照します。
+
+```hcl
+module "cloudfront" {
+  source = "../modules/cloudfront"
+
+  project_name                   = var.project_name
+  enable_cloudfront              = var.enable_cloudfront
+  domain_name                    = var.domain_name
+  s3_bucket_name                 = var.s3_bucket_name
+  s3_bucket_regional_domain_name = module.s3.bucket_regional_domain_name
+  api_origin_domain_name         = "api.${var.domain_name}"
+  acm_certificate_arn_us_east_1  = var.acm_certificate_arn_us_east_1
+  cloudfront_oac_id              = var.cloudfront_oac_id
+  alb_origin_verify_header_name  = "X-Hannibal-Origin-Verify"
+  alb_origin_verify_header_value = data.terraform_remote_state.service.outputs.alb_origin_verify_header_value
+}
+```
+
+`enable_cloudfront = false` にすると、dev で CloudFront distribution 作成を省略できます。
+
+## 環境別設定
+
+現行構成では旧 `environments` 配下の環境別 tfvars は使いません。
+設定値は責務ごとの root module に渡します。
+
+```hcl
+# terraform/database の例
+project_name                = "nestjs-hannibal-3"
+environment                 = "dev"
+db_instance_class           = "db.t3.micro"
+db_allocated_storage        = 20
+db_engine_version           = "15.14"
+db_name                     = "hannibal"
+db_username                 = "postgres"
+manage_master_user_password = true
+```
+
+```hcl
+# terraform/service の例
+project_name       = "nestjs-hannibal-3"
+environment        = "dev"
+aws_region         = "ap-northeast-1"
+container_port     = 3000
+desired_task_count = 1
+cpu                = 256
+memory             = 512
+deployment_type    = "canary"
+```
+
+## 可用性とコスト方針
+
+dev は停止運用とコスト最適化を優先し、RDS は `db.t3.micro` / Single-AZ を前提にします。
+prod 相当へ拡張する場合は、実メトリクスに基づいて ECS task size、RDS instance class、RDS Multi-AZ などを再検討します。
 
 ## 品質保証
 
-### バリデーション
-```hcl
-# modules/network/variables.tf
-variable "vpc_cidr" {
-  description = "VPC CIDR block"
-  type        = string
-  
-  validation {
-    condition = can(cidrhost(var.vpc_cidr, 0))
-    error_message = "VPC CIDR must be a valid IPv4 CIDR block."
-  }
-}
-```
+Terraform 変更時は、PR で次の静的検証を実行します。
 
-## ドキュメント自動生成
-
-### terraform-docs設定
-```yaml
-# .terraform-docs.yml
-formatter: "markdown table"
-header-from: main.tf
-footer-from: ""
-recursive:
-  enabled: true
-  path: modules
-sections:
-  hide:
-    - header
-  show:
-    - inputs
-    - outputs
-    - providers
-    - requirements
-```
-
-### 生成コマンド
 ```bash
-# 全モジュールのドキュメント生成
-terraform-docs markdown table --output-file README.md --recursive modules/
+terraform fmt -check -recursive
 
-# 特定モジュールのドキュメント生成
-terraform-docs markdown table modules/network/ > modules/network/README.md
+for dir in terraform/foundation terraform/network terraform/database terraform/service terraform/cdn; do
+  terraform -chdir="$dir" init -backend=false
+  terraform -chdir="$dir" validate
+done
 ```
 
-## 運用・保守
+PR workflow では Terraform Format & Validate、TFLint、Trivy Config Scan、Gitleaks Secret Scan を使って IaC の品質と secret 混入を確認します。
 
-### バージョン管理
-```hcl
-# モジュールバージョン指定
-module "network" {
-  source = "git::https://github.com/kmryst/terraform-hannibal-modules.git//network?ref=v1.0.0"
-  
-  project_name = var.project_name
-  environment  = var.environment
-}
-```
+## 運用
 
-### 更新戦略
-1. **セマンティックバージョニング**: v1.0.0, v1.1.0, v2.0.0
-2. **後方互換性**: 破壊的変更の最小化
-3. **段階的更新**: dev → staging → prod
-
-## 実装済みモジュールの再利用方法
-
-### 環境別設定例
-
-#### 開発環境 (environments/dev)
-```hcl
-# コスト最適化構成
-module "compute" {
-  source = "../../modules/compute/ecs"
-  
-  cpu    = 256  # 0.25vCPU
-  memory = 512  # 0.5GB
-}
-
-module "storage" {
-  source = "../../modules/storage/rds"
-  
-  db_instance_class = "db.t3.micro"
-  multi_az          = false  # Single-AZ
-}
-```
-
-#### 本番環境（将来実装）
-```hcl
-# 高可用性・パフォーマンス構成
-module "compute" {
-  source = "../../modules/compute/ecs"
-  
-  cpu    = 1024  # 1.0vCPU
-  memory = 2048  # 2.0GB
-}
-
-module "storage" {
-  source = "../../modules/storage/rds"
-  
-  instance_class = "db.t4g.small"
-  multi_az       = true  # Multi-AZ
-}
-```
-
-## 達成効果
-
-### 開発効率向上
-- **モジュール化完了**: 7カテゴリ・11モジュールに分割
-- **再利用性**: 環境間で設定を共有
-- **保守性**: 変更影響範囲の明確化
-
-### 品質向上
-- **Infrastructure as Code**: 全リソースをコード管理
-- **State管理**: S3 backend + S3 lockfile
-- **セキュリティ**: Trivy Config による IaC security scan と Gitleaks による secret scan
-
-### コスト最適化
-- **停止運用**: 月額 $30-50 → $5（94%削減）
-- **起動/停止自動化**: GitHub Actions (約15分)
+- state は root module ごとに分割して管理します。
+- `terraform/foundation` の恒久リソースは state に残して継続管理します。
+- `terraform/network`、`terraform/database`、`terraform/service`、`terraform/cdn` は deploy / destroy workflow から自動管理します。
+- local module はこの repository 内の `terraform/modules/*` を参照します。
+- 外部 repository の module 参照や terraform-docs 設定ファイルによる自動生成運用は、現行構成では採用していません。
 
 ---
-**最終更新**: 2026年5月14日
-**実装状況**: 全モジュール完了
+
+**最終更新**: 2026年6月24日
+**実装状況**: state 分割後の現行構成を反映
