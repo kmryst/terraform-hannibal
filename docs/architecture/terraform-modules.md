@@ -288,6 +288,7 @@ deployment_type    = "canary"
 
 dev は停止運用とコスト最適化を優先し、RDS は `db.t3.micro` / Single-AZ を前提にします。
 prod 相当へ拡張する場合は、実メトリクスに基づいて ECS task size、RDS instance class、RDS Multi-AZ などを再検討します。
+RDS instance class の引き上げ判断は [ADR 0022](../adr/0022-keep-prod-rds-on-t3-micro-until-metrics-justify-scale-up.md) の条件に従います。
 
 ## 品質保証
 

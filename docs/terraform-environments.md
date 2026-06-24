@@ -122,7 +122,7 @@ state 分割後は、環境ごとに 4 root module（network / database / servic
 | `alb_certificate_arn` | dev 用 ALB ACM ARN | prod 用 ALB 証明書（ALB と同じリージョン） |
 | `cloudfront_oac_id` | dev 用 OAC ID | prod 用 OAC を手動作成して指定 |
 | `client_url_for_cors` | `"https://hamilcar-hannibal.click"` | prod ドメインに変更 |
-| `db_instance_class` | `db.t3.micro` | prod は `db.t3.small` 以上推奨 |
+| `db_instance_class` | `db.t3.micro` | prod 相当も初期値は `db.t3.micro` に据え置き、`CPUUtilization` / `DatabaseConnections` / `FreeableMemory` / `CPUCreditBalance` の実測で引き上げ判断（[ADR 0022](./adr/0022-keep-prod-rds-on-t3-micro-until-metrics-justify-scale-up.md)） |
 | `desired_task_count` | `1` | prod は `2` 以上推奨（Multi-AZ と合わせて） |
 | `enable_cloudfront` | `true` | `true` |
 
@@ -140,3 +140,7 @@ state 分割後は、環境ごとに 4 root module（network / database / servic
 ## 停止コスト運用（dev 固有）
 
 dev 環境は月額最適化のため「使わないときは destroy」という運用をしています。prod に同じ運用を適用すると **RDS の再作成コストや DNS 切り替えリスク**があるため、prod は常時稼働を推奨します。
+
+prod 相当を常時稼働させる場合でも、RDS instance class は初期状態で `db.t3.micro` に据え置きます。
+より大きい instance class への引き上げは、`CPUUtilization`、`DatabaseConnections`、`FreeableMemory`、`CPUCreditBalance` の実測で判断します。
+詳細は [ADR 0022](./adr/0022-keep-prod-rds-on-t3-micro-until-metrics-justify-scale-up.md) を参照してください。
