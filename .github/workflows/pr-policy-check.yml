@@ -1,0 +1,242 @@
+name: PR Policy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-policy-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-policy-check:
+    name: PR Policy Check
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Require linked issue and mandatory labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          labels_fetch_ok=false
+
+          for attempt in 1 2 3 4 5; do
+            labels_fetch_ok=false
+
+            if labels_json=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]'); then
+              labels_fetch_ok=true
+              echo "Current PR labels: $labels_json"
+            else
+              labels_json="[]"
+              echo "::warning::Failed to fetch current PR labels from GitHub API."
+            fi
+
+            counts=$(LABEL_NAMES_JSON="$labels_json" python3 - <<'PY'
+          import json
+          import os
+
+          labels = json.loads(os.environ["LABEL_NAMES_JSON"])
+
+          def count(prefix: str) -> int:
+              return sum(1 for label in labels if label.startswith(prefix))
+
+          print(count("type:"))
+          print(count("area:"))
+          print(count("risk:"))
+          print(count("cost:"))
+          print("true" if any(label in {"risk:medium", "risk:high"} for label in labels) else "false")
+          print("true" if any(label in {"cost:medium", "cost:large"} for label in labels) else "false")
+          PY
+            )
+
+            type_count=$(printf '%s\n' "$counts" | sed -n '1p')
+            area_count=$(printf '%s\n' "$counts" | sed -n '2p')
+            risk_count=$(printf '%s\n' "$counts" | sed -n '3p')
+            cost_count=$(printf '%s\n' "$counts" | sed -n '4p')
+            strict_by_labels=$(printf '%s\n' "$counts" | sed -n '5p')
+            strict_by_cost=$(printf '%s\n' "$counts" | sed -n '6p')
+
+            if [ "$type_count" -eq 1 ] && [ "$area_count" -ge 1 ] && [ "$risk_count" -eq 1 ] && [ "$cost_count" -eq 1 ]; then
+              break
+            fi
+
+            if [ "$attempt" -lt 5 ]; then
+              echo "Required PR labels are not complete yet; retrying label fetch..."
+              sleep 2
+            fi
+          done
+
+          if [ "$labels_fetch_ok" != true ]; then
+            echo "::error::Failed to fetch current PR labels from GitHub API."
+            exit 1
+          fi
+
+          # --- Collect check results ---
+          errors=()
+
+          type_label=$(echo "$labels_json" | jq -r '[.[] | select(startswith("type:"))] | join(", ")')
+          area_labels=$(echo "$labels_json" | jq -r '[.[] | select(startswith("area:"))] | join(", ")')
+          risk_label=$(echo "$labels_json" | jq -r '[.[] | select(startswith("risk:"))] | join(", ")')
+          cost_label=$(echo "$labels_json" | jq -r '[.[] | select(startswith("cost:"))] | join(", ")')
+
+          if [ "$type_count" -ne 1 ]; then
+            errors+=("type:* ラベルがちょうど1つ必要です（現在: ${type_count}件）")
+            type_status="❌ ${type_count}件（ちょうど1つ必要）"
+          else
+            type_status="✅ \`${type_label}\`"
+          fi
+
+          if [ "$area_count" -lt 1 ]; then
+            errors+=("area:* ラベルが1つ以上必要です（現在: 0件）")
+            area_status="❌ 0件（1つ以上必要）"
+          else
+            area_status="✅ \`${area_labels}\`"
+          fi
+
+          if [ "$risk_count" -ne 1 ]; then
+            errors+=("risk:* ラベルがちょうど1つ必要です（現在: ${risk_count}件）")
+            risk_status="❌ ${risk_count}件（ちょうど1つ必要）"
+          else
+            risk_status="✅ \`${risk_label}\`"
+          fi
+
+          if [ "$cost_count" -ne 1 ]; then
+            errors+=("cost:* ラベルがちょうど1つ必要です（現在: ${cost_count}件）")
+            cost_status="❌ ${cost_count}件（ちょうど1つ必要）"
+          else
+            cost_status="✅ \`${cost_label}\`"
+          fi
+
+          # Strict mode detection
+          if [ "$strict_by_cost" = true ]; then
+            strict_by_labels=true
+          fi
+
+          changed_files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          strict_by_paths=false
+          if printf '%s\n' "$changed_files" | grep -Eq '^(terraform/|\.github/workflows/|scripts/deployment/|scripts/validation/)'; then
+            strict_by_paths=true
+          fi
+
+          is_strict=false
+          strict_reasons=()
+          if [ "$strict_by_labels" = true ] || [ "$strict_by_paths" = true ]; then
+            is_strict=true
+            risk_val=$(echo "$labels_json" | jq -r '.[] | select(. == "risk:medium" or . == "risk:high")' | head -1)
+            cost_val=$(echo "$labels_json" | jq -r '.[] | select(. == "cost:medium" or . == "cost:large")' | head -1)
+            [ -n "$risk_val" ] && strict_reasons+=("\`${risk_val}\` ラベル")
+            [ -n "$cost_val" ] && strict_reasons+=("\`${cost_val}\` ラベル")
+            printf '%s\n' "$changed_files" | grep -q '^terraform/'          && strict_reasons+=("\`terraform/**\` 変更")
+            printf '%s\n' "$changed_files" | grep -q '^\.github/workflows/' && strict_reasons+=("\`\.github/workflows/**\` 変更")
+            printf '%s\n' "$changed_files" | grep -q '^scripts/deployment/' && strict_reasons+=("\`scripts/deployment/**\` 変更")
+            printf '%s\n' "$changed_files" | grep -q '^scripts/validation/' && strict_reasons+=("\`scripts/validation/**\` 変更")
+          fi
+
+          # Issue link check
+          if printf '%s\n' "$PR_BODY" | grep -Eiq '(close[sd]?|fix(e[sd])?|refs?) #[0-9]+'; then
+            issue_status="✅ リンクあり"
+          else
+            errors+=("PR本文にIssueリンクが必要です（例: Closes #123）")
+            issue_status="❌ リンクなし（Closes #123 / Fixes #123 / Refs #123 が必要）"
+          fi
+
+          # Rollback check
+          rollback_status="— 軽運用PRのため不要"
+          if [ "$is_strict" = true ]; then
+            rollback_content=$(printf '%s\n' "$PR_BODY" | awk '
+              /^###[[:space:]]+ロールバック/ || /^##[[:space:]]+ロールバック/ { capture=1; next }
+              capture && (/^###[[:space:]]+/ || /^##[[:space:]]+/) { capture=0 }
+              capture { print }
+            ')
+
+            rollback_text=$(printf '%s\n' "$rollback_content" \
+              | sed '/^[[:space:]]*$/d' \
+              | sed '/^[[:space:]]*<!--.*-->[[:space:]]*$/d')
+            rollback_compact=$(printf '%s\n' "$rollback_text" \
+              | sed 's/^[[:space:]]*[-*][[:space:]]*//' \
+              | tr -d '[:space:]')
+
+            if [ -z "$rollback_compact" ] || printf '%s' "$rollback_compact" | grep -Eiq '^(なし|不要|no-op|noop|n/a|na)$'; then
+              errors+=("厳密運用PRにはロールバック欄への記載が必要です")
+              rollback_status="❌ 未記載（厳密運用PRのため必須）"
+            else
+              rollback_status="✅ 記載あり（厳密運用）"
+            fi
+          fi
+
+          # --- Write Job Summary ---
+          strict_reason_str=""
+          for r in "${strict_reasons[@]}"; do
+            if [ -n "$strict_reason_str" ]; then
+              strict_reason_str="${strict_reason_str}, ${r}"
+            else
+              strict_reason_str="$r"
+            fi
+          done
+
+          {
+            echo "## PR Policy Check"
+            echo ""
+            echo "### ラベル"
+            echo ""
+            echo "| カテゴリ | 結果 |"
+            echo "|---|---|"
+            echo "| \`type:*\` | $type_status |"
+            echo "| \`area:*\` | $area_status |"
+            echo "| \`risk:*\` | $risk_status |"
+            echo "| \`cost:*\` | $cost_status |"
+            echo ""
+            echo "### Issue リンク"
+            echo ""
+            echo "$issue_status"
+            echo ""
+            echo "### 運用区分"
+            echo ""
+            if [ "$is_strict" = true ]; then
+              echo "**厳密運用**（理由: ${strict_reason_str}）"
+            else
+              echo "軽運用"
+            fi
+            echo ""
+            echo "### ロールバック"
+            echo ""
+            echo "$rollback_status"
+            echo ""
+            echo "---"
+            echo ""
+            if [ ${#errors[@]} -eq 0 ]; then
+              echo "✅ 全チェック通過"
+            else
+              echo "❌ ${#errors[@]}件の問題があります"
+              echo ""
+              for err in "${errors[@]}"; do
+                echo "- $err"
+              done
+              echo ""
+              echo "修正方法: \`./scripts/github/create-pr-with-labels.sh\` を使ってPRを作成してください"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # --- Exit with error if any checks failed ---
+          if [ ${#errors[@]} -gt 0 ]; then
+            for err in "${errors[@]}"; do
+              echo "::error::$err"
+            done
+            exit 1
+          fi
