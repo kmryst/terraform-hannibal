@@ -11,19 +11,35 @@
 
 ## PR チェック
 
-| Job | ツール | 役割 | 2026-05-27 時点の扱い |
-|---|---|---|---|
-| `PR Policy Check` | `gh` / `jq` / shell | Issue link、必須ラベル、厳密運用時の rollback 欄を確認 | required status check 対象 |
-| `Commitlint` | `commitlint` | PR title と PR 内コミットメッセージを Conventional Commits 形式で確認 | required status check 対象 |
-| `Backend Lint & Build` | ESLint / Nest build | backend の lint と build を確認 | required status check 対象 |
-| `Backend Test` | Jest | backend unit test を確認 | PR で自動実行 |
-| `Frontend Build` | TypeScript / Vite build | frontend の型チェックと build を確認 | required status check 対象 |
-| `Frontend Test` | Vitest | frontend unit test を確認 | PR で自動実行 |
-| `Docker Build` | Docker | backend image build と non-root user を確認 | PR で自動実行 |
-| `Terraform Format & Validate` | `terraform fmt` / `terraform validate` | HCL の整形と Terraform 構成の基本整合性を確認 | required status check 対象 |
-| `TFLint` | `tflint` | Terraform / AWS provider 向けの lint。非推奨設定、未使用宣言、provider 固有のミスを検出 | required status check 対象。検出時は fail |
-| `Trivy Config Scan` | `trivy config` | Terraform / Dockerfile などの IaC・設定ミスを検出 | PR で自動実行。review signal として扱い、検出しても fail しない |
-| `Gitleaks Secret Scan` | `gitleaks` | Git 履歴に混入した API key / token / password などの secret を検出 | required status check 対象。検出時は fail |
+| Job | Workflow | 主な実行条件 | ツール | 役割 | 扱い |
+|---|---|---|---|---|---|
+| `PR Policy Check` | `.github/workflows/pr-policy-check.yml` | `opened` / `synchronize` / `reopened` / `edited` / `labeled` / `unlabeled` | `gh` / `jq` / shell | Issue link、必須ラベル、厳密運用時の rollback 欄を確認 | required status check 対象 |
+| `Commitlint` | `.github/workflows/pr-commitlint.yml` | `opened` / `synchronize` / `reopened` / `edited` | `commitlint` | PR title と PR 内コミットメッセージを Conventional Commits 形式で確認 | required status check 対象 |
+| `Backend Lint & Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | ESLint / Nest build | backend の lint と build を確認 | required status check 対象 |
+| `Backend Test` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Jest | backend unit test を確認 | PR で自動実行 |
+| `Frontend Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | TypeScript / Vite build | frontend の型チェックと build を確認 | required status check 対象 |
+| `Frontend Test` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Vitest | frontend unit test を確認 | PR で自動実行 |
+| `Docker Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Docker | backend image build と non-root user を確認 | PR で自動実行 |
+| `Terraform Format & Validate` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `terraform fmt` / `terraform validate` | HCL の整形と Terraform 構成の基本整合性を確認 | required status check 対象 |
+| `TFLint` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `tflint` | Terraform / AWS provider 向けの lint。非推奨設定、未使用宣言、provider 固有のミスを検出 | required status check 対象。検出時は fail |
+| `Trivy Config Scan` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `trivy config` | Terraform / Dockerfile などの IaC・設定ミスを検出 | PR で自動実行。review signal として扱い、検出しても fail しない |
+| `Gitleaks Secret Scan` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `gitleaks` | Git 履歴に混入した API key / token / password などの secret を検出 | required status check 対象。検出時は fail |
+
+### 2026-06-25 PR workflow 分割
+
+#415 で、PR のラベル変更時に重い CI が重複実行されないよう、軽い policy 系 check と重い CI を別 workflow に分けました。
+
+- `.github/workflows/pr-policy-check.yml` は `PR Policy Check` を実行する
+- `.github/workflows/pr-commitlint.yml` は `Commitlint` を実行する
+- `PR Policy Check` は PR 本文編集や label 変更でも実行し、ラベル・Issue link・厳密運用時の rollback 欄を最新状態で確認する
+- `Commitlint` は PR title 変更を拾うため `edited` でも実行するが、label 変更では workflow 自体を起動しない
+- `.github/workflows/pr-check.yml` は backend / frontend / Docker / Terraform / TFLint / Trivy / Gitleaks を実行し、PR 作成・push・reopen のみで起動する
+- `pr-check.yml` は PR 番号単位の workflow concurrency で古い heavy CI run をキャンセルする
+- `pr-policy-check.yml` と `pr-commitlint.yml` も PR 番号単位の concurrency を持つが、workflow を分けることで label 変更時の `PR Policy Check` 更新が `Commitlint` を巻き込んでキャンセルしない
+
+required status check の context 名は既存の branch protection と互換にするため、次を維持します。
+
+`PR Policy Check` / `Commitlint` / `Backend Lint & Build` / `Frontend Build` / `Terraform Format & Validate` / `TFLint` / `Gitleaks Secret Scan`
 
 ### 2026-06-21 PR Terraform Plan Artifact 一時停止
 
