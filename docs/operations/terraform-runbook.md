@@ -170,6 +170,7 @@ gh workflow run deploy.yml \
 
 `deployment_mode` は `provisioning` / `bluegreen` / `canary` のいずれかです。
 `provisioning` は初回構築用で、Terraform の `deployment_type` としては `canary` を使います。
+`provisioning` では CodeDeploy deployment step を実行しません。既存 ECS service がある場合は誤選択として、`deploy.yml` が Terraform apply 前に失敗します。
 
 local の `terraform apply` は例外運用です。
 実行する場合は、Issue / PR / rollback 方針 / 人間確認を揃え、`-auto-approve` を使わず保存済み plan を apply します。
