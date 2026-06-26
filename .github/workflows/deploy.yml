@@ -9,14 +9,14 @@ on:
   workflow_dispatch:
     inputs:
       deployment_mode:
-        description: "デプロイモードを選択"
+        description: "canary/bluegreenはCodeDeploy実行、provisioningは初回構築専用（CodeDeployなし）"
         required: true
         default: "canary"
         type: choice
         options:
-          - canary         # 1回目以降（Canary段階的切替）
-          - bluegreen      # 1回目以降（Blue/Green切替）
-          - provisioning   # 0回目（初期構築・Blueのみ）
+          - canary         # 1回目以降（CodeDeploy Canary段階的切替）
+          - bluegreen      # 1回目以降（CodeDeploy Blue/Green切替）
+          - provisioning   # 0回目（初期構築専用・CodeDeployなし）
 
 jobs:
   deploy:
@@ -39,6 +39,84 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq unzip
           jq --version
+
+      - name: Validate deployment mode
+        env:
+          DEPLOYMENT_MODE: ${{ inputs.deployment_mode }}
+        run: |
+          set -euo pipefail
+
+          CLUSTER_NAME="${PROJECT_NAME}-cluster"
+          SERVICE_NAME="${PROJECT_NAME}-api-service"
+
+          {
+            echo "## Deployment mode"
+            echo ""
+            echo "- Selected mode: \`${DEPLOYMENT_MODE}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$DEPLOYMENT_MODE" != "provisioning" ]; then
+            {
+              echo "- CodeDeploy: will run the \`${DEPLOYMENT_MODE}\` deployment step."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          {
+            echo "- CodeDeploy: will not run in provisioning mode."
+            echo "- Provisioning is only allowed when the ECS service does not already exist."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          set +e
+          SERVICE_JSON=$(aws ecs describe-services \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
+            --output json 2>ecs-describe-services-error.log)
+          DESCRIBE_EXIT=$?
+          set -e
+
+          if [ "$DESCRIBE_EXIT" -ne 0 ]; then
+            if grep -q "ClusterNotFoundException" ecs-describe-services-error.log; then
+              {
+                echo "- ECS service guard: cluster not found. Treating this as initial provisioning."
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            cat ecs-describe-services-error.log >&2
+            echo "::error::Failed to inspect ECS service before provisioning."
+            {
+              echo "- ECS service guard: failed to inspect the service. Stopping to avoid unsafe provisioning."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          SERVICE_STATUS=$(echo "$SERVICE_JSON" | jq -r '.services[0].status // "MISSING"')
+          FAILURE_REASON=$(echo "$SERVICE_JSON" | jq -r '.failures[0].reason // ""')
+
+          if [ "$SERVICE_STATUS" = "ACTIVE" ] || [ "$SERVICE_STATUS" = "DRAINING" ]; then
+            echo "::error::ECS service $SERVICE_NAME is $SERVICE_STATUS. Use canary or bluegreen instead of provisioning."
+            {
+              echo "- ECS service guard: \`${SERVICE_NAME}\` is \`${SERVICE_STATUS}\`."
+              echo "- Result: provisioning is blocked for an existing environment. Use \`canary\` or \`bluegreen\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          if [ "$SERVICE_STATUS" = "INACTIVE" ] || [ "$SERVICE_STATUS" = "MISSING" ] || [ "$FAILURE_REASON" = "MISSING" ]; then
+            {
+              echo "- ECS service guard: service status is \`${SERVICE_STATUS}\`."
+              echo "- Result: provisioning is allowed."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "::error::Unexpected ECS service status '$SERVICE_STATUS'. Stopping to avoid unsafe provisioning."
+          {
+            echo "- ECS service guard: unexpected service status \`${SERVICE_STATUS}\`."
+            echo "- Result: provisioning is blocked until the service state is reviewed."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
@@ -167,6 +245,7 @@ jobs:
           echo "✅ Docker image pushed with SHA and latest tags"
 
       - name: Generate AppSpec for ECS CodeDeploy
+        if: ${{ inputs.deployment_mode != 'provisioning' }}
         run: |
           set -e
           aws ecs describe-task-definition \
@@ -232,6 +311,7 @@ jobs:
           echo "✅ Canary deployment finished successfully!"
 
       - name: Cleanup old task definition revisions
+        if: ${{ inputs.deployment_mode != 'provisioning' }}
         # ECRライフサイクルポリシーが直近10イメージを保持するため、タスク定義も10世代に揃える
         run: |
           set -e

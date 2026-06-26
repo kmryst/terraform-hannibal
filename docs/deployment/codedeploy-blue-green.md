@@ -7,9 +7,9 @@ nestjs-hannibal-3プロジェクトのCodeDeployデプロイメント実装
 AWS CodeDeployを使用したECSサービスのデプロイメント。3つのモードに対応。
 
 ### デプロイモード
-- **Canary**: 10%→100%段階的切替
-- **Blue/Green**: 即座切替
-- **Provisioning**: 初期構築
+- **Canary**: 10%→100%段階的切替（CodeDeploy 実行）
+- **Blue/Green**: 即座切替（CodeDeploy 実行）
+- **Provisioning**: 初期構築専用（CodeDeploy なし）
 
 ### 主要機能
 - **無停止デプロイメント**: Blue/Green環境での安全な切り替え
@@ -122,7 +122,7 @@ resource "aws_codedeploy_deployment_group" "main" {
 #### デプロイ設定
 - **`deployment_type = "canary"`**: `CodeDeployDefault.ECSCanary10Percent5Minutes`
 - **`deployment_type = "bluegreen"`**: `CodeDeployDefault.ECSAllAtOnce`
-- **`deployment_mode = "provisioning"`**: `deploy.yml` では Terraform apply 用に `deployment_type` を `canary` として扱い、CodeDeploy deployment step は実行しない
+- **`deployment_mode = "provisioning"`**: `deploy.yml` では Terraform apply 用に `deployment_type` を `canary` として扱い、CodeDeploy deployment step は実行しない。既存 ECS service がある場合は、誤選択として Terraform apply 前に workflow を失敗させる
 - **Termination Wait**: deployment 成功後、旧 task set を 1分後に終了
 
 ### IAM権限（最小権限原則）

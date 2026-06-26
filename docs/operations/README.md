@@ -47,6 +47,9 @@
 
 ### サービス起動（月初など）
 
+通常 destroy 済みの dev 環境を再作成する場合だけ `provisioning` を使います。
+`provisioning` は CodeDeploy を実行しません。既存 ECS service がある状態で選ぶと、`deploy.yml` は Terraform apply 前に失敗します。
+
 **GitHub Actions手動実行:**
 ```
 Workflow: deploy.yml
@@ -72,6 +75,9 @@ Inputs:
 **コスト削減**: $30-50/月 → $5/月 (94%削減)
 
 ### デプロイ実行（コード更新時）
+
+既存環境へのコード更新では `bluegreen` または `canary` を使います。
+`provisioning` は初回構築専用で、CodeDeploy によるデプロイや自動ロールバックを実行しません。
 
 **Blue/Green Deployment:**
 ```
