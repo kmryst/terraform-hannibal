@@ -19,7 +19,7 @@
 | `Backend Test` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Jest | backend unit test を確認 | PR で自動実行 |
 | `Frontend Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | TypeScript / Vite build | frontend の型チェックと build を確認 | required status check 対象 |
 | `Frontend Test` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Vitest | frontend unit test を確認 | PR で自動実行 |
-| `Docker Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Docker | backend image build と non-root user を確認 | PR で自動実行 |
+| `Docker Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Docker | backend image build、non-root user、production 起動 smoke test を確認 | PR で自動実行 |
 | `Terraform Format & Validate` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `terraform fmt` / `terraform validate` | HCL の整形と Terraform 構成の基本整合性を確認 | required status check 対象 |
 | `TFLint` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `tflint` | Terraform / AWS provider 向けの lint。非推奨設定、未使用宣言、provider 固有のミスを検出 | required status check 対象。検出時は fail |
 | `Trivy Config Scan` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `trivy config` | Terraform / Dockerfile などの IaC・設定ミスを検出 | PR で自動実行。review signal として扱い、検出しても fail しない |

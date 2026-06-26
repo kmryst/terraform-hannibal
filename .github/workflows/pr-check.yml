@@ -118,6 +118,72 @@ jobs:
           echo "Container running as: $user"
           [ "$user" = "node" ] || { echo "::error::Expected 'node' user, got '$user'"; exit 1; }
 
+      - name: Smoke test production startup
+        run: |
+          set -euo pipefail
+
+          docker network create smoke-test-net
+
+          docker run -d \
+            --name smoke-db \
+            --network smoke-test-net \
+            -e POSTGRES_USER=smoke \
+            -e POSTGRES_PASSWORD=smoke \
+            -e POSTGRES_DB=smoke \
+            postgres:16-alpine
+
+          for attempt in {1..15}; do
+            if docker exec smoke-db pg_isready -U smoke -d smoke; then
+              break
+            fi
+
+            if [ "$attempt" -eq 15 ]; then
+              echo "::error::PostgreSQL did not become ready"
+              docker logs smoke-db || true
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          docker run -d \
+            --name smoke-app \
+            --network smoke-test-net \
+            -e NODE_ENV=production \
+            -e DATABASE_URL="postgresql://smoke:smoke@smoke-db:5432/smoke?sslmode=disable" \
+            hannibal-test
+
+          app_healthy=false
+          for attempt in {1..15}; do
+            if docker run --rm --network smoke-test-net curlimages/curl \
+                -sf http://smoke-app:3000/health >/dev/null 2>&1; then
+              app_healthy=true
+              break
+            fi
+
+            if ! docker ps --format '{{.Names}}' | grep -qx smoke-app; then
+              echo "::error::Application container exited before health check passed"
+              docker logs smoke-app || true
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          if [ "$app_healthy" != "true" ]; then
+            echo "::error::Application did not become healthy"
+            docker logs smoke-app || true
+            exit 1
+          fi
+
+          echo "Production startup smoke test passed."
+
+      - name: Cleanup smoke test containers
+        if: always()
+        run: |
+          docker rm -f smoke-app smoke-db 2>/dev/null || true
+          docker network rm smoke-test-net 2>/dev/null || true
+
   terraform-check:
     name: Terraform Format & Validate
     runs-on: ubuntu-latest
