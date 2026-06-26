@@ -149,14 +149,14 @@ jobs:
           docker run -d \
             --name smoke-app \
             --network smoke-test-net \
-            -p 3000:3000 \
             -e NODE_ENV=production \
             -e DATABASE_URL="postgresql://smoke:smoke@smoke-db:5432/smoke?sslmode=disable" \
             hannibal-test
 
           app_healthy=false
           for attempt in {1..15}; do
-            if curl -sf http://localhost:3000/health >/dev/null; then
+            if docker run --rm --network smoke-test-net curlimages/curl \
+                -sf http://smoke-app:3000/health >/dev/null 2>&1; then
               app_healthy=true
               break
             fi
