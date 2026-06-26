@@ -6,7 +6,7 @@
 
 `terraform/foundation/` は IAM / OIDC / Permission Boundary などの永続基盤を管理します（ADR 0014）。アプリケーションリソースは責務ごとに 4 つの root module に分割します（ADR 0020）。
 
-Preview Environment は state 分割後の構成を前提に再検討します（ADR 0019 Superseded）。
+Preview Environment は現時点では本格設計・実装せず、dev deploy/destroy や rollback などの基礎運用が安定してから再検討します（ADR 0019 Superseded）。
 
 ## State 管理方針
 
@@ -106,7 +106,18 @@ terraform/modules/
 
 ## PR Preview Environment
 
-PR 単体の変更を一時 AWS 環境で確認する Preview Environment は、state 分割後の構成を前提に再検討します。以前の検討内容は [ADR 0019](./adr/0019-adopt-pr-preview-environment-with-isolated-state.md)（Superseded）を参照してください。
+現時点では Preview Environment の本格設計・実装は優先しません。
+
+Preview Environment は dev / staging / production の代替ではなく、PR 単位の一時環境として扱います。現在は dev deploy/destroy、rollback、CI runtime check、cost guardrail を安定させる段階です。この段階で Preview Environment を先に実装すると、未解決の deploy / rollback 課題を環境数ぶん増幅する可能性があります。
+
+そのため、Preview Environment は今すぐ作る対象ではなく、次の条件が揃った時点で再検討します。
+
+- dev deploy/destroy が安定している
+- rollback / observability / secrets handling が最低限整っている
+- staging / production 相当の昇格モデルを説明できる
+- preview 環境の state isolation / IAM / 自動 destroy / cost guardrail を設計できる
+
+以前の検討内容は [ADR 0019](./adr/0019-adopt-pr-preview-environment-with-isolated-state.md)（Superseded）を参照してください。
 
 ## 後続フェーズ
 
@@ -114,7 +125,7 @@ PR 単体の変更を一時 AWS 環境で確認する Preview Environment は、
 2. 子モジュールの責務整理とディレクトリフラット化を実施する
 3. CI / workflow（`pr-check.yml`、`deploy.yml`、`destroy.yml`）を新しい root module 構成に対応させる
 4. staging / production を独立した共有環境として整備し、直列 deploy と承認を設計する
-5. state 分割後の構成を前提に、Preview Environment を再検討する
+5. dev deploy/destroy や rollback などの基礎運用が安定した後、Preview Environment を再検討する
 
 ## 新環境（staging / prod）を追加するときのチェックリスト
 
