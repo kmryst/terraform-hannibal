@@ -36,7 +36,7 @@
 - shfmt は formatter のため、PR workflow では実行せず pre-commit の差分チェックに留める
 - ShellCheck / Hadolint は初期導入時点では required status check に追加しない
 - 観察期間後、false positive、実行時間、PR 運用への影響、merge blocking にする価値を見て required 化を別 Issue で判断する
-- pre-commit と CI の両方に置く理由（速さと強制力の両立）は [ADR 0024](../adr/0024-use-pre-commit-and-ci-dual-layer-for-shell-dockerfile-lint.md) に記録する
+- pre-commit と CI の両方に置く理由：pre-commit は速いが `--no-verify` で突破可能・`pre-commit install` 忘れのリスクがある。CI は全員に強制されるがフィードバックが push 後になる。二層にすることで速さと強制力を両立する
 
 Hadolint の `DL3018` は `.hadolint.yaml` で ignore します。
 `Dockerfile` では RDS CA 証明書を取得するために image build 中だけ一時的に `wget` を入れ、取得後に `apk del wget` で削除しています。

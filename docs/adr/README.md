@@ -63,4 +63,4 @@
 | [0021](./0021-pause-pr-terraform-plan-artifact.md) | Accepted | PR Terraform Plan Artifact を一時停止する |
 | [0022](./0022-keep-prod-rds-on-t3-micro-until-metrics-justify-scale-up.md) | Accepted | prod RDS はメトリクスが引き上げを正当化するまで db.t3.micro に据え置く |
 | [0023](./0023-adopt-mise-for-local-tooling-and-pre-commit-terraform-docs.md) | Accepted | ローカルツール管理に mise を採用し terraform-docs は pre-commit で運用する |
-| [0024](./0024-use-pre-commit-and-ci-dual-layer-for-shell-dockerfile-lint.md) | Accepted | シェルスクリプト / Dockerfile の lint を pre-commit と CI の二層で実行する |
+| [0024](./0024-use-pre-commit-and-ci-dual-layer-for-shell-dockerfile-lint.md) | Deprecated | シェルスクリプト / Dockerfile の lint を pre-commit と CI の二層で実行する |
