@@ -15,6 +15,10 @@ concurrency:
 env:
   TERRAFORM_VERSION: "1.12.1"
   NODE_VERSION: "24"
+  POSTGRES_IMAGE: "postgres:16-alpine@sha256:e013e867e712fec275706a6c51c966f0bb0c93cfa8f51000f85a15f9865a28cb"
+  CURL_IMAGE: "curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13"
+  SHELLCHECK_IMAGE: "koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d"
+  HADOLINT_IMAGE: "ghcr.io/hadolint/hadolint:v2.14.0@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e"
 
 jobs:
   backend-check:
@@ -130,7 +134,7 @@ jobs:
             -e POSTGRES_USER=smoke \
             -e POSTGRES_PASSWORD=smoke \
             -e POSTGRES_DB=smoke \
-            postgres:16-alpine
+            "$POSTGRES_IMAGE"
 
           for attempt in {1..15}; do
             if docker exec smoke-db pg_isready -U smoke -d smoke; then
@@ -153,9 +157,11 @@ jobs:
             -e DATABASE_URL="postgresql://smoke:smoke@smoke-db:5432/smoke?sslmode=disable" \
             hannibal-test
 
+          docker pull "$CURL_IMAGE"
+
           app_healthy=false
           for attempt in {1..15}; do
-            if docker run --rm --network smoke-test-net curlimages/curl \
+            if docker run --rm --network smoke-test-net "$CURL_IMAGE" \
                 -sf http://smoke-app:3000/health >/dev/null 2>&1; then
               app_healthy=true
               break
@@ -198,7 +204,7 @@ jobs:
             | xargs -0r docker run --rm \
                 -v "$PWD:/repo" \
                 -w /repo \
-                koalaman/shellcheck:v0.11.0
+                "$SHELLCHECK_IMAGE"
 
       - name: Write ShellCheck summary
         if: success()
@@ -217,7 +223,7 @@ jobs:
         uses: actions/checkout@v7.0.0
 
       - name: Run Hadolint
-        run: docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/hadolint/hadolint:v2.14.0 hadolint --config .hadolint.yaml Dockerfile
+        run: docker run --rm -v "$PWD:/repo" -w /repo "$HADOLINT_IMAGE" hadolint --config .hadolint.yaml Dockerfile
 
       - name: Write Hadolint summary
         if: success()
