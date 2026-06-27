@@ -2,7 +2,12 @@
 
 ## ステータス
 
-Accepted
+Deprecated
+
+> この ADR は廃止しました。
+> 記録した内容（pre-commit は速いが突破可能、CI は強制力があるがフィードバックが遅い、だから両方）は
+> DevOps の一般常識であり、プロジェクト固有の判断を記録する ADR の対象ではありませんでした。
+> 二層にする理由は [Quality Gates](../operations/quality-gates.md) の #426 セクションにインラインで記載しています。
 
 ## 日付
 
