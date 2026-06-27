@@ -20,6 +20,8 @@
 | `Frontend Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | TypeScript / Vite build | frontend の型チェックと build を確認 | required status check 対象 |
 | `Frontend Test` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Vitest | frontend unit test を確認 | PR で自動実行 |
 | `Docker Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Docker | backend image build、non-root user、production 起動 smoke test を確認 | PR で自動実行 |
+| `ShellCheck` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `shellcheck` | `scripts/**/*.sh` の構文、quote、未定義変数、危険な shell パターンを確認 | PR で自動実行。検出時は fail。初期導入時点では required status check 対象外 |
+| `Hadolint` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `hadolint` | `Dockerfile` の Dockerfile best practice と Alpine package / shell command の注意点を確認 | PR で自動実行。検出時は fail。初期導入時点では required status check 対象外 |
 | `Terraform Format & Validate` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `terraform fmt` / `terraform validate` | HCL の整形と Terraform 構成の基本整合性を確認 | required status check 対象 |
 | `TFLint` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `tflint` | Terraform / AWS provider 向けの lint。非推奨設定、未使用宣言、provider 固有のミスを検出 | required status check 対象。検出時は fail |
 | `Trivy Config Scan` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `trivy config` | Terraform / Dockerfile などの IaC・設定ミスを検出 | PR で自動実行。review signal として扱い、検出しても fail しない |
@@ -40,6 +42,21 @@
 required status check の context 名は既存の branch protection と互換にするため、次を維持します。
 
 `PR Policy Check` / `Commitlint` / `Backend Lint & Build` / `Frontend Build` / `Terraform Format & Validate` / `TFLint` / `Gitleaks Secret Scan`
+
+### 2026-06-27 ShellCheck / Hadolint 初期導入
+
+#426 で、`scripts/**/*.sh` と `Dockerfile` の静的解析を追加しました。
+
+- `.pre-commit-config.yaml` は ShellCheck / shfmt / Hadolint を実行する
+- `pr-check.yml` は ShellCheck / Hadolint を直接実行し、検出時は job fail する
+- shfmt は formatter のため、PR workflow では実行せず pre-commit の差分チェックに留める
+- ShellCheck / Hadolint は初期導入時点では required status check に追加しない
+- 観察期間後、false positive、実行時間、PR 運用への影響、merge blocking にする価値を見て required 化を別 Issue で判断する
+
+Hadolint の `DL3018` は `.hadolint.yaml` で ignore します。
+`Dockerfile` では RDS CA 証明書を取得するために image build 中だけ一時的に `wget` を入れ、取得後に `apk del wget` で削除しています。
+Alpine package version を固定すると、`node:24-alpine` の package repository 更新に追随できず build が壊れやすくなるため、ここでは package pin より base image 更新時の CI 検証を優先します。
+`wget` 実行時の進捗出力については `wget -q` で抑制します。
 
 ### 2026-06-21 PR Terraform Plan Artifact 一時停止
 
@@ -158,6 +175,9 @@ Tier B action の Dependabot version update PR では、少なくとも次を確
 | `tflint` | `terraform-linters` OSS | 非公式 | Terraform の実務 lint。AWS ruleset を利用 |
 | `trivy config` | Aqua Security / Trivy | 非公式 | Terraform / Dockerfile などの IaC security scan |
 | `gitleaks` | Gitleaks OSS | 非公式 | Git 履歴・ファイル内の secret scan |
+| `shellcheck` | ShellCheck OSS | 非公式 | shell script の quote、展開、未定義変数、移植性の問題を検出 |
+| `shfmt` | mvdan/sh OSS | 非公式 | shell script の整形差分を pre-commit で確認。CI では実行しない |
+| `hadolint` | Hadolint OSS | 非公式 | Dockerfile best practice と shell command / package install の注意点を検出 |
 | `tfsec` | Aqua Security | 非公式 | 新規採用しない。IaC security は Trivy Config に寄せる |
 
 `terraform fmt` / `terraform validate` は「Terraform として読めるか」を確認します。
@@ -276,6 +296,25 @@ trivy config \
   --skip-dirs docs/llm-repo-bundle \
   --skip-dirs client/dist \
   .
+
+# ShellCheck / shfmt / Hadolint
+pre-commit run shellcheck --all-files
+pre-commit run shfmt --all-files
+pre-commit run hadolint --all-files
+
+# CI と同等の ShellCheck
+find scripts -type f -name '*.sh' -print0 \
+  | xargs -0 docker run --rm \
+      -v "$PWD:/repo" \
+      -w /repo \
+      koalaman/shellcheck:v0.11.0
+
+# CI と同等の Hadolint
+docker run --rm \
+  -v "$PWD:/repo" \
+  -w /repo \
+  ghcr.io/hadolint/hadolint:v2.14.0 \
+  hadolint --config .hadolint.yaml Dockerfile
 ```
 
 ## 2026-05-14 時点の初期検証メモ

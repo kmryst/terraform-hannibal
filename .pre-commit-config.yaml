@@ -16,3 +16,31 @@ repos:
     rev: v8.30.1
     hooks:
       - id: gitleaks
+
+  # shellcheck: scripts 配下のシェルスクリプト静的解析
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        files: ^scripts/.*\.sh$
+
+  # shfmt: scripts 配下のシェルスクリプト整形差分チェック
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.13.1-1
+    hooks:
+      - id: shfmt
+        files: ^scripts/.*\.sh$
+        args:
+          - -d
+          - -s
+
+  # hadolint: Dockerfile 静的解析
+  - repo: local
+    hooks:
+      - id: hadolint
+        name: hadolint
+        language: docker_image
+        entry: ghcr.io/hadolint/hadolint:v2.14.0 hadolint --config .hadolint.yaml
+        files: ^Dockerfile$
+        types:
+          - dockerfile
