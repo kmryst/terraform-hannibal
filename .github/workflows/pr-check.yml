@@ -157,6 +157,8 @@ jobs:
             -e DATABASE_URL="postgresql://smoke:smoke@smoke-db:5432/smoke?sslmode=disable" \
             hannibal-test
 
+          docker pull "$CURL_IMAGE"
+
           app_healthy=false
           for attempt in {1..15}; do
             if docker run --rm --network smoke-test-net "$CURL_IMAGE" \
