@@ -311,9 +311,10 @@ PR workflow では Terraform Format & Validate、TFLint、Trivy Config Scan、Gi
 - `terraform/foundation` の恒久リソースは state に残して継続管理します。
 - `terraform/network`、`terraform/database`、`terraform/service`、`terraform/cdn` は deploy / destroy workflow から自動管理します。
 - local module はこの repository 内の `terraform/modules/*` を参照します。
-- 外部 repository の module 参照や terraform-docs 設定ファイルによる自動生成運用は、現行構成では採用していません。
+- Terraform root module の README は `.terraform-docs.yml` と pre-commit の `terraform_docs` hook で自動生成します。
+- `terraform/modules/*` の README 自動生成や CI での terraform-docs 差分チェックは現行 scope では採用せず、必要になった段階で別途判断します。
 
 ---
 
-**最終更新**: 2026年6月24日
-**実装状況**: state 分割後の現行構成を反映
+**最終更新**: 2026年6月27日
+**実装状況**: state 分割後の現行構成と terraform-docs による root module README 生成を反映
