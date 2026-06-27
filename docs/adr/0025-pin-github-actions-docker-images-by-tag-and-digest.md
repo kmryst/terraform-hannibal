@@ -87,6 +87,6 @@ tag のみでは image 実体を immutable に固定できず、digest のみで
 - [Issue #430](https://github.com/kmryst/terraform-hannibal/issues/430) - GitHub Actions 内 Docker image の tag / digest pin 方針を整理する
 - [Issue #350](https://github.com/kmryst/terraform-hannibal/issues/350) - Renovate 導入と Dockerfile base image 更新管理
 - [ADR 0017](./0017-pin-github-actions-by-owner-tier.md) - GitHub Actions の action 参照を owner tier で固定する
-- [ADR 0024](./0024-use-pre-commit-and-ci-dual-layer-for-shell-dockerfile-lint.md) - ShellCheck / Hadolint を pre-commit と CI の二層で実行する
+- [ADR 0024](./0024-use-pre-commit-and-ci-dual-layer-for-shell-dockerfile-lint.md) (Deprecated) - ShellCheck / Hadolint を pre-commit と CI の二層で実行する
 - [Quality Gates](../operations/quality-gates.md) - workflow Docker image 管理方針、現在の棚卸し、更新手順の正本
 - [Threat Model](../security/threat-model.md) - T10 supply chain / GitHub Action 依存の侵害
