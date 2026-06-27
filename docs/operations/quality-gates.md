@@ -47,7 +47,7 @@ required status check の context 名は既存の branch protection と互換に
 
 #426 で、`scripts/**/*.sh` と `Dockerfile` の静的解析を追加しました。
 
-- `.pre-commit-config.yaml` は ShellCheck / shfmt / Hadolint を実行する
+- `.pre-commit-config.yaml` は ShellCheck / shfmt / Hadolint / terraform-docs を実行する
 - `pr-check.yml` は ShellCheck / Hadolint を直接実行し、検出時は job fail する
 - shfmt は formatter のため、PR workflow では実行せず pre-commit の差分チェックに留める
 - ShellCheck / Hadolint は初期導入時点では required status check に追加しない
@@ -57,6 +57,16 @@ Hadolint の `DL3018` は `.hadolint.yaml` で ignore します。
 `Dockerfile` では RDS CA 証明書を取得するために image build 中だけ一時的に `wget` を入れ、取得後に `apk del wget` で削除しています。
 Alpine package version を固定すると、`node:24-alpine` の package repository 更新に追随できず build が壊れやすくなるため、ここでは package pin より base image 更新時の CI 検証を優先します。
 `wget` 実行時の進捗出力については `wget -q` で抑制します。
+
+### 2026-06-27 mise / terraform-docs 導入
+
+#427 で、ローカル開発ツールのバージョンを `.mise.toml` に集約し、Terraform root module README を terraform-docs で生成する運用を追加しました。
+
+- `mise install` で Terraform、Node.js、pre-commit、terraform-docs、TFLint を揃える
+- terraform-docs の生成形式は `.terraform-docs.yml` で管理する
+- 対象は `terraform/foundation`、`terraform/network`、`terraform/database`、`terraform/service`、`terraform/cdn` の root module README に限定する
+- `terraform/modules/*` の README 自動生成は今回の scope 外とする
+- CI での terraform-docs 差分チェックは追加せず、pre-commit によるローカル更新に留める
 
 ### 2026-06-21 PR Terraform Plan Artifact 一時停止
 
@@ -301,6 +311,7 @@ trivy config \
 pre-commit run shellcheck --all-files
 pre-commit run shfmt --all-files
 pre-commit run hadolint --all-files
+pre-commit run terraform_docs --all-files
 
 # CI と同等の ShellCheck
 find scripts -type f -name '*.sh' -print0 \
