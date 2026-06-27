@@ -62,3 +62,4 @@
 | [0020](./0020-split-environment-state-by-responsibility.md) | Accepted | 環境 state を責務単位で分割する |
 | [0021](./0021-pause-pr-terraform-plan-artifact.md) | Accepted | PR Terraform Plan Artifact を一時停止する |
 | [0022](./0022-keep-prod-rds-on-t3-micro-until-metrics-justify-scale-up.md) | Accepted | prod RDS はメトリクスが引き上げを正当化するまで db.t3.micro に据え置く |
+| [0023](./0023-adopt-mise-for-local-tooling-and-pre-commit-terraform-docs.md) | Accepted | ローカルツール管理に mise を採用し terraform-docs は pre-commit で運用する |

@@ -27,22 +27,6 @@
 | `Trivy Config Scan` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `trivy config` | Terraform / Dockerfile などの IaC・設定ミスを検出 | PR で自動実行。review signal として扱い、検出しても fail しない |
 | `Gitleaks Secret Scan` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `gitleaks` | Git 履歴に混入した API key / token / password などの secret を検出 | required status check 対象。検出時は fail |
 
-### 2026-06-25 PR workflow 分割
-
-#415 で、PR のラベル変更時に重い CI が重複実行されないよう、軽い policy 系 check と重い CI を別 workflow に分けました。
-
-- `.github/workflows/pr-policy-check.yml` は `PR Policy Check` を実行する
-- `.github/workflows/pr-commitlint.yml` は `Commitlint` を実行する
-- `PR Policy Check` は PR 本文編集や label 変更でも実行し、ラベル・Issue link・厳密運用時の rollback 欄を最新状態で確認する
-- `Commitlint` は PR title 変更を拾うため `edited` でも実行するが、label 変更では workflow 自体を起動しない
-- `.github/workflows/pr-check.yml` は backend / frontend / Docker / Terraform / TFLint / Trivy / Gitleaks を実行し、PR 作成・push・reopen のみで起動する
-- `pr-check.yml` は PR 番号単位の workflow concurrency で古い heavy CI run をキャンセルする
-- `pr-policy-check.yml` と `pr-commitlint.yml` も PR 番号単位の concurrency を持つが、workflow を分けることで label 変更時の `PR Policy Check` 更新が `Commitlint` を巻き込んでキャンセルしない
-
-required status check の context 名は既存の branch protection と互換にするため、次を維持します。
-
-`PR Policy Check` / `Commitlint` / `Backend Lint & Build` / `Frontend Build` / `Terraform Format & Validate` / `TFLint` / `Gitleaks Secret Scan`
-
 ### 2026-06-27 ShellCheck / Hadolint 初期導入
 
 #426 で、`scripts/**/*.sh` と `Dockerfile` の静的解析を追加しました。
@@ -63,10 +47,30 @@ Alpine package version を固定すると、`node:24-alpine` の package reposit
 #427 で、ローカル開発ツールのバージョンを `.mise.toml` に集約し、Terraform root module README を terraform-docs で生成する運用を追加しました。
 
 - `mise install` で Terraform、Node.js、pre-commit、terraform-docs、TFLint を揃える
+- ローカル開発ツールの version pin は `.mise.toml` を正本とし、Terraform 用の `.terraform-version` は持たない
+- CI/CD workflow の Terraform / TFLint / Node.js version pin は、PR gate と deploy / destroy の再現性を担うため当面 workflow 側に明示する
 - terraform-docs の生成形式は `.terraform-docs.yml` で管理する
-- 対象は `terraform/foundation`、`terraform/network`、`terraform/database`、`terraform/service`、`terraform/cdn` の root module README に限定する
+- 対象は `terraform/modules/*` を除く first-level root module README とする。現時点の対象は `terraform/foundation`、`terraform/network`、`terraform/database`、`terraform/service`、`terraform/cdn`
 - `terraform/modules/*` の README 自動生成は今回の scope 外とする
 - CI での terraform-docs 差分チェックは追加せず、pre-commit によるローカル更新に留める
+
+この判断の背景と代替案は [ADR 0023](../adr/0023-adopt-mise-for-local-tooling-and-pre-commit-terraform-docs.md) に記録します。
+
+### 2026-06-25 PR workflow 分割
+
+#415 で、PR のラベル変更時に重い CI が重複実行されないよう、軽い policy 系 check と重い CI を別 workflow に分けました。
+
+- `.github/workflows/pr-policy-check.yml` は `PR Policy Check` を実行する
+- `.github/workflows/pr-commitlint.yml` は `Commitlint` を実行する
+- `PR Policy Check` は PR 本文編集や label 変更でも実行し、ラベル・Issue link・厳密運用時の rollback 欄を最新状態で確認する
+- `Commitlint` は PR title 変更を拾うため `edited` でも実行するが、label 変更では workflow 自体を起動しない
+- `.github/workflows/pr-check.yml` は backend / frontend / Docker / Terraform / TFLint / Trivy / Gitleaks を実行し、PR 作成・push・reopen のみで起動する
+- `pr-check.yml` は PR 番号単位の workflow concurrency で古い heavy CI run をキャンセルする
+- `pr-policy-check.yml` と `pr-commitlint.yml` も PR 番号単位の concurrency を持つが、workflow を分けることで label 変更時の `PR Policy Check` 更新が `Commitlint` を巻き込んでキャンセルしない
+
+required status check の context 名は既存の branch protection と互換にするため、次を維持します。
+
+`PR Policy Check` / `Commitlint` / `Backend Lint & Build` / `Frontend Build` / `Terraform Format & Validate` / `TFLint` / `Gitleaks Secret Scan`
 
 ### 2026-06-21 PR Terraform Plan Artifact 一時停止
 

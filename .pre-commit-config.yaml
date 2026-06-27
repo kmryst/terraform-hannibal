@@ -11,13 +11,11 @@ repos:
         args:
           - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
       - id: terraform_docs
-        files: ^terraform/(foundation|network|database|service|cdn)/.*\.tf$
+        files: ^terraform/(?!modules/)[^/]+/.*\.tf$
         args:
           - --args=--config=.terraform-docs.yml
-          - --hook-config=--path-to-file=README.md
           - --hook-config=--add-to-existing-file=true
           - --hook-config=--create-file-if-not-exist=true
-          - --hook-config=--use-standard-markers=true
 
   # gitleaks: 秘密情報の混入検査
   - repo: https://github.com/gitleaks/gitleaks
