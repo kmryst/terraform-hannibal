@@ -43,6 +43,34 @@ Hadolint の `DL3018` は `.hadolint.yaml` で ignore します。
 Alpine package version を固定すると、`node:24-alpine` の package repository 更新に追随できず build が壊れやすくなるため、ここでは package pin より base image 更新時の CI 検証を優先します。
 `wget` 実行時の進捗出力については `wget -q` で抑制します。
 
+### 2026-06-27 workflow Docker image pin
+
+#430 で、`pr-check.yml` の `run:` step から `docker run` している外部 Docker image を `image:tag@sha256:<digest>` 形式に固定しました。
+
+対象は GitHub Actions 内で直接 pull / execute する外部 image です。`docker build` が参照する `Dockerfile` の base image（例: `FROM node:24-alpine`）は application runtime / container dependency の更新判断を伴うため、今回の対象外とし、Renovate 導入を扱う #350 で管理します。Gitleaks job の `curl -sSfL` は GitHub Releases から binary を取得する shell command であり、Docker image ではないため対象外です。
+
+初期 pin は version upgrade ではなく、現在 CI が実際に使っている image 実体を固定する方針で行いました。既存の明示 tag は維持し、tag なしだった `curlimages/curl` だけは、確認時点の `latest` と同じ digest を指す `8.21.0` tag に置き換えています。
+
+| 用途 | 変更前 | 固定後 | 選定理由 |
+|---|---|---|---|
+| Docker smoke test DB | `postgres:16-alpine` | `postgres:16-alpine@sha256:e013e867e712fec275706a6c51c966f0bb0c93cfa8f51000f85a15f9865a28cb` | PostgreSQL line を変えると smoke test の前提が変わるため、既存 tag の実体を digest 固定する |
+| Docker smoke test health check | `curlimages/curl` | `curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13` | tag なし `latest` 相当をやめる。確認時点の `latest` が `curl 8.21.0` で、`8.21.0` tag と digest が一致したため同じ実体を固定する |
+| ShellCheck CI | `koalaman/shellcheck:v0.11.0` | `koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d` | ShellCheck version 変更は lint 結果を変え得るため、既存 tag の実体を digest 固定する |
+| Hadolint CI | `ghcr.io/hadolint/hadolint:v2.14.0` | `ghcr.io/hadolint/hadolint:v2.14.0@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e` | Hadolint version 変更は rule set や検出結果を変え得るため、既存 tag の実体を digest 固定する |
+
+digest は platform 個別 manifest digest ではなく、manifest list / OCI image index digest を使います。確認は次のように行います。
+
+```bash
+docker buildx imagetools inspect postgres:16-alpine
+docker buildx imagetools inspect curlimages/curl:8.21.0
+docker buildx imagetools inspect koalaman/shellcheck:v0.11.0
+docker buildx imagetools inspect ghcr.io/hadolint/hadolint:v2.14.0
+```
+
+更新時は tag と digest が対応していることを確認し、PR では version upgrade と digest pin の差分を分けて説明します。Renovate 導入時は、workflow 内 Docker image の tag / digest を regex manager などで更新対象にできるか検討します。
+
+この判断の背景と代替案は [ADR 0025](../adr/0025-pin-github-actions-docker-images-by-tag-and-digest.md) に記録します。
+
 ### 2026-06-27 mise / terraform-docs 導入
 
 #427 で、ローカル開発ツールのバージョンを `.mise.toml` に集約し、Terraform root module README を terraform-docs で生成する運用を追加しました。
@@ -323,13 +351,13 @@ find scripts -type f -name '*.sh' -print0 \
   | xargs -0 docker run --rm \
       -v "$PWD:/repo" \
       -w /repo \
-      koalaman/shellcheck:v0.11.0
+      koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d
 
 # CI と同等の Hadolint
 docker run --rm \
   -v "$PWD:/repo" \
   -w /repo \
-  ghcr.io/hadolint/hadolint:v2.14.0 \
+  ghcr.io/hadolint/hadolint:v2.14.0@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e \
   hadolint --config .hadolint.yaml Dockerfile
 ```
 
