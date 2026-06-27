@@ -21,7 +21,7 @@ WORKDIR /usr/src/app
 
 # RDS CA証明書をダウンロード
 RUN apk add --no-cache wget && \
-    wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -O /opt/rds-ca-2019-root.pem && \
+    wget -q https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -O /opt/rds-ca-2019-root.pem && \
     chmod 644 /opt/rds-ca-2019-root.pem && \
     apk del wget
 

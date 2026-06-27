@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage() {
-  cat <<'EOF'
+	cat <<'EOF'
 Usage:
   create-issue-with-labels.sh \
     --title "Issue title" \
@@ -28,17 +28,17 @@ EOF
 }
 
 die() {
-  printf 'Error: %s\n' "$1" >&2
-  exit 1
+	printf 'Error: %s\n' "$1" >&2
+	exit 1
 }
 
 require_prefix() {
-  local value="$1"
-  local prefix="$2"
+	local value="$1"
+	local prefix="$2"
 
-  if [[ "$value" != "$prefix"* ]]; then
-    die "Expected label '$value' to start with '$prefix'"
-  fi
+	if [[ $value != "$prefix"* ]]; then
+		die "Expected label '$value' to start with '$prefix'"
+	fi
 }
 
 title=""
@@ -49,73 +49,73 @@ cost_label=""
 declare -a area_labels=()
 
 while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --title)
-      [[ $# -ge 2 ]] || die "--title requires a value"
-      title="$2"
-      shift 2
-      ;;
-    --body-file)
-      [[ $# -ge 2 ]] || die "--body-file requires a value"
-      body_file="$2"
-      shift 2
-      ;;
-    --type)
-      [[ $# -ge 2 ]] || die "--type requires a value"
-      type_label="$2"
-      shift 2
-      ;;
-    --area)
-      [[ $# -ge 2 ]] || die "--area requires a value"
-      area_labels+=("$2")
-      shift 2
-      ;;
-    --risk)
-      [[ $# -ge 2 ]] || die "--risk requires a value"
-      risk_label="$2"
-      shift 2
-      ;;
-    --cost)
-      [[ $# -ge 2 ]] || die "--cost requires a value"
-      cost_label="$2"
-      shift 2
-      ;;
-    --help|-h)
-      usage
-      exit 0
-      ;;
-    *)
-      die "Unknown argument: $1"
-      ;;
-  esac
+	case "$1" in
+	--title)
+		[[ $# -ge 2 ]] || die "--title requires a value"
+		title="$2"
+		shift 2
+		;;
+	--body-file)
+		[[ $# -ge 2 ]] || die "--body-file requires a value"
+		body_file="$2"
+		shift 2
+		;;
+	--type)
+		[[ $# -ge 2 ]] || die "--type requires a value"
+		type_label="$2"
+		shift 2
+		;;
+	--area)
+		[[ $# -ge 2 ]] || die "--area requires a value"
+		area_labels+=("$2")
+		shift 2
+		;;
+	--risk)
+		[[ $# -ge 2 ]] || die "--risk requires a value"
+		risk_label="$2"
+		shift 2
+		;;
+	--cost)
+		[[ $# -ge 2 ]] || die "--cost requires a value"
+		cost_label="$2"
+		shift 2
+		;;
+	--help | -h)
+		usage
+		exit 0
+		;;
+	*)
+		die "Unknown argument: $1"
+		;;
+	esac
 done
 
-[[ -n "$title" ]] || die "--title is required"
-[[ -n "$body_file" ]] || die "--body-file is required"
-[[ -f "$body_file" ]] || die "Body file not found: $body_file"
-[[ -n "$type_label" ]] || die "--type is required"
+[[ -n $title ]] || die "--title is required"
+[[ -n $body_file ]] || die "--body-file is required"
+[[ -f $body_file ]] || die "Body file not found: $body_file"
+[[ -n $type_label ]] || die "--type is required"
 [[ ${#area_labels[@]} -ge 1 ]] || die "At least one --area is required"
-[[ -n "$risk_label" ]] || die "--risk is required"
-[[ -n "$cost_label" ]] || die "--cost is required"
+[[ -n $risk_label ]] || die "--risk is required"
+[[ -n $cost_label ]] || die "--cost is required"
 
 require_prefix "$type_label" "type:"
 require_prefix "$risk_label" "risk:"
 require_prefix "$cost_label" "cost:"
 for area_label in "${area_labels[@]}"; do
-  require_prefix "$area_label" "area:"
+	require_prefix "$area_label" "area:"
 done
 
 create_args=(
-  issue create
-  --title "$title"
-  --body-file "$body_file"
-  --label "$type_label"
-  --label "$risk_label"
-  --label "$cost_label"
+	issue create
+	--title "$title"
+	--body-file "$body_file"
+	--label "$type_label"
+	--label "$risk_label"
+	--label "$cost_label"
 )
 
 for area_label in "${area_labels[@]}"; do
-  create_args+=(--label "$area_label")
+	create_args+=(--label "$area_label")
 done
 
 issue_url=$(gh "${create_args[@]}")

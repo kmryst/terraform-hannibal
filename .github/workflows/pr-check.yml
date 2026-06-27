@@ -184,6 +184,57 @@ jobs:
           docker rm -f smoke-app smoke-db 2>/dev/null || true
           docker network rm smoke-test-net 2>/dev/null || true
 
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.0
+
+      - name: Run ShellCheck
+        run: |
+          set -euo pipefail
+          mapfile -d '' scripts < <(find scripts -type f -name '*.sh' -print0)
+
+          if [ "${#scripts[@]}" -eq 0 ]; then
+            echo "No shell scripts found under scripts/."
+            exit 0
+          fi
+
+          docker run --rm -v "$PWD:/repo" -w /repo koalaman/shellcheck:v0.11.0 "${scripts[@]}"
+
+      - name: Write ShellCheck summary
+        if: success()
+        run: |
+          {
+            echo "## ShellCheck"
+            echo ""
+            echo "Shell script lint completed successfully."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  hadolint:
+    name: Hadolint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.0
+
+      - name: Run Hadolint
+        run: docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/hadolint/hadolint:v2.14.0 hadolint --config .hadolint.yaml Dockerfile
+
+      - name: Write Hadolint summary
+        if: success()
+        run: |
+          {
+            echo "## Hadolint"
+            echo ""
+            echo "Dockerfile lint completed successfully."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   terraform-check:
     name: Terraform Format & Validate
     runs-on: ubuntu-latest
