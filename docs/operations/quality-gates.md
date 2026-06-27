@@ -348,7 +348,7 @@ pre-commit run terraform_docs --all-files
 
 # CI と同等の ShellCheck
 find scripts -type f -name '*.sh' -print0 \
-  | xargs -0 docker run --rm \
+  | xargs -0r docker run --rm \
       -v "$PWD:/repo" \
       -w /repo \
       koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d
