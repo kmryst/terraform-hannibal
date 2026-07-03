@@ -10,7 +10,9 @@ permissions:
 
 concurrency:
   group: commitlint-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  # 実行中 run のキャンセルは CANCELLED check run を commit に残し、
+  # required status checks の判定に混入して PR を恒久的にブロックする（Issue #438）。
+  cancel-in-progress: false
 
 env:
   NODE_VERSION: "24"
