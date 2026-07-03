@@ -20,6 +20,9 @@ env:
 jobs:
   commitlint:
     name: Commitlint
+    # Dependabot の PR タイトルは可変長で header-max-length に抵触し得る。
+    # フォーマットは Dependabot 側が決定的に生成するため規約強制の対象外とする（Issue #440）。
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
