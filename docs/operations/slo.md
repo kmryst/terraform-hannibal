@@ -32,10 +32,28 @@
 
 | 項目             | 目標                                                                                                         | 既存アラートとの関係                                                                                                 |
 | ---------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| レスポンスタイム | 起動期間中の 5分平均 `TargetResponseTime` を 1秒未満に保つ。通常時の運用目安は 200ms 未満                    | `nestjs-hannibal-3-alb-response-time-high` が 1秒超過を 2期間連続で検知する                                          |
-| エラー率         | 起動期間中の target 5xx rate を 0.1% 未満に保つ。低トラフィック時は 5分あたり 5件以上の 5xx を調査対象にする | `nestjs-hannibal-3-alb-5xx-error-rate-high` が 5分合計 5件超過を検知する                                             |
-| 稼働率           | 起動期間中の月次可用性 99.5% 以上を目標にする                                                                | `nestjs-hannibal-3-ecs-task-stopped` または `nestjs-hannibal-3-alb-5xx-error-rate-high` が ALARM 状態だった時間の合計を月次停止時間として扱う。本環境は destroy/deploy 運用のため外形監視（CloudWatch Synthetics 等）は導入していない。本番相当環境では Synthetics Canary による black-box 監視を追加する |
+| レスポンスタイム | 起動期間中の 5分平均 `TargetResponseTime` を 1秒未満に保つ。通常時の運用目安は 200ms 未満                    | `nestjs-hannibal-3-slo-response-time-fast-burn` / `nestjs-hannibal-3-slo-response-time-slow-burn` がburn rateを検知する（詳細は「SLI計測とburn-rateアラート」節） |
+| エラー率         | 起動期間中の target 5xx rate を 0.1% 未満に保つ。低トラフィック時は 5分あたり 5件以上の 5xx を調査対象にする | `nestjs-hannibal-3-slo-error-rate-fast-burn` / `nestjs-hannibal-3-slo-error-rate-slow-burn` がburn rateを検知する（詳細は「SLI計測とburn-rateアラート」節） |
+| 稼働率           | 起動期間中の月次可用性 99.5% 以上を目標にする                                                                | `nestjs-hannibal-3-ecs-task-stopped` または `nestjs-hannibal-3-slo-error-rate-slow-burn` が ALARM 状態だった時間の合計を月次停止時間として扱う。本環境は destroy/deploy 運用のため外形監視（CloudWatch Synthetics 等）は導入していない。本番相当環境では Synthetics Canary による black-box 監視を追加する |
 | Canary 安全性    | canary 中は 1分単位で 5xx と応答時間を監視し、悪化時は CodeDeploy の auto rollback を優先する                | `nestjs-hannibal-3-canary-error-rate` と `nestjs-hannibal-3-canary-response-time` を CodeDeploy alarm として利用する。canary 用応答時間アラームの閾値は 2秒（定常 SLO の 1秒より緩め）。デプロイ時のコンテナ起動・接続プール初期化による一時的な遅延と実際の品質劣化を切り分けるため意図的に乖離させている |
+
+## SLI計測とburn-rateアラート
+
+ALB系（応答時間 / 5xx）のSLIは、CloudWatch metric mathで算出したうえでmulti-window multi-burn-rateアラーム（fast burn / slow burn）としてSNSに接続する（`terraform/modules/monitoring/main.tf`）。`canary-error-rate` / `canary-response-time`（CodeDeployのauto rollback用）と `ecs-task-stopped`（可用性計上の正本）は本方式の対象外として、従来の静的閾値アラームのまま維持する。
+
+### エラー率SLI
+
+- `error_ratio = IF(RequestCount(5分合計) >= 最小リクエスト数, (5xx count / RequestCount) * 100, 0)`
+- 最小リクエスト数未満の5分間はratioを0%（non-breaching）として扱う。低トラフィック時のratio暴れ対策の設計判断は [ADR-0026](../adr/0026-slo-burn-rate-alerts-for-alb-slis.md) を参照
+- fast burn: 5分window、error budget（0.1%）の14.4倍（1.44%）超過で発報
+- slow burn: 30分window（5分x6期間）、error budget（0.1%）の3倍（0.3%）超過で発報
+
+### 応答時間SLI
+
+- `resp_ratio = TargetResponseTime(5分平均) / SLO目標値(1秒)`
+- ALBはリクエストごとの遅延ヒストグラムを提供しないため、平均応答時間としきい値の比をburn rateの近似として扱う。この近似の限界と代替案は [ADR-0026](../adr/0026-slo-burn-rate-alerts-for-alb-slis.md) を参照
+- fast burn: 5分window、比が2.0（平均応答時間がSLO目標の2倍）超過で発報
+- slow burn: 30分window、比が1.2（平均応答時間がSLO目標の1.2倍）超過で発報
 
 ## 計測方法
 

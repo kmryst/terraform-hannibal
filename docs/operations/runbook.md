@@ -47,8 +47,10 @@ aws logs tail "$LOG_GROUP" \
 | `nestjs-hannibal-3-ecs-task-stopped`                      | ECS task 停止または running count 異常の疑い | ECS service と stopped task reason を確認する                        |
 | `nestjs-hannibal-3-rds-cpu-high`                          | RDS CPU 5分平均が 60% 超過                   | slow query、接続増加、アプリ retry を確認する                        |
 | `nestjs-hannibal-3-rds-connections-high`                  | RDS connections が 12 超過                   | connection leak、pool 設定、再試行増加を確認する                     |
-| `nestjs-hannibal-3-alb-response-time-high`                | ALB target response time が 1秒超過          | ECS/RDS/外部依存の遅延を切り分ける                                   |
-| `nestjs-hannibal-3-alb-5xx-error-rate-high`               | ALB target 5xx が 5分合計 5件超過            | ECS logs と直近 deploy を確認する                                    |
+| `nestjs-hannibal-3-slo-response-time-fast-burn`           | 応答時間SLI(平均/SLO目標比)が5分でSLO目標の2倍超過 | ECS/RDS/外部依存の遅延を切り分ける                                   |
+| `nestjs-hannibal-3-slo-response-time-slow-burn`           | 応答時間SLIが30分持続でSLO目標の1.2倍超過    | ECS/RDS/外部依存の遅延を切り分ける                                   |
+| `nestjs-hannibal-3-slo-error-rate-fast-burn`               | 5xx rate SLI(ratio)が5分でerror budgetの14.4倍超過 | ECS logs と直近 deploy を確認する                                    |
+| `nestjs-hannibal-3-slo-error-rate-slow-burn`               | 5xx rate SLIが30分持続でerror budgetの3倍超過 | ECS logs と直近 deploy を確認する                                    |
 | `nestjs-hannibal-3-canary-error-rate`                     | canary 中の 5xx 増加                         | CodeDeploy auto rollback の状態を確認する                            |
 | `nestjs-hannibal-3-canary-response-time`                  | canary 中の response time 悪化               | CodeDeploy auto rollback の状態を確認する                            |
 | `nestjs-hannibal-3-cloudtrail-root-account-usage`         | root account 利用検知                        | 正当性確認、不要なら認証情報保護と MFA 確認を行う                    |
@@ -114,19 +116,25 @@ aws ecs describe-tasks \
 4. connections だけが高い場合は connection pool 解放漏れや retry 設定を確認する。
 5. 継続する場合は query 調査、index、pool 上限、DB instance class 見直しを Issue 化する。
 
-### ALB response time high
+### 応答時間SLI burn-rate（fast/slow burn）
+
+`nestjs-hannibal-3-slo-response-time-fast-burn` / `nestjs-hannibal-3-slo-response-time-slow-burn` は、CloudWatch metric mathで算出した「平均TargetResponseTime / SLO目標(1秒)」の比率を見る。fast burnは短時間の急激な悪化、slow burnは持続的な悪化を検知する。設計判断は [ADR-0026](../adr/0026-slo-burn-rate-alerts-for-alb-slis.md) を参照。
 
 1. ALB `TargetResponseTime`、`HTTPCode_Target_5XX_Count`、ECS CPU / memory、RDS CPU / connections を同じ時間帯で見る。
 2. ECS / RDS のどちらも正常なら、アプリケーションログで遅い endpoint や GraphQL query を確認する。
 3. canary / bluegreen 中なら CodeDeploy の alarm と deployment status を確認する。
 4. 利用者影響が継続する場合は rollback を優先する。
+5. fast burnのみ発報している場合は短時間のスパイクの可能性があるため、slow burnの発報有無で持続性を確認する。
 
-### ALB 5xx high
+### 5xx rate SLI burn-rate（fast/slow burn）
+
+`nestjs-hannibal-3-slo-error-rate-fast-burn` / `nestjs-hannibal-3-slo-error-rate-slow-burn` は、CloudWatch metric mathで算出した「5xx count / RequestCount」のratio(%)を見る。5分間のリクエスト数が少ない場合はratioを0%扱いにする低トラフィックガードがある（[ADR-0026](../adr/0026-slo-burn-rate-alerts-for-alb-slis.md)参照）。
 
 1. ECS logs で exception、DB 接続エラー、起動失敗を確認する。
 2. ALB target health を確認し、unhealthy target が増えていないか見る。
 3. 直近 deploy がある場合は CodeDeploy deployment status を確認する。
 4. canary 中の 5xx であれば auto rollback を待つ。止まらない場合は手動停止する。
+5. 低トラフィック時（リクエスト数が少ない時間帯）はratioが0%扱いになり発報しないことがあるため、絶対数（`HTTPCode_Target_5XX_Count`）も合わせて確認する。
 
 ```bash
 for tg in nestjs-hannibal-3-blue-tg nestjs-hannibal-3-green-tg; do

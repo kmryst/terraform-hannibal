@@ -181,10 +181,10 @@ SLO の数値目標は [slo.md](./slo.md) を正本とする。
 
 ### 利用者影響を見るメトリクス
 
-- **レスポンスタイム**: `AWS/ApplicationELB` の `TargetResponseTime`
-- **サーバ側エラー**: `AWS/ApplicationELB` の `HTTPCode_Target_5XX_Count`
+- **レスポンスタイム**: `AWS/ApplicationELB` の `TargetResponseTime`。SLI/SLO burn-rateアラーム（`nestjs-hannibal-3-slo-response-time-fast-burn` / `-slow-burn`）は [slo.md](./slo.md) 参照
+- **サーバ側エラー**: `AWS/ApplicationELB` の `HTTPCode_Target_5XX_Count`。SLI/SLO burn-rateアラーム（`nestjs-hannibal-3-slo-error-rate-fast-burn` / `-slow-burn`）は [slo.md](./slo.md) 参照
 - **稼働状態**: ECS `RunningTaskCount`、ALB target health、CodeDeploy deployment status
-- **デプロイ健全性**: `nestjs-hannibal-3-canary-error-rate` と `nestjs-hannibal-3-canary-response-time`
+- **デプロイ健全性**: `nestjs-hannibal-3-canary-error-rate` と `nestjs-hannibal-3-canary-response-time`（CodeDeploy auto rollback専用。SLI burn-rateアラームとは別系統で維持）
 
 ### インフラ健全性を見るメトリクス
 
