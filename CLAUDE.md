@@ -146,11 +146,13 @@ done
 
 | ディレクトリ | 用途 | apply/destroy |
 |---|---|---|
-| `terraform/foundation/` | 基盤 IAM・OIDC 等（恒久リソース） | PR マージ後に人間が手動実行。`state rm` しない |
+| `terraform/foundation/` | 基盤 IAM・OIDC 等（恒久リソース） | 原則は人間が手動実行。`state rm` しない |
 | `terraform/network/` | VPC・subnet・Security Group | `deploy.yml` / `destroy.yml` から実行 |
 | `terraform/database/` | RDS PostgreSQL | `deploy.yml` / `destroy.yml` から実行 |
 | `terraform/service/` | ECS・ALB・CodeDeploy・monitoring | `deploy.yml` / `destroy.yml` から実行 |
 | `terraform/cdn/` | CloudFront・S3・DNS | `deploy.yml` / `destroy.yml` から実行 |
+
+`terraform/foundation/` の apply は原則ユーザーが手動実行する。ただし、ユーザーが明示的に許可した場合は、AI が `terraform -chdir=terraform/foundation apply` を実行してよい。事前の包括的な許可でよく、実行のたびに個別の許可を得る必要はない。
 
 ### state 管理方針
 
