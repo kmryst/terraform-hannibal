@@ -136,7 +136,7 @@ terraform fmt -check -recursive
 terraform -chdir=terraform/foundation init -backend=false
 terraform -chdir=terraform/foundation validate
 
-for dir in terraform/foundation terraform/network terraform/database terraform/service terraform/cdn; do
+for dir in terraform/foundation terraform/network terraform/database terraform/service terraform/cdn terraform/observability; do
   terraform -chdir="$dir" init -backend=false
   terraform -chdir="$dir" validate
 done
@@ -151,6 +151,7 @@ done
 | `terraform/database/` | RDS PostgreSQL | `deploy.yml` / `destroy.yml` から実行 |
 | `terraform/service/` | ECS・ALB・CodeDeploy・monitoring | `deploy.yml` / `destroy.yml` から実行 |
 | `terraform/cdn/` | CloudFront・S3・DNS | `deploy.yml` / `destroy.yml` から実行 |
+| `terraform/observability/` | AWS FIS実験テンプレート（Game Day演習用、本体デプロイとblast radius分離） | `deploy.yml` / `destroy.yml` から`continue-on-error: true`で実行（ADR 0029） |
 
 `terraform/foundation/` の apply は原則ユーザーが手動実行する。ただし、ユーザーが明示的に許可した場合は、AI が `terraform -chdir=terraform/foundation apply` を実行してよい。事前の包括的な許可でよく、実行のたびに個別の許可を得る必要はない。
 

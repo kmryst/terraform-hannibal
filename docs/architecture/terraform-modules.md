@@ -60,6 +60,7 @@ graph TD
 | `terraform/cdn`      | `terraform/modules/s3`            | frontend static asset bucket and bucket policy                       |
 | `terraform/cdn`      | `terraform/modules/cloudfront`    | CloudFront distribution and origin settings                          |
 | `terraform/cdn`      | `terraform/modules/dns`           | Route53 alias records                                                |
+| `terraform/observability` | `terraform/modules/fis`     | AWS FIS実験テンプレート（Game Day演習用ECSタスク停止）。本体デプロイ経路とのblast radius分離のため独立root module（ADR 0029） |
 
 `security-groups` は独立した local module ではなく、現在は `terraform/modules/vpc/security_groups.tf` として VPC module に含めています。
 
@@ -297,7 +298,7 @@ Terraform 変更時は、PR で次の静的検証を実行します。
 ```bash
 terraform fmt -check -recursive
 
-for dir in terraform/foundation terraform/network terraform/database terraform/service terraform/cdn; do
+for dir in terraform/foundation terraform/network terraform/database terraform/service terraform/cdn terraform/observability; do
   terraform -chdir="$dir" init -backend=false
   terraform -chdir="$dir" validate
 done
@@ -309,7 +310,7 @@ PR workflow では Terraform Format & Validate、TFLint、Trivy Config Scan、Gi
 
 - state は root module ごとに分割して管理します。
 - `terraform/foundation` の恒久リソースは state に残して継続管理します。
-- `terraform/network`、`terraform/database`、`terraform/service`、`terraform/cdn` は deploy / destroy workflow から自動管理します。
+- `terraform/network`、`terraform/database`、`terraform/service`、`terraform/cdn`、`terraform/observability` は deploy / destroy workflow から自動管理します。`terraform/observability`は`continue-on-error: true`で適用し、失敗しても他のroot moduleのdeploy/destroyをブロックしません（ADR 0029）。
 - local module はこの repository 内の `terraform/modules/*` を参照します。
 - Terraform root module の README は `.terraform-docs.yml` と pre-commit の `terraform_docs` hook で自動生成します。
 - `terraform/modules/*` の README 自動生成や CI での terraform-docs 差分チェックは現行 scope では採用せず、必要になった段階で別途判断します。

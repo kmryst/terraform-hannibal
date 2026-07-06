@@ -4,15 +4,15 @@
 
 このプロジェクトは Terraform state を責務単位で分割し、plan/apply の影響範囲を限定する設計です。
 
-`terraform/foundation/` は IAM / OIDC / Permission Boundary などの永続基盤を管理します（ADR 0014）。アプリケーションリソースは責務ごとに 4 つの root module に分割します（ADR 0020）。
+`terraform/foundation/` は IAM / OIDC / Permission Boundary などの永続基盤を管理します（ADR 0014）。アプリケーションリソースは責務ごとに root module に分割します（ADR 0020）。Game Day演習用のAWS FIS実験テンプレートは、本体のコンテナデプロイ経路から独立した`terraform/observability/`に分離しています（ADR 0029）。
 
 Preview Environment は現時点では本格設計・実装せず、dev deploy/destroy や rollback などの基礎運用が安定してから再検討します（ADR 0019 Superseded）。
 
 ## State 管理方針
 
 - **バックエンド**: S3 バケット `nestjs-hannibal-3-terraform-state`
-- **State lock**: 全 5 root module で S3 lockfile（`use_lockfile = true`）を使用する
-- **Terraform CLI**: 全 5 root module の最低バージョンは `>= 1.11.0` とする
+- **State lock**: 全 6 root module で S3 lockfile（`use_lockfile = true`）を使用する
+- **Terraform CLI**: 全 6 root module の最低バージョンは `>= 1.11.0` とする
 - **バケットは共有可**（同一バケット内で key 分離すれば競合しない）
 
 | root module | State キー | 内容 |
@@ -22,10 +22,11 @@ Preview Environment は現時点では本格設計・実装せず、dev deploy/d
 | `terraform/database/` | `database/terraform.tfstate` | RDS PostgreSQL、DB subnet group |
 | `terraform/service/` | `service/terraform.tfstate` | ECS、ALB、CodeDeploy、monitoring、ECS IAM Role |
 | `terraform/cdn/` | `cdn/terraform.tfstate` | CloudFront、S3 frontend、Route53 DNS record |
+| `terraform/observability/` | `observability/terraform.tfstate` | AWS FIS実験テンプレート（Game Day演習用）。本体のコンテナデプロイ経路とblast radiusを分離するため独立（ADR 0029） |
 
 ### Terraform CLI バージョン制約
 
-全 5 root module（foundation / network / database / service / cdn）は、Terraform CLI の `required_version` を `>= 1.11.0` に統一する。
+全 6 root module（foundation / network / database / service / cdn / observability）は、Terraform CLI の `required_version` を `>= 1.11.0` に統一する。
 
 このプロジェクトは S3 backend の `use_lockfile = true` を state lock の正とする。Terraform v1.10.0 で S3 native state locking は導入されたが、v1.11.0 のリリースノートで generally available と明記され、DynamoDB 関連引数は新しい locking mechanism に置き換える方向で deprecated になった。そのため、宣言上の最低バージョンは「導入された 1.10」ではなく「GA になった 1.11」を下限にする。
 
@@ -52,17 +53,20 @@ Preview Environment は現時点では本格設計・実装せず、dev deploy/d
 依存は上位層から下位層への一方向とし、`terraform_remote_state` data source で参照する。循環参照は発生しない。
 
 ```text
-foundation   (独立)
-network/     (独立)
-database/    → network/  (vpc_id, data_subnet_ids, rds_security_group_id)
-service/     → network/  (vpc_id, app_subnet_ids, public_subnet_ids, alb_security_group_id, ecs_security_group_id)
-             → database/ (rds_endpoint, master_user_secret_arn)
-cdn/         → service/  (alb_dns_name, alb_zone_id)
+foundation      (独立)
+network/        (独立)
+database/       → network/  (vpc_id, data_subnet_ids, rds_security_group_id)
+service/        → network/  (vpc_id, app_subnet_ids, public_subnet_ids, alb_security_group_id, ecs_security_group_id)
+                → database/ (rds_endpoint, master_user_secret_arn)
+cdn/            → service/  (alb_dns_name, alb_zone_id)
+observability/  → service/  (ecs_cluster_name, ecs_service_name, slo_error_rate_fast_burn_alarm_arn)
 ```
 
 ### apply 順序
 
 新規構築時は `network → database → service → cdn` の順で apply する。destroy は逆順とする。通常の変更では、変更対象の root module だけを apply すれば済む。
+
+`terraform/observability/`はserviceに依存するオプショナルな付随機能（Game Day演習用FIS実験テンプレート）であり、`deploy.yml`ではserviceの後・cdnの前に、失敗しても本体デプロイをブロックしない設計（`continue-on-error: true`）で適用する。destroyは逆順（serviceより先）で、同様に本体destroyをブロックしない設計にしている。詳細はADR 0029を参照。
 
 ### 既存 dev 環境からの移行
 
