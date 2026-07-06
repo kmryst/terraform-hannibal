@@ -18,8 +18,13 @@ data "terraform_remote_state" "database" {
   }
 }
 
+data "aws_caller_identity" "current" {}
+
 locals {
   alb_origin_verify_header_name = "X-Hannibal-Origin-Verify"
+  # terraform/foundationで管理するGame Day用FIS実行ロール(Issue #446)。
+  # foundation stateへの参照を避けるため、固定のRole名からARNを組み立てる。
+  hannibal_fis_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/HannibalFISRole-Dev"
 }
 
 resource "random_password" "alb_origin_verify_header" {
@@ -77,6 +82,16 @@ module "monitoring" {
   ecs_cluster_name = module.ecs.cluster_name
   rds_instance_id  = data.terraform_remote_state.database.outputs.db_instance_id
   alb_arn_suffix   = module.load_balancer.alb_arn
+}
+
+module "fis" {
+  source = "../modules/fis"
+
+  project_name             = var.project_name
+  ecs_cluster_name         = module.ecs.cluster_name
+  ecs_service_name         = module.ecs.service_name
+  fis_role_arn             = local.hannibal_fis_role_arn
+  stop_condition_alarm_arn = module.monitoring.slo_error_rate_fast_burn_alarm_arn
 }
 
 module "codedeploy" {

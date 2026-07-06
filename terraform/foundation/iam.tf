@@ -1714,6 +1714,15 @@ locals {
       Effect   = "Allow"
       Action   = "ecs:StopTask"
       Resource = "arn:aws:ecs:ap-northeast-1:${data.aws_caller_identity.current.account_id}:task/nestjs-hannibal-3-cluster/*"
+    },
+    {
+      # AWS FIS公式ドキュメント(aws:ecs:stop-task action)がresource-level権限に加えて
+      # 必須としているtagging API権限。Issue #446時点では未反映で、#447のFIS実験
+      # テンプレート実装時に判明した不足分。
+      Sid      = "AllowTagGetResourcesForFISTargetResolution"
+      Effect   = "Allow"
+      Action   = "tag:GetResources"
+      Resource = "*"
     }
   ]
 }
