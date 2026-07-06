@@ -67,3 +67,4 @@
 | [0025](./0025-pin-github-actions-docker-images-by-tag-and-digest.md) | Accepted | GitHub Actions 内 Docker image を tag と digest で固定する |
 | [0026](./0026-slo-burn-rate-alerts-for-alb-slis.md) | Accepted | ALB系SLIをCloudWatch metric mathで算出しSLO burn-rateアラートに接続する |
 | [0027](./0027-fis-iam-permission-boundary-for-game-day.md) | Accepted | Game Day演習向けAWS FIS実行ロールをECSタスク停止のみに限定する |
+| [0028](./0028-fis-game-day-ecs-task-stop-experiment-design.md) | Accepted | AWS FISでECSタスク強制停止によるGame Day演習を自動化する |

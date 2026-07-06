@@ -17,3 +17,8 @@ output "dashboard_url" {
   description = "URL of the CloudWatch dashboard"
   value       = "https://${var.aws_region}.console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.main.dashboard_name}"
 }
+
+output "slo_error_rate_fast_burn_alarm_arn" {
+  description = "ARN of the SLO error-rate fast-burn alarm (used as an AWS FIS Game Day experiment stop condition, Issue #447)"
+  value       = aws_cloudwatch_metric_alarm.slo_error_rate_fast_burn.arn
+}

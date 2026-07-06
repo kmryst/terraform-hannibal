@@ -246,3 +246,33 @@ rollback 後は次を確認する。
 1. 発生時刻、検知した alarm、利用者影響、原因、暫定対応、恒久対応を Issue または PR に記録する。
 2. 同じ alarm が繰り返される場合は、閾値調整ではなく先に原因を調査する。
 3. Terraform / workflow / script の変更が必要な場合は、通常の Issue -> Branch -> PR の流れで対応する。
+
+## Game Day演習（AWS FISによるECSタスク強制停止）
+
+AWS FISでECSタスクを意図的に停止させ、ECS/CodeDeployの自動復旧、CloudWatch Alarm・SLO burn-rateアラートの発火、runbookの実効性を検証する演習(Issue #447)。
+
+前提: `terraform/foundation`の`HannibalFISRole-Dev`/`HannibalFISBoundary-Dev`(Issue #446)がapply済みであること、`terraform/service`(FIS実験テンプレートを含む)がdeploy済みであること。
+
+### サイクル
+
+1. **deploy**: `deploy.yml`（`canary`または`bluegreen`）で環境をデプロイする
+2. **演習実施**: `./scripts/game-day/run-ecs-task-stop-experiment.sh`を実行する
+   - AWS FISが`nestjs-hannibal-3-cluster`の実行中タスクから1つ（`COUNT(1)`）を選び`StopTask`する
+   - `nestjs-hannibal-3-slo-error-rate-fast-burn`アラームをstop conditionとして接続しており、演習中に利用者影響が悪化した場合はFISが実験を自動停止する
+   - スクリプトは実験が終端状態になるまでポーリングし、ECSサービス確認・アラーム確認の次のコマンドを表示する
+3. **結果記録**: [game-day-exercise-template.md](./game-day-exercise-template.md)に復旧時間・アラーム発火有無を記録する
+4. **destroy**: 演習用に環境を維持する必要がなければ、`destroy.yml`を実行する。**演習スクリプトは`destroy.yml`を自動トリガーしない**。destroyの実行は常に人間が判断する
+
+### 演習チェックリスト
+
+- [ ] ECS serviceの`runningCount`が`desiredCount`まで自動復旧した（デプロイメントスケジューラによる再作成）
+- [ ] `nestjs-hannibal-3-ecs-task-stopped`アラームが発火した
+- [ ] `nestjs-hannibal-3-slo-error-rate-fast-burn`/`-slow-burn`、`nestjs-hannibal-3-slo-response-time-fast-burn`/`-slow-burn`アラームの発火有無を確認した（Issue #445実装済みの場合）
+- [ ] canary/bluegreenデプロイ中に実施した場合、CodeDeployのデプロイ状態への影響を確認した
+- [ ] 想定外の挙動（復旧しない、アラームが発火しない等）があれば、原因調査Issueを作る
+
+### 安全設計
+
+- FIS実験テンプレートの対象は`COUNT(1)`固定で、常に1タスクのみを停止する
+- `stop_condition`にSLO error-rate fast-burnアラームを接続しており、演習が意図せず悪化した場合は自動停止する（ただしCodeDeployのcanary/bluegreen自動ロールバックとは別系統の安全装置であり、両者を混同しない。詳細はADR-0028参照）
+- 演習スクリプトは`destroy.yml`を含むいかなるGitHub Actions workflowもトリガーしない
