@@ -1,8 +1,10 @@
 # Game Day演習 記録テンプレート
 
 AWS FISでECSタスクを意図的に停止させるGame Day演習(Issue #447)の実施記録テンプレート。
-演習1回につき本テンプレートをコピーし、`docs/operations/game-day-exercises/<日付>-<概要>.md`等に記録するか、
-関連PR/Issueのコメントに貼り付けて記録する。
+
+演習1回につき本テンプレートをコピーし、`docs/operations/game-day-exercises/<日付>-<概要>.md`として**必ずコミットする**（Issue #461）。
+Issue/PRコメントへの一時的な貼り付けは、正式な記録の代わりにはしない。インシデントのpostmortemと同様、演習記録はバージョン管理されたドキュメントとして残し、検索・追跡できるようにする。
+過去の記録は[game-day-exercises/](./game-day-exercises/)を参照。
 
 ## 実施概要
 
