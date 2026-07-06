@@ -26,6 +26,12 @@ resource "aws_lb_listener" "http" {
 }
 
 # --- ALB Listener (Production HTTPS) ---
+# default_action の target group 重みは CodeDeploy(ECS Blue/Green) がデプロイごとに
+# 動的に書き換える。Terraform 側で静的管理すると terraform apply が CodeDeploy の
+# 切替結果を巻き戻し、ECS PRIMARY taskset と default_action が不整合になって
+# 「Primary taskset target group must be behind listener」でデプロイが失敗する(Issue #380)。
+# そのため default_action は初期構築時のみ Terraform が設定し、以降は ignore_changes で
+# CodeDeploy に所有権を委ねる(listener rule と同じパターン)。
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.main.arn
   port              = "443"
@@ -38,13 +44,23 @@ resource "aws_lb_listener" "https" {
     forward {
       target_group {
         arn    = aws_lb_target_group.blue.arn
-        weight = 100
+        weight = 100 # 初期Blue 100%
+      }
+      target_group {
+        arn    = aws_lb_target_group.green.arn
+        weight = 0 # 初期Green 0%
       }
     }
+  }
+
+  lifecycle {
+    # CodeDeployによる動的切替を許容(巻き戻さない)
+    ignore_changes = [default_action]
   }
 }
 
 # --- ALB Test Listener (Blue/Green Dark Canary) ---
+# default_action の所有権は aws_lb_listener.https と同様に CodeDeploy に委ねる(Issue #380)
 resource "aws_lb_listener" "test" {
   load_balancer_arn = aws_lb.main.arn
   port              = 8080
@@ -57,9 +73,18 @@ resource "aws_lb_listener" "test" {
     forward {
       target_group {
         arn    = aws_lb_target_group.blue.arn
-        weight = 100
+        weight = 100 # 初期Blue 100%
+      }
+      target_group {
+        arn    = aws_lb_target_group.green.arn
+        weight = 0 # 初期Green 0%
       }
     }
+  }
+
+  lifecycle {
+    # CodeDeployによる動的切替を許容(巻き戻さない)
+    ignore_changes = [default_action]
   }
 }
 
