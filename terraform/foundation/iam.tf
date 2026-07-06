@@ -381,6 +381,18 @@ resource "aws_iam_policy" "hannibal_cicd_boundary" {
         Resource = "*"
       },
       {
+        Sid    = "AllowFISForGameDayExercises"
+        Effect = "Allow"
+        # AWS FIS(Fault Injection Simulator)を使ったGame Day演習(ECSタスク強制停止)向け。
+        # fis:*自体はexperiment template/experimentのCRUD操作全般で、target(ECSタスク停止)への
+        # 実際の権限スコープはHannibalFISRole-Dev側(ecs:StopTask等をクラスタ単位に限定)で行う。
+        # 詳細はADR-0027を参照。
+        Action = [
+          "fis:*"
+        ]
+        Resource = "*"
+      },
+      {
         Sid    = "DenyUnusedServicesAndIAMEscalation"
         Effect = "Deny"
         Action = [
@@ -1636,4 +1648,87 @@ resource "aws_iam_role_policy" "cloudtrail_cloudwatch_logs_policy" {
       }
     ]
   })
+}
+
+# --- 16. HannibalFISRole-Dev (AWS FIS Game Day演習用実行ロール) ---
+# Issue #446: Game Day演習(ECSタスク強制停止による自動復旧検証)向けにAWS FISが
+# assumeする実行ロール。実験テンプレート本体(#447)はこのロールのARNをFISTargetの
+# roleとして参照する。信頼ポリシーはaws:SourceAccountに加え、aws:SourceArnで
+# experiment-template(IDはワイルドカード。テンプレート自体は#447でapply後に確定するため
+# account単位までしか事前に絞れない)に限定し、confused deputy対策とする。
+# 設計判断の詳細・検討した代替案はADR-0027を参照。
+resource "aws_iam_policy" "hannibal_fis_boundary" {
+  name        = "HannibalFISBoundary-Dev"
+  description = "Permission boundary for HannibalFISRole-Dev: ECS task stop only, scoped to nestjs-hannibal-3-cluster"
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = local.hannibal_fis_policy_statements
+  })
+}
+
+resource "aws_iam_role" "hannibal_fis_role" {
+  name                 = "HannibalFISRole-Dev"
+  permissions_boundary = aws_iam_policy.hannibal_fis_boundary.arn
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "sts:AssumeRole"
+        Principal = {
+          Service = "fis.amazonaws.com"
+        }
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+          ArnLike = {
+            "aws:SourceArn" = "arn:aws:fis:ap-northeast-1:${data.aws_caller_identity.current.account_id}:experiment/*"
+          }
+        }
+      }
+    ]
+  })
+}
+
+locals {
+  # ECSのStopTaskはtask ARNでのresource-level権限をサポートするため、
+  # nestjs-hannibal-3-clusterのtaskだけに限定する。DescribeTasks/ListTasksは
+  # AWS ECSがresource-level permissionをサポートしないaction群のためResource "*"にする
+  # (AWS公式ドキュメント: Amazon ECS の一部APIはresource-level permissionを利用できない)。
+  hannibal_fis_policy_statements = [
+    {
+      Sid    = "AllowDescribeECSForTargetSelection"
+      Effect = "Allow"
+      Action = [
+        "ecs:DescribeTasks",
+        "ecs:ListTasks",
+        "ecs:DescribeClusters"
+      ]
+      Resource = "*"
+    },
+    {
+      Sid      = "AllowStopECSTaskScopedToHannibalCluster"
+      Effect   = "Allow"
+      Action   = "ecs:StopTask"
+      Resource = "arn:aws:ecs:ap-northeast-1:${data.aws_caller_identity.current.account_id}:task/nestjs-hannibal-3-cluster/*"
+    }
+  ]
+}
+
+resource "aws_iam_policy" "hannibal_fis_policy" {
+  name        = "HannibalFISPolicy-Dev"
+  description = "AWS FIS execution permissions for Game Day ECS task stop experiments"
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = local.hannibal_fis_policy_statements
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "hannibal_fis_policy_attachment" {
+  role       = aws_iam_role.hannibal_fis_role.name
+  policy_arn = aws_iam_policy.hannibal_fis_policy.arn
 }

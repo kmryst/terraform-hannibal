@@ -66,3 +66,4 @@
 | [0024](./0024-use-pre-commit-and-ci-dual-layer-for-shell-dockerfile-lint.md) | Deprecated | シェルスクリプト / Dockerfile の lint を pre-commit と CI の二層で実行する |
 | [0025](./0025-pin-github-actions-docker-images-by-tag-and-digest.md) | Accepted | GitHub Actions 内 Docker image を tag と digest で固定する |
 | [0026](./0026-slo-burn-rate-alerts-for-alb-slis.md) | Accepted | ALB系SLIをCloudWatch metric mathで算出しSLO burn-rateアラートに接続する |
+| [0027](./0027-fis-iam-permission-boundary-for-game-day.md) | Accepted | Game Day演習向けAWS FIS実行ロールをECSタスク停止のみに限定する |
