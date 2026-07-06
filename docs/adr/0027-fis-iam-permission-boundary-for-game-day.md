@@ -56,6 +56,8 @@ FISは実験テンプレート（`aws_fis_experiment_template`、#447でterrafor
 - foundationへの実際の`terraform apply`は人間が手動実行する（既存運用方針どおり、`state rm`はしない）
 - 後続Issue #447で実験テンプレートを作成する際は、`role_arn`に`HannibalFISRole-Dev`のARNを指定する
 
+**追記（2026-07-06、Issue #454）**: #447で実際に`aws_fis_experiment_template`をterraform/serviceからapplyしたところ、`HannibalCICDRole-Dev`の識別ポリシーにfis権限が一切ないため`fis:CreateExperimentTemplate`でAccessDeniedになることが判明した。本ADRで「実権限の付与は#447で判断する」としていたが、実際に必要になったのはterraform applyを実行するCICD Role自身への権限付与であり、Issue #454で`HannibalCICDPolicy-Dev-deploy`にexperiment-templateリソースへ限定した`fis:*`系操作と`HannibalFISRole-Dev`への`iam:PassRole`（`PassedToService=fis.amazonaws.com`条件）を追加して解消した。
+
 ## 関連
 
 - [Issue #446](https://github.com/kmryst/terraform-hannibal/issues/446)

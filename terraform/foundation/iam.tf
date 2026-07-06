@@ -774,6 +774,34 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
           StringEquals = { "iam:PassedToService" = ["codedeploy.amazonaws.com"] }
         }
       },
+      {
+        # terraform/service(deploy.yml経由、HannibalCICDRole-Dev)がGame Day用の
+        # aws_fis_experiment_templateをapplyするための権限(Issue #454)。
+        # HannibalCICDBoundaryのfis:*はceilingに過ぎず、実権限はこのpolicyで付与する。
+        # 実験の実行権限自体(ecs:StopTask等)はHannibalFISRole-Dev側(Issue #446)に限定済み。
+        Sid    = "FISExperimentTemplateManagement"
+        Effect = "Allow"
+        Action = [
+          "fis:CreateExperimentTemplate",
+          "fis:GetExperimentTemplate",
+          "fis:UpdateExperimentTemplate",
+          "fis:DeleteExperimentTemplate",
+          "fis:ListExperimentTemplates",
+          "fis:TagResource",
+          "fis:UntagResource",
+          "fis:ListTagsForResource"
+        ]
+        Resource = "arn:aws:fis:ap-northeast-1:${data.aws_caller_identity.current.account_id}:experiment-template/*"
+      },
+      {
+        Sid      = "IAMPassRoleForFISOnly"
+        Effect   = "Allow"
+        Action   = ["iam:PassRole"]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/HannibalFISRole-Dev"
+        Condition = {
+          StringEquals = { "iam:PassedToService" = ["fis.amazonaws.com"] }
+        }
+      },
     ]
   })
 }
