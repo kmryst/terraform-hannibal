@@ -191,6 +191,33 @@ jobs:
 
           echo "ALB_DNS=$(terraform output -raw alb_dns_name)" >> $GITHUB_ENV
 
+      # terraform/observability(Game Day用FIS実験テンプレート)は本体のコンテナデプロイ経路
+      # (network/database/service/cdn)から独立したroot moduleに分離している(Issue #458)。
+      # continue-on-error: true により、ここで失敗しても後続のDockerビルド/push・
+      # CodeDeployデプロイはブロックされない。blast radius分離の詳細はADR-0029を参照。
+      - name: Deploy Infrastructure (observability)
+        id: deploy_observability
+        working-directory: ./terraform/observability
+        continue-on-error: true
+        run: |
+          set -e
+          terraform init -input=false
+          terraform plan \
+            -var="environment=dev" \
+            -out=tfplan
+          terraform apply -auto-approve tfplan
+
+      - name: Warn if observability deploy failed
+        if: steps.deploy_observability.outcome == 'failure'
+        run: |
+          {
+            echo "## :warning: Observability (Game Day FIS) deploy failed"
+            echo ""
+            echo "\`terraform/observability\` failed to apply. This does NOT affect the core service deployment (network/database/service/cdn), which is intentionally decoupled (Issue #458)."
+            echo "The Game Day exercise (\`scripts/game-day/run-ecs-task-stop-experiment.sh\`) will not work until this is fixed."
+            echo "Check the \"Deploy Infrastructure (observability)\" step logs above, fix the issue, and either re-run this workflow or apply \`terraform/observability\` manually."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Deploy Infrastructure (cdn)
         working-directory: ./terraform/cdn
         run: |

@@ -78,6 +78,17 @@ jobs:
           aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE" || true
           echo "✅ ECS service scaled down or stable"
 
+      # terraform/observability(Game Day用FIS実験テンプレート)はterraform/serviceに依存するため、
+      # serviceをdestroyする前に破棄する。continue-on-error: trueにより、ここが失敗しても
+      # コスト影響のあるcdn/service/database/networkのdestroyはブロックされない(Issue #458)。
+      - name: Destroy Infrastructure (observability)
+        working-directory: ./terraform/observability
+        continue-on-error: true
+        run: |
+          set -e
+          terraform init -input=false
+          terraform destroy -auto-approve -var="environment=dev"
+
       - name: Destroy Infrastructure (cdn)
         working-directory: ./terraform/cdn
         run: |
@@ -161,5 +172,5 @@ jobs:
           echo "✅ Destroy workflow completed."
           echo "- CodeDeploy deployments stopped"
           echo "- ECS service scaled down and waited stable"
-          echo "- Terraform destroy (cdn → service → database → network) executed"
+          echo "- Terraform destroy (observability → cdn → service → database → network) executed"
           echo "- Best-effort cleanup for S3/ECR/ELB/TG finished"

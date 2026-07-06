@@ -251,17 +251,70 @@ rollback 後は次を確認する。
 
 AWS FISでECSタスクを意図的に停止させ、ECS/CodeDeployの自動復旧、CloudWatch Alarm・SLO burn-rateアラートの発火、runbookの実効性を検証する演習(Issue #447)。
 
-前提: `terraform/foundation`の`HannibalFISRole-Dev`/`HannibalFISBoundary-Dev`(Issue #446)がapply済みであること、`terraform/service`(FIS実験テンプレートを含む)がdeploy済みであること。
+前提: `terraform/foundation`の`HannibalFISRole-Dev`/`HannibalFISBoundary-Dev`(Issue #446)がapply済みであること、`terraform/service`と`terraform/observability`(FIS実験テンプレート。本体デプロイからblast radiusを分離した独立root module、Issue #458)がdeploy済みであること。
 
 ### サイクル
 
-1. **deploy**: `deploy.yml`（`canary`または`bluegreen`）で環境をデプロイする
+1. **deploy**: `deploy.yml`（`canary`または`bluegreen`）で環境をデプロイする。`terraform/observability`は本体（network/database/service/cdn）とは独立したstepとして`continue-on-error: true`で適用され、失敗しても本体デプロイはブロックされない
 2. **演習実施**: `./scripts/game-day/run-ecs-task-stop-experiment.sh`を実行する
    - AWS FISが`nestjs-hannibal-3-cluster`の実行中タスクから1つ（`COUNT(1)`）を選び`StopTask`する
    - `nestjs-hannibal-3-slo-error-rate-fast-burn`アラームをstop conditionとして接続しており、演習中に利用者影響が悪化した場合はFISが実験を自動停止する
    - スクリプトは実験が終端状態になるまでポーリングし、ECSサービス確認・アラーム確認の次のコマンドを表示する
 3. **結果記録**: [game-day-exercise-template.md](./game-day-exercise-template.md)に復旧時間・アラーム発火有無を記録する
-4. **destroy**: 演習用に環境を維持する必要がなければ、`destroy.yml`を実行する。**演習スクリプトは`destroy.yml`を自動トリガーしない**。destroyの実行は常に人間が判断する
+4. **destroy**: 演習用に環境を維持する必要がなければ、`destroy.yml`を実行する。**演習スクリプトは`destroy.yml`を自動トリガーしない**。destroyの実行は常に人間が判断する。`terraform/observability`はserviceより先にdestroyされ、ここも`continue-on-error: true`で本体destroyをブロックしない
+
+### deploy.yml/destroy.yml 部分失敗時のトラブルシューティング
+
+`terraform apply`/`destroy`は失敗しても、それ以前に成功したリソース作成・変更はstateに残る（terraformはトランザクショナルなロールバックをしない）。GitHub Actionsの`set -e`によりjobはそこで停止するため、後続のDockerビルド/push・CodeDeployデプロイが**未実行のまま**deploy.yml自体は失敗扱いになることがある(Issue #454〜#458で実際に発生)。再実行前に次を確認する。
+
+1. **ECSサービスの状態を確認する**（`provisioning`を使うべきか`canary`/`bluegreenを使うべきかの判断材料）
+
+   ```bash
+   aws ecs describe-services \
+     --cluster nestjs-hannibal-3-cluster \
+     --services nestjs-hannibal-3-api-service \
+     --region ap-northeast-1 \
+     --query 'services[0].{status:status,running:runningCount,desired:desiredCount}'
+   ```
+
+   - `ClusterNotFoundException`または`services`が空 → `provisioning`を使う（初回構築）
+   - `status: ACTIVE`（`running`が0でも） → `deploy.yml`のガードで`provisioning`は使えない。`canary`または`bluegreen`を使う（新しいタスク定義とコンテナイメージで再デプロイされ、不完全な状態も解消される）
+
+2. **terraform stateと実環境の整合性を確認する**（孤立したリソースが残っていないか）
+
+   ```bash
+   terraform -chdir=terraform/service plan -input=false \
+     -var="client_url_for_cors=https://hamilcar-hannibal.click" \
+     -var="environment=dev" \
+     -var="deployment_type=canary" \
+     -var="ecr_repository_url=<ECR_REPOSITORY_URL>" \
+     -var="alb_certificate_arn=<ALB_CERTIFICATE_ARN>" \
+     -var="db_name=nestjs_hannibal_db"
+   ```
+
+   `No changes`であれば、失敗した実行が中途半端なリソースを残していないことを意味する（terraformの部分適用がstateに正しく反映されている）。
+
+3. **CodeDeployのデプロイ履歴を確認する**（本当に新しいデプロイが実行されたか）
+
+   ```bash
+   aws deploy list-deployments \
+     --application-name nestjs-hannibal-3-app \
+     --deployment-group-name nestjs-hannibal-3-dg \
+     --max-items 5 \
+     --region ap-northeast-1
+   ```
+
+   terraform apply段階で失敗した実行は、CodeDeployのステップまで到達していないため、デプロイ履歴に記録が残らない。
+
+4. **ALBリスナーのdefault_actionとECS PRIMARY tasksetの整合性を確認する**（Issue #380関連）
+
+   ```bash
+   aws elbv2 describe-listeners --load-balancer-arn <ALB_ARN> --query 'Listeners[?Port==`443`].DefaultActions'
+   aws ecs describe-services --cluster nestjs-hannibal-3-cluster --services nestjs-hannibal-3-api-service \
+     --query 'services[0].taskSets[*].{status:status,targetGroup:loadBalancers[0].targetGroupArn}'
+   ```
+
+   両者が指すtarget group（blue/green）が一致していることを確認する。
 
 ### 演習チェックリスト
 

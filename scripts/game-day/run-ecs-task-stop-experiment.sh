@@ -17,7 +17,7 @@ Description:
 
 Options:
   --template-id  FIS experiment template ID. If omitted, resolved from
-                 `terraform -chdir=terraform/service output -raw fis_experiment_template_id`.
+                 `terraform -chdir=terraform/observability output -raw fis_experiment_template_id`.
   --yes          Skip the interactive confirmation prompt.
   -h, --help     Show this help.
 
@@ -25,8 +25,9 @@ Requirements:
   - AWS credentials with fis:StartExperiment / fis:GetExperiment
     (HannibalCICDRole-Dev or equivalent; the experiment itself runs as
     HannibalFISRole-Dev, which the caller does not need to assume directly)
-  - The dev environment must already be deployed (terraform/service applied),
-    otherwise the experiment template / target ECS service does not exist.
+  - The dev environment must already be deployed (terraform/service AND
+    terraform/observability applied), otherwise the experiment template /
+    target ECS service does not exist.
 
 After the experiment finishes, record the result using
 docs/operations/game-day-exercise-template.md and follow the verification
@@ -62,8 +63,8 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$TEMPLATE_ID" ]; then
-	echo "No --template-id given. Resolving from terraform/service output..."
-	TEMPLATE_ID="$(terraform -chdir=terraform/service output -raw fis_experiment_template_id)"
+	echo "No --template-id given. Resolving from terraform/observability output..."
+	TEMPLATE_ID="$(terraform -chdir=terraform/observability output -raw fis_experiment_template_id)"
 fi
 
 if [ -z "$TEMPLATE_ID" ]; then

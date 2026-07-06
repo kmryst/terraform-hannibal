@@ -59,7 +59,7 @@ output "alb_origin_verify_header_value" {
   sensitive   = true
 }
 
-output "fis_experiment_template_id" {
-  description = "AWS FIS experiment template ID for the Game Day ECS task stop exercise (Issue #447)"
-  value       = module.fis.experiment_template_id
+output "slo_error_rate_fast_burn_alarm_arn" {
+  description = "ARN of the SLO error-rate fast-burn alarm (consumed by terraform/observability as an AWS FIS stop condition, Issue #458)"
+  value       = module.monitoring.slo_error_rate_fast_burn_alarm_arn
 }
