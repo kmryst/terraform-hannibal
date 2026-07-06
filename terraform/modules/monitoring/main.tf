@@ -142,52 +142,186 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
   }
 }
 
-# --- ALB Monitoring ---
-# ALB レスポンス時間監視（実務レベル: 1秒）
-resource "aws_cloudwatch_metric_alarm" "alb_response_time_high" {
-  alarm_name          = "${var.project_name}-alb-response-time-high"
+# --- ALB Monitoring: SLO burn-rate alarms (ADR-0026) ---
+# docs/operations/slo.md のSLI/SLO(応答時間1秒未満、5xx rate 0.1%未満)をCloudWatch metric mathで算出し、
+# multi-window multi-burn-rate(fast burn / slow burn)でSNSに接続する。
+# canary-error-rate/canary-response-time(CodeDeploy auto rollback用)とecs-task-stopped(可用性計上の正本)は対象外として維持する。
+
+# エラー率SLI: 5xx count / total request count の ratio(%)。
+# 低トラフィック時にratioが暴れるのを避けるため、5分間のリクエスト数が
+# var.slo_min_request_count 未満の場合は non-breaching(0%)として扱う(ADR-0026参照)。
+resource "aws_cloudwatch_metric_alarm" "slo_error_rate_fast_burn" {
+  alarm_name          = "${var.project_name}-slo-error-rate-fast-burn"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "TargetResponseTime"
-  namespace           = "AWS/ApplicationELB"
-  period              = "300"
-  statistic           = "Average"
-  threshold           = "1"
-  alarm_description   = "ALB response time is too high - poor user experience"
+  evaluation_periods  = 1
+  threshold           = var.slo_error_budget_percent * var.slo_error_rate_fast_burn_multiplier
+  alarm_description   = "Error budget fast burn: 5xx rate SLI is consuming the monthly error budget rapidly (5min window)"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
   treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    LoadBalancer = var.alb_arn_suffix
+  metric_query {
+    id          = "e5xx"
+    return_data = false
+    metric {
+      metric_name = "HTTPCode_Target_5XX_Count"
+      namespace   = "AWS/ApplicationELB"
+      period      = 300
+      stat        = "Sum"
+      dimensions = {
+        LoadBalancer = var.alb_arn_suffix
+      }
+    }
+  }
+
+  metric_query {
+    id          = "ereq"
+    return_data = false
+    metric {
+      metric_name = "RequestCount"
+      namespace   = "AWS/ApplicationELB"
+      period      = 300
+      stat        = "Sum"
+      dimensions = {
+        LoadBalancer = var.alb_arn_suffix
+      }
+    }
+  }
+
+  metric_query {
+    id          = "error_ratio"
+    label       = "5xx error rate SLI (%)"
+    expression  = "IF(ereq >= ${var.slo_min_request_count}, (e5xx / ereq) * 100, 0)"
+    return_data = true
   }
 
   tags = {
-    Name = "${var.project_name}-alb-response-time-alarm"
+    Name = "${var.project_name}-slo-error-rate-fast-burn-alarm"
   }
 }
 
-# ALB 5xxエラー率監視（実務レベル: 1%）
-resource "aws_cloudwatch_metric_alarm" "alb_5xx_error_rate_high" {
-  alarm_name          = "${var.project_name}-alb-5xx-error-rate-high"
+resource "aws_cloudwatch_metric_alarm" "slo_error_rate_slow_burn" {
+  alarm_name          = "${var.project_name}-slo-error-rate-slow-burn"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "HTTPCode_Target_5XX_Count"
-  namespace           = "AWS/ApplicationELB"
-  period              = "300"
-  statistic           = "Sum"
-  threshold           = "5"
-  alarm_description   = "ALB 5xx error rate is too high - server errors detected"
+  evaluation_periods  = 6 # 300s x 6 = 30分window
+  threshold           = var.slo_error_budget_percent * var.slo_error_rate_slow_burn_multiplier
+  alarm_description   = "Error budget slow burn: 5xx rate SLI is sustained above the SLO over a longer window (30min)"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
   treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    LoadBalancer = var.alb_arn_suffix
+  metric_query {
+    id          = "e5xx"
+    return_data = false
+    metric {
+      metric_name = "HTTPCode_Target_5XX_Count"
+      namespace   = "AWS/ApplicationELB"
+      period      = 300
+      stat        = "Sum"
+      dimensions = {
+        LoadBalancer = var.alb_arn_suffix
+      }
+    }
+  }
+
+  metric_query {
+    id          = "ereq"
+    return_data = false
+    metric {
+      metric_name = "RequestCount"
+      namespace   = "AWS/ApplicationELB"
+      period      = 300
+      stat        = "Sum"
+      dimensions = {
+        LoadBalancer = var.alb_arn_suffix
+      }
+    }
+  }
+
+  metric_query {
+    id          = "error_ratio"
+    label       = "5xx error rate SLI (%)"
+    expression  = "IF(ereq >= ${var.slo_min_request_count}, (e5xx / ereq) * 100, 0)"
+    return_data = true
   }
 
   tags = {
-    Name = "${var.project_name}-alb-5xx-alarm"
+    Name = "${var.project_name}-slo-error-rate-slow-burn-alarm"
+  }
+}
+
+# 応答時間SLI: 平均TargetResponseTime / SLO目標値(1秒) の比率(burn ratio)。
+# ALBはリクエストごとの遅延ヒストグラムを提供しないため、平均応答時間としきい値の比を
+# burn rateの近似として扱う(ADR-0026で限界と代替案を記載)。
+resource "aws_cloudwatch_metric_alarm" "slo_response_time_fast_burn" {
+  alarm_name          = "${var.project_name}-slo-response-time-fast-burn"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  threshold           = var.slo_response_time_fast_burn_multiplier
+  alarm_description   = "Error budget fast burn: response time SLI is far above the SLO target (5min window)"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+  treat_missing_data  = "notBreaching"
+
+  metric_query {
+    id          = "resp_time"
+    return_data = false
+    metric {
+      metric_name = "TargetResponseTime"
+      namespace   = "AWS/ApplicationELB"
+      period      = 300
+      stat        = "Average"
+      dimensions = {
+        LoadBalancer = var.alb_arn_suffix
+      }
+    }
+  }
+
+  metric_query {
+    id          = "resp_ratio"
+    label       = "Response time SLI (burn ratio)"
+    expression  = "resp_time / ${var.slo_response_time_target_seconds}"
+    return_data = true
+  }
+
+  tags = {
+    Name = "${var.project_name}-slo-response-time-fast-burn-alarm"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "slo_response_time_slow_burn" {
+  alarm_name          = "${var.project_name}-slo-response-time-slow-burn"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 6 # 300s x 6 = 30分window
+  threshold           = var.slo_response_time_slow_burn_multiplier
+  alarm_description   = "Error budget slow burn: response time SLI is sustained above the SLO target over a longer window (30min)"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+  treat_missing_data  = "notBreaching"
+
+  metric_query {
+    id          = "resp_time"
+    return_data = false
+    metric {
+      metric_name = "TargetResponseTime"
+      namespace   = "AWS/ApplicationELB"
+      period      = 300
+      stat        = "Average"
+      dimensions = {
+        LoadBalancer = var.alb_arn_suffix
+      }
+    }
+  }
+
+  metric_query {
+    id          = "resp_ratio"
+    label       = "Response time SLI (burn ratio)"
+    expression  = "resp_time / ${var.slo_response_time_target_seconds}"
+    return_data = true
+  }
+
+  tags = {
+    Name = "${var.project_name}-slo-response-time-slow-burn-alarm"
   }
 }
 

@@ -65,3 +65,4 @@
 | [0023](./0023-adopt-mise-for-local-tooling-and-pre-commit-terraform-docs.md) | Accepted | ローカルツール管理に mise を採用し terraform-docs は pre-commit で運用する |
 | [0024](./0024-use-pre-commit-and-ci-dual-layer-for-shell-dockerfile-lint.md) | Deprecated | シェルスクリプト / Dockerfile の lint を pre-commit と CI の二層で実行する |
 | [0025](./0025-pin-github-actions-docker-images-by-tag-and-digest.md) | Accepted | GitHub Actions 内 Docker image を tag と digest で固定する |
+| [0026](./0026-slo-burn-rate-alerts-for-alb-slis.md) | Accepted | ALB系SLIをCloudWatch metric mathで算出しSLO burn-rateアラートに接続する |
