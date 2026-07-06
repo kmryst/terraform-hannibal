@@ -779,6 +779,10 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
         # aws_fis_experiment_templateをapplyするための権限(Issue #454)。
         # HannibalCICDBoundaryのfis:*はceilingに過ぎず、実権限はこのpolicyで付与する。
         # 実験の実行権限自体(ecs:StopTask等)はHannibalFISRole-Dev側(Issue #446)に限定済み。
+        # CreateExperimentTemplate/UpdateExperimentTemplateは、テンプレート内で参照する
+        # FIS actionリソース(ここではaws:ecs:stop-task)についても同じIAM actionでの
+        # 許可を要求する(AWSのマルチリソースAPI評価。Issue #456。#454時点では
+        # experiment-templateリソースのみ許可しており見落としていた)。
         Sid    = "FISExperimentTemplateManagement"
         Effect = "Allow"
         Action = [
@@ -791,7 +795,10 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
           "fis:UntagResource",
           "fis:ListTagsForResource"
         ]
-        Resource = "arn:aws:fis:ap-northeast-1:${data.aws_caller_identity.current.account_id}:experiment-template/*"
+        Resource = [
+          "arn:aws:fis:ap-northeast-1:${data.aws_caller_identity.current.account_id}:experiment-template/*",
+          "arn:aws:fis:ap-northeast-1:${data.aws_caller_identity.current.account_id}:action/aws:ecs:stop-task"
+        ]
       },
       {
         Sid      = "IAMPassRoleForFISOnly"
