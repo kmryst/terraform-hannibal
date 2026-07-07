@@ -69,3 +69,4 @@
 | [0027](./0027-fis-iam-permission-boundary-for-game-day.md) | Accepted | Game Day演習向けAWS FIS実行ロールをECSタスク停止のみに限定する |
 | [0028](./0028-fis-game-day-ecs-task-stop-experiment-design.md) | Accepted | AWS FISでECSタスク強制停止によるGame Day演習を自動化する |
 | [0029](./0029-separate-fis-observability-root-module-for-blast-radius.md) | Accepted | AWS FIS実験テンプレートを独立root module `terraform/observability` に分離する |
+| [0030](./0030-adopt-cloudwatch-synthetics-canary-for-user-journey-monitoring.md) | Accepted | ユーザージャーニーレベルの外形監視にCloudWatch Synthetics canaryを採用する |
