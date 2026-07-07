@@ -360,6 +360,7 @@ resource "aws_iam_policy" "hannibal_cicd_boundary" {
           "secretsmanager:*",
           "s3:*",
           "sns:*",
+          "synthetics:*",
           "sts:*",
           "kms:*",
           "iam:GetRole", "iam:PassRole", "iam:CreateRole", "iam:DeleteRole",
@@ -377,6 +378,8 @@ resource "aws_iam_policy" "hannibal_cicd_boundary" {
           "cloudfront:*",
           "route53:*",
           "codedeploy:*",
+          "lambda:*",
+          "xray:*",
         ]
         Resource = "*"
       },
@@ -400,7 +403,6 @@ resource "aws_iam_policy" "hannibal_cicd_boundary" {
           "iam:CreateAccessKey", "iam:DeleteAccessKey",
           "organizations:*",
           "account:*",
-          "lambda:*",
           "cognito-idp:*", "cognito-identity:*",
           "sagemaker:*", "bedrock:*",
           "ec2:RunInstances", "ec2:StartInstances", "ec2:TerminateInstances",
@@ -421,8 +423,8 @@ resource "aws_iam_policy" "hannibal_ecs_boundary" {
   policy = templatefile("${path.module}/HannibalECSBoundary.json", { account_id = data.aws_caller_identity.current.account_id })
 }
 
-# --- 8. HannibalCICDPolicy-Dev-* (CI/CD最小権限ポリシー・3分割) ---
-# IAMマネージドポリシーの6144文字制限により compute/storage/deploy の3ポリシーに分割。
+# --- 8. HannibalCICDPolicy-Dev-* (CI/CD最小権限ポリシー・4分割) ---
+# IAMマネージドポリシーの6144文字制限により compute/storage/deploy/synthetics の4ポリシーに分割。
 # candidate での deploy/destroy 検証完了後（#166）に正式採用。
 
 # compute: EC2/VPC, ECR, ECS, ELB
@@ -547,6 +549,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_storage" {
         Resource = [
           "arn:aws:s3:::nestjs-hannibal-3-frontend",
           "arn:aws:s3:::nestjs-hannibal-3-codedeploy-artifacts",
+          "arn:aws:s3:::nestjs-hannibal-3-synthetics-*",
           "arn:aws:s3:::nestjs-hannibal-3-terraform-state",
         ]
       },
@@ -560,6 +563,7 @@ resource "aws_iam_policy" "hannibal_cicd_policy_storage" {
         Resource = [
           "arn:aws:s3:::nestjs-hannibal-3-frontend/*",
           "arn:aws:s3:::nestjs-hannibal-3-codedeploy-artifacts/*",
+          "arn:aws:s3:::nestjs-hannibal-3-synthetics-*/*",
           "arn:aws:s3:::nestjs-hannibal-3-terraform-state/*",
         ]
       },
@@ -592,13 +596,10 @@ resource "aws_iam_policy" "hannibal_cicd_policy_storage" {
         Resource = "*"
       },
       {
-        Sid    = "SecretsManagerForRDS"
+        Sid    = "SecretsManagerProjectSecrets"
         Effect = "Allow"
         Action = [
-          "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:DescribeSecret",
-          "secretsmanager:GetResourcePolicy", "secretsmanager:GetSecretValue",
-          "secretsmanager:ListSecretVersionIds", "secretsmanager:PutResourcePolicy",
-          "secretsmanager:TagResource", "secretsmanager:UntagResource",
+          "secretsmanager:*",
         ]
         Resource = [
           "arn:aws:secretsmanager:ap-northeast-1:${data.aws_caller_identity.current.account_id}:secret:nestjs-hannibal-3*",
@@ -813,6 +814,99 @@ resource "aws_iam_policy" "hannibal_cicd_policy_deploy" {
   })
 }
 
+# synthetics: CloudWatch Synthetics canary, cwsyn Lambda, canary logs, xray read, PassRole
+resource "aws_iam_policy" "hannibal_cicd_policy_synthetics" {
+  name        = "HannibalCICDPolicy-Dev-synthetics"
+  description = "CI/CD permissions for CloudWatch Synthetics canaries and supporting cwsyn Lambda resources"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "SyntheticsCanaryManagement"
+        Effect   = "Allow"
+        Action   = ["synthetics:*"]
+        Resource = "*"
+      },
+      {
+        Sid    = "SyntheticsSupportingLambdaManagement"
+        Effect = "Allow"
+        Action = [
+          "lambda:AddPermission",
+          "lambda:CreateFunction",
+          "lambda:DeleteFunction",
+          "lambda:DeleteLayerVersion",
+          "lambda:GetFunction",
+          "lambda:GetFunctionConfiguration",
+          "lambda:GetLayerVersion",
+          "lambda:ListTags",
+          "lambda:PublishLayerVersion",
+          "lambda:PublishVersion",
+          "lambda:TagResource",
+          "lambda:UntagResource",
+          "lambda:UpdateFunctionCode",
+          "lambda:UpdateFunctionConfiguration",
+        ]
+        Resource = [
+          "arn:aws:lambda:ap-northeast-1:${data.aws_caller_identity.current.account_id}:function:cwsyn-*",
+          "arn:aws:lambda:ap-northeast-1:${data.aws_caller_identity.current.account_id}:layer:cwsyn-*",
+          "arn:aws:lambda:*:*:layer:Synthetics:*",
+          "arn:aws:lambda:*:*:layer:Synthetics_Selenium:*",
+          "arn:aws:lambda:*:*:layer:AWS-CW-Synthetics*:*",
+        ]
+      },
+      {
+        Sid    = "SyntheticsLambdaLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:DeleteLogGroup",
+          "logs:DescribeLogStreams",
+          "logs:FilterLogEvents",
+          "logs:GetLogEvents",
+          "logs:GetLogGroupFields",
+          "logs:GetLogRecord",
+          "logs:ListTagsForResource",
+          "logs:PutRetentionPolicy",
+          "logs:StartQuery",
+          "logs:TagLogGroup",
+          "logs:TagResource",
+          "logs:UntagLogGroup",
+          "logs:UntagResource",
+        ]
+        Resource = [
+          "arn:aws:logs:ap-northeast-1:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*",
+          "arn:aws:logs:ap-northeast-1:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*:*",
+        ]
+      },
+      {
+        Sid    = "SyntheticsXRayRead"
+        Effect = "Allow"
+        Action = [
+          "xray:BatchGetTraces",
+          "xray:GetTraceSummaries",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid      = "IAMPassRoleForSyntheticsCanaryOnly"
+        Effect   = "Allow"
+        Action   = ["iam:PassRole"]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/nestjs-hannibal-3-synthetics-canary-role"
+        Condition = {
+          StringEquals = {
+            "iam:PassedToService" = [
+              "lambda.amazonaws.com",
+              "synthetics.amazonaws.com",
+            ]
+          }
+        }
+      },
+    ]
+  })
+}
+
 # --- 8. ポリシーアタッチメント (CICD) ---
 resource "aws_iam_role_policy_attachment" "hannibal_cicd_compute_attachment" {
   role       = "HannibalCICDRole-Dev"
@@ -827,6 +921,11 @@ resource "aws_iam_role_policy_attachment" "hannibal_cicd_storage_attachment" {
 resource "aws_iam_role_policy_attachment" "hannibal_cicd_deploy_attachment" {
   role       = "HannibalCICDRole-Dev"
   policy_arn = aws_iam_policy.hannibal_cicd_policy_deploy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "hannibal_cicd_synthetics_attachment" {
+  role       = "HannibalCICDRole-Dev"
+  policy_arn = aws_iam_policy.hannibal_cicd_policy_synthetics.arn
 }
 
 # --- 7. HannibalPRPlanBoundary-Dev (PR terraform plan専用Permission Boundary) ---
