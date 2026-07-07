@@ -84,6 +84,26 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   ordered_cache_behavior {
+    path_pattern           = "/health"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD", "OPTIONS"]
+    target_origin_id       = "ALB-${var.project_name}-API"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+    min_ttl                = 0
+    default_ttl            = 0
+    max_ttl                = 0
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+      headers = ["User-Agent"]
+    }
+  }
+
+  ordered_cache_behavior {
     path_pattern           = "/api/*"
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods         = ["GET", "HEAD", "OPTIONS"]

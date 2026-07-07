@@ -43,12 +43,12 @@ variable "frontend_url" {
 }
 
 variable "api_health_url" {
-  description = "Backend health check URL, requested directly against the ALB (user journey step 2)"
+  description = "Backend health check URL requested via CloudFront (user journey step 2)"
   type        = string
 }
 
 variable "api_graphql_url" {
-  description = "Backend GraphQL endpoint URL, requested directly against the ALB (user journey step 3: read-only query)"
+  description = "Backend GraphQL endpoint URL requested via CloudFront (user journey step 3: read-only query)"
   type        = string
 }
 
