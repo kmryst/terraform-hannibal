@@ -15,7 +15,7 @@ Accepted
 - 検証対象は次の3点に限定する
   - フロントエンド配信（CloudFront 経由の React client 配信確認）
   - GraphQL 読み取りクエリ（`capitalCities` / `hannibalRoute` / `pointRoute` などの `Query`。`src/modules/map`, `src/modules/route` 参照）
-  - ヘルスチェック（`GET /`、`src/app.controller.ts`）
+  - ヘルスチェック（`GET /health`、`src/app.controller.ts`）
 - 書き込み系 API（GraphQL `Mutation`）は検証対象外とする。テストデータの作成・後始末の管理が複雑化するため
 - 認証済みユーザー操作の検証は対象外とする。本アプリには認証機能自体が存在しない（コントローラ・リゾルバに auth / jwt / passport 相当の実装がない）ため、そもそも検証しようがない
 - canary の Terraform リソースは foundation 側ではなく env 側（アプリ実行系と同じ root module 群）に配置し、`deploy.yml` / `destroy.yml` によるオンデマンド起動・破棄と生死を共にする
