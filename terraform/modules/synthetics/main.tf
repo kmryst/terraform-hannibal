@@ -3,6 +3,10 @@
 
 data "aws_caller_identity" "current" {}
 
+locals {
+  canary_code_s3_key = "canary-code/${data.archive_file.canary_zip.output_sha256}.zip"
+}
+
 # --- S3 bucket for canary artifacts (screenshots, HAR files, logs) ---
 resource "aws_s3_bucket" "canary_artifacts" {
   bucket        = "${var.project_name}-synthetics-canary-artifacts"
@@ -128,13 +132,28 @@ data "archive_file" "canary_zip" {
   output_path = "${path.module}/.artifacts/apiCanary.zip"
 }
 
+resource "aws_s3_object" "canary_code" {
+  bucket      = aws_s3_bucket.canary_artifacts.id
+  key         = local.canary_code_s3_key
+  source      = data.archive_file.canary_zip.output_path
+  source_hash = data.archive_file.canary_zip.output_base64sha256
+
+  tags = merge(
+    {
+      Name = "${var.canary_name}-code"
+    },
+    var.tags,
+  )
+}
+
 # --- Synthetics canary ---
 resource "aws_synthetics_canary" "user_journey" {
   name                 = var.canary_name
   artifact_s3_location = "s3://${aws_s3_bucket.canary_artifacts.bucket}/canary-runs/"
   execution_role_arn   = aws_iam_role.canary_execution.arn
   handler              = "apiCanary.handler"
-  zip_file             = data.archive_file.canary_zip.output_path
+  s3_bucket            = aws_s3_bucket.canary_artifacts.bucket
+  s3_key               = aws_s3_object.canary_code.key
   runtime_version      = var.runtime_version
 
   schedule {
@@ -163,6 +182,7 @@ resource "aws_synthetics_canary" "user_journey" {
   )
 
   depends_on = [
-    aws_iam_role_policy.canary_execution
+    aws_iam_role_policy.canary_execution,
+    aws_s3_object.canary_code
   ]
 }
