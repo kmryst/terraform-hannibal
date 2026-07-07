@@ -71,6 +71,15 @@ canary を env 側に配置し on-demand deploy/destroy と生死を共にする
 - 後続 Issue で canary の成功/失敗結果を CloudWatch Alarm 経由で `terraform/modules/monitoring` の SNS topic に接続する
 - コスト影響: canary 実行中のみ課金が発生する（Synthetics canary 実行料、S3 artifact 保存料）。env 起動期間中は `cost:small` 相当と見込む。本 ADR 自体（ドキュメントのみ）は `cost:none`
 
+## 更新（2026-07-07、Issue #481）
+
+PR [#478](https://github.com/kmryst/terraform-hannibal/pull/478) で canary の通信経路を ALB 直接から CloudFront 経由に変更した結果、canary 自身が Secrets Manager から secret を取得して `X-Hannibal-Origin-Verify` ヘッダーを付与する機構は dead code となったため削除した。
+
+- CloudFront の forwarded-headers whitelist（`terraform/modules/cloudfront/main.tf`）はこのヘッダーを origin へ転送しないため、canary が付与しても ALB には届かず、機能上の意味がなかった
+- ALB 直接アクセス防止の実効的な統制は CloudFront 自身の `custom_header`（origin 設定に静的に埋め込まれ、サーバー側で注入されるためクライアントから偽装不可）であり、canary の関与を必要としない
+- このヘッダーを CloudFront の forwarded-headers に追加して canary 側機構を「復活」させる案は採らなかった。クライアントが制御可能な転送ヘッダーに変わりセキュリティ後退となるうえ、burn-rate アラームに接続された可用性 SLI に「Secrets Manager 取得失敗」というユーザージャーニーと無関係な失敗モードを残すことになるため
+- 削除対象: canary スクリプトの secret 取得・ヘッダー付与ロジック、canary 実行 role の `secretsmanager:GetSecretValue`、`terraform/modules/synthetics` の origin-verify 系変数、canary 専用だった `terraform/service` の Secrets Manager secret リソース。CloudFront / load-balancer 側の origin-verify 機構そのものは変更していない
+
 ## 関連
 
 - [docs/operations/slo.md](../operations/slo.md)

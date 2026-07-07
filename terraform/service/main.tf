@@ -83,24 +83,9 @@ module "monitoring" {
   synthetics_canary_name = var.enable_synthetics_canary ? module.synthetics_canary[0].canary_name : ""
 }
 
-# --- Secrets Manager: ALB origin-verify header value (ADR-0030, Issue #465) ---
-# random_password.alb_origin_verify_header の値をSecrets Managerにも登録し、
-# Synthetics canary実行roleに対してこのARNに限定したGetSecretValueのみを付与する(平文をTerraform変数やコードに残さない)。
-resource "aws_secretsmanager_secret" "alb_origin_verify_header" {
-  name                    = "${var.project_name}-alb-origin-verify-header"
-  description             = "ALB origin-verify header value used by CloudFront and the Synthetics canary to pass the ALB deny-without-header rule"
-  recovery_window_in_days = 0 # dev環境のon-demand destroy運用(ADR-0008)に合わせて即時削除可能にする
-
-  tags = {
-    Name = "${var.project_name}-alb-origin-verify-header"
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "alb_origin_verify_header" {
-  secret_id     = aws_secretsmanager_secret.alb_origin_verify_header.id
-  secret_string = random_password.alb_origin_verify_header.result
-}
-
+# Synthetics canaryはCloudFront経由でアクセスするため、origin-verifyヘッダー用の
+# Secrets Manager secretとcanaryへの受け渡しは不要(Issue #481、ADR-0030「更新」節参照)。
+# ALB直接アクセス防止はCloudFront custom_header + load-balancerのdenyルールで完結する。
 module "synthetics_canary" {
   count  = var.enable_synthetics_canary ? 1 : 0
   source = "../modules/synthetics"
@@ -114,9 +99,6 @@ module "synthetics_canary" {
   api_health_url  = "https://${var.domain_name}${var.health_check_path}"
   api_graphql_url = "https://${var.domain_name}/graphql"
   graphql_query   = var.synthetics_graphql_query
-
-  origin_verify_header_name = local.alb_origin_verify_header_name
-  origin_verify_secret_arn  = aws_secretsmanager_secret.alb_origin_verify_header.arn
 
   tags = {
     Environment = var.environment
