@@ -13,9 +13,11 @@
 
 ## 優先順位
 
-### 1. SLO運用のフレーミング修正（burn rateアラートへの接続）
+### 1. SLO運用のフレーミング修正（burn rateアラートへの接続）【対応済み】
 
-[`docs/operations/slo.md`](./operations/slo.md) に SLI/SLO/エラーバジェット運用は既に文書化済み（旧 Issue #274、クローズ済み）。現状の課題は「文書はあるが、計測とアラートがSLOに接続されていない」こと。
+**対応済み**: Issue [#445](https://github.com/kmryst/terraform-hannibal/issues/445) / PR [#449](https://github.com/kmryst/terraform-hannibal/pull/449) / [ADR-0026](./adr/0026-slo-burn-rate-alerts-for-alb-slis.md) でALB系SLI（エラー率・応答時間）のmetric math算出とmulti-window multi-burn-rateアラームを実装済み。後続で稼働率SLIもCloudWatch Synthetics canaryのtime-based availabilityとしてアラームに接続した（[ADR-0030](./adr/0030-adopt-cloudwatch-synthetics-canary-for-user-journey-monitoring.md)、Issue [#467](https://github.com/kmryst/terraform-hannibal/issues/467) / PR [#468](https://github.com/kmryst/terraform-hannibal/pull/468)）。
+
+[`docs/operations/slo.md`](./operations/slo.md) に SLI/SLO/エラーバジェット運用は既に文書化済み（旧 Issue #274、クローズ済み）。当時の課題は「文書はあるが、計測とアラートがSLOに接続されていない」ことだった。
 
 - `terraform/modules/monitoring/` の静的閾値アラーム（CPU高い、5xx多い等）を、multi-window multi-burn-rateアラートに組み替える
 - 応答時間・エラー率のSLIをmetric mathで計算し、`slo.md`のSLO目標値（月次可用性99.5%等）と接続する
@@ -30,7 +32,9 @@
 - `docs/operations/terraform-runbook.md` のcomposite root module案（L119付近）が設計の下地になる
 - 恒久リソースである `terraform/foundation/` は常設のため、まずここだけ定期drift検出を先行導入する選択肢もある
 
-### 3. Game Day演習の自動化
+### 3. Game Day演習の自動化【対応済み】
+
+**対応済み**: Issue [#446](https://github.com/kmryst/terraform-hannibal/issues/446) / [#447](https://github.com/kmryst/terraform-hannibal/issues/447) / [#458](https://github.com/kmryst/terraform-hannibal/issues/458) / [#461](https://github.com/kmryst/terraform-hannibal/issues/461)、PR [#450](https://github.com/kmryst/terraform-hannibal/pull/450) / [#451](https://github.com/kmryst/terraform-hannibal/pull/451) / [#459](https://github.com/kmryst/terraform-hannibal/pull/459) / [#462](https://github.com/kmryst/terraform-hannibal/pull/462)、[ADR-0027](./adr/0027-fis-iam-permission-boundary-for-game-day.md) / [ADR-0028](./adr/0028-fis-game-day-ecs-task-stop-experiment-design.md) / [ADR-0029](./adr/0029-separate-fis-observability-root-module-for-blast-radius.md) で実装済み。AWS FISによるECSタスク強制停止演習（`scripts/game-day/run-ecs-task-stop-experiment.sh`）、演習記録テンプレート、blast radius分離（`terraform/observability`）まで含む。
 
 ECSタスクを意図的にkillしてCodeDeployの自動復旧・アラーム発火・runbookの実効性を検証する演習をスクリプト化する。
 
