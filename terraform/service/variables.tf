@@ -90,3 +90,35 @@ variable "alb_origin_secret_rotation_version" {
   type        = string
   default     = "v1"
 }
+
+# --- Synthetics canary settings (ADR-0030, Issue #465) ---
+
+variable "domain_name" {
+  description = "Public domain name. terraform/cdn の同名変数と値を揃える(service は cdn より前に apply されるため remote_state 参照ができない)"
+  type        = string
+  default     = "hamilcar-hannibal.click"
+}
+
+variable "enable_synthetics_canary" {
+  description = "Synthetics canaryを作成するかどうか。dev環境のオンデマンド運用(ADR-0008)に合わせてtrue/falseを切り替える"
+  type        = bool
+  default     = true
+}
+
+variable "synthetics_canary_name" {
+  description = "Synthetics canaryの名前(CloudWatch Syntheticsの制約で21文字以内)"
+  type        = string
+  default     = "hannibal-canary"
+}
+
+variable "synthetics_schedule_expression" {
+  description = "Synthetics canaryの実行間隔"
+  type        = string
+  default     = "rate(5 minutes)"
+}
+
+variable "synthetics_graphql_query" {
+  description = "canaryが実行するGraphQL読み取り専用クエリ(src/graphql/schema/map.graphqlのcapitalCitiesを使用)"
+  type        = string
+  default     = "query { capitalCities { type features { type properties { name } } } }"
+}

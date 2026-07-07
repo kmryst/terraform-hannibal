@@ -63,3 +63,18 @@ output "slo_error_rate_fast_burn_alarm_arn" {
   description = "ARN of the SLO error-rate fast-burn alarm (consumed by terraform/observability as an AWS FIS stop condition, Issue #458)"
   value       = module.monitoring.slo_error_rate_fast_burn_alarm_arn
 }
+
+output "synthetics_canary_name" {
+  description = "Name of the Synthetics user-journey canary (ADR-0030, Issue #465). null when disabled"
+  value       = var.enable_synthetics_canary ? module.synthetics_canary[0].canary_name : null
+}
+
+output "synthetics_canary_arn" {
+  description = "ARN of the Synthetics user-journey canary. null when disabled"
+  value       = var.enable_synthetics_canary ? module.synthetics_canary[0].canary_arn : null
+}
+
+output "synthetics_canary_artifacts_bucket_name" {
+  description = "S3 bucket name storing Synthetics canary run artifacts. null when disabled"
+  value       = var.enable_synthetics_canary ? module.synthetics_canary[0].canary_artifacts_bucket_name : null
+}
