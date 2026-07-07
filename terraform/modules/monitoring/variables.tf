@@ -78,3 +78,17 @@ variable "slo_response_time_slow_burn_multiplier" {
   type        = number
   default     = 1.2
 }
+
+# --- Synthetics canary availability (ADR-0030, Issue #467) ---
+
+variable "synthetics_canary_name" {
+  description = "Synthetics canaryの名前。空文字の場合は稼働率アラームを作成しない(canary無効時)"
+  type        = string
+  default     = ""
+}
+
+variable "synthetics_availability_target_percent" {
+  description = "canaryのtime-based availability目標値(%)。docs/operations/slo.mdの稼働率SLOが正本"
+  type        = number
+  default     = 99.5
+}

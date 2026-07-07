@@ -78,3 +78,8 @@ output "synthetics_canary_artifacts_bucket_name" {
   description = "S3 bucket name storing Synthetics canary run artifacts. null when disabled"
   value       = var.enable_synthetics_canary ? module.synthetics_canary[0].canary_artifacts_bucket_name : null
 }
+
+output "synthetics_availability_alarm_name" {
+  description = "Name of the Synthetics canary time-based availability alarm (ADR-0030, Issue #467). null when disabled"
+  value       = module.monitoring.synthetics_availability_alarm_name
+}

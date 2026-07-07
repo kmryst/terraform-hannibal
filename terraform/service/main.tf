@@ -77,6 +77,10 @@ module "monitoring" {
   ecs_cluster_name = module.ecs.cluster_name
   rds_instance_id  = data.terraform_remote_state.database.outputs.db_instance_id
   alb_arn_suffix   = module.load_balancer.alb_arn
+
+  # Synthetics canaryのtime-based availability SLI(ADR-0030, Issue #467)。
+  # enable_synthetics_canary=falseの場合は空文字を渡し、monitoringモジュール側でアラーム自体を作成しない。
+  synthetics_canary_name = var.enable_synthetics_canary ? module.synthetics_canary[0].canary_name : ""
 }
 
 # --- Secrets Manager: ALB origin-verify header value (ADR-0030, Issue #465) ---

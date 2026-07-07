@@ -185,6 +185,7 @@ SLO の数値目標は [slo.md](./slo.md) を正本とする。
 - **サーバ側エラー**: `AWS/ApplicationELB` の `HTTPCode_Target_5XX_Count`。SLI/SLO burn-rateアラーム（`nestjs-hannibal-3-slo-error-rate-fast-burn` / `-slow-burn`）は [slo.md](./slo.md) 参照
 - **稼働状態**: ECS `RunningTaskCount`、ALB target health、CodeDeploy deployment status
 - **デプロイ健全性**: `nestjs-hannibal-3-canary-error-rate` と `nestjs-hannibal-3-canary-response-time`（CodeDeploy auto rollback専用。SLI burn-rateアラームとは別系統で維持）
+- **ユーザージャーニー外形監視**: `CloudWatchSynthetics` namespaceの`SuccessPercent`（canary名`hannibal-canary`）。time-based availability SLIとして1時間平均を見る`nestjs-hannibal-3-synthetics-availability-low`アラームを追加した（ADR-0030、Issue #467）
 
 ### インフラ健全性を見るメトリクス
 
