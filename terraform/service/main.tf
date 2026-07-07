@@ -111,8 +111,8 @@ module "synthetics_canary" {
   schedule_expression = var.synthetics_schedule_expression
 
   frontend_url    = "https://${var.domain_name}/"
-  api_health_url  = "https://api.${var.domain_name}${var.health_check_path}"
-  api_graphql_url = "https://api.${var.domain_name}/graphql"
+  api_health_url  = "https://${var.domain_name}${var.health_check_path}"
+  api_graphql_url = "https://${var.domain_name}/graphql"
   graphql_query   = var.synthetics_graphql_query
 
   origin_verify_header_name = local.alb_origin_verify_header_name
