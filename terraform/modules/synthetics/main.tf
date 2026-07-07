@@ -60,8 +60,8 @@ resource "aws_iam_role" "canary_execution" {
 }
 
 # 参照: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Synthetics_Canaries_CanaryPermissions.html
-# 「Basic canary that doesn't use AWS KMS or need Amazon VPC access」の権限セットを基本とし、
-# GetSecretValueをorigin-verifyヘッダー用secretのARNのみに限定して追加する(最小権限、Issue #465)。
+# 「Basic canary that doesn't use AWS KMS or need Amazon VPC access」の権限セットのみを付与する(最小権限)。
+# canaryはCloudFront経由でアクセスするため、Secrets Manager等の追加権限は不要(Issue #481)。
 resource "aws_iam_role_policy" "canary_execution" {
   name = "${var.project_name}-synthetics-canary-policy"
   role = aws_iam_role.canary_execution.id
@@ -112,14 +112,6 @@ resource "aws_iam_role_policy" "canary_execution" {
             "cloudwatch:namespace" = "CloudWatchSynthetics"
           }
         }
-      },
-      {
-        # 最小権限: origin-verifyヘッダー用secretのARNのみに限定する(ワイルドカードで全secretを許可しない)
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue"
-        ]
-        Resource = [var.origin_verify_secret_arn]
       }
     ]
   })
@@ -163,12 +155,10 @@ resource "aws_synthetics_canary" "user_journey" {
   run_config {
     timeout_in_seconds = var.canary_timeout_in_seconds
     environment_variables = {
-      FRONTEND_URL              = var.frontend_url
-      API_HEALTH_URL            = var.api_health_url
-      API_GRAPHQL_URL           = var.api_graphql_url
-      ORIGIN_VERIFY_HEADER_NAME = var.origin_verify_header_name
-      ORIGIN_VERIFY_SECRET_ARN  = var.origin_verify_secret_arn
-      GRAPHQL_QUERY             = var.graphql_query
+      FRONTEND_URL    = var.frontend_url
+      API_HEALTH_URL  = var.api_health_url
+      API_GRAPHQL_URL = var.api_graphql_url
+      GRAPHQL_QUERY   = var.graphql_query
     }
   }
 

@@ -58,16 +58,6 @@ variable "graphql_query" {
   default     = "query { capitalCities { type features { type properties { name } } } }"
 }
 
-variable "origin_verify_header_name" {
-  description = "Name of the ALB origin-verify header required to bypass the 403 deny rule (see terraform/modules/load-balancer)"
-  type        = string
-}
-
-variable "origin_verify_secret_arn" {
-  description = "Secrets Manager secret ARN that stores the ALB origin-verify header value. The canary execution role is granted GetSecretValue scoped to this ARN only"
-  type        = string
-}
-
 variable "tags" {
   description = "Additional tags for canary-related resources"
   type        = map(string)
