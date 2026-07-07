@@ -53,6 +53,7 @@ aws logs tail "$LOG_GROUP" \
 | `nestjs-hannibal-3-slo-error-rate-slow-burn`               | 5xx rate SLIが30分持続でerror budgetの3倍超過 | ECS logs と直近 deploy を確認する                                    |
 | `nestjs-hannibal-3-canary-error-rate`                     | canary 中の 5xx 増加                         | CodeDeploy auto rollback の状態を確認する                            |
 | `nestjs-hannibal-3-canary-response-time`                  | canary 中の response time 悪化               | CodeDeploy auto rollback の状態を確認する                            |
+| `nestjs-hannibal-3-synthetics-availability-low`           | Synthetics canaryのtime-based availabilityが1時間平均で目標(99.5%)未満、またはcanaryが1時間結果を報告していない | フロントエンド/ALB/GraphQLのどのステップで失敗しているか、canaryの実行ログとS3 artifactを確認する |
 | `nestjs-hannibal-3-cloudtrail-root-account-usage`         | root account 利用検知                        | 正当性確認、不要なら認証情報保護と MFA 確認を行う                    |
 | `nestjs-hannibal-3-cloudtrail-iam-policy-change`          | IAM policy 変更検知                          | 変更者、変更内容、Issue / PR との対応を確認する                      |
 | `nestjs-hannibal-3-cloudtrail-configuration-change`       | CloudTrail 設定変更検知                      | 監査ログ停止や改ざん意図がないか確認する                             |
@@ -156,6 +157,23 @@ aws deploy list-deployments \
   --application-name nestjs-hannibal-3-app \
   --deployment-group-name nestjs-hannibal-3-dg \
   --max-items 5 \
+  --region ap-northeast-1
+```
+
+### Synthetics canary availability alarm
+
+`nestjs-hannibal-3-synthetics-availability-low` は、ユーザージャーニー外形監視canary（`hannibal-canary`）の`SuccessPercent`を1時間平均で見て、time-based availability目標(99.5%)を下回るとALARMになる（ADR-0030、Issue #467）。`treat_missing_data = breaching`のため、canary自体が1時間結果を報告しない場合もALARMになる。
+
+1. CloudWatch Synthetics コンソールで`hannibal-canary`の直近の実行結果（Pass/Fail）とステップ別の失敗理由を確認する。
+2. どのステップ（`frontend-delivery` / `alb-health-check` / `graphql-read-query`）で失敗しているかを特定する。
+3. S3 artifactバケット（`nestjs-hannibal-3-synthetics-canary-artifacts`）のHARファイル・スクリーンショットで詳細を確認する。
+4. `alb-health-check` / `graphql-read-query`が失敗する場合は、ALB origin-verifyヘッダー用secret（Secrets Manager）の値とALB listener ruleの整合を確認する。
+5. canary自体が実行されていない場合は、canary実行roleの権限とLambda実行エラーを確認する。
+
+```bash
+aws synthetics get-canary-runs \
+  --name hannibal-canary \
+  --max-results 5 \
   --region ap-northeast-1
 ```
 

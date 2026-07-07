@@ -325,6 +325,36 @@ resource "aws_cloudwatch_metric_alarm" "slo_response_time_slow_burn" {
   }
 }
 
+# --- Synthetics canary availability (time-based availability SLI, ADR-0030) ---
+# canaryの成功/失敗はSuccessPercent(0 or 100)の二値でしか得られないため、
+# ratioではなく1時間平均をtime-based availabilityの近似として扱う(ADR-0030参照)。
+# synthetics_canary_nameが空文字の場合(canary無効時)はアラームを作成しない。
+resource "aws_cloudwatch_metric_alarm" "synthetics_availability" {
+  count               = var.synthetics_canary_name != "" ? 1 : 0
+  alarm_name          = "${var.project_name}-synthetics-availability-low"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 1
+  period              = 3600 # 1時間平均。低頻度実行のSuccessPercentのratio暴れを避ける(ADR-0030)
+  metric_name         = "SuccessPercent"
+  namespace           = "CloudWatchSynthetics"
+  statistic           = "Average"
+  threshold           = var.synthetics_availability_target_percent
+  alarm_description   = "User-journey canary time-based availability dropped below the SLO target over the last hour"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+  # canaryが1時間まったく実行結果を報告しない場合、canary自体(Lambda実行)が壊れている可能性が高いため
+  # ECS系アラームと同様にbreachingとして扱う(ADR-0026の非対称設計を踏襲、ALB系のnotBreachingとは異なる)
+  treat_missing_data = "breaching"
+
+  dimensions = {
+    CanaryName = var.synthetics_canary_name
+  }
+
+  tags = {
+    Name = "${var.project_name}-synthetics-availability-alarm"
+  }
+}
+
 # --- Canary Deployment Monitoring ---
 # カナリアデプロイ用エラー率監視（5%以上でロールバック）
 resource "aws_cloudwatch_metric_alarm" "canary_error_rate" {

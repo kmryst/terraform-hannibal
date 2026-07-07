@@ -81,6 +81,7 @@ ECS、ALB、CodeDeploy、monitoring など、アプリケーション実行基�
 | <a name="output_green_target_group_name"></a> [green\_target\_group\_name](#output\_green\_target\_group\_name) | Green target group name |
 | <a name="output_slo_error_rate_fast_burn_alarm_arn"></a> [slo\_error\_rate\_fast\_burn\_alarm\_arn](#output\_slo\_error\_rate\_fast\_burn\_alarm\_arn) | ARN of the SLO error-rate fast-burn alarm (consumed by terraform/observability as an AWS FIS stop condition, Issue #458) |
 | <a name="output_sns_topic_arn"></a> [sns\_topic\_arn](#output\_sns\_topic\_arn) | SNS topic ARN for alarm notifications |
+| <a name="output_synthetics_availability_alarm_name"></a> [synthetics\_availability\_alarm\_name](#output\_synthetics\_availability\_alarm\_name) | Name of the Synthetics canary time-based availability alarm (ADR-0030, Issue #467). null when disabled |
 | <a name="output_synthetics_canary_arn"></a> [synthetics\_canary\_arn](#output\_synthetics\_canary\_arn) | ARN of the Synthetics user-journey canary. null when disabled |
 | <a name="output_synthetics_canary_artifacts_bucket_name"></a> [synthetics\_canary\_artifacts\_bucket\_name](#output\_synthetics\_canary\_artifacts\_bucket\_name) | S3 bucket name storing Synthetics canary run artifacts. null when disabled |
 | <a name="output_synthetics_canary_name"></a> [synthetics\_canary\_name](#output\_synthetics\_canary\_name) | Name of the Synthetics user-journey canary (ADR-0030, Issue #465). null when disabled |
