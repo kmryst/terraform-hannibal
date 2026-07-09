@@ -64,3 +64,17 @@
 **成果**: 安全な並行実行制御と、チーム開発に対応可能な基盤を構築
 
 **学び**: IaCにおける状態管理の重要性と、チーム開発を見据えた設計
+
+## 6. PR Policy Check の pending run が cancel され required check がブロックされる問題
+
+**課題**: PR 作成 helper がラベル（type/area/risk/cost）を連続付与すると `pull_request` の `labeled` イベントが短時間に連発し、`pr-policy-check.yml` の required status check が一時的に `expected`（未充足）扱いになりマージがブロックされる
+
+**対応内容**:
+- 根本原因を GitHub Actions の concurrency デフォルト挙動（`queue: single`）と特定。`queue: single` は pending run を 1 つしか保持せず、`labeled`/`unlabeled` 連発時に古い pending run が cancel され、その CANCELLED check run が required status check 判定に混入する（先行課題 Issue #438 の CANCELLED check ブロックと同根の挙動）
+- `pr-policy-check.yml` の `concurrency` に `queue: max` を追加（Issue #485 / PR #486）。pending run を cancel せず FIFO で順次実行させる。`queue: max` は `cancel-in-progress: false` と併用可能（`cancel-in-progress: true` との併用のみ validation error）
+- ラベル判定は `gh pr view` で最新ラベルを都度再取得しているため、古い payload の run が後から実行されても判定結果は変わらない
+- `cancel-in-progress: true` を使う `pr-check.yml`（重い CI。新 SHA で安全に上書きできる）には `queue: max` を追加しない
+
+**成果**: idp-golden-path / terraform-hannibal / ticket-c2c-platform の 3 リポジトリ同一構成に横展開し、ラベルを 11 回連続で付け外しする実地検証（3 リポジトリ合計 47 run）で CANCELLED 0 件を確認。required check の一時 `expected` 化が解消
+
+**学び**: required status check の判定は同名 check run の履歴全体を評価対象にするため、concurrency による run の cancel が「軽量ジョブでも」マージブロックの原因になり得る。concurrency は `cancel-in-progress` だけでなく `queue` の挙動まで含めて、ジョブが冪等か（古い run を捨ててよいか）で選ぶ
