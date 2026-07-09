@@ -1,0 +1,30 @@
+# Backstage Software Catalog の Component 定義（source of truth）。
+#
+# idp-golden-path が GitHub URL location（backstage/app-config.yaml の catalog.locations）
+# 経由でこのファイルを取り込む。所有権はこのリポジトリ側にあり、
+# メタデータの変更はこのリポジトリの通常の PR レビューを通る。
+# 経緯: https://github.com/kmryst/idp-golden-path/issues/91
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: terraform-hannibal
+  description: >-
+    Terraform / AWS / GitHub Actions による ECS Fargate 基盤と
+    Issue → PR → CI の変更管理ガードレールを構築した IaC ポートフォリオ
+  annotations:
+    github.com/project-slug: kmryst/terraform-hannibal
+  links:
+    - url: https://github.com/kmryst/terraform-hannibal
+      title: GitHub Repository
+    - url: https://zenn.dev/kmryst
+      title: Zenn (技術記事)
+  tags:
+    - terraform
+    - aws
+    - ecs
+    - github-actions
+spec:
+  type: infrastructure
+  lifecycle: production
+  owner: platform
+  system: kmryst-portfolio
