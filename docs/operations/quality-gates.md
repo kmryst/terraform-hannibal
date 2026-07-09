@@ -97,6 +97,13 @@ docker buildx imagetools inspect ghcr.io/hadolint/hadolint:v2.14.0
 - `pr-check.yml` は PR 番号単位の workflow concurrency で古い heavy CI run をキャンセルする
 - `pr-policy-check.yml` と `pr-commitlint.yml` も PR 番号単位の concurrency を持つが、workflow を分けることで label 変更時の `PR Policy Check` 更新が `Commitlint` を巻き込んでキャンセルしない
 
+`pr-policy-check.yml` の concurrency は `cancel-in-progress: false` かつ `queue: max` とします。
+
+- `cancel-in-progress: false`: 実行中 run を cancel すると CANCELLED check run が commit に残り、required status check の判定に混入して PR を恒久ブロックし得るため cancel しない（Issue #438）
+- `queue: max`: concurrency のデフォルト（`queue: single`）は pending run を 1 つしか保持しないため、PR 作成 helper のラベル連続付与で `pull_request.labeled` が連発すると古い pending run が cancel され、required check が一時的に `expected`（未充足）扱いになる。`queue: max` は pending run を cancel せず FIFO で順次実行させることでこれを防ぐ（Issue #485 / PR #486）
+- `queue: max` は `cancel-in-progress: false` とのみ併用でき、`cancel-in-progress: true` との併用は validation error になる。したがって heavy CI を新 SHA で上書きするために `cancel-in-progress: true` を使う `pr-check.yml` には `queue: max` を付けない
+- 検証: idp-golden-path / terraform-hannibal / ticket-c2c-platform の同一構成 3 リポジトリでラベルを 11 回連続付け外しし、3 リポジトリ合計 47 run で CANCELLED 0 件を確認した
+
 required status check の context 名は既存の branch protection と互換にするため、次を維持します。
 
 `PR Policy Check` / `Commitlint` / `Backend Lint & Build` / `Frontend Build` / `Terraform Format & Validate` / `TFLint` / `Gitleaks Secret Scan`
