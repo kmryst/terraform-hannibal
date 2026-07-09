@@ -13,6 +13,10 @@ concurrency:
   # 実行中 run のキャンセルは CANCELLED check run を commit に残し、
   # required status checks の判定に混入して PR を恒久的にブロックする（Issue #438）。
   cancel-in-progress: false
+  # デフォルト（queue: single）は pending run を1つしか保持せず、labeled/unlabeled 連発時に
+  # 古い pending run が cancel されて required check が一時的に expected 扱いになるため、
+  # pending run を cancel せず FIFO で順次実行する（Issue #485）。
+  queue: max
 
 jobs:
   pr-policy-check:
