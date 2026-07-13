@@ -42,6 +42,18 @@ lerna-debug.log*
 *.tfvars
 *.tfvars.json
 
+# Terraform state（リモートstateバックエンドを使うため、ローカルにstateファイルが
+# 生成されるのは異常系のみだが、誤コミットを防ぐため明示的に除外する。Issue #507）
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
 # Build analysis
 stats.html
 .github_all_files.txt
