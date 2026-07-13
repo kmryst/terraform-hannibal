@@ -1,0 +1,29 @@
+# Markdown Lint
+# 目的: ドキュメントの品質を required status check として担保する
+# 実体は kmryst/idp-golden-path の reusable workflow（ADR-0008）。
+# このファイルはトリガー・permissions・concurrency のみを持つ薄い caller workflow
+
+name: Markdown Lint
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  # idp-golden-path 側の reusable workflow 自身も同名パターンの concurrency group
+  # （markdown-lint-<PR番号>）を持つため、caller 側と同一名にすると
+  # 「top level workflow と呼び出し先の間でデッドロック」として GitHub にキャンセルされる
+  # （ticket-c2c-platform#294 / idp-golden-path#106参照）。caller 側は `-caller` を付けて衝突を避ける。
+  group: markdown-lint-caller-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  # caller job には name を付けない。job id（markdown-lint）にフォールバックさせることで、
+  # callee側 job 名（Markdown Lint）との文字列重複を避ける（idp-golden-path#106参照）。
+  markdown-lint:
+    uses: kmryst/idp-golden-path/.github/workflows/markdown-lint.yml@v1
+    permissions:
+      contents: read

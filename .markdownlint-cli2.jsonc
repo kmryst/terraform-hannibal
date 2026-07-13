@@ -1,0 +1,29 @@
+{
+  // Markdown lint 設定の正本。CI (markdown-lint.yml) とローカル (npm run lint:md) で共用する。
+  "config": {
+    "default": true,
+    // 日本語の長文・表・URL で行長制限は実用的でないため無効化
+    "MD013": false,
+    // <details> などの inline HTML はテンプレートで使用する
+    "MD033": false,
+    // 先頭見出し以外から始まるテンプレート断片を許容する
+    "MD041": false,
+    // ADR で同名見出し（ステータス/日付など）を繰り返すため兄弟間の重複のみ許容
+    "MD024": { "siblings_only": true },
+    // 全角文字（日本語）を含むテーブルは、桁位置ベースの pipe 整列ヒューリスティックと
+    // 相性が悪く誤検知するため無効化（MD013 を無効化している理由と同じ）
+    "MD060": false
+  },
+  "globs": ["**/*.md"],
+  "ignores": [
+    "node_modules/**",
+    "client/node_modules/**",
+    "client/dist/**",
+    "dist/**",
+    // CLAUDE.mdが明記する通り、各ツール向けの補助ルールでありClaude Codeの正本にしない
+    // ファイル群。ドキュメント品質ゲートのスコープ外とする
+    ".amazonq/**",
+    ".github/copilot-instructions.md",
+    ".cursor/**"
+  ]
+}

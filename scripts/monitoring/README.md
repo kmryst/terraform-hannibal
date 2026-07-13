@@ -23,6 +23,7 @@
 ### 監視項目
 
 #### Status Mode
+
 - CodeDeployアプリケーション状態
 - ECSサービス状態  
 - Blue/Green環境健全性
@@ -30,19 +31,21 @@
 - アプリケーションURL
 
 #### Monitor Mode
+
 - **15秒間隔**リアルタイム監視
 - 環境健全性変化
 - トラフィック切り替え監視
 - ECSデプロイメント進行状況
 
 #### Summary Mode
+
 - デプロイ結果サマリー
 - 最終的な環境状態
 - アクティブ環境判定
 
 ### 企業レベル監視体系
 
-```
+```text
 ┌─ CloudWatch Dashboards (常時監視)
 ├─ CloudWatch Alarms (自動アラート)  
 ├─ deployment-monitor.ps1 (手動確認)
@@ -52,6 +55,7 @@
 ### 使用例
 
 #### デプロイフロー
+
 ```powershell
 # 1. デプロイ前状態確認
 .\deployment-monitor.ps1 -Mode Status
@@ -67,7 +71,8 @@
 ```
 
 #### Blue/Green切り替え確認
-```
+
+```text
 🔵 Blue Environment: 2 healthy
 🟢 Green Environment: 0 healthy  
 🎯 Active Environment: Blue
@@ -88,6 +93,7 @@
 ### 旧スクリプト (非推奨)
 
 以下は統合により不要:
+
 - ~~`codedeploy-status.ps1`~~
 - ~~`blue-green-status.ps1`~~  
 - ~~`blue-green-monitor.ps1`~~
@@ -95,6 +101,7 @@
 ### CloudWatch統合 (推奨)
 
 企業レベルでは以下も併用:
+
 - **CloudWatch Dashboard**: ECS/ALB/CodeDeployメトリクス
 - **CloudWatch Alarms**: 自動アラート・ロールバック
 - **SNS通知**: Slack/Teams連携

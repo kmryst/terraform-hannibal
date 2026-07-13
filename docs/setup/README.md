@@ -26,7 +26,7 @@ aws s3api put-bucket-versioning \
 
 ### 1-2. Backend設定確認
 
-```
+```text
 terraform/
 ├── foundation/   # 基盤（IAM/OIDC/Athena等）
 ├── network/      # VPC・subnet・Security Group
@@ -36,6 +36,7 @@ terraform/
 ```
 
 各 root module の `backend.tf` 例（`terraform/service/backend.tf`）:
+
 ```hcl
 terraform {
   backend "s3" {
@@ -107,6 +108,7 @@ terraform apply
 ```
 
 **作成されるリソース:**
+
 - `aws_iam_openid_connect_provider` — GitHub Actions OIDC プロバイダー
 - `HannibalDeveloperRole-Dev` — 日常開発・アプリ運用用 Role
 - `HannibalCICDRole-Dev` — deploy/destroy workflow 用 Role（OIDC trust）
@@ -145,7 +147,7 @@ AWS 認証は OIDC のため、**長期 Access Key の登録は不要**です。
 
 GitHub Actions の deploy workflow を手動実行します。
 
-```
+```text
 Workflow: deploy.yml
 Inputs:
   - deployment_mode: provisioning
@@ -156,7 +158,8 @@ Inputs:
 `deploy.yml` は PR gate 通過済みの `main` から手動実行する前提です。backend/frontend の build・test は `pr-check.yml` に委譲し、deploy workflow では再実行しません。
 
 **デプロイフロー:**
-```
+
+```text
 1. Terraform Apply (VPC/ECS/RDS/ALB/CloudFront作成)
    ↓
 2. Docker Build + ECR Push
@@ -169,6 +172,7 @@ Inputs:
 ```
 
 **デプロイ確認:**
+
 ```bash
 # ALB ターゲットヘルス確認
 aws elbv2 describe-target-health --target-group-arn <ARN>

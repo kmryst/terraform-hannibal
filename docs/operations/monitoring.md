@@ -57,11 +57,13 @@ graph TB
 CloudTrailログからCI/CD権限の実際の使用状況を分析し、最小権限の原則に基づいた権限最適化を実施します。
 
 ### **分析例（2025年7月27日時点）**
+
 - **分析時点のポリシー**: 160権限
 - **実際に使用**: **76個の権限**（2025年7月27日15-20時JST分析）
 - この分析を起点に最小権限化を進め、#164 / #293 で設計を確定済み
 
 ### **企業レベル分析手順**
+
 ```bash
 # 1. パーティション対応テーブル作成（Named Query使用）
 aws athena start-query-execution \
@@ -92,7 +94,9 @@ aws athena get-query-results --query-execution-id [QueryExecutionId] --output ta
 ```
 
 ### **Professional設計での管理**
+
 **作成済みリソース（Terraform管理）：**
+
 - ✅ `hannibal-cloudtrail-analysis`ワークグループ（暗号化・コスト制御）
 - ✅ `hannibal_cloudtrail_db`データベース
 - ✅ `create-partitioned-cloudtrail-table`Named Query（パーティション対応テーブル作成）
@@ -101,6 +105,7 @@ aws athena get-query-results --query-execution-id [QueryExecutionId] --output ta
 - ✅ `analyze-hannibal-cicd-errors`Named Query（エラー分析・セキュリティ監査）
 
 **管理方針：**
+
 - **Terraform管理継続**: 設定変更をコード化
 - **削除防止**: `prevent_destroy = true`で保護
 - **基盤リソース**: `terraform/foundation/athena.tf`で管理
@@ -149,6 +154,7 @@ PR では `terraform/foundation` の `terraform fmt -check` と `terraform valid
 - SNS 確認メールを承認し、subscription が `PendingConfirmation` ではない
 
 ### Athena分析クエリ
+
 ```sql
 -- CI/CD権限使用状況分析
 SELECT 
@@ -170,6 +176,7 @@ ORDER BY usage_count DESC
 ```
 
 ### 監査ログ保持ポリシー
+
 - **CloudTrail**: 永続保存（コンプライアンス要件）
 - **CloudWatch Logs**: 90日間保持（即時検知・初動調査用）
 - **Athena結果**: 分析用に1年間保持
@@ -197,11 +204,13 @@ SLO の数値目標は [slo.md](./slo.md) を正本とする。
 ## 🚀 CI/CDパイプライン詳細
 
 ### GitHub Actions ワークフロー
+
 1. **PR gate (`pr-check.yml`)**: backend/frontend の build・unit test、Docker build、Terraform check、secret scan を merge 前に確認
 2. **Deploy (`deploy.yml`)**: PR gate 通過済みの `main` を手動実行し、Terraform apply、frontend build、ECR push、CodeDeploy を実行
 3. **Security scan (`security-scan.yml`)**: CodeQL、Trivy dependency/container scan を週次/手動実行
 
 ### デプロイメント戦略
+
 - **初期構築**: `provisioning`。Terraform apply で基盤を作成し、CodeDeploy の deployment step は実行しない
 - **Canary**: `canary`。`CodeDeployDefault.ECSCanary10Percent5Minutes` で 10% から 100% へ段階的に切り替える
 - **Blue/Green**: `bluegreen`。`CodeDeployDefault.ECSAllAtOnce` で Blue / Green target group を即時切り替えする
@@ -213,6 +222,7 @@ SLO の数値目標は [slo.md](./slo.md) を正本とする。
 現時点の監視は ALB / ECS / RDS / CodeDeploy の CloudWatch メトリクスを中心に扱う。
 
 ### データベース設計（参考）
+
 ```sql
 -- ルートデータテーブル
 CREATE TABLE routes (

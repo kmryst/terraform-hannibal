@@ -2,23 +2,30 @@
 # CodeDeploy Blue/Green for ECS Rules
 
 # q-developer-rules.yml
+
 version: 1.0
 description: >
   CodeDeploy Blue/Green デプロイメントを自動化するためのルール。
 
 # デプロイ対象の ECS Service 定義
+
 targets:
-  - name: api-service
+
+- name: api-service
     type: ECS
     cluster: nestjs-hannibal-3-cluster
     service: nestjs-hannibal-3-api-service
     taskDefinition: nestjs-hannibal-3-api-task
 
 # Blue/Green デプロイ設定
+
 blueGreen:
   deploymentConfigName: CodeDeployDefault.ECSAllAtOnce
-  # Bake time を指定したい場合は下記を有効化
-  # deploymentConfigName: CustomConfigWithBakeTime
+
+# Bake time を指定したい場合は下記を有効化
+
+# deploymentConfigName: CustomConfigWithBakeTime
+
   termination:
     waitTimeInMinutes: 5
   prodTrafficRoute:
@@ -31,6 +38,7 @@ blueGreen:
       - arn:aws:elasticloadbalancing:ap-northeast-1:<account-id>:targetgroup/nestjs-hannibal-3-green-tg/def456
 
 # デプロイフェーズごとのコマンド
+
 phases:
   BeforeInstall:
     - echo "準備フェーズ：新しいタスク定義の登録を準備"
@@ -47,6 +55,7 @@ phases:
     - echo "プロダクショントラフィックへ切り替え完了"
 
 # IAM 権限定義（最小限）
+
 iam:
   assumeRole:
     RoleArn: arn:aws:iam::<account-id>:role/HannibalCICDRole-Dev
@@ -91,6 +100,7 @@ iam:
       Resource: arn:aws:sns:ap-northeast-1:<account-id>:nestjs-hannibal-3-alerts
 
 # Terraform 実装設定
+
 terraform:
   load_balancer_info:
     # ECS Blue/Green デプロイメント用の正しい構文
@@ -130,6 +140,7 @@ terraform:
     service_name: "nestjs-hannibal-3-api-service"
 
 # モニタリング & ログ
+
 monitoring:
   successThreshold: 1
   failureThreshold: 1
@@ -148,6 +159,7 @@ monitoring:
     stream: blue-green-deploy
 
 # 通知設定
+
 notifications:
   onSuccess:
     - sns: arn:aws:sns:ap-northeast-1:<account-id>:nestjs-hannibal-3-alerts

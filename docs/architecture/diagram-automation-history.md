@@ -61,9 +61,9 @@ The original intent appears to have been:
 2. Run a Diagrams-based script to generate an AWS architecture diagram.
 3. Commit the generated artifact back to the repository automatically.
 
-1. GitHub Actions 上で Python と Graphviz をセットアップする。
-2. Diagrams ベースのスクリプトを実行して AWS 構成図を生成する。
-3. 生成物をリポジトリへ自動コミットして戻す。
+4. GitHub Actions 上で Python と Graphviz をセットアップする。
+5. Diagrams ベースのスクリプトを実行して AWS 構成図を生成する。
+6. 生成物をリポジトリへ自動コミットして戻す。
 
 That idea is still reasonable, but it should be rebuilt against the current `scripts/diagrams/` structure rather than restored as-is.
 
@@ -83,6 +83,6 @@ Suggested steps:
 2. Make `scripts/diagrams/generate_aws_diagram.py` write that file deterministically.
 3. Reintroduce a workflow only after the script path, output path, and commit target are aligned.
 
-1. README で参照する正本の出力ファイルを決める。
-2. `scripts/diagrams/generate_aws_diagram.py` がそのファイルを決定的に出力するようにする。
-3. スクリプトの場所、出力先、コミット対象が揃ってから Workflow を再導入する。
+4. README で参照する正本の出力ファイルを決める。
+5. `scripts/diagrams/generate_aws_diagram.py` がそのファイルを決定的に出力するようにする。
+6. スクリプトの場所、出力先、コミット対象が揃ってから Workflow を再導入する。
