@@ -47,7 +47,8 @@ Node.js は `>=24 <25` を application runtime / CI / container の support cont
 | `multer@2.2.0` | `@nestjs/platform-express` のexact dependency | file uploadは未使用。advisoryと上流更新を追跡する（Issue #514でDoS脆弱性2件を解消） |
 | `cors@2.8.6` | `@nestjs/platform-express` のexact dependency | direct dependencyにせず、preflightをE2Eで確認する |
 | `lodash@4.18.1` | Nest Config / GraphQLの上流依存 | advisory解消版であることをauditで確認する |
-| `graphql-ws@6.0.8` / `ws@8.20.1` | Nest GraphQLの上流依存 | subscriptions未使用。advisoryと上流更新を追跡する |
+| `graphql-ws@6.0.8` / `ws@8.21.0`（`package.json` の `overrides` で固定） | Nest GraphQLの上流依存 | subscriptions未使用。`@nestjs/graphql@13.4.2` は `ws@8.20.1`（脆弱、GHSA-96hv-2xvq-fx4p）を厳密ピン留めしており、13.4.2が現時点で最新の安定版のため上流修正待ちができない。`overrides` で `@nestjs/graphql` 配下の `ws` のみ `8.21.0`（パッチ済み）に固定する（Issue #515）。`@nestjs/graphql` のバージョン自体は変更しない |
+| `subscriptions-transport-ws@0.11.0` / `ws@7.5.11` | `@nestjs/graphql` の推移的依存 | `ws@^7` のみ対応（8.x非対応）のため、上記 `ws` overrideの対象から明示的に除外し `7.5.11`（既にパッチ済み）に固定する。ネストした `overrides` の書き方は `package.json` を参照 |
 | `glob@10.5.0` | TypeORM `^10.5.0`から解決 | deprecated warningをTypeORM 1評価時に再確認する |
 
 ## Known Peer Warning Allowlist
