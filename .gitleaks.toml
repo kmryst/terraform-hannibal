@@ -23,3 +23,26 @@ paths = [
   '''terraform/frontend/terraform\.tfstate''',
   '''terraform/frontend/terraform\.tfstate\.backup''',
 ]
+
+[[allowlists]]
+description = """
+以下3件はいずれも実害なしと確認済みだが、gitleaksのパターンには
+一致し続けるため allowlist しないと将来のスキャンも毎回検出し続ける
+（実害なし = CIが通る、ではないため。Issue #505調査時に精査）。
+
+- .github/workflows/deploy.yml: aws-access-tokenルールが誤検知。
+  実際の内容はハードコードされた認証情報ではなく
+  `${{ secrets.AWS_ACCESS_KEY_ID }}` / `${{ secrets.AWS_SECRET_ACCESS_KEY }}`
+  というGitHub Actions secrets参照のみ。値の実体はコミットされていない
+- client/src/services/mapSetup.ts: Mapboxのpublicトークン（pk.プレフィックス）。
+  Mapbox publicトークンはフロントエンドバンドルへの埋め込みが正規の使い方で、
+  Mapbox側のドメイン制限と併用する設計。秘匿すべきsecretトークン（sk.）ではない
+- README.md: NestJSがプロジェクト生成時に自動生成する標準ボイラープレートの
+  CircleCIビルドステータスバッジ用URL（nestjs/nest本体向け、本リポジトリの
+  認証情報ではない）。公開バッジ表示のために設計された非機密の値
+"""
+paths = [
+  '''\.github/workflows/deploy\.yml''',
+  '''client/src/services/mapSetup\.ts''',
+  '''README\.md''',
+]
