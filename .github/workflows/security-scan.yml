@@ -36,7 +36,7 @@ jobs:
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH"
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4.36.3
+        uses: github/codeql-action/upload-sarif@v4.37.0
         if: always()
         with:
           sarif_file: "trivy-results.sarif"
@@ -66,7 +66,7 @@ jobs:
           output: "trivy-container-results.sarif"
           severity: "CRITICAL,HIGH"
       - name: Upload Trivy container results
-        uses: github/codeql-action/upload-sarif@v4.36.3
+        uses: github/codeql-action/upload-sarif@v4.37.0
         if: always()
         with:
           sarif_file: "trivy-container-results.sarif"
@@ -80,13 +80,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.0
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4.36.3
+        uses: github/codeql-action/init@v4.37.0
         with:
           languages: javascript-typescript
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v4.36.3
+        uses: github/codeql-action/autobuild@v4.37.0
       - name: Analyze CodeQL
-        uses: github/codeql-action/analyze@v4.36.3
+        uses: github/codeql-action/analyze@v4.37.0
   summary:
     name: Security Scan Summary
     runs-on: ubuntu-latest
