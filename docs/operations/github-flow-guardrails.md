@@ -4,6 +4,24 @@
 
 運用ルールの正本は [CONTRIBUTING.md](../../CONTRIBUTING.md) です。この文書では、採用方針の理由、未採用案、将来の再検討条件を補足します。
 
+## 3 リポジトリ間の位置づけ
+
+時系列では、`terraform-hannibal` は `idp-golden-path` より先に作られた実証リポジトリです。
+ただし現在の方針としては、`terraform-hannibal` / `ticket-c2c-platform` で実証した Issue / PR 駆動、AI Agent 運用、CI ガードレール、ADR 運用を `idp-golden-path` が golden path として抽象化し、3 リポジトリをその型へ収束させていきます。
+
+そのため、このリポジトリの GitHub Flow も、単独のローカルルールではなく、`idp-golden-path` が配布・標準化するリポジトリ運用ガードレールへ収束させる対象として扱います。
+Terraform / AWS / SRE 実践としての固有判断はこのリポジトリに残し、横断的な運用ルールは golden path 側へ寄せます。
+
+## 現時点の技術的な未収束点
+
+2026-07-13 時点では、方針と docs は `idp-golden-path` の型へ寄せていますが、技術実装はまだ完全には収束していません。
+
+- PR Policy Check / Commitlint / Gitleaks / Sync Labels は、`idp-golden-path` の reusable workflow を `@v1` で消費する薄い caller workflow ではなく、このリポジトリ内のローカル workflow として残っている。
+- required status check 名も、`idp-golden-path` の service baseline skeleton が想定する `PR Policy Check / PR Policy Check` などの合成名ではなく、既存の単体名を前提としている。
+- Markdown Lint / Issue Template Check など、service baseline skeleton が持つ共通 CI ガードレールは未導入または未整合である。導入や required 化は、運用負荷を見て別 Issue で判断する。
+- helper scripts は共通化途上であり、`idp-golden-path` の `scripts/github/lib/common.sh` 形式には揃っていない。
+- Terraform plan / apply / destroy、TFLint、Trivy Config Scan などの Terraform / AWS 固有 workflow は、このリポジトリ固有の責務として残す。
+
 ## 目的
 
 - `Issue -> Branch -> PR -> Merge` を推奨ではなくガードレールで支える
