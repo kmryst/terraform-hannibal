@@ -1,0 +1,48 @@
+# Dependency Audit
+# 目的: 依存関係の既知脆弱性（CVE）を PR / スケジュールで継続的に検出する
+# 実体は kmryst/idp-golden-path の reusable workflow（ADR-0008）。
+# このファイルはトリガー・permissions・concurrency のみを持つ薄い caller workflow
+#
+# 本リポジトリは npm workspaces を使わず、root（package-lock.json）と
+# client/（client/package-lock.json）が独立した2つのnpmプロジェクトのため、
+# working-directory を変えて2 job呼び出す（idp-golden-path#110参照）
+
+name: Dependency Audit
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    # 毎週月曜 00:45 UTC / 09:45 JST。他のスケジュール実行と時間をずらす。
+    - cron: "45 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # idp-golden-path 側の reusable workflow 自身も同名パターンの concurrency group
+  # （dependency-audit-<PR番号>）を持つため、caller 側と同一名にすると
+  # 「top level workflow と呼び出し先の間でデッドロック」として GitHub にキャンセルされる
+  # （ticket-c2c-platform#294 / idp-golden-path#106参照）。caller 側は `-caller` を付けて衝突を避ける。
+  group: dependency-audit-caller-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  # caller job には name を付けない。job idにフォールバックさせることで、
+  # callee側 job 名（Dependency Audit）との文字列重複を避ける（idp-golden-path#106参照）。
+  root:
+    uses: kmryst/idp-golden-path/.github/workflows/dependency-audit.yml@v1
+    with:
+      package-manager: npm
+      working-directory: .
+    permissions:
+      contents: read
+
+  client:
+    uses: kmryst/idp-golden-path/.github/workflows/dependency-audit.yml@v1
+    with:
+      package-manager: npm
+      working-directory: client
+    permissions:
+      contents: read

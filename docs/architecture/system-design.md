@@ -1,17 +1,20 @@
 # System Design
 
 ## 概要
+
 ハンニバルのアルプス越えルートを可視化するWebアプリケーションのシステム設計書
 
 ## アーキテクチャパターン
 
 ### 3層アーキテクチャ
+
 - **Presentation Layer**: React + TypeScript フロントエンド
 - **Application Layer**: NestJS + GraphQL API
 - **Data Layer**: PostgreSQL + 地理データ
 
 ### マイクロサービス指向設計
-```
+
+```text
 Frontend (React) → API Gateway (ALB) → Backend (ECS) → Database (RDS)
                                     ↓
                               Static Assets (S3 + CloudFront)
@@ -20,6 +23,7 @@ Frontend (React) → API Gateway (ALB) → Backend (ECS) → Database (RDS)
 ## コンポーネント設計
 
 ### フロントエンド（実装済み）
+
 ```typescript
 client/src/
 ├── components/          # React コンポーネント
@@ -31,6 +35,7 @@ client/src/
 ```
 
 ### バックエンド（実装済み）
+
 ```typescript
 src/
 ├── modules/            # 機能別モジュール
@@ -45,18 +50,21 @@ src/
 ```
 
 **実装されていない機能:**
+
 - 認証・認可（Auth0/Cognito）- 将来実装予定
 - ガード/インターセプター - 必要に応じて実装予定
 
 ## データフロー
 
 ### リクエストフロー
+
 1. **ユーザーリクエスト** → CloudFront
 2. **静的コンテンツ** → S3から配信
 3. **APIリクエスト** → ALB → ECS
 4. **データクエリ** → RDS PostgreSQL
 
 ### GraphQLスキーマ設計（実装済み）
+
 ```graphql
 type Route {
   id: ID!
@@ -78,6 +86,7 @@ type Query {
 ```
 
 **データモデルの特徴:**
+
 - **JSONB形式**: 座標データをPostgreSQLのJSONB型で保存
 - **GraphQL Code First**: TypeScriptデコレータから自動生成
 - **GeoJSON対応**: フロントエンドのMapbox GL JSと連携
@@ -85,16 +94,19 @@ type Query {
 ## スケーラビリティ設計
 
 ### 水平スケーリング（実装済み）
+
 - **ECS Fargate**: 0.25vCPU / 0.5GB メモリ（コスト最適化構成）
 - **RDS**: PostgreSQL 15 - db.t3.micro（Single-AZ、コスト重視）
 - **CloudFront**: グローバルCDN配信
 
 ### パフォーマンス最適化（実装済み）
+
 - **GraphQL**: 必要なデータのみ取得（Apollo Client）
 - **JSONB型**: PostgreSQLネイティブJSON処理
 - **CloudFront キャッシュ**: 静的コンテンツ配信
 
 ### 将来実装予定
+
 - **Auto Scaling**: ECS Fargate の自動スケーリング
 - **RDS Read Replica**: 読み取り負荷分散
 - **Redis キャッシュ**: セッション・クエリキャッシュ
@@ -103,16 +115,19 @@ type Query {
 ## 可用性設計
 
 ### dev構成
+
 - **ECS**: 複数AZの app subnet に配置可能だが、停止運用とコスト最適化を優先して desired count は小さく保つ
 - **RDS**: db.t3.micro / Single-AZ（コスト重視）
 - **ALB**: 複数AZの public subnet でロードバランシング
 
 ### prod相当へ拡張する場合
+
 - **ECS**: 複数AZでタスクを冗長化し、必要に応じて Auto Scaling を有効化
 - **RDS**: 実メトリクスを見て instance class 引き上げや Multi-AZ 配置を検討
 - **ALB**: 複数AZでロードバランシング
 
 ### 障害対応
+
 - **ヘルスチェック**: ALB → ECS
 - **自動復旧**: ECS Service自動再起動
 - **監視**: CloudWatch + アラート
@@ -120,11 +135,13 @@ type Query {
 ## セキュリティ設計
 
 ### ネットワークセキュリティ
+
 - **VPC**: プライベートネットワーク
 - **セキュリティグループ**: 最小権限原則
 - **WAF**: CloudFront保護（将来実装）
 
 ### アプリケーションセキュリティ
+
 - **HTTPS**: 全通信暗号化
 - **CORS**: 適切なオリジン制限
 - **入力検証**: GraphQL + class-validator
@@ -132,6 +149,7 @@ type Query {
 ## 運用設計（実装済み）
 
 ### CI/CD
+
 - **GitHub Actions**: 3モード対応（Provisioning / Blue-Green / Canary）
 - **Blue/Green Deployment**: 約5分で無停止切替
 - **Canary Deployment**: 10% → 100% 段階的配信
@@ -139,17 +157,20 @@ type Query {
 - **Terraform State管理**: S3 backend + S3 lockfile
 
 ### セキュリティ（実装済み）
+
 - **PR品質ゲート**: TFLint (Terraform lint) / Trivy Config (IaC security) / Gitleaks (Secrets)
 - **週次/手動セキュリティスキャン**: CodeQL (SAST) / Trivy (SCA・コンテナ)
 - **GitHub Security統合**: SARIF対応スキャン結果を一元管理
 
 ### 監視・ログ（実装済み）
+
 - **CloudWatch Logs**: ECS タスクログ
 - **CloudWatch Metrics**: ECS/RDS/ALB メトリクス
 - **Health Check**: ALB → ECS (5回成功で正常判定)
 - **CloudTrail**: 全API呼び出しを90日間保持
 
 ### 将来実装予定
+
 - **X-Ray**: 分散トレーシング
 - **CloudWatch Anomaly Detection**: 異常検知
 - **カスタムメトリクス**: ビジネスKPI監視
@@ -157,12 +178,14 @@ type Query {
 ## 技術的負債管理
 
 ### コード品質
+
 - **TypeScript**: 型安全性
 - **ESLint/Prettier**: コード規約
 - **Jest**: 単体・統合テスト
 - **TFLint / Trivy Config / Gitleaks**: Terraform lint、IaC security、secret scan
 
 ### 依存関係管理
+
 - **Renovate**: 自動依存関係更新
 - **セキュリティスキャン**: 脆弱性検出
 - **ライセンス管理**: 適切なライセンス使用
@@ -170,6 +193,7 @@ type Query {
 ## コスト最適化（実装済み）
 
 ### 停止運用による大幅削減
+
 - **通常稼働時**: 月額 $30-50
   - ECS Fargate: 0.25vCPU / 0.5GB ($15-20)
   - RDS db.t3.micro ($10-15)
@@ -182,12 +206,14 @@ type Query {
   - 基盤リソース ($1-2)
 
 ### 起動/停止の自動化
+
 - **起動**: GitHub Actions (deploy.yml - provisioning モード、約15分)
 - **停止**: GitHub Actions (destroy.yml - ワンクリック破棄)
 
 ## 将来拡張計画
 
 ### 機能拡張
+
 - **ユーザー認証**: Auth0/Cognito導入
 - **リアルタイム**: WebSocket対応
 - **多言語対応**: i18n実装
@@ -195,6 +221,7 @@ type Query {
 - **Redis キャッシュ**: セッション・クエリキャッシュ
 
 ### インフラ拡張
+
 - **Auto Scaling**: ECS Fargate 自動スケーリング
 - **Multi-AZ**: RDS Multi-AZ配置
 - **WAF**: CloudFront + ALB 保護

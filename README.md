@@ -96,7 +96,7 @@ IAM / OIDC / Permission Boundary の詳細は [IAM Management](./docs/operations
 
 - デモURL: [hamilcar-hannibal.click](https://hamilcar-hannibal.click)（通常停止中）
 
-**アプリ画面（停止中のため参考スクリーンショット）**
+### アプリ画面（停止中のため参考スクリーンショット）
 
 <div align="center">
   <img src="docs/screenshots/hannibal-route.png" alt="Hannibal Route Visualization" width="600">

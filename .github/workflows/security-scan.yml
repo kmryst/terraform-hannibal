@@ -1,5 +1,8 @@
 # セキュリティスキャン統合ワークフロー
-# 目的: 依存関係、コンテナ、コード、IaC、シークレットの脆弱性を一元管理
+# 目的: 依存関係、コンテナの脆弱性を一元管理
+# コードの脆弱性（CodeQL javascript-typescript）は .github/workflows/codeql.yml に一本化した
+# （idp-golden-pathのreusable workflow経由でPR/pushごとに実行。Issue #510）。
+# 本ファイルにあった sast-scan job（週次のみ実行、PR非トリガー）は重複のため削除した。
 
 name: Security Scan
 on:
@@ -70,23 +73,6 @@ jobs:
         if: always()
         with:
           sarif_file: "trivy-container-results.sarif"
-  sast-scan:
-    name: Static Application Security Testing
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-    steps:
-      - uses: actions/checkout@v7.0.0
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4.37.0
-        with:
-          languages: javascript-typescript
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v4.37.0
-      - name: Analyze CodeQL
-        uses: github/codeql-action/analyze@v4.37.0
   summary:
     name: Security Scan Summary
     runs-on: ubuntu-latest
@@ -94,7 +80,6 @@ jobs:
     needs:
       - dependency-scan
       - container-scan
-      - sast-scan
     if: always()
     steps:
       - name: Check scan results
@@ -102,5 +87,5 @@ jobs:
           echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
           echo "- Dependency Scan: ${{ needs.dependency-scan.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Container Scan: ${{ needs.container-scan.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- SAST Scan: ${{ needs.sast-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- SAST Scan (CodeQL javascript-typescript): .github/workflows/codeql.yml を参照" >> $GITHUB_STEP_SUMMARY
           echo "詳細は [Security > Code scanning alerts](../../security/code-scanning) を確認" >> $GITHUB_STEP_SUMMARY

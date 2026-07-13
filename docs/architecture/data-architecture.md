@@ -1,6 +1,7 @@
 # Data Architecture
 
 ## データアーキテクチャ概要
+
 ハンニバルのアルプス越えルートデータを効率的に管理・配信するためのデータ設計
 
 ## データモデル設計（実装済み）
@@ -36,6 +37,7 @@ export class Route {
 ```
 
 **PostgreSQL テーブル定義:**
+
 ```sql
 CREATE TABLE routes (
     id SERIAL PRIMARY KEY,
@@ -146,6 +148,7 @@ export class RouteResolver {
 ## データフロー設計
 
 ### リアルタイムデータフロー
+
 ```mermaid
 graph TD
     A[Frontend Map Component] --> B[GraphQL Query]
@@ -161,6 +164,7 @@ graph TD
 ```
 
 ### バッチデータ処理
+
 ```mermaid
 graph LR
     A[Historical Data Sources] --> B[ETL Pipeline]
@@ -176,6 +180,7 @@ graph LR
 座標は `@Column('jsonb')` で保持し、`find()` / `findOne()` による全件取得・ID 検索で参照する。現状は JSONB operator（`@>`、`jsonb_array_length()` 等）は使っていない。
 
 **実装済みクエリ（TypeORM）:**
+
 ```typescript
 // 全件取得
 this.routeRepository.find();
@@ -185,6 +190,7 @@ this.routeRepository.findOne({ where: { id } });
 ```
 
 **座標検索が要件化した場合の候補（未実装）:**
+
 ```sql
 -- JSONB operator による座標検索
 SELECT id, name, 
@@ -244,11 +250,13 @@ export class RouteService {
 ## スコープ外とした最適化
 
 ### PostGIS拡張機能（スコープ外・未実装）
+
 - 空間インデックス（GIST/GIN）
 - 地理的範囲検索（ST_Within、ST_DWithin）
 - ルート計算（ST_Length、ST_Distance）
 
 ### スコープ外とする理由
+
 - 現在のデータ量では不要（ルート数が少ない）
 - JSONB型で十分なパフォーマンス
 - 本プロジェクトの規模では採用しない。地理的範囲検索・距離計算が機能要件化したときに初めて再検討するが、demo / portfolio 用途でその要件が発生する想定はない。判断の正本は [ADR 0016](../adr/0016-adopt-rds-postgresql-jsonb-over-aurora-and-postgis.md)
@@ -258,6 +266,7 @@ export class RouteService {
 ### 実装済みキャッシュ
 
 #### CloudFront CDN キャッシュ
+
 ```hcl
 # terraform/modules/cdn/cloudfront/main.tf
 resource "aws_cloudfront_distribution" "main" {
@@ -270,6 +279,7 @@ resource "aws_cloudfront_distribution" "main" {
 ```
 
 **特徴:**
+
 - 静的コンテンツ（React ビルド成果物）をグローバルキャッシュ
 - エッジロケーションでの高速配信
 - オリジン（S3/ALB）への負荷軽減
@@ -277,6 +287,7 @@ resource "aws_cloudfront_distribution" "main" {
 ### 将来実装予定のキャッシュ
 
 #### Redis キャッシュ（未実装）
+
 ```typescript
 // 将来実装予定
 @Injectable()
@@ -306,6 +317,7 @@ export class RouteService {
 ```
 
 #### DataLoader による N+1 問題解決（未実装）
+
 ```typescript
 // 将来実装予定
 @Injectable()
@@ -328,6 +340,7 @@ export class RouteLoader {
 ```
 
 ### 未実装の理由
+
 - **データ量が少ない**: ルート数が限定的（キャッシュ不要）
 - **コスト最適化**: Redis/ElastiCache の追加コストを回避
 - **シンプル設計**: PostgreSQL JSONB で十分なパフォーマンス
@@ -335,6 +348,7 @@ export class RouteLoader {
 ## データ品質管理
 
 ### バリデーション設計
+
 ```typescript
 // 座標データバリデーション
 @Entity()
@@ -360,6 +374,7 @@ export class RouteCoordinate {
 ```
 
 ### データ整合性チェック
+
 ```sql
 -- 座標順序整合性チェック
 CREATE OR REPLACE FUNCTION validate_coordinate_sequence()
@@ -387,6 +402,7 @@ CREATE TRIGGER coordinate_sequence_check
 ## パフォーマンス最適化
 
 ### データベース最適化
+
 ```sql
 -- 複合インデックス作成
 CREATE INDEX idx_route_coordinates_route_sequence 
@@ -403,6 +419,7 @@ ANALYZE routes;
 ```
 
 ### クエリ最適化
+
 ```typescript
 // DataLoader による N+1 問題解決
 @Injectable()
@@ -430,6 +447,7 @@ export class CoordinateLoader {
 ## データ移行・バックアップ
 
 ### 移行戦略
+
 ```sql
 -- 段階的データ移行
 BEGIN;
@@ -457,6 +475,7 @@ COMMIT;
 ```
 
 ### バックアップ設定
+
 ```bash
 #!/bin/bash
 # 自動バックアップスクリプト
@@ -477,6 +496,7 @@ aws s3 cp hannibal_backup_*.dump s3://nestjs-hannibal-3-backups/database/
 ## 監視・メトリクス
 
 ### データベース監視
+
 ```sql
 -- クエリパフォーマンス監視
 SELECT 
@@ -492,6 +512,7 @@ LIMIT 10;
 ```
 
 ### アプリケーションメトリクス
+
 ```typescript
 // Prometheus メトリクス
 @Injectable()

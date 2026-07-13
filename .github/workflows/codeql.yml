@@ -1,0 +1,36 @@
+# CodeQL
+# 目的: コード起因の脆弱性を SAST で検出する
+# 実体は kmryst/idp-golden-path の reusable workflow（ADR-0008）。
+# このファイルはトリガー・permissions・concurrency のみを持つ薄い caller workflow
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # 毎週月曜 00:30 UTC / 09:30 JST。security-scan.yml（00:15）と時間をずらす。
+    - cron: "30 0 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  # idp-golden-path 側の reusable workflow 自身も同名パターンの concurrency group
+  # （codeql-<PR番号>）を持つため、caller 側と同一名にすると
+  # 「top level workflow と呼び出し先の間でデッドロック」として GitHub にキャンセルされる
+  # （ticket-c2c-platform#294 / idp-golden-path#106参照）。caller 側は `-caller` を付けて衝突を避ける。
+  group: codeql-caller-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  # caller job には name を付けない。job id（analyze）にフォールバックさせることで、
+  # callee側 job 名（CodeQL Analyze (<language>)）との文字列重複を避ける（idp-golden-path#106参照）。
+  analyze:
+    uses: kmryst/idp-golden-path/.github/workflows/codeql.yml@v1
+    permissions:
+      contents: read
+      security-events: write
+      actions: read

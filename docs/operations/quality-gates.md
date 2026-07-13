@@ -29,7 +29,7 @@
 
 ### 2026-06-27 ShellCheck / Hadolint 初期導入
 
-#426 で、`scripts/**/*.sh` と `Dockerfile` の静的解析を追加しました。
+\# 426 で、`scripts/**/*.sh` と `Dockerfile` の静的解析を追加しました。
 
 - `.pre-commit-config.yaml` は ShellCheck / shfmt / Hadolint / terraform-docs を実行する
 - `pr-check.yml` は ShellCheck / Hadolint を直接実行し、検出時は job fail する
@@ -45,7 +45,7 @@ Alpine package version を固定すると、`node:24-alpine` の package reposit
 
 ### 2026-06-27 workflow Docker image pin
 
-#430 で、`pr-check.yml` の `run:` step から `docker run` している外部 Docker image を `image:tag@sha256:<digest>` 形式に固定しました。
+\# 430 で、`pr-check.yml` の `run:` step から `docker run` している外部 Docker image を `image:tag@sha256:<digest>` 形式に固定しました。
 
 対象は GitHub Actions 内で直接 pull / execute する外部 image です。`docker build` が参照する `Dockerfile` の base image（例: `FROM node:24-alpine`）は application runtime / container dependency の更新判断を伴うため、今回の対象外とし、Renovate 導入を扱う #350 で管理します。Gitleaks job の `curl -sSfL` は GitHub Releases から binary を取得する shell command であり、Docker image ではないため対象外です。
 
@@ -73,7 +73,7 @@ docker buildx imagetools inspect ghcr.io/hadolint/hadolint:v2.14.0
 
 ### 2026-06-27 mise / terraform-docs 導入
 
-#427 で、ローカル開発ツールのバージョンを `.mise.toml` に集約し、Terraform root module README を terraform-docs で生成する運用を追加しました。
+\# 427 で、ローカル開発ツールのバージョンを `.mise.toml` に集約し、Terraform root module README を terraform-docs で生成する運用を追加しました。
 
 - `mise install` で Terraform、Node.js、pre-commit、terraform-docs、TFLint を揃える
 - ローカル開発ツールの version pin は `.mise.toml` を正本とし、Terraform 用の `.terraform-version` は持たない
@@ -87,7 +87,7 @@ docker buildx imagetools inspect ghcr.io/hadolint/hadolint:v2.14.0
 
 ### 2026-06-25 PR workflow 分割
 
-#415 で、PR のラベル変更時に重い CI が重複実行されないよう、軽い policy 系 check と重い CI を別 workflow に分けました。
+\# 415 で、PR のラベル変更時に重い CI が重複実行されないよう、軽い policy 系 check と重い CI を別 workflow に分けました。
 
 - `.github/workflows/pr-policy-check.yml` は `PR Policy Check` を実行する
 - `.github/workflows/pr-commitlint.yml` は `Commitlint` を実行する
@@ -264,12 +264,12 @@ required status checks への追加は、#228 で判断しました。
 
 ## #228 required 化判断
 
-#227 は 2026年5月14日 15:25 JST にマージされました。
-#228 では、観察期間後の 2026年5月22日 JST に、false positive・実行時間・PR運用への影響を確認しました。
+\# 227 は 2026年5月14日 15:25 JST にマージされました。
+\# 228 では、観察期間後の 2026年5月22日 JST に、false positive・実行時間・PR運用への影響を確認しました。
 
 ### 実行結果
 
-#227 以降の `PR Check` workflow 実行履歴を確認した結果、対象3jobはいずれも安定して完了していました。
+\# 227 以降の `PR Check` workflow 実行履歴を確認した結果、対象3jobはいずれも安定して完了していました。
 
 | Job | 結果 | 実行時間 | 判断 |
 |---|---:|---:|---|

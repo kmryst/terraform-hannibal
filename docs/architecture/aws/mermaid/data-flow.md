@@ -55,6 +55,7 @@ graph TB
 ## 🔍 監査・分析システム
 
 ### CloudTrail設定
+
 ```json
 {
   "TrailName": "nestjs-hannibal-3-cloudtrail",
@@ -66,6 +67,7 @@ graph TB
 ```
 
 ### Athena分析クエリ
+
 ```sql
 -- CI/CD権限使用状況分析
 SELECT 
@@ -89,11 +91,13 @@ ORDER BY usage_count DESC
 ## 📈 データ処理パフォーマンス
 
 ### GraphQL最適化
+
 - **DataLoader**: N+1問題の解決
 - **Query Complexity**: 複雑なクエリの制限
 - **Caching**: Redis活用（将来実装）
 
 ### データベース設計
+
 ```sql
 -- ルートデータテーブル
 CREATE TABLE routes (
@@ -109,6 +113,7 @@ CREATE INDEX idx_routes_geojson ON routes USING GIN (geojson);
 ```
 
 ### 監査ログ保持ポリシー
+
 - **CloudTrail**: 永続保存（コンプライアンス要件）
 - **CloudWatch Logs**: 30日間保持
 - **Athena結果**: 分析用に1年間保持
@@ -116,11 +121,13 @@ CREATE INDEX idx_routes_geojson ON routes USING GIN (geojson);
 ## 🚀 CI/CDパイプライン詳細
 
 ### GitHub Actions ワークフロー
+
 1. **PR gate (`pr-check.yml`)**: backend/frontend の build・unit test、Docker build、Terraform check、secret scan を merge 前に確認
 2. **Deploy (`deploy.yml`)**: PR gate 通過済みの `main` を手動実行し、Terraform apply、frontend build、ECR push、CodeDeploy を実行
 3. **Security scan (`security-scan.yml`)**: CodeQL、Trivy dependency/container scan を週次/手動実行
 
 ### デプロイメント戦略
+
 - **初期構築**: `provisioning`
 - **通常デプロイ**: `bluegreen` または `canary`
 - **ロールバック**: CodeDeploy のヘルスチェック失敗時に自動 rollback
@@ -128,11 +135,13 @@ CREATE INDEX idx_routes_geojson ON routes USING GIN (geojson);
 ## 📊 メトリクス・監視
 
 ### アプリケーションメトリクス
+
 - **レスポンス時間**: 平均 < 200ms
 - **エラー率**: < 0.1%
 - **スループット**: 1000 req/min
 
 ### インフラメトリクス
+
 - **CPU使用率**: < 70%
 - **メモリ使用率**: < 80%
 - **ディスク使用率**: < 85%

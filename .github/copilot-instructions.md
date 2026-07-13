@@ -7,6 +7,7 @@
 **ハンニバルのアルプス越えルート可視化アプリケーション** - 本番環境を想定したAWSインフラ構築ポートフォリオ
 
 ### 技術スタック
+
 - **Frontend**: React 19 + TypeScript 5.8 + Vite + Mapbox GL JS + Apollo Client
 - **Backend**: Node.js 24 + NestJS 11 + Apollo Server 5 + TypeScript 5.2 + GraphQL (Schema First) + TypeORM
 - **Database**: PostgreSQL 15 (RDS)
@@ -14,6 +15,7 @@
 - **CI/CD**: GitHub Actions (Blue/Green & Canary Deployment)
 
 ### アーキテクチャパターン
+
 ```
 CloudFront (CDN) → ALB → ECS Fargate (Blue/Green) → RDS PostgreSQL
                     ↓
@@ -87,6 +89,7 @@ CloudFront (CDN) → ALB → ECS Fargate (Blue/Green) → RDS PostgreSQL
 ## 🏗️ プロジェクト構造（重要なアーキテクチャ決定）
 
 ### モノレポ構成（Backend + Frontend）
+
 ```
 nestjs-hannibal-3/
 ├── src/                    # NestJS Backend (GraphQL API)
@@ -157,6 +160,7 @@ nestjs-hannibal-3/
 ```
 
 **必須ラベル4種類:**
+
 - `type:*` - feature/bug/docs/infra/chore
 - `area:*` - frontend/backend/infra/ci-cd/github
 - `risk:*` - low/medium/high
@@ -219,6 +223,7 @@ npm run build
 ```
 
 **環境変数（`.env`）:**
+
 ```bash
 NODE_ENV=development
 PORT=3000
@@ -260,27 +265,33 @@ terraform state show aws_ecs_service.main
 ### 3つのデプロイモード
 
 #### 1. Provisioning（初期構築）
+
 ```bash
 # GitHub Actions: deploy.yml で選択
 deployment_mode: provisioning
 ```
+
 - **目的**: 初回環境構築（Terraform apply + Docker Push + ECS起動）
 - **所要時間**: 約15分
 - **結果**: Blue環境のみ作成、80番ポートでサービス開始
 
 #### 2. Blue/Green Deployment（無停止切替）
+
 ```bash
 deployment_mode: bluegreen
 ```
+
 - **目的**: 新バージョンを並行環境で起動 → 即座切替
 - **所要時間**: 約5分で切替完了
 - **仕組み**: CodeDeploy が Green 環境作成 → ALB Target Group 切替 → Blue 削除
 - **ロールバック**: 1分以内に旧バージョンへ復旧可能
 
 #### 3. Canary Deployment（段階的配信）
+
 ```bash
 deployment_mode: canary
 ```
+
 - **目的**: 10% → 100% の段階的トラフィック移行
 - **所要時間**: 10%で1分待機 → 100%切替で合計約7分
 - **仕組み**: CodeDeploy が 10% トラフィックで検証 → CloudWatch メトリクス確認 → 残り 90% 移行
@@ -308,6 +319,7 @@ GitHub Actions (deploy.yml)
 ```
 
 **重要ファイル:**
+
 - `appspec.yml`: CodeDeploy Hooks設定
 - `scripts/hooks/*.sh`: デプロイ前後の検証スクリプト
 - `terraform/modules/cicd/`: CodeDeploy Application/Deployment Group定義
@@ -319,6 +331,7 @@ GitHub Actions (deploy.yml)
 ### 秘密情報の絶対禁止
 
 ❌ **コミットしてはいけない情報:**
+
 - AWS Access Key / Secret Key
 - データベースパスワード（RDSはSecrets Managerで管理）
 - Mapbox API Token（環境変数で管理）
@@ -326,6 +339,7 @@ GitHub Actions (deploy.yml)
 - `terraform.tfvars`（`.gitignore`に追加済み）
 
 ✅ **正しい管理方法:**
+
 ```bash
 # 環境変数で管理
 export DATABASE_URL="postgresql://..."
@@ -338,6 +352,7 @@ aws secretsmanager get-secret-value --secret-id hannibal-db-credentials
 ### IAM最小権限の原則
 
 **IAM構成** (`terraform/foundation/iam.tf`):
+
 ```
 hannibal (IAM User)
   └─ AssumeRole → HannibalDeveloperRole-Dev (手動操作用)
@@ -352,6 +367,7 @@ hannibal-cicd (IAM User)
 ### PR品質ゲート / セキュリティスキャン
 
 **GitHub Actions**: `pr-check.yml`
+
 - **Backend/Frontend**: lint、build、unit test
 - **Docker**: image build と non-root user 確認
 - **Commitlint**: PR title と commit message の形式確認
@@ -360,10 +376,12 @@ hannibal-cicd (IAM User)
 - **Gitleaks**: Git履歴のシークレット漏洩検出
 
 **実行タイミング:**
+
 - PR作成・更新時
 - deploy workflow では backend/frontend test を再実行せず、品質保証は PR gate に一本化する
 
 **手動セキュリティスキャン**: `security-scan.yml`
+
 - **CodeQL**: ソースコード脆弱性（SAST）
 - **Trivy**: 依存関係/コンテナ脆弱性（SCA）
 
@@ -392,6 +410,7 @@ it('/graphql (POST) - query routes', () => {
 ```
 
 **テスト実行:**
+
 ```bash
 npm test              # Jest Unit Tests
 npm run test:e2e      # E2E Tests
@@ -418,23 +437,27 @@ terraform plan -out=tfplan
 ### 停止運用による大幅コスト削減
 
 **通常稼働時**: 月額 $30-50
+
 - ECS Fargate: 0.25vCPU / 0.5GB ($15-20)
 - RDS db.t3.micro: ($10-15)
 - ALB: ($18)
 - NAT Gateway: ($32)
 
 **停止時**: 月額 $5以下
+
 - S3 (Terraform State): ($1)
 - CloudTrail: ($2)
 - Route53: ($1)
 - 基盤リソース: ($1-2)
 
 **停止方法** (`terraform/foundation/billing.tf` 参照):
+
 ```bash
 # GitHub Actions: destroy.yml で実行（cdn → service → database → network の逆順）
 ```
 
 **起動方法**:
+
 ```bash
 # GitHub Actions: deploy.yml (provisioning モード)
 ```
@@ -446,6 +469,7 @@ terraform plan -out=tfplan
 ### よくある問題と解決方法
 
 #### 1. ECS Task起動失敗
+
 ```bash
 # CloudWatch Logs確認
 aws logs tail /ecs/nestjs-hannibal-3 --follow
@@ -455,6 +479,7 @@ aws logs tail /ecs/nestjs-hannibal-3 --follow
 ```
 
 #### 2. Terraform State Lock
+
 ```bash
 # S3 lockfile 残留確認
 aws s3api head-object \
@@ -466,6 +491,7 @@ terraform force-unlock <LOCK_ID>
 ```
 
 #### 3. CodeDeploy Blue/Green失敗
+
 ```bash
 # デプロイ履歴確認
 aws deploy list-deployments --application-name nestjs-hannibal-3-app
@@ -481,19 +507,23 @@ aws deploy stop-deployment --deployment-id <ID> --auto-rollback-enabled
 ## 🔑 コーディング規約
 
 ### TypeScript/NestJS
+
 - **ファイル命名**: kebab-case (`route.service.ts`)
 - **クラス名**: PascalCase (`RouteService`)
 - **デコレータ**: `@Module()`, `@Resolver()`, `@Query()`
 - **GraphQL Code First**: Resolver優先、Schema自動生成
 
 ### Terraform
+
 - **ファイル命名**: kebab-case (`ecs-fargate.tf`)
 - **リソース名**: スネークケース (`aws_ecs_service.main`)
 - **変数名**: スネークケース (`enable_blue_green`)
 - **モジュール**: `modules/` 配下で再利用可能に設計
 
 ### Git Commit
+
 **Conventional Commits**:
+
 ```
 feat: GraphQL Resolverに新エンドポイント追加
 fix: ECS Task Definition のメモリ設定修正
