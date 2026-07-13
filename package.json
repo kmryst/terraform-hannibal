@@ -88,5 +88,13 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "overrides": {
+    "@nestjs/graphql": {
+      "ws": "8.21.0",
+      "subscriptions-transport-ws": {
+        "ws": "7.5.11"
+      }
+    }
   }
 }
