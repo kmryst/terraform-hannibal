@@ -1,5 +1,25 @@
+# [extend] useDefault = true がないと、gitleaksのデフォルト検出ルール（github-pat、
+# aws-access-key等の組み込みルール一式）が一切適用されず、[[allowlists]] だけが
+# 有効な実質ルールゼロの設定になる。過去はこれによりGitleaks Secret Scanが
+# 検出ルールなしで実行され続けていた（Issue #505、Issue #497の実地検証で発覚）。
+[extend]
+useDefault = true
+
 [[allowlists]]
 description = "dist成果物は検査対象外"
 paths = [
   '''client/dist/assets/.*''',
+]
+
+[[allowlists]]
+description = """
+CloudFront Origin Access Control ID（AWSリソースIDであり認証情報ではない）。
+generic-api-keyルールの誤検知。terraform/frontend/ は2025-09-23のモジュール化
+再編成（923f2bf）で削除済みだが、過去のgit履歴には残るため allowlist する
+（Issue #505）。
+"""
+paths = [
+  '''terraform/frontend/cloudfront_list\.json''',
+  '''terraform/frontend/terraform\.tfstate''',
+  '''terraform/frontend/terraform\.tfstate\.backup''',
 ]
