@@ -4,6 +4,14 @@
 
 運用ルールの正本は [CONTRIBUTING.md](../../CONTRIBUTING.md) です。この文書では、採用方針の理由、未採用案、将来の再検討条件を補足します。
 
+## 3 リポジトリ間の位置づけ
+
+時系列では、`terraform-hannibal` は `idp-golden-path` より先に作られた実証リポジトリです。
+ただし現在の運用上は、`terraform-hannibal` / `ticket-c2c-platform` で実証した Issue / PR 駆動、AI Agent 運用、CI ガードレール、ADR 運用を `idp-golden-path` が golden path として抽象化し、3 リポジトリをその型に揃えています。
+
+そのため、このリポジトリの GitHub Flow も、単独のローカルルールではなく、`idp-golden-path` が配布・標準化するリポジトリ運用ガードレールへ収束させる対象として扱います。
+Terraform / AWS / SRE 実践としての固有判断はこのリポジトリに残し、横断的な運用ルールは golden path 側へ寄せます。
+
 ## 目的
 
 - `Issue -> Branch -> PR -> Merge` を推奨ではなくガードレールで支える
