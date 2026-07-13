@@ -44,7 +44,7 @@ Node.js は `>=24 <25` を application runtime / CI / container の support cont
 | Package | Owner / 制約 | 確認事項 |
 |---|---|---|
 | `express@5.2.1` | `@nestjs/platform-express` のexact dependency | route、query、health、CORSをE2Eで確認する |
-| `multer@2.1.1` | `@nestjs/platform-express` のexact dependency | file uploadは未使用。advisoryと上流更新を追跡する |
+| `multer@2.2.0` | `@nestjs/platform-express` のexact dependency | file uploadは未使用。advisoryと上流更新を追跡する（Issue #514でDoS脆弱性2件を解消） |
 | `cors@2.8.6` | `@nestjs/platform-express` のexact dependency | direct dependencyにせず、preflightをE2Eで確認する |
 | `lodash@4.18.1` | Nest Config / GraphQLの上流依存 | advisory解消版であることをauditで確認する |
 | `graphql-ws@6.0.8` / `ws@8.20.1` | Nest GraphQLの上流依存 | subscriptions未使用。advisoryと上流更新を追跡する |
