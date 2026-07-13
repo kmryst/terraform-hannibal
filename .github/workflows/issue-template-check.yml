@@ -1,3 +1,12 @@
+# Issue Template Check
+# 目的: Issue 本文の必須見出し（目的 / 対象 / 受け入れ条件）と必須 4 ラベルを検証し、
+# フォーム回答からのラベル自動補正・不備コメント投稿を行う
+# 実体は kmryst/idp-golden-path の reusable workflow（ADR-0008）。
+# 検証は GitHub API 経由で行うため、本リポジトリの checkout は不要
+#
+# 本リポジトリの元実装がidp-golden-path側reusable workflowの移植元だった
+# （ADR-0008「これはterraform-hannibalにのみ先行実装されていたworkflowの正本化」）。
+
 name: Issue Template Check
 
 on:
@@ -8,237 +17,22 @@ permissions:
   issues: write
   contents: read
 
+concurrency:
+  # idp-golden-path 側の reusable workflow 自身も同名パターンの concurrency group
+  # （issue-template-check-<Issue番号>）を持つため、caller 側と同一名にすると
+  # 「top level workflow と呼び出し先の間でデッドロック」として GitHub にキャンセルされる
+  # （ticket-c2c-platform#294 / idp-golden-path#106参照）。
+  # caller 側は `-caller` を付けて callee の group と衝突しないようにする。
+  group: issue-template-check-caller-${{ github.event.issue.number || github.run_id }}
+  cancel-in-progress: false
+
 jobs:
+  # caller job には name を付けない。job id（issue-template-check）にフォールバックさせる
+  # ことで、callee側 job 名（Issue Template Check）との完全な文字列重複を避ける
+  # （idp-golden-path#106参照）。本ワークフローはPRのrequired status checkではないため、
+  # check名の合成はbranch protectionには影響しない。
   issue-template-check:
-    name: Issue Template Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Validate issue body
-        uses: actions/github-script@v9.0.0
-        with:
-          script: |
-            const marker = '<!-- issue-template-check -->';
-            const issue = context.payload.issue;
-            const body = issue.body || '';
-            const labels = issue.labels.map((label) => label.name);
-            const managedPrefixes = ['type:', 'area:', 'risk:', 'cost:'];
-
-            const hasHeading = (heading) =>
-              body.includes(`## ${heading}`) || body.includes(`### ${heading}`);
-
-            const escapeRegExp = (value) =>
-              value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-            const getSectionContent = (heading) => {
-              const escapedHeading = escapeRegExp(heading);
-              const pattern = new RegExp(
-                `(?:^|\\n)#{2,3}\\s+${escapedHeading}\\s*\\n([\\s\\S]*?)(?=\\n#{2,3}\\s+\\S|$)`
-              );
-              const match = body.match(pattern);
-              return match ? match[1].trim() : '';
-            };
-
-            const extractLabelsFromSection = (heading, prefix) => {
-              const content = getSectionContent(heading);
-              if (!content) return [];
-              const pattern = new RegExp(`\\b${escapeRegExp(prefix)}[a-z0-9-]+\\b`, 'g');
-              return [...new Set(content.match(pattern) || [])];
-            };
-
-            let effectiveLabels = [...labels];
-            const hasFormLabelSections = ['type', 'area', 'risk', 'cost'].every((heading) =>
-              hasHeading(heading)
-            );
-
-            if (hasFormLabelSections) {
-              const desiredManagedLabels = [
-                ...extractLabelsFromSection('type', 'type:'),
-                ...extractLabelsFromSection('area', 'area:'),
-                ...extractLabelsFromSection('risk', 'risk:'),
-                ...extractLabelsFromSection('cost', 'cost:'),
-              ];
-
-              const currentManagedLabels = effectiveLabels.filter((label) =>
-                managedPrefixes.some((prefix) => label.startsWith(prefix))
-              );
-
-              const labelsToAdd = desiredManagedLabels.filter((label) => !effectiveLabels.includes(label));
-              const labelsToRemove = currentManagedLabels.filter(
-                (label) => !desiredManagedLabels.includes(label)
-              );
-
-              if (labelsToAdd.length > 0) {
-                await github.rest.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issue.number,
-                  labels: labelsToAdd,
-                });
-              }
-
-              for (const label of labelsToRemove) {
-                try {
-                  await github.rest.issues.removeLabel({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issue.number,
-                    name: label,
-                  });
-                } catch (error) {
-                  if (error.status !== 404) {
-                    throw error;
-                  }
-                }
-              }
-
-              effectiveLabels = effectiveLabels
-                .filter((label) => !labelsToRemove.includes(label))
-                .concat(labelsToAdd.filter((label) => !effectiveLabels.includes(label)));
-            }
-
-            const requiredHeadings = ['目的', '対象', '受け入れ条件'];
-            const missingHeadings = requiredHeadings.filter((heading) => !hasHeading(heading));
-            const emptyHeadings = requiredHeadings.filter(
-              (heading) => hasHeading(heading) && getSectionContent(heading).length === 0
-            );
-
-            const countByPrefix = (prefix) =>
-              effectiveLabels.filter((label) => label.startsWith(prefix)).length;
-
-            const typeCount = countByPrefix('type:');
-            const areaCount = countByPrefix('area:');
-            const riskCount = countByPrefix('risk:');
-            const costCount = countByPrefix('cost:');
-
-            const labelErrors = [];
-            if (typeCount !== 1) labelErrors.push('`type:*` をちょうど1つ');
-            if (areaCount < 1) labelErrors.push('`area:*` を1つ以上');
-            if (riskCount !== 1) labelErrors.push('`risk:*` をちょうど1つ');
-            if (costCount !== 1) labelErrors.push('`cost:*` をちょうど1つ');
-
-            const valid =
-              missingHeadings.length === 0 &&
-              emptyHeadings.length === 0 &&
-              labelErrors.length === 0;
-            const needsTemplateLabel = 'needs-template';
-            const addNeedsTemplateLabel = async () => {
-              try {
-                await github.rest.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issue.number,
-                  labels: [needsTemplateLabel],
-                });
-              } catch (error) {
-                if (error.status !== 404) {
-                  throw error;
-                }
-                await github.rest.issues.createLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  name: needsTemplateLabel,
-                  color: 'd93f0b',
-                  description: 'Issueテンプレートの必須項目が不足',
-                });
-                await github.rest.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issue.number,
-                  labels: [needsTemplateLabel],
-                });
-              }
-            };
-
-            if (valid) {
-              if (effectiveLabels.includes(needsTemplateLabel)) {
-                await github.rest.issues.removeLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issue.number,
-                  name: needsTemplateLabel,
-                });
-              }
-              core.info('Issue body matches the required template headings.');
-              return;
-            }
-
-            await addNeedsTemplateLabel();
-
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-              per_page: 100,
-            });
-
-            const alreadyCommented = comments.some((comment) =>
-              comment.user.type === 'Bot' && comment.body.includes(marker)
-            );
-
-            const commentBody = [
-              marker,
-              '## 要修正',
-              '',
-              'このIssueは次を修正すると通ります:',
-              '',
-              ...(missingHeadings.length > 0
-                ? missingHeadings.map((heading) => `- 見出し不足: \`${heading}\``)
-                : []),
-              ...(emptyHeadings.length > 0
-                ? emptyHeadings.map((heading) => `- 中身が空: \`${heading}\``)
-                : []),
-              ...(labelErrors.length > 0
-                ? labelErrors.map((error) => `- ラベル不足: ${error}`)
-                : []),
-              '',
-              '## 必要条件',
-              '- 本文には `目的` `対象` `受け入れ条件` を含める',
-              '- 各項目には見出しだけでなく中身も書く',
-              '- `type:*` をちょうど1つ',
-              '- `area:*` を1つ以上',
-              '- `risk:*` をちょうど1つ',
-              '- `cost:*` をちょうど1つ',
-              '',
-              'Web UI から起票する場合は `.github/ISSUE_TEMPLATE/feature_request.yml` のフォーム回答から `type / area / risk / cost` を同期します。',
-              '',
-              'CLI や AI Agent から起票する場合は `./scripts/github/create-issue-with-labels.sh` を使うと、作成時点で必須ラベルを付けられます。',
-              '',
-              'AIで下書きした場合も、人間が内容を確認してテンプレート形式に整えてから次工程へ進めてください。',
-            ].join('\n');
-
-            if (!alreadyCommented) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                body: commentBody,
-              });
-            } else {
-              const existingComment = comments.find((comment) =>
-                comment.user.type === 'Bot' && comment.body.includes(marker)
-              );
-              if (existingComment) {
-                await github.rest.issues.updateComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: existingComment.id,
-                  body: commentBody,
-                });
-              }
-            }
-
-            core.setFailed(
-              [
-                missingHeadings.length > 0
-                  ? `Issue body is missing required headings: ${missingHeadings.join(', ')}`
-                  : null,
-                emptyHeadings.length > 0
-                  ? `Issue body sections must not be empty: ${emptyHeadings.join(', ')}`
-                  : null,
-                labelErrors.length > 0
-                  ? `Issue labels must include ${labelErrors.join(', ')}. Use the Web UI form or ./scripts/github/create-issue-with-labels.sh to create issues with required labels.`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(' / ')
-            );
+    uses: kmryst/idp-golden-path/.github/workflows/issue-template-check.yml@v1
+    permissions:
+      issues: write
+      contents: read
