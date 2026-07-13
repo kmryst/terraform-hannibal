@@ -1,3 +1,8 @@
+# PR Commitlint
+# 目的: CONTRIBUTING.md の Conventional Commits 規約をコミットメッセージと PR タイトルの両方で検証する
+# 実体は kmryst/idp-golden-path の reusable workflow（ADR-0008）。
+# このファイルはトリガー・permissions・concurrency のみを持つ薄い caller workflow
+
 name: PR Commitlint
 
 on:
@@ -9,43 +14,21 @@ permissions:
   contents: read
 
 concurrency:
-  group: commitlint-${{ github.event.pull_request.number }}
+  # idp-golden-path 側の reusable workflow 自身も同名パターンの concurrency group
+  # （commitlint-<PR番号>）を持つため、caller 側と同一名にすると
+  # 「top level workflow と呼び出し先の間でデッドロック」として GitHub にキャンセルされる
+  # （ticket-c2c-platform#294 / idp-golden-path#106参照）。
+  # caller 側は `-caller` を付けて callee の group と衝突しないようにする。
+  group: commitlint-caller-${{ github.event.pull_request.number }}
   # 実行中 run のキャンセルは CANCELLED check run を commit に残し、
   # required status checks の判定に混入して PR を恒久的にブロックする（Issue #438）。
   cancel-in-progress: false
 
-env:
-  NODE_VERSION: "24"
-
 jobs:
+  # caller job には name を付けない。job id（commitlint）にフォールバックさせることで、
+  # callee側 job 名（Commitlint）との完全な文字列重複を避ける（idp-golden-path#106参照）。
   commitlint:
-    name: Commitlint
     # Dependabot の PR タイトルは可変長で header-max-length に抵触し得る。
     # フォーマットは Dependabot 側が決定的に生成するため規約強制の対象外とする（Issue #440）。
     if: github.actor != 'dependabot[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7.0.0
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6.4.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint PR commits
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: npm run commitlint -- --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
-
-      - name: Lint PR title
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: printf '%s\n' "$PR_TITLE" | npm run commitlint -- --verbose
+    uses: kmryst/idp-golden-path/.github/workflows/pr-commitlint.yml@v1
