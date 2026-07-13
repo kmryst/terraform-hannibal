@@ -63,9 +63,12 @@ git switch -c <issue番号>-<kebab-case要約>
 
 ## 設計文書の更新と設計判断の記録 (ADR)
 
-実装によって設計・運用・構成が変わった場合は、まず正本である設計文書（`docs/` 配下の該当ドキュメント）を追記・新規作成して現状を反映します。
-そのうえで、トレードオフを伴う設計判断は `docs/adr/` に ADR (Architecture Decision Record) として残します。ADR には決定内容に加えて、検討した代替案とそのトレードオフ（なぜ他の案ではなくその選択にしたか）を記載します。
-設計文書が現在の正本であり、ADR は設計文書の丸写しではなく「なぜその判断にしたか」の履歴として扱います。採番・形式・ステータスの正本は `docs/adr/README.md` に従います（番号は ADR を追加する PR の時点で確定し、Issue / ブランチ段階では予約しません）。
+実装によって仕様・構成・運用手順が変わった場合は、まず該当領域の正本を更新します。
+
+現在の仕様・構成・運用手順は、領域ごとに定められた正本に従います。
+ADR はその正本を置き換えるものではなく、重要な設計判断の背景・採択理由・トレードオフ・再検討条件を記録するものです。
+
+トレードオフを伴う設計判断は `docs/adr/` に ADR (Architecture Decision Record) として残します。ADR には決定内容に加えて、検討した代替案とそのトレードオフ（なぜ他の案ではなくその選択にしたか）を記載します。採番・形式・ステータスの正本は `docs/adr/README.md` に従います（番号は ADR を追加する PR の時点で確定し、Issue / ブランチ段階では予約しません）。ADR で判断が変わった場合は、影響する領域の正本も同じ PR で更新します。
 
 ## コミットメッセージ
 
@@ -91,10 +94,13 @@ PR 作成前プランには、少なくとも次を含めます。
 
 PR は原則として次のヘルパーで作成します。
 
+`--body-file` には `.github/pull_request_template.md` をそのまま渡さず、テンプレートを埋めたコピーを別ファイルとして作成して渡します。
+テンプレートをそのまま渡すと、未記入のプレースホルダ本文の末尾に helper が追記する `Closes #<issue番号>` が重複した、壊れた PR になります。
+
 ```bash
 ./scripts/github/create-pr-with-labels.sh \
   --title "docs: title" \
-  --body-file .github/pull_request_template.md \
+  --body-file /path/to/filled-pr-body.md \
   --issue <issue番号> \
   --type type:docs \
   --area area:docs \

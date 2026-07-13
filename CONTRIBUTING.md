@@ -169,7 +169,7 @@ PRテンプレートを使ってPRを作成します。
 ```powershell
 ./scripts/github/create-pr-with-labels.sh `
   --title "docs: update contributing guide" `
-  --body-file .github/pull_request_template.md `
+  --body-file /path/to/filled-pr-body.md `
   --issue XX `
   --type type:feature `
   --area area:backend `
@@ -182,7 +182,7 @@ PRテンプレートを使ってPRを作成します。
 ```bash
 ./scripts/github/create-pr-with-labels.sh \
   --title "docs: update contributing guide" \
-  --body-file .github/pull_request_template.md \
+  --body-file /path/to/filled-pr-body.md \
   --issue XX \
   --type type:feature \
   --area area:backend \
@@ -192,6 +192,9 @@ PRテンプレートを使ってPRを作成します。
 ```
 
 CLI からの PR 作成は、必須ラベルの付け忘れを防ぐため、原則として上記ヘルパーを使います。
+
+`--body-file` には `.github/pull_request_template.md` をそのまま渡さず、テンプレートを埋めたコピーを別ファイルとして作成して渡します。
+テンプレートをそのまま渡すと、未記入のプレースホルダ本文の末尾に helper が追記する `Closes #<issue番号>` が重複した、壊れた PR になります。
 このヘルパーは `Closes #<issue番号>` を PR 本文へ自動で追記します。
 
 **PRタイトル命名規則**:
