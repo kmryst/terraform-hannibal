@@ -384,35 +384,5 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  gitleaks:
-    name: Gitleaks Secret Scan
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7.0.0
-        with:
-          fetch-depth: 0
-
-      - name: Install Gitleaks
-        env:
-          GITLEAKS_VERSION: "8.30.1"
-        run: |
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o gitleaks.tar.gz
-          tar -xzf gitleaks.tar.gz gitleaks
-          sudo mv gitleaks /usr/local/bin/gitleaks
-          rm gitleaks.tar.gz
-          gitleaks version
-
-      - name: Run Gitleaks
-        run: gitleaks git --no-banner --redact --config .gitleaks.toml
-
-      - name: Write Gitleaks summary
-        if: success()
-        run: |
-          {
-            echo "## Gitleaks Secret Scan"
-            echo ""
-            echo "No secrets were detected in the scanned git history."
-          } >> "$GITHUB_STEP_SUMMARY"
+  # Gitleaks Secret Scan は .github/workflows/gitleaks-secret-scan.yml に切り出した
+  # （idp-golden-path の reusable workflow 化、Issue #497 / ADR-0008）。
