@@ -28,7 +28,6 @@ jobs:
   # caller job には name を付けない。job id（commitlint）にフォールバックさせることで、
   # callee側 job 名（Commitlint）との完全な文字列重複を避ける（idp-golden-path#106参照）。
   commitlint:
-    # Dependabot の PR タイトルは可変長で header-max-length に抵触し得る。
-    # フォーマットは Dependabot 側が決定的に生成するため規約強制の対象外とする（Issue #440）。
-    if: github.actor != 'dependabot[bot]'
+    # Dependabot の免除判定は called workflow の step で行う。caller workflow は常に呼び出し、
+    # required status check の `commitlint / Commitlint` を作成させる。
     uses: kmryst/idp-golden-path/.github/workflows/pr-commitlint.yml@v1

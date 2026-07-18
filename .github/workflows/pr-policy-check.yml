@@ -38,7 +38,8 @@ jobs:
   # caller job には name を付けない。job id（pr-policy-check）にフォールバックさせることで、
   # callee側 job 名（PR Policy Check）との完全な文字列重複を避ける（idp-golden-path#106参照）。
   pr-policy-check:
-    if: github.actor != 'dependabot[bot]'
+    # Dependabot の免除判定は called workflow の step で行う。caller workflow は常に呼び出し、
+    # required status check の `pr-policy-check / PR Policy Check` を作成させる。
     uses: kmryst/idp-golden-path/.github/workflows/pr-policy-check.yml@v1
     permissions:
       contents: read
