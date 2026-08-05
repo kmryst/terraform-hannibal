@@ -34,7 +34,7 @@ Node.js は `>=24 <25` を application runtime / CI / container の support cont
 | Apollo Server | `5.5.1` | Apollo Server 4 EOL後のsupported line | 6系stableとNestJS対応後 |
 | Express integration | `@as-integrations/express5@1.1.2` | Nest Apollo 13がruntimeで直接loadする | Nest Apolloのdependency宣言変更時 |
 | GraphQL.js | `16.14.2` | Apollo/Nestのsupported stable major | GraphQL 17 stableと全peer対応後 |
-| TypeORM | `0.3.30` | 既知脆弱性を解消し、breaking migrationを分離する | TypeORM 1.0移行Issueで再評価 |
+| TypeORM | `0.3.31` | 既知脆弱性を解消し、breaking migrationを分離する | TypeORM 1.0移行Issueで再評価 |
 | Node.js types | `24.13.2` | runtime majorと型定義majorを一致させる | Node runtime major更新時 |
 
 `@nestjs/config@4.0.4`、`@nestjs/typeorm@11.0.1`、`@nestjs/schematics@11.1.0`、`ts-morph@20.0.0` も上記contractに合わせます。`@nestjs/cli@11.0.23`、TypeScript `5.2.2`、ESLint 8、Jest 29は今回据え置き、toolchain専用の後続Issueで一括更新します。
