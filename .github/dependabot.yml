@@ -39,6 +39,18 @@ updates:
       # 追跡: Issue #542
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      # ESLint v9 で flat config が既定になり、v10 で eslintrc 形式のサポートが削除された。
+      # 本リポジトリは .eslintrc.js（旧形式）のままで flat config 未移行。
+      # 実測: PR #546 の Backend Lint & Build / Backend Test が
+      #       「ESLint: 10.8.0 / ESLint couldn't find an eslint.config.(js|mjs|cjs) file.」で失敗。
+      # 本番影響なし: eslint は devDependency で lint 時のみ。
+      # 解除条件: flat config（eslint.config.js）への移行完了時にこの ignore を削除する
+      #           （上流対応待ちではなく、本リポジトリ自身の移行作業が解除条件）。
+      # 見直し期限: 2026-11-02（typescript ignore / idp-golden-path #134・#146 と揃える）
+      # 追跡: Issue #551
+      # client には ESLint 関連の依存も lint script も存在しないため /client には追加しない。
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
 
   # client/（React frontend）。root とは独立した npm プロジェクト（client/package-lock.json）
   - package-ecosystem: "npm"
