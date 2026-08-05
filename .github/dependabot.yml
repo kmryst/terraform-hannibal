@@ -28,6 +28,17 @@ updates:
         dependency-type: "development"
         patterns:
           - "*"
+    ignore:
+      # TypeScript 6.1 以降は @typescript-eslint/eslint-plugin が未対応。
+      # 実測: 8.66.0（最新）の peer は typescript ">=4.8.4 <6.1.0"。
+      # 影響: root は npm ci が ERESOLVE で失敗（PR #537）、
+      #       client は TS5108 esModuleInterop 廃止でビルド失敗（PR #532、client/tsconfig.json:8）。
+      # 本番影響なし: typescript は devDependency でビルド時のみ。
+      # 解除条件: @typescript-eslint/eslint-plugin の peer から <6.1.0 の上限が外れたら。
+      # 見直し期限: 2026-11-02（idp-golden-path #134 / #146 の棚卸し時期と揃える）
+      # 追跡: Issue #542
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # client/（React frontend）。root とは独立した npm プロジェクト（client/package-lock.json）
   - package-ecosystem: "npm"
@@ -54,3 +65,14 @@ updates:
         dependency-type: "development"
         patterns:
           - "*"
+    ignore:
+      # TypeScript 6.1 以降は @typescript-eslint/eslint-plugin が未対応。
+      # 実測: 8.66.0（最新）の peer は typescript ">=4.8.4 <6.1.0"。
+      # 影響: root は npm ci が ERESOLVE で失敗（PR #537）、
+      #       client は TS5108 esModuleInterop 廃止でビルド失敗（PR #532、client/tsconfig.json:8）。
+      # 本番影響なし: typescript は devDependency でビルド時のみ。
+      # 解除条件: @typescript-eslint/eslint-plugin の peer から <6.1.0 の上限が外れたら。
+      # 見直し期限: 2026-11-02（idp-golden-path #134 / #146 の棚卸し時期と揃える）
+      # 追跡: Issue #542
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
