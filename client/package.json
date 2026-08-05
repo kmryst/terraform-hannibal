@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@apollo/client": "^3.13.4",
-    "graphql": "^16.10.0",
+    "graphql": "^17.0.2",
     "mapbox-gl": "^3.10.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
