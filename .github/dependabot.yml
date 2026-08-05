@@ -12,3 +12,45 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  # root（NestJS backend）。devDependencies は npm-dev グループに集約し、
+  # production 依存は個別 PR のまま残す（idp-golden-path の root エントリと同じ構成）
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:15"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 5
+    groups:
+      npm-dev:
+        dependency-type: "development"
+        patterns:
+          - "*"
+
+  # client/（React frontend）。root とは独立した npm プロジェクト（client/package-lock.json）
+  - package-ecosystem: "npm"
+    directory: "/client"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:15"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 5
+    groups:
+      # react / react-dom と @types/react* は密結合しており、単独更新すると
+      # 相方が取り残されて CI が壊れる（idp-golden-path PR #53 / #54 / #56 で発生）。
+      # Dependabot は「複数グループにマッチする依存は最初にマッチしたグループに入る」
+      # （first-match-wins）ため、@types/react* を npm-dev ではなく react グループに
+      # 入れるべく、react グループを npm-dev より前に置く
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      npm-dev:
+        dependency-type: "development"
+        patterns:
+          - "*"
