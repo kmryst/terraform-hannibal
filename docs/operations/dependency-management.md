@@ -33,7 +33,7 @@ Node.js は `>=24 <25` を application runtime / CI / container の support cont
 | NestJS GraphQL / Apollo | `13.4.2` | NestJS 11、GraphQL 16、Apollo Server 5の統合 | 14系stable、またはPlayground依存除去時 |
 | Apollo Server | `5.5.1` | Apollo Server 4 EOL後のsupported line | 6系stableとNestJS対応後 |
 | Express integration | `@as-integrations/express5@1.1.2` | Nest Apollo 13がruntimeで直接loadする | Nest Apolloのdependency宣言変更時 |
-| GraphQL.js | `16.14.2` | Apollo/Nestのsupported stable major | GraphQL 17 stableと全peer対応後 |
+| GraphQL.js | `16.14.2` | Apollo/Nestのsupported stable major（Dependabotのmajor更新はignoreで抑止、Issue #564で追跡） | GraphQL 17 stableと全peer対応後 |
 | TypeORM | `1.1.0` | TypeORM 1系のsupported line。1.0で削除されたAPI（string形式のselect/relations、`Connection`、global functions等）は本リポジトリで未使用 | TypeORM 2系 stable と `@nestjs/typeorm` 対応後 |
 | reflect-metadata | `0.2.2` | NestJS / TypeORMのデコレータ・メタデータ基盤。0.xのためsemver上はminorでも実質major扱いで検証する。`typeorm@1.1.0` が `^0.2.2` を直接依存に持つ | NestJS / TypeORM側の要求range変更時 |
 | Node.js types | `24.13.3` | runtime majorと型定義majorを一致させる（Dependabotのmajor更新はignoreで抑止、Issue #555で追跡） | Node runtime major更新時 |
@@ -66,14 +66,26 @@ root の `npm ls --all` で許容する非zero要因は、`@nestjs/apollo@13.4.2
 - client: rootとは分離して扱い、既知findingはIssue #365で追跡する
 - repository全体について「脆弱性0件」と表現せず、root / client のscopeを明記する
 
+## 有効な Dependabot ignore
+
+`.github/dependabot.yml` で major 更新を抑止している依存の一覧です。ignore は恒久措置ではなく、必ず解除条件と見直し期限、追跡 Issue を持たせます。
+
+各行が「なぜこの ignore があるか」の正本は `.github/dependabot.yml` のコメントです。この表は「今いくつ・何を止めているか」を1箇所で把握するための索引として維持します。新しい ignore を追加・解除したときは、この表も同じ PR で更新します。
+
+| 対象 | 種別 | 対象エントリ | 理由 | 解除条件 | 見直し期限 | 追跡 |
+|---|---|---|---|---|---|---|
+| `typescript` | major | root `/` と `/client` | `@typescript-eslint/eslint-plugin@8.66.0` の peer が `typescript ">=4.8.4 <6.1.0"`。root は `npm ci` が ERESOLVE で失敗（PR #537）、client は TS5108 `esModuleInterop` 廃止でビルド失敗（PR #532）。devDependency のため本番影響なし | `@typescript-eslint/eslint-plugin` の peer から `<6.1.0` の上限が外れたら（上流待ち） | 2026-11-02 | [Issue #542](https://github.com/kmryst/terraform-hannibal/issues/542) |
+| `eslint` | major | root `/` のみ | ESLint v9 で flat config が既定、v10 で eslintrc 形式のサポートが削除された。本リポジトリは `.eslintrc.js` のままで未移行のため、`ESLint couldn't find an eslint.config.(js\|mjs\|cjs) file.` で lint が失敗（PR #546）。devDependency のため本番影響なし。client には ESLint 関連の依存も lint script もないため `/client` には追加しない | flat config（`eslint.config.js`）への移行完了（上流待ちではなく本リポジトリ自身の作業） | 2026-11-02 | [Issue #551](https://github.com/kmryst/terraform-hannibal/issues/551) |
+| `@types/node` | major | root `/` のみ | runtime major と型定義 major を一致させる contract（前節「現行 Backend Contract」）。runtime は Node 24（`node:24-alpine` / `engines >=24 <25`）のため、26 系型定義は「runtime に存在しない API が型チェックを通る」リスクがある（PR #554 で 26.1.2 が提案された）。devDependency のため本番影響なし | Node runtime の major 更新（`node:24-alpine` / `setup-node` / `engines`）と同時に外す | 2026-11-02 | [Issue #555](https://github.com/kmryst/terraform-hannibal/issues/555) |
+| `graphql` | major | root `/` のみ | `@apollo/server@5.5.1` と `@nestjs/graphql@13.4.2`（いずれも 2026-08-06 時点で npm latest）の peer がどちらも `graphql "^16.11.0"` で、graphql 17 を受け付けない。root は `npm ci` が ERESOLVE で失敗（PR #541）。production dependency のため `--force` / `--legacy-peer-deps` による強制解決はしない。client 側（PR #533）は `@apollo/client` を 4 系へ上げれば通せる（`3.13.4` の peer は `graphql "^15.0.0 \|\| ^16.0.0"`、`4.2.9` は `"^16.0.0 \|\| ^17.0.0"`）ため `/client` には追加しない | `@apollo/server` と `@nestjs/graphql`（または後継 major）の peer が `graphql ^17` を許容したら（上流待ち） | 2026-11-02 | [Issue #564](https://github.com/kmryst/terraform-hannibal/issues/564) |
+
 ## Follow-up Issue Plans
 
-かつてここに挙げていた「Backend toolchain更新」（TypeScript / typescript-eslint / Jest / ts-jest）と「TypeORM 1.0移行評価」は対応済みです（TypeScript 5.9.3 / Jest 30 は PR #557、TypeORM 1.1.0 は PR #547）。残る追跡事項は Issue で管理します。
+かつてここに挙げていた「Backend toolchain更新」（TypeScript / typescript-eslint / Jest / ts-jest）と「TypeORM 1.0移行評価」は対応済みです（TypeScript 5.9.3 / Jest 30 は PR #557、TypeORM 1.1.0 は PR #547）。
 
-- ESLint flat config 移行と major 更新 ignore の解除: [Issue #551](https://github.com/kmryst/terraform-hannibal/issues/551)
-- TypeScript major 更新 ignore の解除条件: [Issue #542](https://github.com/kmryst/terraform-hannibal/issues/542)
-- @types/node major 更新 ignore の解除条件（Node runtime major 更新時）: [Issue #555](https://github.com/kmryst/terraform-hannibal/issues/555)
-- TypeORM 1.1.0 の AWS dev 環境での実地 CRUD 確認: 次回 `deploy.yml` 実行時（前節参照）
+Dependabot の ignore 解除に関する追跡 Issue は前節「有効な Dependabot ignore」の表に集約しました。それ以外の残る追跡事項は次のとおりです。
+
+- TypeORM 1.1.0 の AWS dev 環境での実地 CRUD 確認: 次回 `deploy.yml` 実行時（「現行 Backend Contract」節参照）
 
 ## 関連
 
