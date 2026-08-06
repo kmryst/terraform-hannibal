@@ -61,6 +61,24 @@ updates:
       # 追跡: Issue #555
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # GraphQL 17 を受け付ける上流リリースがまだ存在しない。
+      # 実測: @apollo/server@5.5.1 と @nestjs/graphql@13.4.2 の peer がどちらも
+      #       graphql "^16.11.0"（いずれも 2026-08-06 時点で npm latest）。
+      # 影響: root は npm ci が ERESOLVE で失敗（PR #541。
+      #       "peer graphql@^16.11.0 from @apollo/server@5.5.1" / "Conflicting peer dependency: graphql@16.14.2"）。
+      #       markdown-lint も root で npm ci するため連鎖失敗する。
+      # 本番影響あり: graphql は production dependency（runtime で使用）のため、
+      #       peer 制約を無視した強制更新（--force / --legacy-peer-deps）はしない。
+      # 解除条件: @apollo/server と @nestjs/graphql（または後継 major）の peer が
+      #           graphql ^17 を許容したら。上流待ちであり自前のコード修正では解消できない。
+      # 見直し期限: 2026-11-02（#542 / #551 / #555 と揃える）
+      # 追跡: Issue #564
+      # client 側の graphql 17（PR #533）は @apollo/client を 4 系へ上げれば通せるため
+      # （実測: @apollo/client@3.13.4 の peer は graphql "^15.0.0 || ^16.0.0"、
+      #  4.2.9 は "^16.0.0 || ^17.0.0"）、上流待ちの root とは扱いが異なる。
+      # よって /client には追加しない。
+      - dependency-name: "graphql"
+        update-types: ["version-update:semver-major"]
 
   # client/（React frontend）。root とは独立した npm プロジェクト（client/package-lock.json）
   - package-ecosystem: "npm"
