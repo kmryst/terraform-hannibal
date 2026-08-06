@@ -1,5 +1,5 @@
 // C:\code\javascript\nestjs-hannibal-3\client\src\apollo\client.ts
-import { ApolloClient, InMemoryCache } from "@apollo/client";
+import { ApolloClient, HttpLink, InMemoryCache } from "@apollo/client";
 
 // Viteの環境変数からエンドポイントを取得 (プレフィックス 'VITE_' が必要)
 const graphqlUri = import.meta.env.VITE_GRAPHQL_ENDPOINT;
@@ -11,8 +11,12 @@ if (!graphqlUri) {
 
 console.log(`[Apollo Client] Connecting to GraphQL at: ${graphqlUri}`);
 
+// Apollo Client 4 は `uri` ショートハンドを廃止し、`link` を必須オプションにした。
+// 挙動は 3 系の `uri` 指定と等価（内部で HttpLink を生成していた）。
 const client = new ApolloClient({
-   uri: graphqlUri || '/graphql', // 環境変数が未定義の場合のフォールバック例
+   link: new HttpLink({
+     uri: graphqlUri || '/graphql', // 環境変数が未定義の場合のフォールバック例
+   }),
    cache: new InMemoryCache(),
  });
 

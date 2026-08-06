@@ -42,6 +42,27 @@ Node.js は `>=24 <25` を application runtime / CI / container の support cont
 
 TypeORM 1.1.0 への更新（PR #547）は、Docker 上の PostgreSQL 16 に対するスモークテスト（アプリ起動、`synchronize` によるスキーマ自動生成、GraphQL 経由の createRoute / routes / seedRoutes の成功）と unit test を検証済みです。AWS dev 環境での実地 CRUD 確認は未了であり、次回 `deploy.yml`（workflow_dispatch）実行時に行います。
 
+## 現行 Frontend Contract
+
+`client/` は root とは独立した npm プロジェクトです。前節の Backend Contract は root（NestJS backend）のみを対象とし、client の依存は以下を正本とします。
+
+| 領域 | 採用 version | 用途・制約 | 再検討条件 |
+|---|---:|---|---|
+| Apollo Client | `4.2.10` | React frontend の GraphQL client。4 系で React 向け export が `@apollo/client` から `@apollo/client/react` へ移動し、`ApolloClient` の `uri` ショートハンドが廃止されて `link` が必須になった | 5 系 stable と React 対応後 |
+| GraphQL.js | `17.0.2` | `@apollo/client@4` の peer が `^16.0.0 \|\| ^17.0.0` で 17 を許容する。root（backend）は Apollo Server / Nest GraphQL の peer 制約により 16 系のまま据え置く | root 側が 17 へ揃った時点で両者の major 一致を再検討 |
+| rxjs | `7.8.2` | `@apollo/client@4` の**必須** peer（`^7.3.0`、`peerDependenciesMeta` で optional 指定されていない）。3 系が dependencies に持っていた `zen-observable-ts` の置き換え先。アプリケーションコードから直接 import はしないが、宣言を省くと peer 未充足になる | Apollo Client が Observable 実装を変更した場合 |
+| React / React DOM | `19` 系 | `@apollo/client@4` の peer は `>=19.0.0-rc` を許容する | React 20 stable と Apollo Client 対応後 |
+
+`@apollo/client@4.2.10` の peer のうち `react` / `react-dom` / `graphql-ws` / `subscriptions-transport-ws` は `peerDependenciesMeta` で optional です。client は GraphQL subscription を使わないため、`graphql-ws` / `subscriptions-transport-ws` は導入しません。
+
+### root（GraphQL 16）と client（GraphQL 17）の major 分岐
+
+root と client は独立した npm プロジェクトであり、両者の通信は GraphQL over HTTP です。GraphQL.js のバージョンは各プロセス内のスキーマ構築・クエリ実行の実装詳細であり、ワイヤ上でやり取りされるのは HTTP + JSON のリクエスト / レスポンスのため、major が分かれても通信要件には影響しません。
+
+この点は推論だけで済ませず、Issue #566 の移行時にローカル実測しています。Docker 上の PostgreSQL 16 で backend（graphql 16.14.2）を起動し、client（graphql 17.0.2 / Apollo Client 4.2.10）を dev server と production build の双方から実ブラウザで開き、`GetMapData` クエリが 200 で成功して地図レイヤーが描画されること、コンソールに Apollo / GraphQL 由来のエラーが出ないことを確認しました。
+
+root 側の graphql major 更新は、PR #565 で Dependabot の ignore に追加して抑止済みです（root `/` のみが対象で `/client` は対象外）。解除条件と見直し期限は後述の「有効な Dependabot ignore」表を、追跡は Issue #564 を参照してください。
+
 ## Transitive Dependencies
 
 | Package | Owner / 制約 | 確認事項 |
@@ -77,7 +98,7 @@ root の `npm ls --all` で許容する非zero要因は、`@nestjs/apollo@13.4.2
 | `typescript` | major | root `/` と `/client` | `@typescript-eslint/eslint-plugin@8.66.0` の peer が `typescript ">=4.8.4 <6.1.0"`。root は `npm ci` が ERESOLVE で失敗（PR #537）、client は TS5108 `esModuleInterop` 廃止でビルド失敗（PR #532）。devDependency のため本番影響なし | `@typescript-eslint/eslint-plugin` の peer から `<6.1.0` の上限が外れたら（上流待ち） | 2026-11-02 | [Issue #542](https://github.com/kmryst/terraform-hannibal/issues/542) |
 | `eslint` | major | root `/` のみ | ESLint v9 で flat config が既定、v10 で eslintrc 形式のサポートが削除された。本リポジトリは `.eslintrc.js` のままで未移行のため、`ESLint couldn't find an eslint.config.(js\|mjs\|cjs) file.` で lint が失敗（PR #546）。devDependency のため本番影響なし。client には ESLint 関連の依存も lint script もないため `/client` には追加しない | flat config（`eslint.config.js`）への移行完了（上流待ちではなく本リポジトリ自身の作業） | 2026-11-02 | [Issue #551](https://github.com/kmryst/terraform-hannibal/issues/551) |
 | `@types/node` | major | root `/` のみ | runtime major と型定義 major を一致させる contract（前節「現行 Backend Contract」）。runtime は Node 24（`node:24-alpine` / `engines >=24 <25`）のため、26 系型定義は「runtime に存在しない API が型チェックを通る」リスクがある（PR #554 で 26.1.2 が提案された）。devDependency のため本番影響なし | Node runtime の major 更新（`node:24-alpine` / `setup-node` / `engines`）と同時に外す | 2026-11-02 | [Issue #555](https://github.com/kmryst/terraform-hannibal/issues/555) |
-| `graphql` | major | root `/` のみ | `@apollo/server@5.5.1` と `@nestjs/graphql@13.4.2`（いずれも 2026-08-06 時点で npm latest）の peer がどちらも `graphql "^16.11.0"` で、graphql 17 を受け付けない。root は `npm ci` が ERESOLVE で失敗（PR #541）。production dependency のため `--force` / `--legacy-peer-deps` による強制解決はしない。client 側（PR #533）は `@apollo/client` を 4 系へ上げれば通せる（`3.13.4` の peer は `graphql "^15.0.0 \|\| ^16.0.0"`、`4.2.9` は `"^16.0.0 \|\| ^17.0.0"`）ため `/client` には追加しない | `@apollo/server` と `@nestjs/graphql`（または後継 major）の peer が `graphql ^17` を許容したら（上流待ち） | 2026-11-02 | [Issue #564](https://github.com/kmryst/terraform-hannibal/issues/564) |
+| `graphql` | major | root `/` のみ | `@apollo/server@5.5.1` と `@nestjs/graphql@13.4.2`（いずれも 2026-08-06 時点で npm latest）の peer がどちらも `graphql "^16.11.0"` で、graphql 17 を受け付けない。root は `npm ci` が ERESOLVE で失敗（PR #541）。production dependency のため `--force` / `--legacy-peer-deps` による強制解決はしない。client 側は `@apollo/client` を 4 系へ上げることで graphql 17 を通せるため `/client` には追加しない（`3.13.4` の peer は `graphql "^15.0.0 \|\| ^16.0.0"`、`4.2.10` は `"^16.0.0 \|\| ^17.0.0"`）。この移行は Issue #566 / PR #567 で完了しており、client は `@apollo/client@4.2.10` / `graphql@17.0.2` で稼働している（前節「現行 Frontend Contract」参照）。したがって client 側に ignore は不要な状態が続いている | `@apollo/server` と `@nestjs/graphql`（または後継 major）の peer が `graphql ^17` を許容したら（上流待ち） | 2026-11-02 | [Issue #564](https://github.com/kmryst/terraform-hannibal/issues/564) |
 
 ## Follow-up Issue Plans
 

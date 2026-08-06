@@ -29,7 +29,8 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { ApolloProvider } from '@apollo/client';
+// Apollo Client 4 で React 向けの export は '@apollo/client/react' へ移動した
+import { ApolloProvider } from '@apollo/client/react';
 import client from './apollo/client';
 import App from './App';
 import './index.css';

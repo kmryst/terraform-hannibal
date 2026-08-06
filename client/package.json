@@ -17,11 +17,12 @@
     "node": ">=24 <25"
   },
   "dependencies": {
-    "@apollo/client": "^3.13.4",
-    "graphql": "^16.10.0",
+    "@apollo/client": "^4.2.10",
+    "graphql": "^17.0.2",
     "mapbox-gl": "^3.10.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.0",

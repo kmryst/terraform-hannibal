@@ -1,7 +1,9 @@
 // C:\code\javascript\nestjs-hannibal-3\client\src\components\MapContainer.tsx
 
 import { useEffect, useRef, useState } from "react";
-import { useQuery, gql } from "@apollo/client";
+import { gql } from "@apollo/client";
+// Apollo Client 4 で React 向けの export は '@apollo/client/react' へ移動した
+import { useQuery } from "@apollo/client/react";
 import {
   initializeMap,
   setTerrain,
@@ -12,6 +14,18 @@ import {
   addCapitalCityLayers,
 } from "../services/mapLayers";
 import { setupClickHandlers, setupCursorHandlers } from "../utils/mapUtils";
+import type * as GeoJSON from "geojson";
+
+// Apollo Client 4 の useQuery は TData の既定値が any ではなくなったため、
+// GET_MAP_DATA の戻り値型を明示する。実行時の挙動は 3 系と同じ。
+type GetMapDataQuery = {
+  capitalCities: GeoJSON.FeatureCollection<
+    GeoJSON.Point,
+    { empire: string; name: string }
+  >;
+  hannibalRoute: GeoJSON.FeatureCollection<GeoJSON.LineString>;
+  pointRoute: GeoJSON.FeatureCollection<GeoJSON.Point>;
+};
 
 // GraphQLクエリ
 const GET_MAP_DATA = gql`
@@ -65,7 +79,7 @@ const MapContainer: React.FC = () => {
   const mapRef = useRef<any>(null);
   const [progress, setProgress] = useState(0);
   const [isMapboxLoading, setIsMapboxLoading] = useState(true);
-  const { loading, error, data } = useQuery(GET_MAP_DATA);
+  const { loading, error, data } = useQuery<GetMapDataQuery>(GET_MAP_DATA);
 
   // Mapboxの動的インポート
   // 初期バンドルサイズを削減するため、Mapboxを動的に読み込む
