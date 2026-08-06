@@ -52,6 +52,8 @@ TypeORM 1.1.0 への更新（PR #547）は、Docker 上の PostgreSQL 16 に対�
 | GraphQL.js | `17.0.2` | `@apollo/client@4` の peer が `^16.0.0 \|\| ^17.0.0` で 17 を許容する。root（backend）は Apollo Server / Nest GraphQL の peer 制約により 16 系のまま据え置く | root 側が 17 へ揃った時点で両者の major 一致を再検討 |
 | rxjs | `7.8.2` | `@apollo/client@4` の**必須** peer（`^7.3.0`、`peerDependenciesMeta` で optional 指定されていない）。3 系が dependencies に持っていた `zen-observable-ts` の置き換え先。アプリケーションコードから直接 import はしないが、宣言を省くと peer 未充足になる | Apollo Client が Observable 実装を変更した場合 |
 | React / React DOM | `19` 系 | `@apollo/client@4` の peer は `>=19.0.0-rc` を許容する | React 20 stable と Apollo Client 対応後 |
+| mapbox-gl | `3.27.0` | 地図描画ライブラリ。3 系は型定義（`dist/mapbox-gl.d.ts`）を同梱するため `@types/mapbox-gl` は不要（3.5.0 以降は deprecated stub になっており導入しない）。同梱 d.ts は ambient `GeoJSON` namespace を参照するが `@types/geojson` への依存を宣言していないため、client 側で direct devDependency として持つ | mapbox-gl 4 系 stable 後 |
+| @types/geojson | `7946.0.16` | `geojson` モジュールと ambient `GeoJSON` namespace の供給元。アプリケーションコード（`mapLayers.ts` / `mapUtils.ts` / `MapContainer.tsx`）と mapbox-gl 同梱 d.ts の両方が必要とする。旧 `@types/mapbox-gl@3.4.1` が推移的に供給していたが、stub 化（PR #535 で 3.5.0 へ更新提案）で供給が途切れるため direct 化した | mapbox-gl が型依存を自己完結させた場合 |
 
 `@apollo/client@4.2.10` の peer のうち `react` / `react-dom` / `graphql-ws` / `subscriptions-transport-ws` は `peerDependenciesMeta` で optional です。client は GraphQL subscription を使わないため、`graphql-ws` / `subscriptions-transport-ws` は導入しません。
 
