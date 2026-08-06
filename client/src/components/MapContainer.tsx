@@ -77,7 +77,6 @@ const GET_MAP_DATA = gql`
 const MapContainer: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
-  const [progress, setProgress] = useState(0);
   const [isMapboxLoading, setIsMapboxLoading] = useState(true);
   const { loading, error, data } = useQuery<GetMapDataQuery>(GET_MAP_DATA);
 
