@@ -29,15 +29,18 @@ Node.js は `>=24 <25` を application runtime / CI / container の support cont
 
 | 領域 | 採用 version | 用途・制約 | 再検討条件 |
 |---|---:|---|---|
-| NestJS core / common / platform / testing | `11.1.26` | NestJS 11系列を同一patchへ統一する | NestJS 12 stable と周辺moduleの対応後 |
+| NestJS core / common / platform / testing | `11.1.28` | NestJS 11系列を同一patchへ統一する | NestJS 12 stable と周辺moduleの対応後 |
 | NestJS GraphQL / Apollo | `13.4.2` | NestJS 11、GraphQL 16、Apollo Server 5の統合 | 14系stable、またはPlayground依存除去時 |
 | Apollo Server | `5.5.1` | Apollo Server 4 EOL後のsupported line | 6系stableとNestJS対応後 |
 | Express integration | `@as-integrations/express5@1.1.2` | Nest Apollo 13がruntimeで直接loadする | Nest Apolloのdependency宣言変更時 |
 | GraphQL.js | `16.14.2` | Apollo/Nestのsupported stable major | GraphQL 17 stableと全peer対応後 |
-| TypeORM | `0.3.31` | 既知脆弱性を解消し、breaking migrationを分離する | TypeORM 1.0移行Issueで再評価 |
+| TypeORM | `1.1.0` | TypeORM 1系のsupported line。1.0で削除されたAPI（string形式のselect/relations、`Connection`、global functions等）は本リポジトリで未使用 | TypeORM 2系 stable と `@nestjs/typeorm` 対応後 |
+| reflect-metadata | `0.2.2` | NestJS / TypeORMのデコレータ・メタデータ基盤。0.xのためsemver上はminorでも実質major扱いで検証する。`typeorm@1.1.0` が `^0.2.2` を直接依存に持つ | NestJS / TypeORM側の要求range変更時 |
 | Node.js types | `24.13.3` | runtime majorと型定義majorを一致させる（Dependabotのmajor更新はignoreで抑止、Issue #555で追跡） | Node runtime major更新時 |
 
-`@nestjs/config@4.0.4`、`@nestjs/typeorm@11.0.1`、`@nestjs/schematics@11.1.0`、`ts-morph@28.0.0` も上記contractに合わせます。toolchainは TypeScript `5.9.3`（5系最新）、Jest 30、`@nestjs/cli@11.0.24` へ更新済みです。ESLint 8 のみ flat config 移行（Issue #551）完了まで据え置き、Dependabot の major 更新を ignore で抑止しています。
+`@nestjs/config@4.0.4`、`@nestjs/typeorm@11.0.3`、`@nestjs/schematics@11.1.0`、`ts-morph@28.0.0` も上記contractに合わせます。toolchainは TypeScript `5.9.3`（5系最新）、Jest 30、`@nestjs/cli@11.0.24` へ更新済みです。ESLint 8 のみ flat config 移行（Issue #551）完了まで据え置き、Dependabot の major 更新を ignore で抑止しています。
+
+TypeORM 1.1.0 への更新（PR #547）は、Docker 上の PostgreSQL 16 に対するスモークテスト（アプリ起動、`synchronize` によるスキーマ自動生成、GraphQL 経由の createRoute / routes / seedRoutes の成功）と unit test を検証済みです。AWS dev 環境での実地 CRUD 確認は未了であり、次回 `deploy.yml`（workflow_dispatch）実行時に行います。
 
 ## Transitive Dependencies
 
@@ -49,7 +52,7 @@ Node.js は `>=24 <25` を application runtime / CI / container の support cont
 | `lodash@4.18.1` | Nest Config / GraphQLの上流依存 | advisory解消版であることをauditで確認する |
 | `graphql-ws@6.0.8` / `ws@8.21.0`（`package.json` の `overrides` で固定） | Nest GraphQLの上流依存 | subscriptions未使用。`@nestjs/graphql@13.4.2` は `ws@8.20.1`（脆弱、GHSA-96hv-2xvq-fx4p）を厳密ピン留めしており、13.4.2が現時点で最新の安定版のため上流修正待ちができない。`overrides` で `@nestjs/graphql` 配下の `ws` のみ `8.21.0`（パッチ済み）に固定する（Issue #515）。`@nestjs/graphql` のバージョン自体は変更しない |
 | `subscriptions-transport-ws@0.11.0` / `ws@7.5.11` | `@nestjs/graphql` の推移的依存 | `ws@^7` のみ対応（8.x非対応）のため、上記 `ws` overrideの対象から明示的に除外し `7.5.11`（既にパッチ済み）に固定する。ネストした `overrides` の書き方は `package.json` を参照 |
-| `glob@10.5.0` | TypeORM `^10.5.0`から解決 | deprecated warningをTypeORM 1評価時に再確認する |
+| `glob@10.5.0` | Jest 30系（`@jest/reporters` / `jest-config` / `jest-runtime` が `^10.5.0` を要求）から解決。TypeORM 1.1.0 は glob 非依存になった（`tinyglobby` へ移行） | devDependency経路のみ。Jest更新時に再確認する |
 
 ## Known Peer Warning Allowlist
 
@@ -65,19 +68,12 @@ root の `npm ls --all` で許容する非zero要因は、`@nestjs/apollo@13.4.2
 
 ## Follow-up Issue Plans
 
-### Backend toolchain更新
+かつてここに挙げていた「Backend toolchain更新」（TypeScript / typescript-eslint / Jest / ts-jest）と「TypeORM 1.0移行評価」は対応済みです（TypeScript 5.9.3 / Jest 30 は PR #557、TypeORM 1.1.0 は PR #547）。残る追跡事項は Issue で管理します。
 
-- 目的: EOLのESLint 8、TypeScript、typescript-eslint、Jest / ts-jestを互換性のある系列へ一括更新する
-- 対象: lint / test / build toolchainと関連設定
-- 受け入れ条件: rootのlint、build、unit/E2E test、CIが成功し、runtime dependencyを変更しない
-- 推奨ラベル: `type:chore`, `area:backend`, `area:ci-cd`, `risk:medium`, `cost:none`
-
-### TypeORM 1.0移行評価
-
-- 目的: TypeORM 0.3から1.0へのbreaking change、migration、PostgreSQL接続、repository APIへの影響を分離して評価する
-- 対象: entity、repository、database config、migration / integration test
-- 受け入れ条件: migration planとrollback、実DB integration test、deploy影響が明確になっている
-- 推奨ラベル: `type:chore`, `area:backend`, `risk:medium`, `cost:none`
+- ESLint flat config 移行と major 更新 ignore の解除: [Issue #551](https://github.com/kmryst/terraform-hannibal/issues/551)
+- TypeScript major 更新 ignore の解除条件: [Issue #542](https://github.com/kmryst/terraform-hannibal/issues/542)
+- @types/node major 更新 ignore の解除条件（Node runtime major 更新時）: [Issue #555](https://github.com/kmryst/terraform-hannibal/issues/555)
+- TypeORM 1.1.0 の AWS dev 環境での実地 CRUD 確認: 次回 `deploy.yml` 実行時（前節参照）
 
 ## 関連
 
