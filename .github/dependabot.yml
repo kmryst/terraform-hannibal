@@ -51,6 +51,16 @@ updates:
       # client には ESLint 関連の依存も lint script も存在しないため /client には追加しない。
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
+      # @types/node の major は runtime major と一致させる contract
+      # （docs/operations/dependency-management.md「runtime majorと型定義majorを一致させる」）に従う。
+      # runtime は Node 24（node:24-alpine / engines >=24 <25）のため、26 系の型定義は
+      # 「runtime に存在しない API が型チェックを通る」リスクがあり採用しない（PR #554 で 26.1.2 が提案された）。
+      # 本番影響なし: @types/node は devDependency で型チェック時のみ。
+      # 解除条件: Node runtime の major 更新（node:24-alpine / setup-node / engines の更新）と同時に外す。
+      # 見直し期限: 2026-11-02（#542 / #551 と揃える）
+      # 追跡: Issue #555
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # client/（React frontend）。root とは独立した npm プロジェクト（client/package-lock.json）
   - package-ecosystem: "npm"
