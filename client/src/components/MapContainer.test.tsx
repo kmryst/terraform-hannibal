@@ -15,6 +15,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@apollo/client', () => ({
   gql: (strings: TemplateStringsArray) => strings.join(''),
+}));
+
+// Apollo Client 4 で React 向けの export は '@apollo/client/react' へ移動した
+vi.mock('@apollo/client/react', () => ({
   useQuery: mocks.useQuery,
 }));
 

@@ -42,6 +42,27 @@ Node.js は `>=24 <25` を application runtime / CI / container の support cont
 
 TypeORM 1.1.0 への更新（PR #547）は、Docker 上の PostgreSQL 16 に対するスモークテスト（アプリ起動、`synchronize` によるスキーマ自動生成、GraphQL 経由の createRoute / routes / seedRoutes の成功）と unit test を検証済みです。AWS dev 環境での実地 CRUD 確認は未了であり、次回 `deploy.yml`（workflow_dispatch）実行時に行います。
 
+## 現行 Frontend Contract
+
+`client/` は root とは独立した npm プロジェクトです。前節の Backend Contract は root（NestJS backend）のみを対象とし、client の依存は以下を正本とします。
+
+| 領域 | 採用 version | 用途・制約 | 再検討条件 |
+|---|---:|---|---|
+| Apollo Client | `4.2.10` | React frontend の GraphQL client。4 系で React 向け export が `@apollo/client` から `@apollo/client/react` へ移動し、`ApolloClient` の `uri` ショートハンドが廃止されて `link` が必須になった | 5 系 stable と React 対応後 |
+| GraphQL.js | `17.0.2` | `@apollo/client@4` の peer が `^16.0.0 \|\| ^17.0.0` で 17 を許容する。root（backend）は Apollo Server / Nest GraphQL の peer 制約により 16 系のまま据え置く | root 側が 17 へ揃った時点で両者の major 一致を再検討 |
+| rxjs | `7.8.2` | `@apollo/client@4` の**必須** peer（`^7.3.0`、`peerDependenciesMeta` で optional 指定されていない）。3 系が dependencies に持っていた `zen-observable-ts` の置き換え先。アプリケーションコードから直接 import はしないが、宣言を省くと peer 未充足になる | Apollo Client が Observable 実装を変更した場合 |
+| React / React DOM | `19` 系 | `@apollo/client@4` の peer は `>=19.0.0-rc` を許容する | React 20 stable と Apollo Client 対応後 |
+
+`@apollo/client@4.2.10` の peer のうち `react` / `react-dom` / `graphql-ws` / `subscriptions-transport-ws` は `peerDependenciesMeta` で optional です。client は GraphQL subscription を使わないため、`graphql-ws` / `subscriptions-transport-ws` は導入しません。
+
+### root（GraphQL 16）と client（GraphQL 17）の major 分岐
+
+root と client は独立した npm プロジェクトであり、両者の通信は GraphQL over HTTP です。GraphQL.js のバージョンは各プロセス内のスキーマ構築・クエリ実行の実装詳細であり、ワイヤ上でやり取りされるのは HTTP + JSON のリクエスト / レスポンスのため、major が分かれても通信要件には影響しません。
+
+この点は推論だけで済ませず、Issue #566 の移行時にローカル実測しています。Docker 上の PostgreSQL 16 で backend（graphql 16.14.2）を起動し、client（graphql 17.0.2 / Apollo Client 4.2.10）を dev server と production build の双方から実ブラウザで開き、`GetMapData` クエリが 200 で成功して地図レイヤーが描画されること、コンソールに Apollo / GraphQL 由来のエラーが出ないことを確認しました。
+
+root 側の graphql major 更新の扱いは Issue #564 / PR #565 で別途整理します。
+
 ## Transitive Dependencies
 
 | Package | Owner / 制約 | 確認事項 |
