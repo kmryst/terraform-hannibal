@@ -145,14 +145,45 @@ PR には GitHub App `Amazon Q Developer`（app slug: `amazon-q-developer`）に
 - GitHub App が提供する check であり、`.github/workflows/` 配下の workflow ではない。リポジトリ内に対応する workflow ファイルは存在しない
 - branch protection の required status checks には含まれない。マージをブロックしない review signal として扱う（`Trivy Config Scan` と同じ位置づけ）
 - 指摘は PR の review comment として投稿される。マージ前に指摘への対応要否を判断し、対応するか、対応しない理由を明確にしたうえで conversation を Resolve してからマージする
-- `.amazonq/rules/` は Amazon Q 向けの補助ルールであり、運用ルールの正本ではない（CLAUDE.md 参照）
-- この App をいつ誰がリポジトリに有効化したかの設定経緯は、リポジトリ内には記録されていない
+
+#### 起動条件と rebase 後の再レビュー
+
+GitHub Marketplace の Amazon Q Developer 機能表によると、Code Review の起動条件は「Automatic for new/reopened PRs or use `/q review` command in PR comment」である。
+つまり自動起動は PR の new / reopened 時のみで、PR コメントに `/q review` を投稿すると手動で再実行できる。
+
+運用上の注意:
+
+- rebase などの force-push は new / reopened のどちらでもないため、新しい head commit には check-run が再作成されない（#567 で実測。レビュー自体は PR に残るが、check 一覧に `Amazon Q Developer` が表示されなくなり、force-push 後のコードは未レビューになる）
+- 本リポジトリは squash merge only で main が進むたびに rebase が必要になりやすく、この「force-push 後のコードが未レビューのままマージ可能」な状態は構造的に発生しやすい
+- **rebase / force-push 後にレビューを受け直したい場合は、PR コメントに `/q review` を投稿する**
 
 実行挙動（2026-08-06 時点、check-runs API / reviews API での実測）:
 
 - 人間 / AI Agent が作成した PR では、head commit に check `Amazon Q Developer` が作成され、review comment が投稿される（#544 / #553 / #557 / #562 / #565 で確認）
-- Dependabot が作成した PR では実行されない（#558 / #559 / #560 の head commit に check-run・review とも存在しないことを確認）
-- rebase などの force-push 後は、新しい head commit に check-run が必ずしも再作成されない（#567 で確認。レビュー自体は PR に残るが、check 一覧に `Amazon Q Developer` が表示されなくなる）。PR によって check 一覧に現れたり現れなかったりするのはこのため
+- Dependabot が作成した PR では実行されない（#558 / #559 / #560 の head commit に check-run・review とも存在しないことを確認）。Dependabot PR も new な PR であり上記の公式起動条件では説明がつかないが、理由は未確認。実測事実としてのみ記録する
+
+#### App のインストール設定
+
+GitHub の Settings → Integrations → Applications 画面での実測（2026-08-06 時点）:
+
+- この App はリポジトリ単位ではなく **`kmryst` 個人アカウントにインストールされており、対象範囲は All repositories**（現在および将来の全リポジトリ）。本リポジトリ固有の設定ではなく、`idp-golden-path` / `ticket-c2c-platform` にも同じ App が適用されている
+- インストール時期は画面表示で「Installed last year」（2025年）。正確な日付は未確認
+- 付与されている権限: read = `administration` / `metadata`、read and write = `actions` / `checks` / `code` / `issues` / `pull requests` / `workflows`
+
+write 権限についての整理（サプライチェーン管理の判断材料。[threat-model.md](../security/threat-model.md) / [ADR 0017](../adr/0017-pin-github-actions-by-owner-tier.md) の文脈で記録する）:
+
+- 事実: GitHub App の権限セットは App 側が定義し、インストールする側は機能単位で取捨選択できない（そのまま受け入れるかインストールしないかの二択）
+- 推論（Marketplace 機能表からの逆算。AWS 公式に権限と機能の対応表は見つかっていない）: write 権限の大半は Feature Development 機能（Issue を起点にコードを生成し PR を作成する）が要求するものと考えられる。特に `workflows` の write は、GitHub が `.github/workflows/` 配下の変更に専用権限を要求するため、生成 PR が workflow を変更する可能性がある以上必要になると考えられる。Code Review 機能だけであれば `code: read` / `pull requests: write` / `checks: write` で足りるはずである
+- インストール範囲を Only select repositories に絞る選択肢はあるが、絞るかどうかは未決の判断であり、ここでは事実の記録に留める
+
+#### `.amazonq/rules/` との関係
+
+- `.amazonq/rules/` は Amazon Q Developer の project rules 用フォルダであり、IDE 版と GitHub 連携版が共通で読むパスである。出典:
+  - IDE 版: <https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/context-project-rules.html>
+  - GitHub / GitLab 連携版: <https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/third-party-context-project-rules.html>
+- 公式ドキュメントが明言している適用範囲は、IDE 版が「when generating answers」、GitHub 連携版が「when generating code for feature development」まで。**PR の自動コードレビューの判断基準として適用されるかは未確認**（公式に review への適用を明記した記述は見つかっておらず、本リポジトリの実測でもルール適用の形跡は観測できていない）
+- 本リポジトリの現在の内容は VSCode 拡張（IDE 版）向けに書かれたものである（git 管理下 12 ファイル・計 1,376 行、最終更新は 2026-07-13 の PR #513）
+- CLAUDE.md が明記する通り、Claude Code の運用ルールの正本ではない
 
 ## 未採用案と理由
 
