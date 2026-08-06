@@ -59,6 +59,7 @@ Terraform / AWS / SRE 実践としての固有判断はこのリポジトリに�
 - PR title と PR 内コミットメッセージは `Commitlint` job で Conventional Commits 形式を検査する
 - `TFLint` と `Gitleaks Secret Scan` は #228 で required status checks に追加した
 - `Trivy Config Scan` は HIGH / CRITICAL finding を review signal として表示するが、#228 時点では blocking gate にしない
+- GitHub App `Amazon Q Developer` による自動コードレビューを review signal として利用する（詳細は「自動コードレビュー（Amazon Q Developer）」節）
 
 ### 軽運用 / 厳密運用
 
@@ -136,6 +137,22 @@ backend / frontend / Docker / Terraform / TFLint / Trivy / Gitleaks は `.github
 既存の finding には、Dockerfile root user、WAF 無効化、KMS / CMK 系の accepted risk 候補が含まれるため、blocking gate にする前に修正対象・accepted risk・ignore 対象を整理します。
 
 この段階的 required 化の判断背景、代替案、トレードオフは [ADR 0013](../adr/0013-promote-quality-checks-to-required-gradually.md) に記録します。
+
+### 自動コードレビュー（Amazon Q Developer）
+
+PR には GitHub App `Amazon Q Developer`（app slug: `amazon-q-developer`）による自動コードレビューが実行されます。
+
+- GitHub App が提供する check であり、`.github/workflows/` 配下の workflow ではない。リポジトリ内に対応する workflow ファイルは存在しない
+- branch protection の required status checks には含まれない。マージをブロックしない review signal として扱う（`Trivy Config Scan` と同じ位置づけ）
+- 指摘は PR の review comment として投稿される。マージ前に指摘への対応要否を判断し、対応するか、対応しない理由を明確にしたうえで conversation を Resolve してからマージする
+- `.amazonq/rules/` は Amazon Q 向けの補助ルールであり、運用ルールの正本ではない（CLAUDE.md 参照）
+- この App をいつ誰がリポジトリに有効化したかの設定経緯は、リポジトリ内には記録されていない
+
+実行挙動（2026-08-06 時点、check-runs API / reviews API での実測）:
+
+- 人間 / AI Agent が作成した PR では、head commit に check `Amazon Q Developer` が作成され、review comment が投稿される（#544 / #553 / #557 / #562 / #565 で確認）
+- Dependabot が作成した PR では実行されない（#558 / #559 / #560 の head commit に check-run・review とも存在しないことを確認）
+- rebase などの force-push 後は、新しい head commit に check-run が必ずしも再作成されない（#567 で確認。レビュー自体は PR に残るが、check 一覧に `Amazon Q Developer` が表示されなくなる）。PR によって check 一覧に現れたり現れなかったりするのはこのため
 
 ## 未採用案と理由
 
@@ -245,7 +262,7 @@ branch protection の更新は、PR plan の再導入後に gate job が安定�
 `PR Policy Check` は `.github/workflows/pr-policy-check.yml` から、`Commitlint` は `.github/workflows/pr-commitlint.yml` から、その他の PR gate / review signal は `.github/workflows/pr-check.yml` から実行する。
 workflow を分割しても、branch protection が参照する required status check の context 名は変更しない。
 
-`Trivy Config Scan` は required に含まれていない。
+`Trivy Config Scan` と `Amazon Q Developer`（GitHub App による自動コードレビュー、「自動コードレビュー（Amazon Q Developer）」節参照）は required に含まれていない。
 `Terraform Plan Change Detection` / `Terraform Plan Artifact` は #410 で workflow から一時的に削除している。
 
 ### deploy workflow と PR gate の責務分離

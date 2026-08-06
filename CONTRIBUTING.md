@@ -398,6 +398,17 @@ terraform plan はレビュー補助として Job Summary と artifact に出力
 
 理由と将来の required 化方針は [docs/operations/github-flow-guardrails.md](./docs/operations/github-flow-guardrails.md) の「Terraform plan の required status check 方針」節を参照してください。
 
+### 自動コードレビュー（Amazon Q Developer）
+
+PR では GitHub App `Amazon Q Developer` による自動コードレビューが実行され、指摘は review comment として投稿されます。
+
+- GitHub App が提供する check であり、`.github/workflows/` 配下の workflow ではありません
+- **required status check には含まれず、マージをブロックしません**
+- マージ前に指摘への対応要否を判断し、対応するか、対応しない理由を明確にしたうえで conversation を Resolve してからマージします
+- Dependabot PR では実行されません。また rebase などの force-push 後は、新しい head commit の check 一覧に表示されない場合があります
+
+位置づけと実測した実行挙動の詳細は [docs/operations/github-flow-guardrails.md](./docs/operations/github-flow-guardrails.md) の「自動コードレビュー（Amazon Q Developer）」節を参照してください。
+
 ---
 
 ## 📋 開発フロー図
