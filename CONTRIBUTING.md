@@ -405,9 +405,10 @@ PR では GitHub App `Amazon Q Developer` による自動コードレビュー�
 - GitHub App が提供する check であり、`.github/workflows/` 配下の workflow ではありません
 - **required status check には含まれず、マージをブロックしません**
 - マージ前に指摘への対応要否を判断し、対応するか、対応しない理由を明確にしたうえで conversation を Resolve してからマージします
-- Dependabot PR では実行されません。また rebase などの force-push 後は、新しい head commit の check 一覧に表示されない場合があります
+- 自動起動は PR の new / reopened 時のみです。rebase などの force-push 後は check が再作成されず、force-push 後のコードは未レビューになるため、レビューを受け直したい場合は PR コメントに `/q review` を投稿します
+- Dependabot PR では実行されません（実測。理由は未確認）
 
-位置づけと実測した実行挙動の詳細は [docs/operations/github-flow-guardrails.md](./docs/operations/github-flow-guardrails.md) の「自動コードレビュー（Amazon Q Developer）」節を参照してください。
+位置づけ・起動条件・App のインストール設定・実測した実行挙動の詳細は [docs/operations/github-flow-guardrails.md](./docs/operations/github-flow-guardrails.md) の「自動コードレビュー（Amazon Q Developer）」節を参照してください。
 
 ---
 
