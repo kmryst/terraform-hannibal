@@ -19,7 +19,7 @@
   "dependencies": {
     "@apollo/client": "^4.2.10",
     "graphql": "^17.0.2",
-    "mapbox-gl": "^3.10.0",
+    "mapbox-gl": "^3.27.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "rxjs": "^7.8.2"
@@ -27,7 +27,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
-    "@types/mapbox-gl": "^3.4.1",
+    "@types/geojson": "^7946.0.16",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^6.0.2",
