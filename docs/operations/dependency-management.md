@@ -96,7 +96,7 @@ major 更新を抑止している ignore の「なぜ」（理由 / 実測 / 解
 `dependabot-ignore` ラベルを付けます。
 
 有効な ignore の横断一覧はラベル検索で取得します。
-手書きの索引表は機械検証されない写しで陳腐化するため廃止しました（PR #<このPRの番号>）。
+手書きの索引表は機械検証されない写しで陳腐化するため廃止しました（PR #579）。
 
 [user:kmryst label:dependabot-ignore is:issue is:open](https://github.com/search?q=user%3Akmryst+label%3Adependabot-ignore+is%3Aissue+is%3Aopen&type=issues)
 
