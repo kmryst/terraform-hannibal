@@ -154,3 +154,8 @@
 - name: "ai-task"
   color: "BFD4F2"  # 既存の青系に合わせるなど
   description: "AI支援フローに乗せるIssue用ラベル"
+
+# Dependency Management - Dependabot ignore の追跡
+- name: "dependabot-ignore"
+  color: "c2e0c6"
+  description: "Dependabot ignore の解除条件を追跡する Issue（3リポジトリ横断で検索する）"

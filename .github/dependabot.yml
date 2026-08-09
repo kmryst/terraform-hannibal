@@ -1,3 +1,4 @@
+# 有効な ignore の横断一覧: https://github.com/search?q=user%3Akmryst+label%3Adependabot-ignore+is%3Aissue+is%3Aopen&type=issues
 version: 2
 updates:
   - package-ecosystem: "github-actions"
