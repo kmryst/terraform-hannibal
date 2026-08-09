@@ -63,7 +63,7 @@ root と client は独立した npm プロジェクトであり、両者の通�
 
 この点は推論だけで済ませず、Issue #566 の移行時にローカル実測しています。Docker 上の PostgreSQL 16 で backend（graphql 16.14.2）を起動し、client（graphql 17.0.2 / Apollo Client 4.2.10）を dev server と production build の双方から実ブラウザで開き、`GetMapData` クエリが 200 で成功して地図レイヤーが描画されること、コンソールに Apollo / GraphQL 由来のエラーが出ないことを確認しました。
 
-root 側の graphql major 更新は、PR #565 で Dependabot の ignore に追加して抑止済みです（root `/` のみが対象で `/client` は対象外）。解除条件と見直し期限は後述の「有効な Dependabot ignore」表を、追跡は Issue #564 を参照してください。
+root 側の graphql major 更新は、PR #565 で Dependabot の ignore に追加して抑止済みです（root `/` のみが対象で `/client` は対象外）。解除条件と見直し期限の正本は `.github/dependabot.yml` のコメント（後述「有効な Dependabot ignore」参照）、追跡は Issue #564 を参照してください。
 
 ## Transitive Dependencies
 
@@ -91,38 +91,20 @@ root の `npm ls --all` で許容する非zero要因は、`@nestjs/apollo@13.4.2
 
 ## 有効な Dependabot ignore
 
-各リポジトリの `.github/dependabot.yml` で major 更新を抑止している依存の一覧です。ignore は恒久措置ではなく、必ず解除条件と見直し期限、追跡 Issue を持たせます。
+major 更新を抑止している ignore の「なぜ」（理由 / 実測 / 解除条件 / 見直し期限）の正本は、
+各リポジトリの `.github/dependabot.yml` のコメントです。解除条件の追跡は 1 ignore = 1 Issue とし、
+`dependabot-ignore` ラベルを付けます。
 
-各行が「なぜこの ignore があるか」の正本は各リポジトリの `.github/dependabot.yml` のコメントです。この表は3リポジトリ横断で「今いくつ・何を止めているか」を1箇所で把握するための索引として維持します。新しい ignore を追加・解除したときは、この表も同じ PR で更新します。
+有効な ignore の横断一覧はラベル検索で取得します。
+手書きの索引表は機械検証されない写しで陳腐化するため廃止しました（PR #579）。
 
-### terraform-hannibal
-
-| 対象 | 種別 | 対象エントリ | 理由 | 解除条件 | 見直し期限 | 追跡 |
-|---|---|---|---|---|---|---|
-| `typescript` | major | root `/` と `/client` | `@typescript-eslint/eslint-plugin@8.66.0` の peer が `typescript ">=4.8.4 <6.1.0"`。root は `npm ci` が ERESOLVE で失敗（PR #537）、client は TS5108 `esModuleInterop` 廃止でビルド失敗（PR #532）。devDependency のため本番影響なし | `@typescript-eslint/eslint-plugin` の peer から `<6.1.0` の上限が外れたら（上流待ち） | 2026-11-02 | [Issue #542](https://github.com/kmryst/terraform-hannibal/issues/542) |
-| `eslint` | major | root `/` のみ | ESLint v9 で flat config が既定、v10 で eslintrc 形式のサポートが削除された。本リポジトリは `.eslintrc.js` のままで未移行のため、`ESLint couldn't find an eslint.config.(js\|mjs\|cjs) file.` で lint が失敗（PR #546）。devDependency のため本番影響なし。client には ESLint 関連の依存も lint script もないため `/client` には追加しない | flat config（`eslint.config.js`）への移行完了（上流待ちではなく本リポジトリ自身の作業） | 2026-11-02 | [Issue #551](https://github.com/kmryst/terraform-hannibal/issues/551) |
-| `@types/node` | major | root `/` のみ | runtime major と型定義 major を一致させる contract（前節「現行 Backend Contract」）。runtime は Node 24（`node:24-alpine` / `engines >=24 <25`）のため、26 系型定義は「runtime に存在しない API が型チェックを通る」リスクがある（PR #554 で 26.1.2 が提案された）。devDependency のため本番影響なし | Node runtime の major 更新（`node:24-alpine` / `setup-node` / `engines`）と同時に外す | 2026-11-02 | [Issue #555](https://github.com/kmryst/terraform-hannibal/issues/555) |
-| `graphql` | major | root `/` のみ | `@apollo/server@5.5.1` と `@nestjs/graphql@13.4.2`（いずれも 2026-08-06 時点で npm latest）の peer がどちらも `graphql "^16.11.0"` で、graphql 17 を受け付けない。root は `npm ci` が ERESOLVE で失敗（PR #541）。production dependency のため `--force` / `--legacy-peer-deps` による強制解決はしない。client 側は `@apollo/client` を 4 系へ上げることで graphql 17 を通せるため `/client` には追加しない（`3.13.4` の peer は `graphql "^15.0.0 \|\| ^16.0.0"`、`4.2.10` は `"^16.0.0 \|\| ^17.0.0"`）。この移行は Issue #566 / PR #567 で完了しており、client は `@apollo/client@4.2.10` / `graphql@17.0.2` で稼働している（前節「現行 Frontend Contract」参照）。したがって client 側に ignore は不要な状態が続いている | `@apollo/server` と `@nestjs/graphql`（または後継 major）の peer が `graphql ^17` を許容したら（上流待ち） | 2026-11-02 | [Issue #564](https://github.com/kmryst/terraform-hannibal/issues/564) |
-
-### ticket-c2c-platform
-
-| 対象 | 種別 | 対象エントリ | 理由 | 解除条件 | 見直し期限 | 追跡 |
-|---|---|---|---|---|---|---|
-| `typescript` | major | root `/` | `ts-jest@29.4.12`（npm latest も同値）の peer が `typescript ">=4.3 <7"`。Dependabot PR #343（6.0.3→7.0.2）で Backend Build / Playwright E2E が失敗。devDependency のため本番影響なし | `ts-jest` の peer から `<7` の上限が外れ、`typescript@7` で build / test が通ったら | 2026-11-02 | [Issue #425](https://github.com/kmryst/ticket-c2c-platform/issues/425) |
-| `typescript` | major | `/frontend` | `typescript-eslint@8.66.0`（npm latest。当該リポジトリは 8.62.1）の peer が `typescript ">=4.8.4 <6.1.0"`。Dependabot PR #353（5.9.3→7.0.2）で Frontend Build / Playwright E2E が失敗。devDependency のため本番影響なし | `typescript-eslint` の peer から `<6.1.0` の上限が外れ、`typescript@7` で build / lint が通ったら | 2026-11-02 | [Issue #426](https://github.com/kmryst/ticket-c2c-platform/issues/426) |
-| `eslint` | major | `/frontend` | `eslint-plugin-react@7.37.5` の peer eslint が `"^3\|\|^4\|\|^5\|\|^6\|\|^7\|\|^8\|\|^9.7"` で `^10` なし。Dependabot PR #356（9.39.4→10.8.0）で Frontend Build が失敗。devDependency のため本番影響なし | `eslint-plugin-react` の peer が `eslint ^10` を許容し、`eslint@10` で lint が通ったら | 2026-11-02 | [Issue #427](https://github.com/kmryst/ticket-c2c-platform/issues/427) |
-
-### idp-golden-path
-
-| 対象 | 種別 | 対象エントリ | 理由 | 解除条件 | 見直し期限 | 追跡 |
-|---|---|---|---|---|---|---|
-| `jsdom` | major | `/backstage` | jsdom 30 は `CSS.escape` の IDL brand check 厳格化により、MUI v4（`@material-ui/styles` + JSS）経由で `App.test.tsx` が `TypeError` で落ちる（PR #132 で検出）。jsdom のみ 29.1.1 に戻すと `yarn test` / `yarn tsc` とも pass。devDependency のため本番影響なし | `@backstage/core-components` の依存が `@material-ui/core` → `@mui/material` に変わったら | 2026-11-02 | [Issue #146](https://github.com/kmryst/idp-golden-path/issues/146) |
+[user:kmryst label:dependabot-ignore is:issue is:open](https://github.com/search?q=user%3Akmryst+label%3Adependabot-ignore+is%3Aissue+is%3Aopen&type=issues)
 
 ## Follow-up Issue Plans
 
 かつてここに挙げていた「Backend toolchain更新」（TypeScript / typescript-eslint / Jest / ts-jest）と「TypeORM 1.0移行評価」は対応済みです（TypeScript 5.9.3 / Jest 30 は PR #557、TypeORM 1.1.0 は PR #547）。
 
-Dependabot の ignore 解除に関する追跡 Issue は前節「有効な Dependabot ignore」の表に集約しました。それ以外の残る追跡事項は次のとおりです。
+Dependabot の ignore 解除に関する追跡 Issue は、前節「有効な Dependabot ignore」のとおり `dependabot-ignore` ラベルの検索で横断把握します。それ以外の残る追跡事項は次のとおりです。
 
 - TypeORM 1.1.0 の AWS dev 環境での実地 CRUD 確認: 次回 `deploy.yml` 実行時（「現行 Backend Contract」節参照）
 
