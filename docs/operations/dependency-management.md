@@ -91,9 +91,11 @@ root の `npm ls --all` で許容する非zero要因は、`@nestjs/apollo@13.4.2
 
 ## 有効な Dependabot ignore
 
-`.github/dependabot.yml` で major 更新を抑止している依存の一覧です。ignore は恒久措置ではなく、必ず解除条件と見直し期限、追跡 Issue を持たせます。
+各リポジトリの `.github/dependabot.yml` で major 更新を抑止している依存の一覧です。ignore は恒久措置ではなく、必ず解除条件と見直し期限、追跡 Issue を持たせます。
 
-各行が「なぜこの ignore があるか」の正本は `.github/dependabot.yml` のコメントです。この表は「今いくつ・何を止めているか」を1箇所で把握するための索引として維持します。新しい ignore を追加・解除したときは、この表も同じ PR で更新します。
+各行が「なぜこの ignore があるか」の正本は各リポジトリの `.github/dependabot.yml` のコメントです。この表は3リポジトリ横断で「今いくつ・何を止めているか」を1箇所で把握するための索引として維持します。新しい ignore を追加・解除したときは、この表も同じ PR で更新します。
+
+### terraform-hannibal
 
 | 対象 | 種別 | 対象エントリ | 理由 | 解除条件 | 見直し期限 | 追跡 |
 |---|---|---|---|---|---|---|
@@ -101,6 +103,20 @@ root の `npm ls --all` で許容する非zero要因は、`@nestjs/apollo@13.4.2
 | `eslint` | major | root `/` のみ | ESLint v9 で flat config が既定、v10 で eslintrc 形式のサポートが削除された。本リポジトリは `.eslintrc.js` のままで未移行のため、`ESLint couldn't find an eslint.config.(js\|mjs\|cjs) file.` で lint が失敗（PR #546）。devDependency のため本番影響なし。client には ESLint 関連の依存も lint script もないため `/client` には追加しない | flat config（`eslint.config.js`）への移行完了（上流待ちではなく本リポジトリ自身の作業） | 2026-11-02 | [Issue #551](https://github.com/kmryst/terraform-hannibal/issues/551) |
 | `@types/node` | major | root `/` のみ | runtime major と型定義 major を一致させる contract（前節「現行 Backend Contract」）。runtime は Node 24（`node:24-alpine` / `engines >=24 <25`）のため、26 系型定義は「runtime に存在しない API が型チェックを通る」リスクがある（PR #554 で 26.1.2 が提案された）。devDependency のため本番影響なし | Node runtime の major 更新（`node:24-alpine` / `setup-node` / `engines`）と同時に外す | 2026-11-02 | [Issue #555](https://github.com/kmryst/terraform-hannibal/issues/555) |
 | `graphql` | major | root `/` のみ | `@apollo/server@5.5.1` と `@nestjs/graphql@13.4.2`（いずれも 2026-08-06 時点で npm latest）の peer がどちらも `graphql "^16.11.0"` で、graphql 17 を受け付けない。root は `npm ci` が ERESOLVE で失敗（PR #541）。production dependency のため `--force` / `--legacy-peer-deps` による強制解決はしない。client 側は `@apollo/client` を 4 系へ上げることで graphql 17 を通せるため `/client` には追加しない（`3.13.4` の peer は `graphql "^15.0.0 \|\| ^16.0.0"`、`4.2.10` は `"^16.0.0 \|\| ^17.0.0"`）。この移行は Issue #566 / PR #567 で完了しており、client は `@apollo/client@4.2.10` / `graphql@17.0.2` で稼働している（前節「現行 Frontend Contract」参照）。したがって client 側に ignore は不要な状態が続いている | `@apollo/server` と `@nestjs/graphql`（または後継 major）の peer が `graphql ^17` を許容したら（上流待ち） | 2026-11-02 | [Issue #564](https://github.com/kmryst/terraform-hannibal/issues/564) |
+
+### ticket-c2c-platform
+
+| 対象 | 種別 | 対象エントリ | 理由 | 解除条件 | 見直し期限 | 追跡 |
+|---|---|---|---|---|---|---|
+| `typescript` | major | root `/` | `ts-jest@29.4.12`（npm latest も同値）の peer が `typescript ">=4.3 <7"`。Dependabot PR #343（6.0.3→7.0.2）で Backend Build / Playwright E2E が失敗。devDependency のため本番影響なし | `ts-jest` の peer から `<7` の上限が外れ、`typescript@7` で build / test が通ったら | 2026-11-02 | [Issue #425](https://github.com/kmryst/ticket-c2c-platform/issues/425) |
+| `typescript` | major | `/frontend` | `typescript-eslint@8.66.0`（npm latest。当該リポジトリは 8.62.1）の peer が `typescript ">=4.8.4 <6.1.0"`。Dependabot PR #353（5.9.3→7.0.2）で Frontend Build / Playwright E2E が失敗。devDependency のため本番影響なし | `typescript-eslint` の peer から `<6.1.0` の上限が外れ、`typescript@7` で build / lint が通ったら | 2026-11-02 | [Issue #426](https://github.com/kmryst/ticket-c2c-platform/issues/426) |
+| `eslint` | major | `/frontend` | `eslint-plugin-react@7.37.5` の peer eslint が `"^3\|\|^4\|\|^5\|\|^6\|\|^7\|\|^8\|\|^9.7"` で `^10` なし。Dependabot PR #356（9.39.4→10.8.0）で Frontend Build が失敗。devDependency のため本番影響なし | `eslint-plugin-react` の peer が `eslint ^10` を許容し、`eslint@10` で lint が通ったら | 2026-11-02 | [Issue #427](https://github.com/kmryst/ticket-c2c-platform/issues/427) |
+
+### idp-golden-path
+
+| 対象 | 種別 | 対象エントリ | 理由 | 解除条件 | 見直し期限 | 追跡 |
+|---|---|---|---|---|---|---|
+| `jsdom` | major | `/backstage` | jsdom 30 は `CSS.escape` の IDL brand check 厳格化により、MUI v4（`@material-ui/styles` + JSS）経由で `App.test.tsx` が `TypeError` で落ちる（PR #132 で検出）。jsdom のみ 29.1.1 に戻すと `yarn test` / `yarn tsc` とも pass。devDependency のため本番影響なし | `@backstage/core-components` の依存が `@material-ui/core` → `@mui/material` に変わったら | 2026-11-02 | [Issue #146](https://github.com/kmryst/idp-golden-path/issues/146) |
 
 ## Follow-up Issue Plans
 
