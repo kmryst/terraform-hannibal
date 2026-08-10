@@ -12,7 +12,7 @@ Preview Environment は現時点では本格設計・実装せず、dev deploy/d
 
 - **バックエンド**: S3 バケット `nestjs-hannibal-3-terraform-state`
 - **State lock**: 全 6 root module で S3 lockfile（`use_lockfile = true`）を使用する
-- **Terraform CLI**: 全 6 root module の最低バージョンは `>= 1.11.0` とする
+- **Terraform CLI**: 全 6 root module の最低バージョンは `>= 1.11.0` とし、ローカル / CI の実行バージョンは `1.14.8` に統一する（ADR 0031）
 - **バケットは共有可**（同一バケット内で key 分離すれば競合しない）
 
 | root module | State キー | 内容 |
@@ -30,7 +30,11 @@ Preview Environment は現時点では本格設計・実装せず、dev deploy/d
 
 このプロジェクトは S3 backend の `use_lockfile = true` を state lock の正とする。Terraform v1.10.0 で S3 native state locking は導入されたが、v1.11.0 のリリースノートで generally available と明記され、DynamoDB 関連引数は新しい locking mechanism に置き換える方向で deprecated になった。そのため、宣言上の最低バージョンは「導入された 1.10」ではなく「GA になった 1.11」を下限にする。
 
-一方で、CI/CD workflow（`pr-check.yml` / `deploy.yml` / `destroy.yml`）は Terraform `1.12.1` を明示的に使用している。現時点の構成に Terraform 1.12 系だけが必要な機能はないため、root module の `required_version` は実行環境の pin と同じ `>= 1.12.1` にはせず、構成が必要とする機能下限として `>= 1.11.0` を宣言する。workflow 側の `1.12.1` は、CI/CD 実行時の再現性を保つための pin として扱う。
+一方で、CI/CD workflow（`pr-check.yml` / `deploy.yml` / `destroy.yml`）は Terraform `1.14.8` を明示的に使用している。現時点の構成に Terraform 1.12 系以降だけが必要な機能はないため、root module の `required_version` は実行環境の pin と同じ `>= 1.14.8` にはせず、構成が必要とする機能下限として `>= 1.11.0` を宣言する。workflow 側の `1.14.8` は、CI/CD 実行時の再現性を保つための pin として扱う。
+
+実行環境の pin を `1.14.8` としているのは、性能や機能上の要求ではなく、`terraform/foundation` の state が既に `1.14.8` で記録されており、Terraform の state が前方互換を持たない（記録された `terraform_version` より古い CLI での操作を拒否する）ためである。3 リポジトリ共通の統一先としての判断は [ADR 0031](./adr/0031-unify-terraform-version-to-1-14-8-and-verify-toolchain-consistency-in-ci.md) を参照する。
+
+ローカル実行環境のバージョン正本は `.mise.toml`（ADR 0023）であり、workflow の pin はその写像である。両者の一致は `toolchain-version-check.yml`（idp-golden-path の reusable workflow を消費する caller）が PR ごとに機械検査する。Terraform バージョンを更新するときは、`.mise.toml` と `pr-check.yml` / `deploy.yml` / `destroy.yml` の `env.TERRAFORM_VERSION` を同時に変更する。
 
 参考:
 

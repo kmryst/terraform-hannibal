@@ -30,6 +30,9 @@ mise install
 pre-commit install
 ```
 
+`.mise.toml` はローカル実行環境のツールチェーンバージョンの正本です（ADR 0023）。CI は `.mise.toml` を読まず workflow 内で明示 pin しますが、pin の値は `.mise.toml` の宣言と一致させます（ADR 0031）。
+Terraform のバージョンを更新する場合は、`.mise.toml` と `.github/workflows/` の `pr-check.yml` / `deploy.yml` / `destroy.yml` の `env.TERRAFORM_VERSION` を同じ PR で変更してください。不一致は `Toolchain Version Check` が検出します。
+
 Terraform root module の README は `terraform_docs` pre-commit hook で更新します。
 Terraform root module を変更した場合は、コミット前に必要に応じて次を実行してください。
 
@@ -389,6 +392,9 @@ Issue 本文には専用の運用区分欄を追加せず、Issue 起票前プ�
 
 `Commitlint` は PR title・PR内コミットメッセージを検査する CI check です。
 required status check に含める場合は、workflow 追加後に GitHub の branch protection 設定も同期します。
+
+`Toolchain Version Check` は `.mise.toml` が宣言する Terraform バージョンと CI の pin が一致することを検査する CI check です。
+新しいガードレールのため required status check には含めていません（[ADR 0031](./docs/adr/0031-unify-terraform-version-to-1-14-8-and-verify-toolchain-consistency-in-ci.md)）。
 
 ### terraform plan の扱い
 

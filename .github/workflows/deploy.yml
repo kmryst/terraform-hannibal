@@ -2,7 +2,7 @@ name: Deploy NestJS Hannibal
 
 env:
   PROJECT_NAME: "nestjs-hannibal-3"
-  TERRAFORM_VERSION: "1.12.1"
+  TERRAFORM_VERSION: "1.14.8"
   NODE_VERSION: "24"
 
 on:
