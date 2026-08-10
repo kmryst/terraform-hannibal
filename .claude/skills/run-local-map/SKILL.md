@@ -88,7 +88,17 @@ cd client && npm ci && npm run dev
 4. `client/.env.local` を削除する
 5. 自動生成された `src/graphql/graphql.schema.ts` を revert する
 
+前景で起動している場合は、それぞれの端末で `Ctrl+C` を押す（1 → 2 の順）。
+そのうえで、listener が本当に消えたかを確認してから 3 以降へ進む。
+
 ```bash
+# 1-2. vite dev サーバ → NestJS バックエンドの順に停止し、listener を確認する
+ss -ltnp | grep -E ":5173|:3000"
+
+# 残っていた場合は、上で表示された PID を個別に停止する
+# kill <PID>
+
+# 3-5. 依存される側を片付ける
 docker rm -f hannibal-pg-local
 rm -f client/.env.local
 git checkout -- src/graphql/graphql.schema.ts
@@ -100,11 +110,7 @@ git checkout -- src/graphql/graphql.schema.ts
 #### プロセス停止時の注意（実測）
 
 `npx nest start` はラッパー経由で起動するため、`npm exec` / `nest start` のプロセスを kill しても**実際にポートを握っている子プロセスが生き残る**。
-実測では、次のように listener の PID を特定して個別に kill する必要があった。
-
-```bash
-ss -ltnp | grep :3000
-```
+実測では、`ss -ltnp | grep :3000` で判明した別 PID を個別に kill する必要があった。
 
 停止後は listener が消えたことを必ず確認する。プロセス一覧が空になっただけでは不十分。
 
