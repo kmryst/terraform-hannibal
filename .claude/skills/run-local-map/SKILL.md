@@ -80,11 +80,39 @@ cd client && npm ci && npm run dev
 
 ### 6. 後片付け
 
+**起動した順の逆順で、一括で実施する。**
+
+1. vite dev サーバを停止する
+2. NestJS バックエンドを停止する
+3. Postgres コンテナを削除する
+4. `client/.env.local` を削除する
+5. 自動生成された `src/graphql/graphql.schema.ts` を revert する
+
 ```bash
 docker rm -f hannibal-pg-local
 rm -f client/.env.local
 git checkout -- src/graphql/graphql.schema.ts
 ```
+
+順序を守る理由: 依存される側（Postgres コンテナ・`client/.env.local`）を先に消し、依存する側（バックエンド・vite dev サーバ）を起動したまま放置すると、
+バックエンドが DB を失った状態で `/health` だけ 200 を返す紛らわしい状態になる（実測）。
+
+#### プロセス停止時の注意（実測）
+
+`npx nest start` はラッパー経由で起動するため、`npm exec` / `nest start` のプロセスを kill しても**実際にポートを握っている子プロセスが生き残る**。
+実測では、次のように listener の PID を特定して個別に kill する必要があった。
+
+```bash
+ss -ltnp | grep :3000
+```
+
+停止後は listener が消えたことを必ず確認する。プロセス一覧が空になっただけでは不十分。
+
+```bash
+ss -ltn | grep -E ":3000|:5173"
+```
+
+何も出力されなければ停止完了。
 
 ## 落とし穴
 
