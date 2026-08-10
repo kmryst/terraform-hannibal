@@ -6,7 +6,7 @@ ECS、ALB、CodeDeploy、monitoring など、アプリケーション実行基�
 ## Requirements
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.11.0 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 6.8.0 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | ~> 3.7 |
@@ -14,14 +14,14 @@ ECS、ALB、CodeDeploy、monitoring など、アプリケーション実行基�
 ## Providers
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="provider_random"></a> [random](#provider\_random) | 3.9.0 |
 | <a name="provider_terraform"></a> [terraform](#provider\_terraform) | n/a |
 
 ## Modules
 
 | Name | Source | Version |
-|------|--------|---------|
+| ---- | ------ | ------- |
 | <a name="module_codedeploy"></a> [codedeploy](#module\_codedeploy) | ../modules/codedeploy | n/a |
 | <a name="module_ecs"></a> [ecs](#module\_ecs) | ../modules/ecs | n/a |
 | <a name="module_load_balancer"></a> [load\_balancer](#module\_load\_balancer) | ../modules/load-balancer | n/a |
@@ -31,7 +31,7 @@ ECS、ALB、CodeDeploy、monitoring など、アプリケーション実行基�
 ## Resources
 
 | Name | Type |
-|------|------|
+| ---- | ---- |
 | [random_password.alb_origin_verify_header](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
 | [terraform_remote_state.database](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
 | [terraform_remote_state.network](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
@@ -39,7 +39,7 @@ ECS、ALB、CodeDeploy、monitoring など、アプリケーション実行基�
 ## Inputs
 
 | Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
+| ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_alb_certificate_arn"></a> [alb\_certificate\_arn](#input\_alb\_certificate\_arn) | ACM certificate ARN for HTTPS listener | `string` | n/a | yes |
 | <a name="input_alb_origin_secret_rotation_version"></a> [alb\_origin\_secret\_rotation\_version](#input\_alb\_origin\_secret\_rotation\_version) | Version key for rotating the ALB origin verify header secret | `string` | `"v1"` | no |
 | <a name="input_alert_email"></a> [alert\_email](#input\_alert\_email) | Email address for CloudWatch alarm notifications | `string` | `"gatsbykenji@gmail.com"` | no |
@@ -64,7 +64,7 @@ ECS、ALB、CodeDeploy、monitoring など、アプリケーション実行基�
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ---- | ----------- |
 | <a name="output_alb_dns_name"></a> [alb\_dns\_name](#output\_alb\_dns\_name) | ALB DNS name |
 | <a name="output_alb_origin_verify_header_value"></a> [alb\_origin\_verify\_header\_value](#output\_alb\_origin\_verify\_header\_value) | ALB origin verify header value for CloudFront |
 | <a name="output_alb_zone_id"></a> [alb\_zone\_id](#output\_alb\_zone\_id) | ALB hosted zone ID |
