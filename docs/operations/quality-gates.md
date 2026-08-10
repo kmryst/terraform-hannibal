@@ -11,10 +11,18 @@
 
 ## PR チェック
 
+Job 列は PR に実際に作成される check run 名です。
+`idp-golden-path` の reusable workflow を消費する caller workflow は `<caller の job id> / <callee の job 名>` という合成名になります（[github-flow-guardrails.md](./github-flow-guardrails.md)）。
+required status check に登録する際はこの合成名を使います。実設定は `gh api repos/:owner/:repo/branches/main/protection/required_status_checks --jq '{strict, contexts}'` で確認します。
+
 | Job | Workflow | 主な実行条件 | ツール | 役割 | 扱い |
 |---|---|---|---|---|---|
-| `PR Policy Check` | `.github/workflows/pr-policy-check.yml` | `opened` / `synchronize` / `reopened` / `edited` / `labeled` / `unlabeled` | `gh` / `jq` / shell | Issue link、必須ラベル、厳密運用時の rollback 欄を確認 | required status check 対象 |
-| `Commitlint` | `.github/workflows/pr-commitlint.yml` | `opened` / `synchronize` / `reopened` / `edited` | `commitlint` | PR title と PR 内コミットメッセージを Conventional Commits 形式で確認 | required status check 対象 |
+| `pr-policy-check / PR Policy Check` | `.github/workflows/pr-policy-check.yml`（caller） | `opened` / `synchronize` / `reopened` / `edited` / `labeled` / `unlabeled` | `gh` / `jq` / shell | Issue link、必須ラベル、厳密運用時の rollback 欄を確認 | required status check 対象 |
+| `commitlint / Commitlint` | `.github/workflows/pr-commitlint.yml`（caller） | `opened` / `synchronize` / `reopened` / `edited` | `commitlint` | PR title と PR 内コミットメッセージを Conventional Commits 形式で確認 | required status check 対象 |
+| `toolchain-version-check / Toolchain Version Check` | `.github/workflows/toolchain-version-check.yml`（caller） | `opened` / `synchronize` / `reopened` | shell | `.mise.toml` の Terraform 宣言と workflow の `TERRAFORM_VERSION:` / `terraform_version:` リテラルの一致を確認 | PR で自動実行。検出時は fail。required status check 対象外（[ADR 0031](../adr/0031-unify-terraform-version-to-1-14-8-and-verify-toolchain-consistency-in-ci.md)） |
+| `markdown-lint / Markdown Lint` | `.github/workflows/markdown-lint.yml`（caller） | `pull_request`（既定 types） | `markdownlint-cli2` | Markdown ドキュメントの記法を確認 | PR で自動実行。検出時は fail。required status check 対象外 |
+| `analyze / CodeQL Analyze (<language>)` | `.github/workflows/codeql.yml`（caller） | `pull_request` / `main` への `push` / 週次 `schedule` | CodeQL | `actions` と `javascript-typescript` の SAST。結果は Code scanning alerts に出力 | PR で自動実行。required status check 対象外 |
+| `root / Dependency Audit`、`client / Dependency Audit` | `.github/workflows/dependency-audit.yml`（caller） | `pull_request` / 週次 `schedule` / `workflow_dispatch` | `npm audit` | 依存関係の既知脆弱性を確認。root と `client/` は独立した npm プロジェクトのため 2 job | PR で自動実行。required status check 対象外 |
 | `Backend Lint & Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | ESLint / Nest build | backend の lint と build を確認 | required status check 対象 |
 | `Backend Test` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Jest | backend unit test を確認 | PR で自動実行 |
 | `Frontend Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | TypeScript / Vite build | frontend の型チェックと build を確認 | required status check 対象 |
@@ -25,7 +33,9 @@
 | `Terraform Format & Validate` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `terraform fmt` / `terraform validate` | HCL の整形と Terraform 構成の基本整合性を確認 | required status check 対象 |
 | `TFLint` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `tflint` | Terraform / AWS provider 向けの lint。非推奨設定、未使用宣言、provider 固有のミスを検出 | required status check 対象。検出時は fail |
 | `Trivy Config Scan` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `trivy config` | Terraform / Dockerfile などの IaC・設定ミスを検出 | PR で自動実行。review signal として扱い、検出しても fail しない |
-| `Gitleaks Secret Scan` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `gitleaks` | Git 履歴に混入した API key / token / password などの secret を検出 | required status check 対象。検出時は fail |
+| `gitleaks / Gitleaks Secret Scan` | `.github/workflows/gitleaks-secret-scan.yml`（caller） | `pull_request`（既定 types） | `gitleaks` | Git 履歴に混入した API key / token / password などの secret を検出 | required status check 対象。検出時は fail |
+
+`Issue Template Check`（`.github/workflows/issue-template-check.yml`）は `issues` イベントで起動する Issue 側のガードレールであり、PR には check run を作成しないためこの表には含めません。
 
 ### 2026-06-27 ShellCheck / Hadolint 初期導入
 
@@ -107,6 +117,8 @@ docker buildx imagetools inspect ghcr.io/hadolint/hadolint:v2.14.0
 required status check の context 名は既存の branch protection と互換にするため、次を維持します。
 
 `PR Policy Check` / `Commitlint` / `Backend Lint & Build` / `Frontend Build` / `Terraform Format & Validate` / `TFLint` / `Gitleaks Secret Scan`
+
+これは #415 時点の名前です。その後 `PR Policy Check` / `Commitlint` / `Gitleaks Secret Scan` は `idp-golden-path` の reusable workflow へ移行し、check 名が合成名（`pr-policy-check / PR Policy Check` など）に変わったため、branch protection の context も合わせて更新済みです。現在の一覧は本節ではなく上の「PR チェック」表を参照してください。
 
 ### 2026-06-21 PR Terraform Plan Artifact 一時停止
 

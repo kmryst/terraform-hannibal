@@ -14,7 +14,7 @@ Terraform / AWS / SRE 実践としての固有判断はこのリポジトリに�
 
 ## 現時点の技術的な未収束点
 
-2026-07-13 時点では、方針と docs は `idp-golden-path` の型へ寄せていますが、技術実装はまだ完全には収束していません。
+2026-08-11 時点では、方針と docs は `idp-golden-path` の型へ寄せていますが、技術実装はまだ完全には収束していません。
 
 - Commitlint / Sync Labels / PR Policy Check / Gitleaks は `idp-golden-path` の reusable workflow を `@v1` で消費する薄い caller workflow に移行済み（Issue #495 / #498 / #496 / #497）。共通ガードレール4種の移行はすべて完了した。
 - Gitleaks は `pr-check.yml` 内の job から独立した `gitleaks-secret-scan.yml` に切り出した。`.gitleaks.toml`（`client/dist/assets/` 配下の allowlist）は、reusable workflow が config 引数なしで実行しても gitleaks のデフォルト自動検出（カレントディレクトリの `.gitleaks.toml` を読む）により有効に働くことを実測確認した。実行方式は `gitleaks/gitleaks-action` 相当のインストール手順からバイナリ直接インストール（checksum 検証付き）に変わる。

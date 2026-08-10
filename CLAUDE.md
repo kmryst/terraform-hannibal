@@ -137,7 +137,7 @@ PR 本文には `Closes #<issue番号>` / `Fixes #<issue番号>` / `Refs #<issue
 
 ### 実行してよい検証コマンド
 
-ローカルの Terraform バージョンは `.mise.toml`（`1.14.8`）が正本。`mise install` 済みであることを前提とし、CI の pin と一致していることは `Toolchain Version Check` が検査する（ADR 0031）。
+ローカルの Terraform バージョンは `.mise.toml`（`1.14.8`）が正本。`mise install` 済みであることを前提とし、CI の pin と一致していることは `toolchain-version-check / Toolchain Version Check` が検査する（ADR 0031）。check 名が合成名になる理由と一覧は `CONTRIBUTING.md` を参照する。
 
 ```bash
 # フォーマットチェック（差分なしが正常）
