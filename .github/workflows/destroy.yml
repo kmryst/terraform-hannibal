@@ -2,7 +2,7 @@ name: Destroy AWS Infrastructure (Reliable)
 
 env:
   PROJECT_NAME: "nestjs-hannibal-3"
-  TERRAFORM_VERSION: "1.14.8"
+  TERRAFORM_VERSION: "1.12.1"
 
 on:
   workflow_dispatch:
