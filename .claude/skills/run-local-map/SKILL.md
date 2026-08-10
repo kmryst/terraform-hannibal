@@ -88,17 +88,37 @@ cd client && npm ci && npm run dev
 4. `client/.env.local` を削除する
 5. 自動生成された `src/graphql/graphql.schema.ts` を revert する
 
-前景で起動している場合は、それぞれの端末で `Ctrl+C` を押す（1 → 2 の順）。
-そのうえで、listener が本当に消えたかを確認してから 3 以降へ進む。
+#### 1-2. vite dev サーバと NestJS バックエンドを停止する
+
+このスキルの主な利用者は AI エージェントであり、プロセスはバックグラウンド（非対話）で起動されるため、`Ctrl+C` を送れない前提で手順を組む。
+listener を握っている PID を `ss -ltnp` から特定して停止する。2026-08-10 に実測で動作確認済み。
 
 ```bash
-# 1-2. vite dev サーバ → NestJS バックエンドの順に停止し、listener を確認する
-ss -ltnp | grep -E ":5173|:3000"
+# listener を握っている PID を特定して停止する（vite → backend の順）
+for port in 5173 3000; do
+  pids=$(ss -ltnp 2>/dev/null | grep ":$port " | grep -oP 'pid=\K[0-9]+' | sort -u)
+  for pid in $pids; do kill $pid 2>/dev/null; done
+done
+sleep 3
+# 残っていれば SIGKILL
+for port in 5173 3000; do
+  pids=$(ss -ltnp 2>/dev/null | grep ":$port " | grep -oP 'pid=\K[0-9]+' | sort -u)
+  for pid in $pids; do kill -9 $pid 2>/dev/null; done
+done
+ss -ltn 2>/dev/null | grep -E ":3000|:5173" || echo "listener なし"
+```
 
-# 残っていた場合は、上で表示された PID を個別に停止する
-# kill <PID>
+- ポートの並び順 `5173 3000` が vite → バックエンドの停止順序を担保している。依存する側から先に落とすこと
+- `npx nest start` はラッパー経由で起動するため、`npm exec` / `nest start` のプロセスを kill しても**実際にポートを握っている子プロセスが生き残る**（実測）。プロセス名ではなく `ss -ltnp` からポートを握っている実プロセスの PID を拾う方式が確実
+- 最後の `ss -ltn` で listener が消えたことを必ず確認する。`listener なし` と出れば停止完了。プロセス一覧が空になっただけでは不十分
 
-# 3-5. 依存される側を片付ける
+前景で起動した端末が手元にある場合は、その端末で `Ctrl+C` を押しても止められる（1 → 2 の順）。ただしこの経路は未検証であり、いずれにせよ上の `ss -ltn` による listener 確認は行う。
+
+#### 3-5. 依存される側を片付ける
+
+listener が消えたことを確認してから実行する。
+
+```bash
 docker rm -f hannibal-pg-local
 rm -f client/.env.local
 git checkout -- src/graphql/graphql.schema.ts
@@ -106,19 +126,6 @@ git checkout -- src/graphql/graphql.schema.ts
 
 順序を守る理由: 依存される側（Postgres コンテナ・`client/.env.local`）を先に消し、依存する側（バックエンド・vite dev サーバ）を起動したまま放置すると、
 バックエンドが DB を失った状態で `/health` だけ 200 を返す紛らわしい状態になる（実測）。
-
-#### プロセス停止時の注意（実測）
-
-`npx nest start` はラッパー経由で起動するため、`npm exec` / `nest start` のプロセスを kill しても**実際にポートを握っている子プロセスが生き残る**。
-実測では、`ss -ltnp | grep :3000` で判明した別 PID を個別に kill する必要があった。
-
-停止後は listener が消えたことを必ず確認する。プロセス一覧が空になっただけでは不十分。
-
-```bash
-ss -ltn | grep -E ":3000|:5173"
-```
-
-何も出力されなければ停止完了。
 
 ## 落とし穴
 
