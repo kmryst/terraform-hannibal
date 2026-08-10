@@ -1,0 +1,173 @@
+---
+name: run-local-map
+description: terraform-hannibal のバックエンド（NestJS + GraphQL）とフロントエンド（React + Vite + mapbox-gl）をローカルで起動し、ブラウザでハンニバル進軍ルートの地図描画を目視確認する手順。「ローカルで起動して」「ローカルで動かして」「地図を確認して」「地図の描画をチェックして」「mapbox の描画チェック」「mapbox-gl の更新を検証して」のような依頼で使う。
+---
+
+# ローカルで地図描画を確認する
+
+バックエンドとフロントエンドをローカルで起動し、`http://localhost:5173/` で地図描画を目視確認するための手順。
+2026-08-10 に WSL 上で実機検証済み。コマンドはそのまま実行できる。
+
+作業ディレクトリはリポジトリルート（`terraform-hannibal/`）を前提とする。
+
+## 前提
+
+- Docker が利用できること
+- Node.js が `.mise.toml` の version で入っていること（`mise install`）
+
+## 手順
+
+### 1. Postgres を起動する
+
+```bash
+docker run -d --name hannibal-pg-local \
+  -e POSTGRES_PASSWORD=devpass \
+  -e POSTGRES_USER=devuser \
+  -e POSTGRES_DB=hannibal \
+  -p 55432:5432 \
+  postgres:16-alpine
+```
+
+ホスト側ポートを `55432` にしているのは、ローカルに既存の Postgres（`5432`）がある場合に衝突させないため。
+
+ready 待ちは次で確認する（実測 1 秒程度）。
+
+```bash
+docker exec hannibal-pg-local pg_isready -U devuser -d hannibal
+```
+
+### 2. バックエンドを起動する
+
+リポジトリルートで実行する。
+
+```bash
+DATABASE_URL="postgresql://devuser:devpass@localhost:55432/hannibal?sslmode=disable" \
+  NODE_ENV=development \
+  PORT=3000 \
+  npx nest start
+```
+
+起動確認（実測 1 秒程度で応答する）。
+
+```bash
+curl -s http://localhost:3000/health
+```
+
+`{"status":"ok",...}` が返れば起動完了。
+
+### 3. クライアントの接続先を設定する
+
+`client/.env.local` を作成する。
+
+```bash
+echo 'VITE_GRAPHQL_ENDPOINT=http://localhost:3000/graphql' > client/.env.local
+```
+
+### 4. フロントエンドを起動する
+
+```bash
+cd client && npm ci && npm run dev
+```
+
+`http://localhost:5173/` で開く。
+
+### 5. 目視確認ポイント
+
+- 赤いルート線が Carthago Nova からアルプス越えを経てカンナエまで**連続して**描画されていること
+- ラベルが各マーカーの上下左右に散って配置されていること（`text-variable-anchor` が効いていることの確認。全ラベルが同じ向きに固まっていたら異常）
+- Roma（鷲）/ Carthage（象）のカスタムアイコンが表示されていること
+- ブラウザコンソールに `Map layers added successfully.` が出ていること
+
+### 6. 後片付け
+
+**起動した順の逆順で、一括で実施する。**
+
+1. vite dev サーバを停止する
+2. NestJS バックエンドを停止する
+3. Postgres コンテナを削除する
+4. `client/.env.local` を削除する
+5. 自動生成された `src/graphql/graphql.schema.ts` を revert する
+
+前景で起動している場合は、それぞれの端末で `Ctrl+C` を押す（1 → 2 の順）。
+そのうえで、listener が本当に消えたかを確認してから 3 以降へ進む。
+
+```bash
+# 1-2. vite dev サーバ → NestJS バックエンドの順に停止し、listener を確認する
+ss -ltnp | grep -E ":5173|:3000"
+
+# 残っていた場合は、上で表示された PID を個別に停止する
+# kill <PID>
+
+# 3-5. 依存される側を片付ける
+docker rm -f hannibal-pg-local
+rm -f client/.env.local
+git checkout -- src/graphql/graphql.schema.ts
+```
+
+順序を守る理由: 依存される側（Postgres コンテナ・`client/.env.local`）を先に消し、依存する側（バックエンド・vite dev サーバ）を起動したまま放置すると、
+バックエンドが DB を失った状態で `/health` だけ 200 を返す紛らわしい状態になる（実測）。
+
+#### プロセス停止時の注意（実測）
+
+`npx nest start` はラッパー経由で起動するため、`npm exec` / `nest start` のプロセスを kill しても**実際にポートを握っている子プロセスが生き残る**。
+実測では、`ss -ltnp | grep :3000` で判明した別 PID を個別に kill する必要があった。
+
+停止後は listener が消えたことを必ず確認する。プロセス一覧が空になっただけでは不十分。
+
+```bash
+ss -ltn | grep -E ":3000|:5173"
+```
+
+何も出力されなければ停止完了。
+
+## 落とし穴
+
+### `npm run start:dev` は Linux / WSL では使えない
+
+`package.json` の `start:dev` は `set NODE_ENV=development&& nest start --watch` という **Windows cmd 構文**のため、Linux / WSL では失敗する。
+手順 2 の形で環境変数を直接渡すこと。
+
+### バックエンドは DB がないと起動しない
+
+`AppModule` の `TypeOrmModule.forRoot` により、起動時に Postgres への接続を要求する。
+地図が使う 3 クエリ（`capitalCities` / `hannibalRoute` / `pointRoute`）自体は `src/geojson_data/` の静的データを返すため DB 非依存だが、DB がないとアプリ自体が起動しない。
+「地図を見るだけだから DB は不要」と判断して手順 1 を飛ばさないこと。
+
+### `.env.example` の `VITE_GRAPHQL_ENDPOINT` はそのまま使えない
+
+`.env.example` の `VITE_GRAPHQL_ENDPOINT=/graphql` は、CloudFront 配下で同一オリジンに揃う**本番構成向け**の相対パス。
+vite dev サーバには proxy 設定がないため、dev では手順 3 のように**絶対 URL** を指定する必要がある。
+
+### vite のポートを変えると CORS で弾かれる
+
+`src/app.setup.ts` は `NODE_ENV=development` のとき `http://localhost:5173` と `http://192.168.1.3:5173` のみを許可する。
+vite が別ポート（`5174` など）にフォールバックすると CORS エラーになるため、`5173` が空いていることを確認する。
+
+### 依存更新の検証では `npm ci` を省略しない
+
+`client/node_modules` が lock file と乖離していることがある。
+2026-08-10 の検証時は `client/package-lock.json` が mapbox-gl 3.28.0 なのに `node_modules` には 3.10.0 が残っており、`npm ci` なしでは 3.28.0 の検証になっていなかった。
+
+依存更新の検証時は `npm ci` の後に実バージョンを確認すること。
+
+```bash
+cd client && node -p "require('./node_modules/mapbox-gl/package.json').version"
+```
+
+### `src/graphql/graphql.schema.ts` に差分が出る
+
+dev 起動すると `createGraphqlOptions` の `definitions.path` 設定により、`src/graphql/graphql.schema.ts` が自動生成され直して差分が出る。
+コミット前に必ず revert する（手順 6 に含めている）。
+
+### 既知のノイズ（異常ではない）
+
+- ブラウザコンソールの `favicon.ico` 404
+- WebGL の `GPU stall due to ReadPixels` 警告（WSL のソフトウェアレンダリング由来）
+
+## Playwright MCP で自動確認する場合
+
+mapbox の `Map` インスタンスは `window` に露出していないため、`map.setZoom()` のような直接操作はできない。
+ズーム操作は `.mapboxgl-canvas` に `WheelEvent` を dispatch する方法が有効だった。
+
+描画完了の判定には、コンソールログ `Map layers added successfully.` を待つのが確実。
+スクリーンショットはタイル読み込み完了を待ってから撮ること。
