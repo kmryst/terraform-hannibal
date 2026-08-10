@@ -127,6 +127,18 @@ pre-commit で root module README を生成できる状態を先に作り、CI r
 
 Terraform のバージョン値自体も ADR 0031 で `1.14.8` に更新されている。本 ADR 本文中の記述は採択当時のものとして残す。
 
+### 追記（2026-08-10）: terraform-docs でも drift が現実化していた（PR #590）
+
+同じ drift は terraform-docs でも起きていた。本 ADR で採択した「CI での terraform-docs 差分チェックは追加せず、pre-commit によるローカル更新に留める」という判断の短所が、そのまま表面化した形である。
+
+`.mise.toml` の `terraform-docs = "0.24.0"` は初回導入（[PR #431](https://github.com/kmryst/terraform-hannibal/pull/431)）から一度も変わっていない（`git log --follow -- .mise.toml` で確認）。にもかかわらず、Terraform root module README を実際に生成していたのは 0.20.0 だった。Terraform と同様に、mise が導入されていなければ `.mise.toml` の宣言に強制力がなく、手元の別経路で入ったバイナリが使われる。
+
+0.24.0 で再生成した結果の差分は、Markdown 表の区切り行の書式のみ（`|------|` → `| ---- |`）で、表の内容（input / output / resource の一覧）に変化はなかった。terraform-docs 側の出力整形が変わったことによるもので、ドキュメントの意味は変わっていない。
+
+[PR #590](https://github.com/kmryst/terraform-hannibal/pull/590) は `terraform/foundation` / `terraform/observability` / `terraform/service` の 3 つの README のみを変更した。`terraform/network` / `terraform/database` / `terraform/cdn` が含まれていないのは漏れではなく、これらは元から 0.24.0 の出力と一致していて差分が出なかったためである。6 root module すべてに対して `terraform-docs markdown table --output-file README.md --output-check` を 0.24.0 で実行し、全て `is up to date` になることを確認した。
+
+この乖離は ADR 0031 が導入した Toolchain Version Check では検出できない。同検査は「`.mise.toml` の宣言」と「workflow の pin」という 2 つの宣言を突き合わせるものだが、terraform-docs は CI で実行しないため比較対象となる pin が存在せず、そもそも乖離していたのは宣言同士ではなく宣言と生成物だからである。機械的に検出するなら、本 ADR が見送った CI gate 化（`terraform-docs --output-check` を PR で実行する）が必要になる。現時点では再導入せず、drift の再発頻度を見て別途判断する。
+
 ## 関連
 
 - [Issue #427](https://github.com/kmryst/terraform-hannibal/issues/427)

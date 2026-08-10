@@ -383,18 +383,41 @@ Issue 本文には専用の運用区分欄を追加せず、Issue 起票前プ�
 
 ### required status checks（マージ必須）
 
-以下の4つが成功しないと `main` へのマージができません。
+以下の7つが成功しないと `main` へのマージができません（2026-08-11 時点。実設定は `gh api repos/:owner/:repo/branches/main/protection/required_status_checks --jq '{strict, contexts}'` で確認できます）。
 
-- `PR Policy Check` — Issueリンク・必須ラベル・ロールバック欄の検査
+- `pr-policy-check / PR Policy Check` — Issueリンク・必須ラベル・ロールバック欄の検査
+- `commitlint / Commitlint` — PR title・PR内コミットメッセージの Conventional Commits 検査
+- `gitleaks / Gitleaks Secret Scan` — git 履歴への secret 混入検査
 - `Backend Lint & Build` — ESLint・NestJS ビルド
 - `Frontend Build` — React ビルド
 - `Terraform Format & Validate` — `terraform fmt` / `terraform validate`
-
-`Commitlint` は PR title・PR内コミットメッセージを検査する CI check です。
-required status check に含める場合は、workflow 追加後に GitHub の branch protection 設定も同期します。
+- `TFLint` — Terraform / AWS provider 向け lint
 
 `Toolchain Version Check` は `.mise.toml` が宣言する Terraform バージョンと CI の pin が一致することを検査する CI check です。
 新しいガードレールのため required status check には含めていません（[ADR 0031](./docs/adr/0031-unify-terraform-version-to-1-14-8-and-verify-toolchain-consistency-in-ci.md)）。
+
+このリポジトリでの実際の check run 名は **`toolchain-version-check / Toolchain Version Check`** です。
+required status check へ昇格させる場合は、この合成名を branch protection の context に指定します。
+
+### caller/callee 合成 check 名
+
+`idp-golden-path` の reusable workflow を消費する caller workflow の check 名は、`<caller の job id> / <callee の job 名>` という合成名になります。
+現在 required status check に登録済みのものも、この形式です。
+
+| workflow | check run 名 | required |
+|---|---|---|
+| `pr-policy-check.yml` | `pr-policy-check / PR Policy Check` | 対象 |
+| `pr-commitlint.yml` | `commitlint / Commitlint` | 対象 |
+| `gitleaks-secret-scan.yml` | `gitleaks / Gitleaks Secret Scan` | 対象 |
+| `toolchain-version-check.yml` | `toolchain-version-check / Toolchain Version Check` | 対象外 |
+| `markdown-lint.yml` | `markdown-lint / Markdown Lint` | 対象外 |
+| `codeql.yml` | `analyze / CodeQL Analyze (<language>)` | 対象外 |
+| `dependency-audit.yml` | `root / Dependency Audit` / `client / Dependency Audit` | 対象外 |
+
+caller job にあえて `name:` を付けず job id にフォールバックさせているのは、callee と同名にすると `Commitlint / Commitlint` のように文字列がそのまま重複して可読性を損なうためです（[GitHub Flow Guardrails](./docs/operations/github-flow-guardrails.md)）。
+合成のされ方は caller 側の job id に依存するため、check 名はリポジトリごとに異なり得ます。
+branch protection に登録する前に、実際の名前を `gh pr checks <PR番号>` で確認してください。
+存在しない context を required に指定すると、その check は永久に未充足のままになり PR がマージできなくなります。
 
 ### terraform plan の扱い
 

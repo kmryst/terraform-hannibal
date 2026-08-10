@@ -7,13 +7,18 @@ description: terraform-hannibal のバックエンド（NestJS + GraphQL）と�
 
 バックエンドとフロントエンドをローカルで起動し、`http://localhost:5173/` で地図描画を目視確認するための手順。
 2026-08-10 に WSL 上で実機検証済み。コマンドはそのまま実行できる。
+未検証の箇所は本文中でその都度「未検証」と明記している（前提の Node.js バージョン、後片付けの前景 `Ctrl+C` 経路）。
 
 作業ディレクトリはリポジトリルート（`terraform-hannibal/`）を前提とする。
 
 ## 前提
 
 - Docker が利用できること
-- Node.js が `.mise.toml` の version で入っていること（`mise install`）
+- Node.js 24 系が使えること
+
+Node.js のバージョンについて: 2026-08-10 の検証はシステムの Node **v24.14.1** で実施した。
+`.mise.toml` が宣言する **24.18.0**（`mise install` で入る version）での動作は未検証。
+どちらも Node 24 系であり `engines.node` の `>=24 <25` を満たすため通る見込みだが、実測はしていない。
 
 ## 手順
 
@@ -38,7 +43,16 @@ docker exec hannibal-pg-local pg_isready -U devuser -d hannibal
 
 ### 2. バックエンドを起動する
 
-リポジトリルートで実行する。
+リポジトリルートで実行する。まず依存をインストールする。
+
+```bash
+npm ci
+```
+
+`client/` 側と同様、ルート側も `node_modules` が lock file と乖離していることがあるため省略しない（後述の落とし穴を参照）。
+2026-08-11 に実測して約 17 秒 / 928 packages で完了することを確認済み。
+
+続いて起動する。
 
 ```bash
 DATABASE_URL="postgresql://devuser:devpass@localhost:55432/hannibal?sslmode=disable" \
@@ -140,17 +154,21 @@ git checkout -- src/graphql/graphql.schema.ts
 地図が使う 3 クエリ（`capitalCities` / `hannibalRoute` / `pointRoute`）自体は `src/geojson_data/` の静的データを返すため DB 非依存だが、DB がないとアプリ自体が起動しない。
 「地図を見るだけだから DB は不要」と判断して手順 1 を飛ばさないこと。
 
-### `.env.example` の `VITE_GRAPHQL_ENDPOINT` はそのまま使えない
+### `client/.env.example` の `VITE_GRAPHQL_ENDPOINT` はそのまま使えない
 
-`.env.example` の `VITE_GRAPHQL_ENDPOINT=/graphql` は、CloudFront 配下で同一オリジンに揃う**本番構成向け**の相対パス。
+`client/.env.example` の `VITE_GRAPHQL_ENDPOINT=/graphql` は、CloudFront 配下で同一オリジンに揃う**本番構成向け**の相対パス。
 vite dev サーバには proxy 設定がないため、dev では手順 3 のように**絶対 URL** を指定する必要がある。
+`VITE_GRAPHQL_ENDPOINT` を持つのは `client/.env.example` であり、リポジトリルートの `.env.example` には無い。
 
 ### vite のポートを変えると CORS で弾かれる
 
 `src/app.setup.ts` は `NODE_ENV=development` のとき `http://localhost:5173` と `http://192.168.1.3:5173` のみを許可する。
 vite が別ポート（`5174` など）にフォールバックすると CORS エラーになるため、`5173` が空いていることを確認する。
 
-### 依存更新の検証では `npm ci` を省略しない
+### 依存更新の検証では `npm ci` を省略しない（ルート / `client/` の両方）
+
+このリポジトリは npm workspaces を使わず、ルート（`package-lock.json`）と `client/`（`client/package-lock.json`）が独立した 2 つの npm プロジェクトになっている。
+`npm ci` は片方を実行しても他方には及ばないため、手順 2（ルート）と手順 4（`client/`）でそれぞれ実行する。
 
 `client/node_modules` が lock file と乖離していることがある。
 2026-08-10 の検証時は `client/package-lock.json` が mapbox-gl 3.28.0 なのに `node_modules` には 3.10.0 が残っており、`npm ci` なしでは 3.28.0 の検証になっていなかった。

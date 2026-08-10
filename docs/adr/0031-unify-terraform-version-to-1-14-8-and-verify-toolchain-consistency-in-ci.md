@@ -98,7 +98,12 @@ version source を完全に一本化でき、drift が原理的に発生しな�
 - `foundation` 層は、ローカル CLI が 1.14.8 になることで **更新経路が回復する**。これが本変更の実質的な効果である
 - 一度 1.14.8 で apply した state は 1.12.1 の CLI で操作できなくなる。ロールバックはこの PR をマージし apply する前に限り無害である
 - 全 6 root module が Terraform 1.14.8 で `fmt -check -recursive` / `init -backend=false` / `validate` を通ることをローカルで実測確認した。`fmt -check` の結果は 1.12.1 と 1.14.8 で同一（どちらも差分なし）、deprecation warning は 0 件、`.terraform.lock.hcl` の変更も発生しなかった
-- 検査対象は Terraform のみである。TFLint は `.mise.toml`（`0.62.1`）と `pr-check.yml`（`v0.62.1`）が一致しているが検査されない。Node.js は `.mise.toml` が `24.18.0`、workflow が major のみの `24` で粒度が異なるため、そもそも一致検査になじまない
+- 検査対象は Terraform のみである。`.mise.toml` が宣言する他の 3 ツールはいずれも検査対象外として残る
+  - TFLint: `.mise.toml`（`0.62.1`）と `pr-check.yml`（`v0.62.1`）が一致しているが検査されない
+  - Node.js: `.mise.toml` が `24.18.0`、workflow が major のみの `24` で粒度が異なるため、そもそも一致検査になじまない
+  - terraform-docs: `.mise.toml`（`0.24.0`）に対応する pin が workflow 側に存在しない。terraform-docs は CI で実行せず pre-commit のローカル実行に留めているため（[ADR 0023](./0023-adopt-mise-for-local-tooling-and-pre-commit-terraform-docs.md)）、比較対象そのものが無い
+- **terraform-docs では、この ADR が扱う drift が既に顕在化していた。** `.mise.toml` の `terraform-docs = "0.24.0"` は初回導入（[PR #431](https://github.com/kmryst/terraform-hannibal/pull/431)）から一度も変わっていないにもかかわらず、Terraform root module README を実際に生成していたのは 0.20.0 であり、宣言と実効値が乖離していた。2026-08-10 に 0.24.0 で再生成して [PR #590](https://github.com/kmryst/terraform-hannibal/pull/590) で是正済みである。本 ADR の検査対象は Terraform のみのため、この種の乖離は今後も CI では検出できない
+- terraform-docs の乖離は Terraform の drift と原因が異なる。Terraform は「宣言と CI pin という 2 つの宣言がずれた」ケースで、両方が宣言なので機械比較できる。terraform-docs は「宣言と、ローカルに実在するバイナリの実効値がずれた」ケースであり、比較相手は他の宣言ではなく生成物である。したがって pin 同士の突き合わせでは検出できず、検出するなら CI で `terraform-docs --output-check` を実行して生成物の差分を見る形になる（本 ADR の scope 外。ADR 0023 が見送った CI gate 化の再検討事項）
 
 ## 再検討条件
 
@@ -107,6 +112,7 @@ version source を完全に一本化でき、drift が原理的に発生しな�
 - **CI が mise を直接使う構成へ移行した場合**（案 D）。ローカル正本と CI pin の二重管理そのものが不要になり、本 ADR の検査も役目を終える
 - **`.mise.toml` 以外のツールチェーン宣言方式へ移行した場合**（`.tool-versions` / devcontainer / Nix など）。検査器のパーサを差し替える必要がある
 - **TFLint / Node.js も検査対象に加えたくなった場合**。reusable workflow 側の拡張として `idp-golden-path` で判断する
+- **terraform-docs の宣言と実効値の乖離を機械的に検出したくなった場合**。これは pin 同士の比較ではなく生成物の差分検査になるため、本 ADR の検査器の拡張ではなく、ADR 0023 が見送った terraform-docs の CI gate 化（`--output-check`）として判断する
 
 ## 関連
 

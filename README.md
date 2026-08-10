@@ -169,4 +169,4 @@ Terraform root module の README は terraform-docs により pre-commit で更�
 
 ---
 
-**最終更新**: 2026年6月27日 JST
+**最終更新**: 2026年8月11日 JST
