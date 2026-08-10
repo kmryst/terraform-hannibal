@@ -28,6 +28,9 @@ Terraform / AWS / SRE 実践としての固有判断はこのリポジトリに�
   - CodeQL: `security-scan.yml` 内にあった `sast-scan` job（週次のみ実行、PR非トリガー）は `codeql.yml`（PR/push ごとに実行）と重複するため削除し、一本化した
   - Dependency Audit: 本リポジトリは npm workspaces を使わず root（`package-lock.json`）と `client/`（`client/package-lock.json`）が独立した2つのnpmプロジェクトのため、`working-directory` を変えて2 job呼び出す
   - Markdown Lint: 前提の `lint:md` script・`.markdownlint-cli2.jsonc` が本リポジトリになかったため新規追加した。`.amazonq/rules/`・`.github/copilot-instructions.md`・`.cursor/rules/` は CLAUDE.md が明記する通り各ツール向け補助ルールで正本ではないため、lint 対象外とした
+- Toolchain Version Check を `idp-golden-path` の reusable workflow を `@v1` で消費する caller workflow として新規導入した（Issue #591）。`.mise.toml` が宣言する Terraform バージョンと、workflow に直書きされた `TERRAFORM_VERSION:` / `terraform_version:` のリテラル値が一致することを PR ごとに検査する。ADR 0023 が短所として挙げていた drift が現実化していた（`.mise.toml` は 1.12.1 を宣言していたが実際には 1.14.8 が使われ、`terraform/foundation` の state が 1.14.8 に上がっていた）ことへの対策で、設計判断は [ADR 0031](../adr/0031-unify-terraform-version-to-1-14-8-and-verify-toolchain-consistency-in-ci.md)。新しいガードレールのため required status checks には追加しない。
+  - 検査器は式による間接参照（`${{ env.TERRAFORM_VERSION }}` など）を pin とみなさないため、`pr-check.yml` の `setup-terraform` への直書きを env 参照に変更し、検査対象を各 workflow の `env` 定義 3 箇所に集約した。Terraform バージョンの更新点は `.mise.toml` と `env` の計 4 箇所になる
+  - Dependabot PR も免除しない。Commitlint / PR Policy Check の免除は人間向けの記述規約を bot に要求しないためのものだが、これは機械的な整合性検査であり免除すると検知の穴になる（Markdown Lint / CodeQL と同じ扱い）
 - helper scripts は共通化途上であり、`idp-golden-path` の `scripts/github/lib/common.sh` 形式には揃っていない。
 - Terraform plan / apply / destroy、TFLint、Trivy Config Scan などの Terraform / AWS 固有 workflow は、このリポジトリ固有の責務として残す。
 
@@ -59,6 +62,7 @@ Terraform / AWS / SRE 実践としての固有判断はこのリポジトリに�
 - PR title と PR 内コミットメッセージは `Commitlint` job で Conventional Commits 形式を検査する
 - `TFLint` と `Gitleaks Secret Scan` は #228 で required status checks に追加した
 - `Trivy Config Scan` は HIGH / CRITICAL finding を review signal として表示するが、#228 時点では blocking gate にしない
+- `Toolchain Version Check` は `.mise.toml` と CI の Terraform pin の一致を検査する review signal として追加し、#591 時点では required status checks に含めない
 - GitHub App `Amazon Q Developer` による自動コードレビューを review signal として利用する（詳細は「自動コードレビュー（Amazon Q Developer）」節）
 
 ### 軽運用 / 厳密運用

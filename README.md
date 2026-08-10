@@ -131,7 +131,7 @@ Issue / PR / Label / CI のガードレール整備後から、面接で深掘�
 
 | 領域 | 技術 |
 |---|---|
-| IaC | Terraform 1.12.1 |
+| IaC | Terraform 1.14.8 |
 | AWS | ECS Fargate、ALB、CloudFront、RDS PostgreSQL、S3、Route53、CloudTrail、Athena、CloudWatch |
 | CI/CD | GitHub Actions、CodeDeploy Blue/Green、Canary deployment |
 | Identity / Security | IAM、OIDC、Permission Boundary、TFLint、Trivy、Gitleaks、CodeQL |

@@ -117,9 +117,20 @@ pre-commit で root module README を生成できる状態を先に作り、CI r
 - CI では terraform-docs drift をまだ検出しない
 - version 更新 PR では `.mise.toml` と `.github/workflows/*.yml` の pin の関係を review する必要がある
 
+### 追記（2026-08-10）: 短所として挙げた drift が現実化した
+
+本 ADR は採択案の短所として「`.mise.toml` と workflow pin の間に version drift が起きる可能性が残る」ことを挙げ、「version 更新時に両方を一緒に確認する運用で扱う」としていた。2026-08-10 の実測で、このリスクが現実化していたことが判明した。
+
+`.mise.toml` は Terraform `1.12.1` を宣言していたが mise 自体が導入されておらず宣言に強制力がなく、実際には apt でインストールされた `1.14.8` が使われていた。その結果 `terraform/foundation` の state（実リソース 57 件）が `1.14.8` に上がり、`1.12.1` を pin する CI からも、宣言どおりの CLI を使うローカルからも操作できない層が生まれた。
+
+`.mise.toml` をローカル正本とし CI は明示 pin とする**構造そのものは維持する**（[ADR 0031](./0031-unify-terraform-version-to-1-14-8-and-verify-toolchain-consistency-in-ci.md) が案 D として二重管理の廃止を再検討したうえで、同じ理由で見送っている）。欠けていたのは検知手段であり、宣言と pin の一致は ADR 0031 で CI の機械検査に置き換えた。本 ADR の「運用で気を付ける」という扱いは、ADR 0031 の検査に取って代わられている。
+
+Terraform のバージョン値自体も ADR 0031 で `1.14.8` に更新されている。本 ADR 本文中の記述は採択当時のものとして残す。
+
 ## 関連
 
 - [Issue #427](https://github.com/kmryst/terraform-hannibal/issues/427)
+- [ADR 0031. Terraform を 1.14.8 に統一し、ローカル正本と CI pin の整合性を CI で検査する](./0031-unify-terraform-version-to-1-14-8-and-verify-toolchain-consistency-in-ci.md)
 - [Quality Gates](../operations/quality-gates.md)
 - [Terraform Modules Architecture](../architecture/terraform-modules.md)
 - [CONTRIBUTING.md](../../CONTRIBUTING.md)
