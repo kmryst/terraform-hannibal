@@ -72,3 +72,4 @@ ADR はその正本を置き換えるものではなく、重要な設計判断�
 | [0029](./0029-separate-fis-observability-root-module-for-blast-radius.md) | Accepted | AWS FIS実験テンプレートを独立root module `terraform/observability` に分離する |
 | [0030](./0030-adopt-cloudwatch-synthetics-canary-for-user-journey-monitoring.md) | Accepted | ユーザージャーニーレベルの外形監視にCloudWatch Synthetics canaryを採用する |
 | [0031](./0031-unify-terraform-version-to-1-14-8-and-verify-toolchain-consistency-in-ci.md) | Accepted | Terraform を 1.14.8 に統一し、ローカル正本と CI pin の整合性を CI で検査する |
+| [0032](./0032-keep-dependabot-and-do-not-adopt-renovate.md) | Accepted | 依存関係の自動更新を Dependabot に一本化し Renovate を採用しない |
