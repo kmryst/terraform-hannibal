@@ -57,7 +57,9 @@ Alpine package version を固定すると、`node:24-alpine` の package reposit
 
 \# 430 で、`pr-check.yml` の `run:` step から `docker run` している外部 Docker image を `image:tag@sha256:<digest>` 形式に固定しました。
 
-対象は GitHub Actions 内で直接 pull / execute する外部 image です。`docker build` が参照する `Dockerfile` の base image（例: `FROM node:24-alpine`）は application runtime / container dependency の更新判断を伴うため、今回の対象外とし、Renovate 導入を扱う #350 で管理します。Gitleaks job の `curl -sSfL` は GitHub Releases から binary を取得する shell command であり、Docker image ではないため対象外です。
+対象は GitHub Actions 内で直接 pull / execute する外部 image です。`docker build` が参照する `Dockerfile` の base image（例: `FROM node:24-alpine`）は application runtime / container dependency の更新判断を伴うため、今回の対象外としました。Gitleaks job の `curl -sSfL` は GitHub Releases から binary を取得する shell command であり、Docker image ではないため対象外です。
+
+\# 430 の時点では base image の管理先を「Renovate 導入を扱う #350」としていましたが、#350 は 2026-08-16 に Dependabot 方式へ rescope され、Renovate は採用しないことが決まりました（[ADR 0032](../adr/0032-keep-dependabot-and-do-not-adopt-renovate.md)）。base image の更新手段（Dependabot の `docker` ecosystem を使うか手動で扱うか）は未確定で、現時点ではどの Issue にも割り当てていません。
 
 初期 pin は version upgrade ではなく、現在 CI が実際に使っている image 実体を固定する方針で行いました。既存の明示 tag は維持し、tag なしだった `curlimages/curl` だけは、確認時点の `latest` と同じ digest を指す `8.21.0` tag に置き換えています。
 
@@ -77,7 +79,7 @@ docker buildx imagetools inspect koalaman/shellcheck:v0.11.0
 docker buildx imagetools inspect ghcr.io/hadolint/hadolint:v2.14.0
 ```
 
-更新時は tag と digest が対応していることを確認し、PR では version upgrade と digest pin の差分を分けて説明します。Renovate 導入時は、workflow 内 Docker image の tag / digest を regex manager などで更新対象にできるか検討します。
+更新時は tag と digest が対応していることを確認し、PR では version upgrade と digest pin の差分を分けて説明します。workflow 内 Docker image の tag / digest 更新は、Renovate の regex manager ではなく Dependabot でカバーできるかを検討します（Renovate は採用しません。[ADR 0032](../adr/0032-keep-dependabot-and-do-not-adopt-renovate.md)）。
 
 この判断の背景と代替案は [ADR 0025](../adr/0025-pin-github-actions-docker-images-by-tag-and-digest.md) に記録します。
 
