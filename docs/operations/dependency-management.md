@@ -38,7 +38,18 @@ Node.js は `>=24 <25` を application runtime / CI / container の support cont
 | reflect-metadata | `0.2.2` | NestJS / TypeORMのデコレータ・メタデータ基盤。0.xのためsemver上はminorでも実質major扱いで検証する。`typeorm@1.1.0` が `^0.2.2` を直接依存に持つ | NestJS / TypeORM側の要求range変更時 |
 | Node.js types | `24.13.3` | runtime majorと型定義majorを一致させる（Dependabotのmajor更新はignoreで抑止、Issue #555で追跡） | Node runtime major更新時 |
 
-`@nestjs/config@4.0.4`、`@nestjs/typeorm@11.0.3`、`@nestjs/schematics@11.1.0`、`ts-morph@28.0.0` も上記contractに合わせます。toolchainは TypeScript `5.9.3`（5系最新）、Jest 30、`@nestjs/cli@11.0.24` へ更新済みです。ESLint 8 のみ flat config 移行（Issue #551）完了まで据え置き、Dependabot の major 更新を ignore で抑止しています。
+`@nestjs/config@4.0.4`、`@nestjs/typeorm@11.0.3`、`@nestjs/schematics@11.1.0`、`ts-morph@28.0.0` も上記contractに合わせます。toolchainは TypeScript `6.0.3`、Jest 30、`@nestjs/cli@11.0.24` へ更新済みです。
+
+TypeScript は `~6.0.3`（6.0 系の patch のみ許容）で宣言します（Issue #663）。NestJS 12 系の `@nestjs/schematics@12` は peer に `typescript >=6.0.0`、`@nestjs/cli@12` は `typescript ~6.0.2` を要求するため、NestJS 12 系移行の前提として 6 系へ上げました。一方で `typescript-eslint@8.71.1` の peer は `typescript >=4.8.4 <6.1.0` のため、6.1 以降には上げません。7 系（2026-10-06 時点の最新は 7.0.2）への major 更新は Dependabot の ignore で抑止しています（Issue #542）。`client/` は対象外で、TypeScript 5 系のままです。
+
+TypeScript 6 で既定値が変わったため、次の設定を明示しています。
+
+- `tsconfig.build.json` の `rootDir`（`./src`）: 明示しないと TS5011 で build が失敗する
+- `tsconfig.build.json` の `tsBuildInfoFile`（`./dist/tsconfig.build.tsbuildinfo`）: `rootDir` を `./src` にすると、incremental build の `.tsbuildinfo` の既定の出力先が `dist/` の外（リポジトリ直下）に変わる。`nest build` は `deleteOutDir` で `dist/` だけを消すため、`.tsbuildinfo` が残ると TypeScript が変更なしと判断して何も出力せず、`dist/main.js` のないイメージができる（`.tsbuildinfo` が残ったローカルの作業ツリーから `docker build` すると、`COPY . .` でイメージに持ち込まれて再現した）。出力先を `dist/` 配下に固定して、`dist/` と一緒に消えるようにしている
+- `tsconfig.json` の `types`（`node` / `jest`）: 既定値が空になり、Jest のグローバル（`describe` / `expect` など）の型が読み込まれなくなるため
+- `esModuleInterop` が既定で有効になったため、CommonJS の `supertest` は `import request from 'supertest'`（default import）で読み込む
+
+`@nestjs/cli@11.0.24` は `typescript@5.9.3` を exact で依存に持つため、lockfile には `node_modules/@nestjs/cli/node_modules/typescript@5.9.3` が入れ子で残ります。`nest build` の型チェックと出力は root の `typescript@6.0.3` を使います。この入れ子は NestJS 12 系（`@nestjs/cli@12`）への移行時に解消します。ESLint 8 のみ flat config 移行（Issue #551）完了まで据え置き、Dependabot の major 更新を ignore で抑止しています。
 
 TypeORM 1.1.0 への更新（PR #547）は、Docker 上の PostgreSQL 16 に対するスモークテスト（アプリ起動、`synchronize` によるスキーマ自動生成、GraphQL 経由の createRoute / routes / seedRoutes の成功）と unit test を検証済みです。AWS dev 環境での実地 CRUD 確認は未了であり、次回 `deploy.yml`（workflow_dispatch）実行時に行います。
 
