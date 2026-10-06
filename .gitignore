@@ -73,6 +73,12 @@ docs/worklogs/
 # Local Claude Code settings
 .claude/settings.local.json
 
+# Claude Code がサブエージェントを隔離実行するときに作る git worktree（ローカル専用）
+.claude/worktrees/
+
+# Playwright MCP が出力するスクリーンショット・ログ（ローカル専用）
+.playwright-mcp/
+
 # Local mise overrides
 mise.local.toml
 .mise.local.toml
