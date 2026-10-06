@@ -74,3 +74,4 @@ ADR はその正本を置き換えるものではなく、重要な設計判断�
 | [0031](./0031-unify-terraform-version-to-1-14-8-and-verify-toolchain-consistency-in-ci.md) | Accepted | Terraform を 1.14.8 に統一し、ローカル正本と CI pin の整合性を CI で検査する |
 | [0032](./0032-keep-dependabot-and-do-not-adopt-renovate.md) | Accepted | 依存関係の自動更新を Dependabot に一本化し Renovate を採用しない |
 | [0033](./0033-adopt-expiring-npm-audit-exception-for-braces.md) | Accepted | idp-golden-path ADR 0008 の期限付き例外方式を採用し、braces の advisory を root の Dependency Audit で期限付き例外にする |
+| [0034](./0034-keep-backend-commonjs-and-load-esm-nestjs-via-require-esm.md) | Accepted | NestJS 12 系への移行で backend を CommonJS のまま維持し、ES Module の `@nestjs/*` を `require(esm)` で読み込む |
