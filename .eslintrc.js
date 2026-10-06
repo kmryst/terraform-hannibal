@@ -15,7 +15,9 @@ module.exports = {
     node: true,
     jest: true,
   },
-  ignorePatterns: ['.eslintrc.js'],
+  // src/graphql/graphql.schema.ts は @nestjs/graphql が開発モードの起動時（e2e を含む）に
+  // 毎回上書き生成するファイル。生成物をそのままコミットし、lint / format の対象から外す。
+  ignorePatterns: ['.eslintrc.js', 'src/graphql/graphql.schema.ts'],
   rules: {
     '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/explicit-function-return-type': 'off',
