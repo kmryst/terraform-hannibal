@@ -259,6 +259,46 @@ rollback 後は次を確認する。
 - `TargetResponseTime` が SLO 範囲に戻っている
 - ECS logs に同じ error が出続けていない
 
+### スキーマ変更を含むデプロイの rollback
+
+アプリは起動時に TypeORM migrations を適用する（[ADR 0035](../adr/0035-adopt-typeorm-migrations-for-schema-management.md)、手順の正本は [Data Architecture](../architecture/data-architecture.md) の「スキーマ管理（TypeORM migrations）」）。
+CodeDeploy の rollback はタスク定義（イメージ）を戻すだけで、DB のスキーマは戻さない。
+
+まず CloudWatch Logs でマイグレーションの結果を確認する。
+
+```bash
+aws logs filter-log-events \
+  --log-group-name /ecs/nestjs-hannibal-3-api-task \
+  --filter-pattern '"Migration"' \
+  --start-time $(( ($(date +%s) - 3600) * 1000 )) \
+  --query 'events[].message' \
+  --region ap-northeast-1
+```
+
+- `Migration "<Name>" failed` が出ている場合: マイグレーションは 1 つのトランザクションで実行されるため、失敗したマイグレーションの変更と `migrations` テーブルへの記録はすべて巻き戻っている。スキーマの rollback は不要で、上記のアプリの rollback（CodeDeploy）だけを行う
+- `has been executed successfully` が出ていて、アプリだけを戻す場合: マイグレーションは 1 つ前のバージョンでも動く後方互換な変更にする方針のため、通常はスキーマを戻さずアプリだけ戻す
+- スキーマも戻す必要がある場合: アプリを前のバージョンに戻した**後**で、マイグレーションを含む新しいイメージのタスク定義を使って、一回限りの ECS タスクで `migration:revert`（直前の 1 件の `down`）を実行する。古いイメージは新しいマイグレーションの `down` を持たないため、新しいイメージを使う
+
+```bash
+CLUSTER=nestjs-hannibal-3-cluster
+SERVICE=nestjs-hannibal-3-api-service
+NEW_TASK_DEF=<マイグレーションを含むタスク定義の ARN>
+
+NETWORK=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+  --query 'services[0].networkConfiguration' --output json --region ap-northeast-1)
+
+aws ecs run-task \
+  --cluster "$CLUSTER" \
+  --launch-type FARGATE \
+  --task-definition "$NEW_TASK_DEF" \
+  --network-configuration "$NETWORK" \
+  --overrides '{"containerOverrides":[{"name":"nestjs-hannibal-3-container","command":["node","node_modules/typeorm/cli.js","migration:revert","-d","dist/database/data-source.js"]}]}' \
+  --region ap-northeast-1
+```
+
+この操作は `deploy.yml` / `destroy.yml` には含めず、判断した人が手動で実行する。実行する認証情報には `ecs:RunTask` と実行ロール（`nestjs-hannibal-3-ecs-task-execution-role`）の `iam:PassRole` が必要である。実行後に同じロググループで `has been reverted successfully` を確認する。
+戻したいマイグレーションが複数ある場合は、新しいものから 1 件ずつ実行する。`migration:show` で状態を確認する場合は、`command` の `migration:revert` を `migration:show` に置き換える。
+
 ## 復旧後
 
 1. 発生時刻、検知した alarm、利用者影響、原因、暫定対応、恒久対応を Issue または PR に記録する。

@@ -154,6 +154,12 @@ git checkout -- src/graphql/graphql.schema.ts
 地図が使う 3 クエリ（`capitalCities` / `hannibalRoute` / `pointRoute`）自体は `src/geojson_data/` の静的データを返すため DB 非依存だが、DB がないとアプリ自体が起動しない。
 「地図を見るだけだから DB は不要」と判断して手順 1 を飛ばさないこと。
 
+### 古い `hannibal-pg-local` を使い回すと起動に失敗することがある
+
+`routes` テーブルは起動時に TypeORM migrations で作られる（ADR 0035。`synchronize` は全環境で無効）。
+Issue #674 より前のコードで起動したことのあるコンテナには `migrations` テーブルの記録がないまま `routes` があり、
+`relation "routes" already exists` で起動に失敗する。手順 1 からコンテナを作り直す（`docker rm -f hannibal-pg-local`）。
+
 ### `client/.env.example` の `VITE_GRAPHQL_ENDPOINT` はそのまま使えない
 
 `client/.env.example` の `VITE_GRAPHQL_ENDPOINT=/graphql` は、CloudFront 配下で同一オリジンに揃う**本番構成向け**の相対パス。

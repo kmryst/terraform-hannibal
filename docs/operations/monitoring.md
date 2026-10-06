@@ -223,6 +223,8 @@ SLO の数値目標は [slo.md](./slo.md) を正本とする。
 
 ### データベース設計（参考）
 
+実際のスキーマの正本は `src/migrations/` の TypeORM migrations で、現在の DDL は [Data Architecture](../architecture/data-architecture.md) を参照する。以下は設計検討時の参考例である。
+
 ```sql
 -- ルートデータテーブル
 CREATE TABLE routes (

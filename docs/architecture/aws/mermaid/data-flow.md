@@ -98,6 +98,8 @@ ORDER BY usage_count DESC
 
 ### データベース設計
 
+実際のスキーマの正本は `src/migrations/` の TypeORM migrations で、現在の DDL は [Data Architecture](../../data-architecture.md) を参照する。以下は設計検討時の参考例である。
+
 ```sql
 -- ルートデータテーブル
 CREATE TABLE routes (

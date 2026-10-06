@@ -12,6 +12,7 @@
 ### deployment/
 
 - **deploy-codedeploy.ps1** - CodeDeploy Blue/Greenデプロイメントスクリプト
+- **verify-graphql-routes.sh** - GraphQL の `routes`（読み取りのみ）を投げ、HTTP 200・`errors` なし・`data.routes` が配列になるまで再試行する deploy 後の確認スクリプト。`deploy.yml`（CloudFront 経由）と `pr-check.yml` の production 起動 smoke test が使う。`VERIFY_TIMEOUT_SECONDS` / `VERIFY_INTERVAL_SECONDS` で待ち時間を変えられる（Issue #674）
 
 ### github/
 

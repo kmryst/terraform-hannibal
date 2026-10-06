@@ -27,7 +27,7 @@ required status check に登録する際はこの合成名を使います。実�
 | `Backend Test` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Jest | backend unit test を確認 | PR で自動実行 |
 | `Frontend Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | TypeScript / Vite build | frontend の型チェックと build を確認 | required status check 対象 |
 | `Frontend Test` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Vitest | frontend unit test を確認 | PR で自動実行 |
-| `Docker Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Docker | backend image build、non-root user、production 起動 smoke test を確認 | PR で自動実行 |
+| `Docker Build` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | Docker | backend image build、non-root user、production 起動 smoke test（空の PostgreSQL に起動し、起動時の TypeORM migrations で作られた `routes` テーブルを GraphQL の `routes` で確認。`/health` だけでは DB を通らない）を確認 | PR で自動実行 |
 | `ShellCheck` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `shellcheck` | `scripts/**/*.sh` の構文、quote、未定義変数、危険な shell パターンを確認 | PR で自動実行。検出時は fail。初期導入時点では required status check 対象外 |
 | `Hadolint` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `hadolint` | `Dockerfile` の Dockerfile best practice と Alpine package / shell command の注意点を確認 | PR で自動実行。検出時は fail。初期導入時点では required status check 対象外 |
 | `Terraform Format & Validate` | `.github/workflows/pr-check.yml` | `opened` / `synchronize` / `reopened` | `terraform fmt` / `terraform validate` | HCL の整形と Terraform 構成の基本整合性を確認 | required status check 対象 |
@@ -229,6 +229,9 @@ Tier B action の Dependabot version update PR では、少なくとも次を確
 `deploy.yml` は `workflow_dispatch` による `main` からの手動デプロイに限定する。backend/frontend の build・test は PR gate（`pr-check.yml`）に集約し、deploy workflow では再実行しない。
 
 これにより、merge 前の品質確認は PR に寄せ、merge 後の deploy は Terraform apply、frontend build、S3 sync、ECR push、CodeDeploy に集中させる。
+
+例外として、deploy 後の確認だけは `deploy.yml` で行う。`Verify GraphQL routes query via CloudFront` step が、CloudFront → ALB → ECS → RDS の経路で GraphQL の `routes`（読み取りのみ）を投げ、失敗したら workflow を失敗にする（`scripts/deployment/verify-graphql-routes.sh`、Issue #674、[ADR 0035](../adr/0035-adopt-typeorm-migrations-for-schema-management.md)）。
+`/health` と Synthetics canary（`capitalCities`）は DB を通らないため、スキーマが作られていない状態を検出できない。PR の `Docker Build` も同じスクリプトで production イメージを確認する。
 
 ## ツールの位置づけ
 

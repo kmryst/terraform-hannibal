@@ -220,15 +220,19 @@ resource "aws_db_instance" "main" {
 ### 機密情報管理 (実装済み)
 
 ```typescript
-// TypeORM: DATABASE_URL環境変数から取得
-TypeOrmModule.forRootAsync({
-  useFactory: () => ({
+// src/database/typeorm-options.ts（抜粋）
+// ECS では DB_USER / DB_PASSWORD を Secrets Manager（RDS 管理のマスターユーザー secret）から注入し、
+// DB_HOST / DB_PORT / DB_NAME / DB_SSLMODE / DB_SSLROOTCERT と組み合わせて接続 URL を組み立てる
+export function createTypeOrmOptions(env = process.env): DataSourceOptions {
+  return {
     type: 'postgres',
-    url: process.env.DATABASE_URL,  // Secrets Managerから取得
+    url: env.DATABASE_URL ?? buildDatabaseUrlFromParts(env),
     entities: [Route],
-    synchronize: false,
-  }),
-})
+    migrations,
+    migrationsRun: true, // スキーマは起動時に TypeORM migrations で適用する（ADR 0035）
+    synchronize: false, // 全環境で無効
+  };
+}
 ```
 
 ## 5. 監査・コンプライアンス（実装済み）

@@ -54,7 +54,7 @@ TypeScript 6 で既定値が変わったため、次の設定を明示してい�
 
 `@nestjs/cli@11.0.24` が exact で依存に持っていた `typescript@5.9.3` の入れ子は、`@nestjs/cli@12` への移行（Issue #662）で lockfile からなくなりました。`nest build` の型チェックと出力は root の `typescript@6.0.3` を使います。ESLint 8 のみ flat config 移行（Issue #551）完了まで据え置き、Dependabot の major 更新を ignore で抑止しています。
 
-TypeORM 1.1.0 への更新（PR #547）は、Docker 上の PostgreSQL 16 に対するスモークテスト（アプリ起動、`synchronize` によるスキーマ自動生成、GraphQL 経由の createRoute / routes / seedRoutes の成功）と unit test を検証済みです。NestJS 12 系への移行（Issue #662）でも、本番モードの Docker コンテナを PostgreSQL 16 に接続し、`/health`、GraphQL の `routes` / `seedRoutes` / `createRoute` の成功を確認しました（production 設定では `synchronize` が無効のため、テーブルは [データアーキテクチャ](../architecture/data-architecture.md) の DDL で作成）。AWS dev 環境での実地 CRUD 確認は未了であり、NestJS 12 系の runtime 確認と合わせて次回 `deploy.yml`（workflow_dispatch）実行時に行います。
+TypeORM 1.1.0 への更新（PR #547）は、Docker 上の PostgreSQL 16 に対するスモークテスト（アプリ起動、`synchronize` によるスキーマ自動生成、GraphQL 経由の createRoute / routes / seedRoutes の成功）と unit test を検証済みです。NestJS 12 系への移行（Issue #662）でも、本番モードの Docker コンテナを PostgreSQL 16 に接続し、`/health`、GraphQL の `routes` / `seedRoutes` / `createRoute` の成功を確認しました（production 設定では `synchronize` が無効のため、テーブルは [データアーキテクチャ](../architecture/data-architecture.md) の DDL で作成）。AWS dev 環境での実地 CRUD 確認は未了であり、NestJS 12 系の runtime 確認と合わせて次回 `deploy.yml`（workflow_dispatch）実行時に行います。Issue #674 以降、テーブルは全環境でアプリ起動時の TypeORM migrations で作られ、`synchronize` は使いません（[ADR 0035](../adr/0035-adopt-typeorm-migrations-for-schema-management.md)）。
 
 ## 現行 Frontend Contract
 

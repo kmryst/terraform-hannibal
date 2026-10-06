@@ -337,6 +337,33 @@ jobs:
           aws deploy wait deployment-successful --deployment-id "$DEPLOYMENT_ID"
           echo "✅ Canary deployment finished successfully!"
 
+      # deploy 後の確認: CloudFront → ALB → ECS → RDS の経路で GraphQL の routes（読み取りのみ）を確認する。
+      # /health と Synthetics canary（capitalCities）は DB を通らないため、スキーマ未作成（Issue #674）を検出できない。
+      # provisioning では ECS タスクが latest イメージの push 後に起動するため、成功するまで再試行する。
+      - name: Verify GraphQL routes query via CloudFront
+        env:
+          VERIFY_TIMEOUT_SECONDS: "1200"
+          VERIFY_INTERVAL_SECONDS: "15"
+        run: |
+          set -euo pipefail
+          GRAPHQL_URL="https://hamilcar-hannibal.click/graphql"
+          if ./scripts/deployment/verify-graphql-routes.sh "$GRAPHQL_URL" | tee verify-graphql-routes.log; then
+            {
+              echo "## Deploy verification"
+              echo ""
+              echo "- GraphQL \`routes\` via CloudFront: passed"
+              echo "- $(tail -n 1 verify-graphql-routes.log)"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## Deploy verification"
+              echo ""
+              echo "- GraphQL \`routes\` via CloudFront: **failed**"
+              echo "- Check the ECS task logs (\`/ecs/${PROJECT_NAME}-api-task\`) for migration errors."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
       - name: Cleanup old task definition revisions
         if: ${{ inputs.deployment_mode != 'provisioning' }}
         # ECRライフサイクルポリシーが直近10イメージを保持するため、タスク定義も10世代に揃える
