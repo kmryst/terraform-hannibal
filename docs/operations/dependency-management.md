@@ -39,7 +39,7 @@ Node.js は `>=24 <25` を application runtime / CI / container の support cont
 | reflect-metadata | `0.2.2` | NestJS / TypeORMのデコレータ・メタデータ基盤。0.xのためsemver上はminorでも実質major扱いで検証する。`typeorm@1.1.0` が `^0.2.2` を直接依存に持つ | NestJS / TypeORM側の要求range変更時 |
 | Node.js types | `24.13.3` | runtime majorと型定義majorを一致させる（Dependabotのmajor更新はignoreで抑止、Issue #555で追跡） | Node runtime major更新時 |
 
-`@nestjs/config@12.0.1`、`@nestjs/typeorm@12.0.2`、`@nestjs/schematics@12.0.6`、`ts-morph@28.0.0` も上記contractに合わせます。`@nestjs/typeorm` は 12.0.1 以上を使います（12.0.0 は `exports` が `import` 条件だけで、CommonJS の `require()` から解決できない）。toolchainは TypeScript `6.0.3`、Jest 30、`@nestjs/cli@12.0.8` へ更新済みです。
+`@nestjs/config@12.0.1`、`@nestjs/typeorm@12.0.2`、`@nestjs/schematics@12.0.6`、`ts-morph@28.0.0` も上記contractに合わせます。`ts-morph` は、開発時（`NODE_ENV` が `production` 以外）だけ有効にする GraphQL の型定義生成（`definitions.path`、`src/graphql/graphql.schema.ts`）で `@nestjs/graphql` が遅延読み込みする optional な peer dependency のため、`devDependencies` に置きます（Issue #668）。本番イメージは `npm ci --omit=dev --omit=optional` で作り、`ts-morph` を含めません（[ADR 0036](../adr/0036-omit-optional-dependencies-from-production-image.md)）。`@nestjs/typeorm` は 12.0.1 以上を使います（12.0.0 は `exports` が `import` 条件だけで、CommonJS の `require()` から解決できない）。toolchainは TypeScript `6.0.3`、Jest 30、`@nestjs/cli@12.0.8` へ更新済みです。
 
 Jest は自前のモジュールローダーで `require()` を実装しているため、Node.js 本体の `require(esm)` を使えません。ES Module の `@nestjs/*` を読み込めるように、`test` / `test:watch` / `test:cov` / `test:e2e` の npm script は `cross-env NODE_OPTIONS=--experimental-vm-modules` を付けて Jest を実行します（`test:debug` は `node --experimental-vm-modules`）。`npx jest` を直接実行すると ES Module を読めずに失敗するため、npm script を経由してください。このフラグへの依存のリスクと再検討条件は ADR 0034 を参照してください。
 
@@ -111,7 +111,7 @@ root の `root / Dependency Audit` は、idp-golden-path の reusable workflow�
 期限付き例外は、0件という基準を緩めるものではない。修正版がなく、0件にする手段がまだない advisory について、期限を区切ったうえで基準から外していることを記録する仕組みである。例外を使うのは、次の条件を全部満たす advisory に限る。
 
 - 修正版がない、または修正に major 更新が必要で、すぐには取り込めない
-- devDependency だけに含まれ、本番イメージ（`npm ci --omit=dev`）に入らない。本番依存（`--omit=dev`）の audit は例外を見ずに判定されるため、本番依存の advisory は例外にしても fail のまま残る
+- devDependency だけに含まれ、本番イメージ（`npm ci --omit=dev --omit=optional`）に入らない。本番依存（`--omit=dev`）の audit は例外を見ずに判定されるため、本番依存の advisory は例外にしても fail のまま残る
 - critical ではない（critical は評価器が例外にさせない）
 - 解除条件を書いた追跡 Issue がある
 
