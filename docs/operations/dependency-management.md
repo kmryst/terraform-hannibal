@@ -75,6 +75,7 @@ root 側の graphql major 更新は、PR #565 で Dependabot の ignore に追�
 | `lodash@4.18.1` | Nest Config / GraphQLの上流依存 | advisory解消版であることをauditで確認する |
 | `graphql-ws@6.0.8` / `ws@8.21.0`（`package.json` の `overrides` で固定） | Nest GraphQLの上流依存 | subscriptions未使用。`@nestjs/graphql@13.4.2` は `ws@8.20.1`（脆弱、GHSA-96hv-2xvq-fx4p）を厳密ピン留めしており、13.4.2が現時点で最新の安定版のため上流修正待ちができない。`overrides` で `@nestjs/graphql` 配下の `ws` のみ `8.21.0`（パッチ済み）に固定する（Issue #515）。`@nestjs/graphql` のバージョン自体は変更しない |
 | `subscriptions-transport-ws@0.11.0` / `ws@7.5.11` | `@nestjs/graphql` の推移的依存 | `ws@^7` のみ対応（8.x非対応）のため、上記 `ws` overrideの対象から明示的に除外し `7.5.11`（既にパッチ済み）に固定する。ネストした `overrides` の書き方は `package.json` を参照 |
+| `@graphql-tools/utils@12.0.3`（`package.json` の `overrides` で固定） | `@nestjs/graphql` / `@graphql-tools/merge` / `@graphql-tools/schema`（`@apollo/server` 経由）の上流依存。本番依存 | `@nestjs/graphql@13.4.5`（NestJS 11 系の最新）は `@graphql-tools/utils@12.0.0`（脆弱、GHSA-7mx3-vvmw-hjmv。`mergeDeep` の prototype pollution）を厳密ピン留めしており、修正版を要求する `@nestjs/graphql@14` は NestJS 12 系が前提のため上流修正待ちができない。本番依存の audit は期限付き例外の対象外のため、`overrides` で全経路の `@graphql-tools/utils` を `12.0.3`（修正版の最新）に固定する（Issue #658）。`@nestjs/graphql` のバージョン自体は変更しない。12.0.3 は `@whatwg-node/promise-helpers@^2.0.0`（Node `>=22.15.0`）を要求するため、同 package も 1.3.2 から 2.0.0 に上がる。解除条件: NestJS 12 系（`@nestjs/graphql@14`）へ移行したら override を外す |
 | `glob@10.5.0` | Jest 30系（`@jest/reporters` / `jest-config` / `jest-runtime` が `^10.5.0` を要求）から解決。TypeORM 1.1.0 は glob 非依存になった（`tinyglobby` へ移行） | devDependency経路のみ。Jest更新時に再確認する |
 
 ## Known Peer Warning Allowlist
@@ -86,7 +87,8 @@ root の `npm ls --all` で許容する非zero要因は、`@nestjs/apollo@13.4.2
 ## Audit Scope
 
 - root: `npm audit` 0件を維持する
-  - 2026-10-06 時点の例外: `@graphql-tools/utils`（GHSA-7mx3-vvmw-hjmv。修正版未公開で、audit の提示は NestJS 12 系の `@nestjs/graphql@14`）と `braces`（GHSA-vfj7-8cjw-p6xm。修正版未公開、`markdownlint-cli2` 等の devDependency 経由）の high が lockfile 更新では解消できず残る（Issue #651）
+  - 2026-10-06 時点の例外: `braces`（GHSA-vfj7-8cjw-p6xm。修正版未公開、`markdownlint-cli2` 等の devDependency 経由）の high が lockfile 更新では解消できず残る（Issue #651）
+  - 本番依存の `@graphql-tools/utils`（GHSA-7mx3-vvmw-hjmv）は、`overrides` で修正版 `12.0.3` に固定して解消した（Issue #658、上の「Transitive Dependencies」参照）。`npm audit --omit=dev` は 0 件を維持する
 - client: rootとは分離して扱い、既知findingはIssue #365で追跡する
 - repository全体について「脆弱性0件」と表現せず、root / client のscopeを明記する
 
