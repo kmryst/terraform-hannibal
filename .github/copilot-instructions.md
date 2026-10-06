@@ -196,7 +196,7 @@ git commit -m "feat: 新機能を追加"  # Conventional Commits
 gh done XX
 
 # Alias設定方法
-gh alias set done '!f() { gh pr merge "$1" --merge && git checkout main && git pull origin main; }; f'
+gh alias set done '!f() { gh pr merge "$1" --squash && git checkout main && git pull origin main; }; f'
 ```
 
 ---

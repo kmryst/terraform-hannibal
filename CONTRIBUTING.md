@@ -281,7 +281,7 @@ gh done XX
 #### 手動の場合
 
 ```bash
-gh pr merge XX --merge
+gh pr merge XX --squash
 git switch main
 git pull origin main
 ```
@@ -543,7 +543,7 @@ PR では GitHub App `Amazon Q Developer` による自動コードレビュー�
 gh done XX
 
 # 設定方法
-gh alias set done '!f() { gh pr merge "$1" --merge && git checkout main && git pull origin main; }; f'
+gh alias set done '!f() { gh pr merge "$1" --squash && git checkout main && git pull origin main; }; f'
 ```
 
 ---
