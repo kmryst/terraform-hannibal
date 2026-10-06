@@ -58,6 +58,12 @@ variable "graphql_query" {
   default     = "query { capitalCities { type features { type properties { name } } } }"
 }
 
+variable "graphql_routes_query" {
+  description = "GraphQL read-only query that goes through GraphQL -> TypeORM -> PostgreSQL (user journey step 4). The response must contain data.routes as an array. Do not put mutations here: the canary runs on a schedule and would keep adding rows"
+  type        = string
+  default     = "query { routes { id } }"
+}
+
 variable "tags" {
   description = "Additional tags for canary-related resources"
   type        = map(string)

@@ -230,8 +230,10 @@ Tier B action の Dependabot version update PR では、少なくとも次を確
 
 これにより、merge 前の品質確認は PR に寄せ、merge 後の deploy は Terraform apply、frontend build、S3 sync、ECR push、CodeDeploy に集中させる。
 
-例外として、deploy 後の確認だけは `deploy.yml` で行う。`Verify GraphQL routes query via CloudFront` step が、CloudFront → ALB → ECS → RDS の経路で GraphQL の `routes`（読み取りのみ）を投げ、失敗したら workflow を失敗にする（`scripts/deployment/verify-graphql-routes.sh`、Issue #674、[ADR 0035](../adr/0035-adopt-typeorm-migrations-for-schema-management.md)）。
-`/health` と Synthetics canary（`capitalCities`）は DB を通らないため、スキーマが作られていない状態を検出できない。PR の `Docker Build` も同じスクリプトで production イメージを確認する。
+例外として、deploy 後の確認だけは `deploy.yml` で行う。`Verify deployment with Synthetics canary` step が、deploy 後に開始した Synthetics canary（東京リージョン）の run が PASSED になるのを待ち、PASSED にならなければ workflow を失敗にする（`scripts/deployment/wait-for-synthetics-canary.sh`、Issue #674、[ADR 0035](../adr/0035-adopt-typeorm-migrations-for-schema-management.md)）。
+canary の step `graphql-routes-query` が CloudFront → ALB → ECS → RDS の経路で GraphQL の `routes`（読み取りのみ）を確認する。`/health` と `capitalCities` は DB を通らないため、スキーマが作られていない状態を検出できない。
+CloudFront は geo restriction で日本からの通信だけを許可しているため、GitHub-hosted runner から CloudFront 経由で直接確認することはできない。
+PR の `Docker Build` は `scripts/deployment/verify-graphql-routes.sh` で production イメージの `routes` を確認する。
 
 ## ツールの位置づけ
 

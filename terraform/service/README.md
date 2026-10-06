@@ -59,6 +59,7 @@ ECS、ALB、CodeDeploy、monitoring など、アプリケーション実行基�
 | <a name="input_project_name"></a> [project\_name](#input\_project\_name) | Project name used for resource naming | `string` | `"nestjs-hannibal-3"` | no |
 | <a name="input_synthetics_canary_name"></a> [synthetics\_canary\_name](#input\_synthetics\_canary\_name) | Synthetics canaryの名前(CloudWatch Syntheticsの制約で21文字以内) | `string` | `"hannibal-canary"` | no |
 | <a name="input_synthetics_graphql_query"></a> [synthetics\_graphql\_query](#input\_synthetics\_graphql\_query) | canaryが実行するGraphQL読み取り専用クエリ(src/graphql/schema/map.graphqlのcapitalCitiesを使用) | `string` | `"query { capitalCities { type features { type properties { name } } } }"` | no |
+| <a name="input_synthetics_graphql_routes_query"></a> [synthetics\_graphql\_routes\_query](#input\_synthetics\_graphql\_routes\_query) | canaryが実行するDBを通るGraphQL読み取り専用クエリ(routes)。deploy.ymlのdeploy後の確認もこのstepの結果を使う(Issue #674)。定期実行のたびに行が増えるため書き込みクエリは入れない | `string` | `"query { routes { id } }"` | no |
 | <a name="input_synthetics_schedule_expression"></a> [synthetics\_schedule\_expression](#input\_synthetics\_schedule\_expression) | Synthetics canaryの実行間隔 | `string` | `"rate(5 minutes)"` | no |
 
 ## Outputs

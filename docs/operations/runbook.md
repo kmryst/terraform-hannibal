@@ -165,10 +165,11 @@ aws deploy list-deployments \
 `nestjs-hannibal-3-synthetics-availability-low` は、ユーザージャーニー外形監視canary（`hannibal-canary`）の`SuccessPercent`を1時間平均で見て、time-based availability目標(99.5%)を下回るとALARMになる（ADR-0030、Issue #467）。`treat_missing_data = breaching`のため、canary自体が1時間結果を報告しない場合もALARMになる。
 
 1. CloudWatch Synthetics コンソールで`hannibal-canary`の直近の実行結果（Pass/Fail）とステップ別の失敗理由を確認する。
-2. どのステップ（`frontend-delivery` / `alb-health-check` / `graphql-read-query`）で失敗しているかを特定する。
+2. どのステップ（`frontend-delivery` / `api-health-check` / `graphql-read-query` / `graphql-routes-query`）で失敗しているかを特定する。
 3. S3 artifactバケット（`nestjs-hannibal-3-synthetics-canary-artifacts`）のHARファイル・スクリーンショットで詳細を確認する。
 4. `alb-health-check` / `graphql-read-query`が失敗する場合は、ALB origin-verifyヘッダー用secret（Secrets Manager）の値とALB listener ruleの整合を確認する。
 5. canary自体が実行されていない場合は、canary実行roleの権限とLambda実行エラーを確認する。
+6. `graphql-routes-query`だけが失敗する場合は、DB 経路（RDS、`routes` テーブル、マイグレーション）を疑う。ECS logs（`/ecs/nestjs-hannibal-3-api-task`）で `Migration` / `relation "routes" does not exist` を確認する（下記「スキーマ変更を含むデプロイの rollback」）。`deploy.yml` の `Verify deployment with Synthetics canary` step もこの canary の結果で失敗する
 
 ```bash
 aws synthetics get-canary-runs \

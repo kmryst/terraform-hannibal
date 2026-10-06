@@ -100,6 +100,8 @@ module "synthetics_canary" {
   api_graphql_url = "https://${var.domain_name}/graphql"
   graphql_query   = var.synthetics_graphql_query
 
+  graphql_routes_query = var.synthetics_graphql_routes_query
+
   tags = {
     Environment = var.environment
   }

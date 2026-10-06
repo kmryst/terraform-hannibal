@@ -117,6 +117,12 @@ variable "synthetics_schedule_expression" {
   default     = "rate(5 minutes)"
 }
 
+variable "synthetics_graphql_routes_query" {
+  description = "canaryが実行するDBを通るGraphQL読み取り専用クエリ(routes)。deploy.ymlのdeploy後の確認もこのstepの結果を使う(Issue #674)。定期実行のたびに行が増えるため書き込みクエリは入れない"
+  type        = string
+  default     = "query { routes { id } }"
+}
+
 variable "synthetics_graphql_query" {
   description = "canaryが実行するGraphQL読み取り専用クエリ(src/graphql/schema/map.graphqlのcapitalCitiesを使用)"
   type        = string

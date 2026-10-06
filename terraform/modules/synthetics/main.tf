@@ -159,6 +159,8 @@ resource "aws_synthetics_canary" "user_journey" {
       API_HEALTH_URL  = var.api_health_url
       API_GRAPHQL_URL = var.api_graphql_url
       GRAPHQL_QUERY   = var.graphql_query
+      # DB を通る読み取りクエリ。deploy.yml の deploy 後の確認もこの step の結果を使う(Issue #674、ADR-0035)
+      GRAPHQL_ROUTES_QUERY = var.graphql_routes_query
     }
   }
 
