@@ -87,10 +87,51 @@ root の `npm ls --all` で許容する非zero要因は、`@nestjs/apollo@13.4.2
 ## Audit Scope
 
 - root: `npm audit` 0件を維持する
-  - 2026-10-06 時点の例外: `braces`（GHSA-vfj7-8cjw-p6xm。修正版未公開、`markdownlint-cli2` 等の devDependency 経由）の high が lockfile 更新では解消できず残る（Issue #651）
+  - 2026-10-06 時点の残件: `braces`（GHSA-vfj7-8cjw-p6xm、devDependency のみ）の high は、修正版が公開されていないため lockfile の更新では解消できない（Issue #651）。下の「期限付き例外」で扱う
   - 本番依存の `@graphql-tools/utils`（GHSA-7mx3-vvmw-hjmv）は、`overrides` で修正版 `12.0.3` に固定して解消した（Issue #658、上の「Transitive Dependencies」参照）。`npm audit --omit=dev` は 0 件を維持する
 - client: rootとは分離して扱い、既知findingはIssue #365で追跡する
 - repository全体について「脆弱性0件」と表現せず、root / client のscopeを明記する
+
+### 期限付き例外（npm-audit-exceptions）
+
+root の `root / Dependency Audit` は、idp-golden-path の reusable workflow（`dependency-audit.yml@v1`）に `npm-audit-exceptions` input を渡し、修正版のない high advisory を GHSA 単位で期限付きの例外にしている（[ADR 0033](../adr/0033-adopt-expiring-npm-audit-exception-for-braces.md)、契約の正本は idp-golden-path ADR 0008 の追記 2026-07-28）。宣言場所は `.github/workflows/dependency-audit.yml` の root job の `with:` である。
+
+| GHSA | package | 期限（expires） | 追跡 Issue |
+|---|---|---|---|
+| GHSA-vfj7-8cjw-p6xm | `braces`（`markdownlint-cli2` 経由の devDependency のみ） | 2026-12-31 | [#655](https://github.com/kmryst/terraform-hannibal/issues/655) |
+
+#### 「root は `npm audit` 0件を維持する」との関係
+
+期限付き例外は、0件という基準を緩めるものではない。修正版がなく、0件にする手段がまだない advisory について、期限を区切ったうえで基準から外していることを記録する仕組みである。例外を使うのは、次の条件を全部満たす advisory に限る。
+
+- 修正版がない、または修正に major 更新が必要で、すぐには取り込めない
+- devDependency だけに含まれ、本番イメージ（`npm ci --omit=dev`）に入らない。本番依存（`--omit=dev`）の audit は例外を見ずに判定されるため、本番依存の advisory は例外にしても fail のまま残る
+- critical ではない（critical は評価器が例外にさせない）
+- 解除条件を書いた追跡 Issue がある
+
+例外を入れても、full audit で例外以外の high が残っていれば fail する。例外は 0 件の基準からの一時的な逸脱として扱い、追跡 Issue で解消まで追う。
+
+#### 期限を更新する手順
+
+1. 追跡 Issue の解除条件が揃っていないことを確認する（修正版の有無を `npm view <package> version` で、依存経路を `npm ls <package>` で確認する）
+2. 露出を評価し直す（本番イメージに入らないこと、外部入力が渡る経路がないこと）。評価結果は追跡 Issue にコメントで残す
+3. `dependency-audit.yml` の `expires` を、更新する日から最大 90 日以内の日付にする PR を作る。PR からは追跡 Issue を `Refs` で参照し、追跡 Issue は close しない
+
+評価なしで期限だけを延ばさない。`expires` は UTC の日付で、評価器は「今日（UTC）から 90 日を超える日付」も「今日より前の日付」も拒否する。
+
+#### 例外を解除する手順
+
+1. 修正版を取り込む（宣言 range の中なら `npm update <package>` または `npm audit fix --package-lock-only` で lockfile を更新する）か、依存経路がなくなったことを `npm ls <package>` で確認する
+2. `dependency-audit.yml` から該当する要素を削除する。例外が 0 件になったら `npm-audit-exceptions` の行ごと削除する（input が未指定または `[]` なら、評価器を使わない従来の `npm audit --audit-level=high` に戻る）
+3. PR で追跡 Issue を `Closes` する。上の表と ADR 0033 の状態も更新する
+
+#### 撤去 PR を自動で作らない理由
+
+idp-golden-path ADR 0016 は、不要になった回避策・例外を撤去する PR を自動で作る仕組みだが、判定するのは idp-golden-path 自身の実行だけで、reusable workflow の消費側は対象外である。消費側へ広げる idp-golden-path#310 も実装されていない。本リポジトリで同じ仕組みを別に作ると判定条件がずれるため作らない。代わりに次の 3 つで、不要になった例外に気づく。
+
+- 追跡 Issue（解除条件を書いたまま OPEN にしておく）
+- Job Summary の stale 警告（例外の GHSA が検出されなくなると、評価器は pass したうえで `not detected (remove the stale exception)` を出す）
+- 期限切れによる fail closed（最長 90 日で必ず判断を求められる）
 
 ## 有効な Dependabot ignore
 

@@ -36,6 +36,19 @@ jobs:
     with:
       package-manager: npm
       working-directory: .
+      # 期限付き例外（idp-golden-path ADR-0008 追記 2026-07-28 / 本リポジトリ ADR-0033）。
+      # 各要素は id（GHSA）・expires（UTC の YYYY-MM-DD、登録日から最大 90 日）・tracking（追跡 Issue URL）の 3 つだけを持つ。
+      # 例外は full audit にだけ適用され、本番依存（--omit=dev）の audit は例外なしで判定される。
+      # 期限切れ・書式不正・critical は fail closed。更新・解除の手順は docs/operations/dependency-management.md を参照
+      # - GHSA-vfj7-8cjw-p6xm: braces（修正版なし。markdownlint-cli2 経由の devDependency のみ）
+      npm-audit-exceptions: >-
+        [
+          {
+            "id": "GHSA-vfj7-8cjw-p6xm",
+            "expires": "2026-12-31",
+            "tracking": "https://github.com/kmryst/terraform-hannibal/issues/655"
+          }
+        ]
     permissions:
       contents: read
 
