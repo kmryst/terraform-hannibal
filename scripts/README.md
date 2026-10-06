@@ -12,7 +12,8 @@
 ### deployment/
 
 - **deploy-codedeploy.ps1** - CodeDeploy Blue/Greenデプロイメントスクリプト
-- **verify-graphql-routes.sh** - GraphQL の `routes`（読み取りのみ）を投げ、HTTP 200・`errors` なし・`data.routes` が配列になるまで再試行する deploy 後の確認スクリプト。`deploy.yml`（CloudFront 経由）と `pr-check.yml` の production 起動 smoke test が使う。`VERIFY_TIMEOUT_SECONDS` / `VERIFY_INTERVAL_SECONDS` で待ち時間を変えられる（Issue #674）
+- **verify-graphql-routes.sh** - GraphQL の `routes`（読み取りのみ）を投げ、HTTP 200・`errors` なし・`data.routes` が配列になるまで再試行する確認スクリプト。`pr-check.yml` の production 起動 smoke test が使う。`VERIFY_TIMEOUT_SECONDS` / `VERIFY_INTERVAL_SECONDS` で待ち時間を変えられる。AWS dev の CloudFront は日本からの通信だけを許可するため、GitHub-hosted runner からは使えない（Issue #674）
+- **wait-for-synthetics-canary.sh** - 指定した Synthetics canary について、スクリプト開始後に始まった run が PASSED になるまで待つ（読み取りのみ。canary の起動・停止はしない）。`deploy.yml` の deploy 後の確認が使う。`CANARY_WAIT_TIMEOUT_SECONDS` / `CANARY_POLL_INTERVAL_SECONDS` で待ち時間を変えられる（Issue #674）
 
 ### github/
 

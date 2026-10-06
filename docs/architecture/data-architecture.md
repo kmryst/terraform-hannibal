@@ -127,7 +127,7 @@ AWS dev の RDS は provisioning のたびに空のため該当しない。
 #### AWS 上での適用・確認・ロールバック
 
 - 適用: `deploy.yml` でデプロイしたタスクが起動時に適用する。CloudWatch Logs（`/ecs/nestjs-hannibal-3-api-task`）に `Migration <Name> has been executed successfully.`（適用時）または `No migrations are pending`（適用済み）が出る
-- 確認: `deploy.yml` の `Verify GraphQL routes query via CloudFront` step が、CloudFront 経由で GraphQL の `routes` を確認する
+- 確認: Synthetics canary（`hannibal-canary`）の step `graphql-routes-query` が CloudFront 経由で GraphQL の `routes` を確認する。`deploy.yml` の `Verify deployment with Synthetics canary` step は、deploy 後に開始した canary の run が PASSED になるのを待つ
 - ロールバック: [Runbook](../operations/runbook.md) の「スキーマ変更を含むデプロイの rollback」を参照する
 
 ### GraphQLスキーマ設計（実装済み）

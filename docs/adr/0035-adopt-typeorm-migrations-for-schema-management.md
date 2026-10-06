@@ -16,7 +16,8 @@ PostgreSQL のスキーマは TypeORM migrations だけで管理し、アプリ�
 - 接続設定は `src/database/typeorm-options.ts` の `createTypeOrmOptions()` に一本化し、アプリ（`TypeOrmModule.forRoot`）と TypeORM CLI（`src/database/data-source.ts`）が同じ設定を使う
 - `migrationsRun: true`、`migrationsTransactionMode: 'all'` とし、未適用のマイグレーションを 1 つのトランザクションで適用する。適用済みかどうかは TypeORM の `migrations` テーブルで判定する
 - `synchronize` は本番だけでなく全環境（development / test を含む）で無効にする
-- `deploy.yml` の deploy 後に、CloudFront 経由で GraphQL の `routes`（読み取りのみ）を投げ、失敗したら workflow を失敗にする。同じ確認を PR Check の production 起動 smoke test（`Docker Build`）にも入れる（`scripts/deployment/verify-graphql-routes.sh`）
+- 外形監視と deploy 後の確認を Synthetics canary（[ADR 0030](./0030-adopt-cloudwatch-synthetics-canary-for-user-journey-monitoring.md)）にまとめる。canary に GraphQL の `routes`（読み取りのみ）を確認する step `graphql-routes-query` を追加し、`deploy.yml` は deploy 後に開始した canary の run が PASSED になるのを待つ。PASSED にならなければ workflow を失敗にする（`scripts/deployment/wait-for-synthetics-canary.sh`）
+- PR Check の production 起動 smoke test（`Docker Build`）でも、空の PostgreSQL に起動した production イメージに GraphQL の `routes` を投げて確認する（`scripts/deployment/verify-graphql-routes.sh`）
 
 ## 背景
 
@@ -27,6 +28,18 @@ destroy 済みの dev を `deploy.yml`（`deployment_mode=provisioning`）で作
 - 2025-07-10 のコミット 99621db からこの状態だった。フロントと Synthetics canary（`capitalCities`）は DB を使わない固定データのクエリだけを使い、PR Check と deploy の起動確認は `/health` だけだったため、DB を通る経路を確かめる仕組みがなく、気づけなかった
 
 経緯は Issue [#674](https://github.com/kmryst/terraform-hannibal/issues/674) を参照する。
+
+### deploy 後の確認を canary にまとめた経緯
+
+最初の実装（PR [#675](https://github.com/kmryst/terraform-hannibal/pull/675)）では、`deploy.yml` の runner から `https://hamilcar-hannibal.click/graphql` を直接叩いて `routes` を確認した。
+AWS dev での実行（[run 37447207063](https://github.com/kmryst/terraform-hannibal/actions/runs/37447207063)）では、アプリとマイグレーションは正常だったが、この確認は 20 分間すべて HTTP 200 で SPA の `index.html` を受け取って失敗した。
+
+- CloudFront の geo restriction は `whitelist ["JP"]`（`terraform/modules/cloudfront/main.tf`）で、GitHub-hosted runner は日本国外から接続するため CloudFront が 403 を返す
+- `custom_error_response`（403 → `/index.html`、200）により、その 403 が SPA の HTML に置き換わる
+- 日本からの同じリクエストは成功した
+
+GitHub-hosted runner から CloudFront 経由で確認することはできないため、東京リージョン（`ap-northeast-1`）で動き、すでに CloudFront 経由のユーザージャーニーを確認している Synthetics canary に `routes` を加え、deploy 後の確認と外形監視を 1 つにまとめた。
+geo restriction を緩める案、ALB を直接叩く案（origin-verify ヘッダーの値を runner に渡す必要があり、ALB は CloudFront 以外からの通信を拒否する設計）、ECS Exec でタスク内から確認する案（CloudFront → ALB の経路を確認できない）は採らなかった。
 
 ## 検討した選択肢
 
@@ -52,7 +65,7 @@ destroy 済みの dev を `deploy.yml`（`deployment_mode=provisioning`）で作
 
 - 長所: AWS の外から利用者と同じ経路を継続的に確認できる。AWS 側の障害で監視自体が止まることがない
 - 今回採らない理由:
-  - 今回の抜けは「どこから見るか」ではなく「何を確かめるか」の問題である。既存の Synthetics canary も外形監視だが、DB を通らない `capitalCities` しか見ていなかった。監視の場所を変えても、確かめる対象が同じなら同じ抜けが起きる
+  - 今回の抜けは「どこから見るか」ではなく「何を確かめるか」の問題である。既存の Synthetics canary も外形監視だが、DB を通らない `capitalCities` しか見ていなかった。監視の場所を変えても、確かめる対象が同じなら同じ抜けが起きる。確かめる対象（`routes`）は既存の canary に加えた
   - 環境を普段 destroy している（[ADR 0008](./0008-on-demand-startup-and-routine-destroy-operation.md)）ため、常時動く外部の監視は、環境を止めている間ずっと失敗を通知する。通知を止める運用が別に要る
   - 外部サービスのアカウント、API key などの secret、通知先の管理コストが増える
 - 再検討条件: 環境を常時動かすようになったとき、利用者が付いたとき
@@ -63,7 +76,7 @@ destroy 済みの dev を `deploy.yml`（`deployment_mode=provisioning`）で作
 - ローカル（Docker の PostgreSQL）、PR Check の smoke test、e2e テスト、AWS dev がすべて同じ「起動時に migrations を適用する」経路を通るため、PR の時点で AWS と同じ経路を確かめられる
 - 全環境で `synchronize` を無効にすることで、開発環境では自動でテーブルができるのに本番ではできない、という今回の食い違いの原因そのものをなくす
 - マイグレーションファイルとして DDL が残り、`down` で戻せる（C にはない）
-- deploy 後の確認に GraphQL の `routes` を入れることで、DB を通る経路の確認という今回の抜けを直接埋める（D は確認する対象を変えない）
+- canary と deploy 後の確認に GraphQL の `routes` を入れることで、DB を通る経路の確認という今回の抜けを直接埋める（D は確認する対象を変えない）。外形監視と deploy 後の確認が同じ canary を使うため、確認内容が二重管理にならない
 
 ## 影響
 
@@ -73,7 +86,8 @@ destroy 済みの dev を `deploy.yml`（`deployment_mode=provisioning`）で作
 - CodeDeploy の Canary / Blue/Green では、新旧のタスクが同じ DB を同時に使う。マイグレーションは 1 つ前のバージョンのアプリでも動く後方互換な変更（expand and contract パターン）にする
 - 複数タスクの同時起動: TypeORM はマイグレーションの実行にロックを取らない。2 つのコンテナを同時に起動して `migrations` テーブルの読み取りを揃えた検証では、一方が `CREATE TABLE` に成功し、もう一方は `duplicate key value violates unique constraint "pg_class_relname_nsp_index"` で失敗した。失敗した側はトランザクション全体（`migrations` テーブルへの記録を含む）が巻き戻り、`@nestjs/typeorm` の接続リトライ（既定で 3 秒間隔、最大 10 回の試行）で再初期化したときに `No migrations are pending` となって起動した。`migrations` テーブルの記録は 1 件だけだった。現在の `desired_task_count` は 1 で、この状況は通常起きない
 - 本番のログは `['error', 'schema', 'migration']` を出力する。マイグレーションの適用状況（`Migration InitialSchema1791279966870 has been executed successfully.` / `No migrations are pending`）が CloudWatch Logs（`/ecs/nestjs-hannibal-3-api-task`）に出る。`error` により失敗したクエリと parameter もログに出る（現状の parameter は route の名前・説明・座標・色で、secret は含まない）
-- `deploy.yml` は deploy 後の GraphQL `routes` の確認に最大 20 分待つ。provisioning では ECS タスクが image push の後に起動するため、成功するまで再試行する
+- `deploy.yml` は deploy 後に開始した canary の run が PASSED になるまで最大 20 分待つ（canary の実行間隔は 5 分）。provisioning では ECS タスクが image push の後に起動するため、その間の FAILED では止めずに次の run を待ち、タイムアウトまでに PASSED がなければ失敗にする。CI/CD Role は既存の `synthetics:*`（`HannibalCICDPolicy-Dev-synthetics`）で canary の状態と run を読めるため、IAM の変更は要らない
+- `enable_synthetics_canary = false` にすると deploy 後の確認ができないため、`deploy.yml` は失敗する
 
 ## 再検討条件
 
@@ -81,6 +95,7 @@ destroy 済みの dev を `deploy.yml`（`deployment_mode=provisioning`）で作
 - 長時間かかるマイグレーション（大きなテーブルへのインデックス作成など）が必要になったとき。ECS のヘルスチェック猶予（`health_check_grace_period_seconds = 180`）を超えるとタスクが入れ替えられるため、B を検討する
 - アプリの DB ユーザーを DDL 権限のない専用ユーザーに分けるとき（マイグレーション用の資格情報と実行経路を分ける必要があり、B が前提になる）
 - 環境を常時動かすようになったとき、利用者が付いたとき（D の外部の外形監視を再検討する）
+- CloudFront の geo restriction を変えたとき、または self-hosted runner を日本に置いたとき（deploy 後の確認を runner から直接行う案を再検討できる）
 
 ## 関連
 
@@ -88,7 +103,8 @@ destroy 済みの dev を `deploy.yml`（`deployment_mode=provisioning`）で作
 - [ADR 0008](./0008-on-demand-startup-and-routine-destroy-operation.md)（オンデマンド起動 / 通常 destroy 運用）
 - [ADR 0015](./0015-adopt-codedeploy-blue-green-for-ecs-deployments.md)（CodeDeploy Blue/Green）
 - [ADR 0016](./0016-adopt-rds-postgresql-jsonb-over-aurora-and-postgis.md)（RDS PostgreSQL + JSONB）
-- [ADR 0030](./0030-adopt-cloudwatch-synthetics-canary-for-user-journey-monitoring.md)（CloudWatch Synthetics canary）
+- [ADR 0030](./0030-adopt-cloudwatch-synthetics-canary-for-user-journey-monitoring.md)（CloudWatch Synthetics canary。`routes` step の追加を「更新」節に記録）
+- PR: [#675](https://github.com/kmryst/terraform-hannibal/pull/675)（migrations の導入）
 - [Data Architecture](../architecture/data-architecture.md)（スキーマと migrations の手順の正本）
 - [Runbook](../operations/runbook.md)（AWS 上での rollback 手順の正本）
 - [TypeORM: How migrations work?](https://typeorm.io/docs/migrations/why/)

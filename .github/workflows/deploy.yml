@@ -190,6 +190,7 @@ jobs:
           terraform apply -auto-approve tfplan
 
           echo "ALB_DNS=$(terraform output -raw alb_dns_name)" >> $GITHUB_ENV
+          echo "SYNTHETICS_CANARY_NAME=$(terraform output -json synthetics_canary_name | jq -r '. // empty')" >> "$GITHUB_ENV"
 
       # terraform/observability(Game Day用FIS実験テンプレート)は本体のコンテナデプロイ経路
       # (network/database/service/cdn)から独立したroot moduleに分離している(Issue #458)。
@@ -337,29 +338,37 @@ jobs:
           aws deploy wait deployment-successful --deployment-id "$DEPLOYMENT_ID"
           echo "✅ Canary deployment finished successfully!"
 
-      # deploy 後の確認: CloudFront → ALB → ECS → RDS の経路で GraphQL の routes（読み取りのみ）を確認する。
-      # /health と Synthetics canary（capitalCities）は DB を通らないため、スキーマ未作成（Issue #674）を検出できない。
-      # provisioning では ECS タスクが latest イメージの push 後に起動するため、成功するまで再試行する。
-      - name: Verify GraphQL routes query via CloudFront
+      # deploy 後の確認: 東京リージョンで動く Synthetics canary（terraform/service）の結果を待つ。
+      # canary は CloudFront 経由で frontend / health / capitalCities / routes を確認する。routes は
+      # GraphQL → TypeORM → PostgreSQL を通るため、スキーマ未作成（Issue #674）を検出できる。
+      # CloudFront は geo restriction で JP のみ許可しており、GitHub-hosted runner から直接は確認できない（ADR 0035）。
+      # deploy 後に開始した run が PASSED になるまで待つ。provisioning では ECS タスクが image push 後に起動するため、
+      # その間の FAILED は待ち続け、タイムアウトまでに PASSED がなければ失敗にする。
+      - name: Verify deployment with Synthetics canary
         env:
-          VERIFY_TIMEOUT_SECONDS: "1200"
-          VERIFY_INTERVAL_SECONDS: "15"
+          AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
+          CANARY_WAIT_TIMEOUT_SECONDS: "1200"
+          CANARY_POLL_INTERVAL_SECONDS: "30"
         run: |
           set -euo pipefail
-          GRAPHQL_URL="https://hamilcar-hannibal.click/graphql"
-          if ./scripts/deployment/verify-graphql-routes.sh "$GRAPHQL_URL" | tee verify-graphql-routes.log; then
+          if [ -z "${SYNTHETICS_CANARY_NAME:-}" ]; then
+            echo "::error::Synthetics canary is not enabled (terraform/service output synthetics_canary_name is empty). Deploy verification requires the canary."
+            exit 1
+          fi
+
+          if ./scripts/deployment/wait-for-synthetics-canary.sh "$SYNTHETICS_CANARY_NAME" | tee verify-canary.log; then
             {
               echo "## Deploy verification"
               echo ""
-              echo "- GraphQL \`routes\` via CloudFront: passed"
-              echo "- $(tail -n 1 verify-graphql-routes.log)"
+              echo "- Synthetics canary \`${SYNTHETICS_CANARY_NAME}\`: passed"
+              echo "- $(tail -n 1 verify-canary.log)"
             } >> "$GITHUB_STEP_SUMMARY"
           else
             {
               echo "## Deploy verification"
               echo ""
-              echo "- GraphQL \`routes\` via CloudFront: **failed**"
-              echo "- Check the ECS task logs (\`/ecs/${PROJECT_NAME}-api-task\`) for migration errors."
+              echo "- Synthetics canary \`${SYNTHETICS_CANARY_NAME}\`: **failed**"
+              echo "- Check the canary run in CloudWatch Synthetics and the ECS task logs (\`/ecs/${PROJECT_NAME}-api-task\`) for migration errors."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi

@@ -16,6 +16,7 @@ Accepted
   - フロントエンド配信（CloudFront 経由の React client 配信確認）
   - GraphQL 読み取りクエリ（`capitalCities` / `hannibalRoute` / `pointRoute` などの `Query`。`src/modules/map`, `src/modules/route` 参照）
   - ヘルスチェック（`GET /health`、`src/app.controller.ts`）
+  - （2026-10-06 追加、Issue #674）DB を通る GraphQL 読み取りクエリ `routes`。下記「更新（2026-10-06、Issue #674）」を参照
 - 書き込み系 API（GraphQL `Mutation`）は検証対象外とする。テストデータの作成・後始末の管理が複雑化するため
 - 認証済みユーザー操作の検証は対象外とする。本アプリには認証機能自体が存在しない（コントローラ・リゾルバに auth / jwt / passport 相当の実装がない）ため、そもそも検証しようがない
 - canary の Terraform リソースは foundation 側ではなく env 側（アプリ実行系と同じ root module 群）に配置し、`deploy.yml` / `destroy.yml` によるオンデマンド起動・破棄と生死を共にする
@@ -79,6 +80,14 @@ PR [#478](https://github.com/kmryst/terraform-hannibal/pull/478) で canary の�
 - ALB 直接アクセス防止の実効的な統制は CloudFront 自身の `custom_header`（origin 設定に静的に埋め込まれ、サーバー側で注入されるためクライアントから偽装不可）であり、canary の関与を必要としない
 - このヘッダーを CloudFront の forwarded-headers に追加して canary 側機構を「復活」させる案は採らなかった。クライアントが制御可能な転送ヘッダーに変わりセキュリティ後退となるうえ、burn-rate アラームに接続された可用性 SLI に「Secrets Manager 取得失敗」というユーザージャーニーと無関係な失敗モードを残すことになるため
 - 削除対象: canary スクリプトの secret 取得・ヘッダー付与ロジック、canary 実行 role の `secretsmanager:GetSecretValue`、`terraform/modules/synthetics` の origin-verify 系変数、canary 専用だった `terraform/service` の Secrets Manager secret リソース。CloudFront / load-balancer 側の origin-verify 機構そのものは変更していない
+
+## 更新（2026-10-06、Issue #674）
+
+canary に 4 つ目の step `graphql-routes-query`（GraphQL の `routes`、読み取りのみ）を追加し、`deploy.yml` の deploy 後の確認にも canary の結果を使うようにした。判断の詳細は [ADR 0035](./0035-adopt-typeorm-migrations-for-schema-management.md) を参照する。
+
+- 既存の GraphQL step（`capitalCities`）は固定データを返し DB を通らないため、RDS にテーブルがない状態（Issue #674）を検出できなかった。`routes` は GraphQL → TypeORM → PostgreSQL を通る
+- 書き込み系 API を対象外とする方針は変えない。定期実行のたびに行が増えるため、`routes` も読み取りクエリだけを使う
+- `routes` が失敗すると `SuccessPercent` が下がり、可用性 SLI（`nestjs-hannibal-3-synthetics-availability-low`）にも DB 経路の失敗が反映される
 
 ## 関連
 

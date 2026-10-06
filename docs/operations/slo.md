@@ -61,7 +61,7 @@ ALB系SLI（エラー率・応答時間）はratio（比率）ベースで算出
 
 - CloudWatch Synthetics の `SuccessPercent` メトリクスを、一定期間（例: 1時間）で平均した値を、その期間中のcanary可用性の近似として扱う
 - 測定対象の経路はすべて `https://hamilcar-hannibal.click`（CloudFront経由）である（PR [#478](https://github.com/kmryst/terraform-hannibal/pull/478) でcanaryをCloudFront経由に変更済み）。「対象サービス」表のPublic API（`api.hamilcar-hannibal.click` へのALB直接経路）はこのSLIの測定対象ではなく、稼働率SLIはエンドユーザーが実際に通るCloudFront→ALB→ECSの貫通経路を測る
-- 検証対象はフロントエンド配信、GraphQL読み取りクエリ（`capitalCities` / `hannibalRoute` / `pointRoute` 等）、ヘルスチェック（`GET /health`）の3点に限定する。書き込み系API（GraphQL Mutation）と認証済みユーザー操作（本アプリには認証機能自体が存在しない）は対象外
+- 検証対象はフロントエンド配信、GraphQL読み取りクエリ（DB を通らない `capitalCities` と、DB を通る `routes`。`routes` は Issue #674 で追加）、ヘルスチェック（`GET /health`）に限定する。書き込み系API（GraphQL Mutation）と認証済みユーザー操作（本アプリには認証機能自体が存在しない）は対象外
 - canaryのTerraformリソースはenv側（アプリ実行系と同じroot module群）に配置し、`deploy.yml` / `destroy.yml` によるオンデマンド起動・破棄と生死を共にする（[ADR-0008](../adr/0008-on-demand-startup-and-routine-destroy-operation.md) との整合）
 - canaryの成功/失敗結果は `nestjs-hannibal-3-synthetics-availability-low` アラーム（`SuccessPercent` の1時間平均が閾値を下回るとALARM）として `terraform/modules/monitoring` のSNS topicに接続済み（PR [#468](https://github.com/kmryst/terraform-hannibal/pull/468)、詳細は [monitoring.md](./monitoring.md) を参照）
 

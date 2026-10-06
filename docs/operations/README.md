@@ -67,7 +67,7 @@ Inputs:
 **結果**: ECS Fargate + RDS + ALB が起動、サービス開始
 
 RDS は provisioning のたびに空で作られ、`routes` テーブルはアプリの起動時に TypeORM migrations で作られる（[ADR 0035](../adr/0035-adopt-typeorm-migrations-for-schema-management.md)）。
-deploy の最後に `Verify GraphQL routes query via CloudFront` step が GraphQL の `routes` を確認し、失敗したら workflow が失敗する。provisioning では ECS タスクが image push の後に起動するため、この step は成功するまで最大 20 分再試行する。
+deploy の最後に `Verify deployment with Synthetics canary` step が、deploy 後に開始した Synthetics canary（GraphQL の `routes` を含む）の run が PASSED になるのを待ち、最大 20 分以内に PASSED にならなければ workflow が失敗する。provisioning では ECS タスクが image push の後に起動するため、その間の FAILED では止めずに次の run（5 分間隔）を待つ。
 
 ### サービス停止（月末など）
 
