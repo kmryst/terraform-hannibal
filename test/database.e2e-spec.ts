@@ -33,10 +33,11 @@ describeWithDatabase('AppModule with PostgreSQL', () => {
     const response = await request(app.getHttpServer())
       .post('/graphql')
       .set('Content-Type', 'application/json')
-      .send({ query, variables })
-      .expect(200);
+      .send({ query, variables });
 
+    // 失敗時に GraphQL のエラーメッセージが見えるよう、status より先に errors を確認する
     expect(response.body.errors).toBeUndefined();
+    expect(response.status).toBe(200);
     return response.body.data;
   }
 
