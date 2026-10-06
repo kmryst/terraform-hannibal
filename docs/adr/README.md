@@ -76,3 +76,4 @@ ADR はその正本を置き換えるものではなく、重要な設計判断�
 | [0033](./0033-adopt-expiring-npm-audit-exception-for-braces.md) | Accepted | idp-golden-path ADR 0008 の期限付き例外方式を採用し、braces の advisory を root の Dependency Audit で期限付き例外にする |
 | [0034](./0034-keep-backend-commonjs-and-load-esm-nestjs-via-require-esm.md) | Accepted | NestJS 12 系への移行で backend を CommonJS のまま維持し、ES Module の `@nestjs/*` を `require(esm)` で読み込む |
 | [0035](./0035-adopt-typeorm-migrations-for-schema-management.md) | Accepted | DB スキーマを TypeORM migrations で管理し、アプリ起動時に適用する（全環境で `synchronize` を無効にする） |
+| [0036](./0036-omit-optional-dependencies-from-production-image.md) | Accepted | 本番イメージの依存インストールで optional dependencies も除外する（`npm ci --omit=dev --omit=optional`） |

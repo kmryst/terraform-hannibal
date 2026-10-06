@@ -26,8 +26,11 @@ RUN apk add --no-cache wget && \
     apk del wget
 
 # 本番依存のみインストール
+# --omit=optional も付ける。ts-morph は devDependency だが、本番依存 @nestjs/graphql の
+# optional な peer dependency でもあるため lockfile 上は devOptional になり、
+# --omit=dev だけでは入ってしまう（ADR 0036）
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --omit=optional
 
 # コンパイル済み JS
 COPY --from=builder /usr/src/app/dist ./dist
