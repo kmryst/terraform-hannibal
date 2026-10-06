@@ -38,15 +38,19 @@ export class Route {
 
 **PostgreSQL テーブル定義:**
 
+テーブルはアプリ起動時に TypeORM migrations で作られる（[ADR 0035](../adr/0035-adopt-typeorm-migrations-for-schema-management.md)）。
+DDL の正本は `src/migrations/` のマイグレーションファイルで、以下は初回マイグレーション `src/migrations/1791279966870-InitialSchema.ts` の内容である。
+
 ```sql
-CREATE TABLE routes (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    coordinates JSONB NOT NULL,  -- GeoJSON座標配列
-    color VARCHAR(100),
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE "routes" (
+    "id" SERIAL NOT NULL,
+    "name" character varying(255) NOT NULL,
+    "description" text NOT NULL,
+    "coordinates" jsonb NOT NULL,  -- GeoJSON座標配列
+    "color" character varying(100),
+    "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+    CONSTRAINT "PK_76100511cdfa1d013c859f01d8b" PRIMARY KEY ("id")
 );
 ```
 
@@ -63,7 +67,68 @@ CREATE TABLE routes (
 
 3. **TypeORM統合**: TypeScriptの型安全性を保持
    - GraphQL Code First と連携
-   - 自動マイグレーション対応（開発環境のみ）
+   - スキーマは全環境で TypeORM migrations により管理（`synchronize` は全環境で無効。詳細は「スキーマ管理（TypeORM migrations）」）
+
+### スキーマ管理（TypeORM migrations）
+
+判断の背景と代替案は [ADR 0035](../adr/0035-adopt-typeorm-migrations-for-schema-management.md) を参照する。この節は手順の正本である。
+
+#### 構成
+
+| 項目 | 内容 |
+|---|---|
+| 接続設定 | `src/database/typeorm-options.ts` の `createTypeOrmOptions()`。アプリ（`TypeOrmModule.forRoot`）と CLI が共有する |
+| CLI 用 DataSource | `src/database/data-source.ts`（本番イメージでは `dist/database/data-source.js`） |
+| マイグレーション | `src/migrations/<timestamp>-<Name>.ts`。適用対象は `src/migrations/index.ts` で明示的に列挙する |
+| 適用 | 全環境で起動時に `migrationsRun: true` で適用する。未適用分を 1 つのトランザクションで実行する（`migrationsTransactionMode: 'all'`） |
+| 適用済みの記録 | `migrations` テーブル（`id` / `timestamp` / `name`） |
+| `synchronize` | 全環境で無効 |
+
+glob ではなくクラスを列挙するのは、ts（ts-node / ts-jest）と dist（`nest build` の出力。`declaration: true` で `.d.ts` も出力される）のどちらでも同じ解決にするためである。
+
+#### エンティティを変更したとき（マイグレーションの作成）
+
+1. ローカルの PostgreSQL を、現在のマイグレーションをすべて適用した状態にする（アプリを一度起動するか `npm run migration:run`）
+2. エンティティを変更する
+3. マイグレーションを生成する
+
+   ```bash
+   DATABASE_URL="postgresql://<user>:<password>@localhost:<port>/<db>?sslmode=disable" \
+     npm run migration:generate -- src/migrations/<Name>
+   ```
+
+4. 生成された `up` / `down` の SQL をレビューする。CodeDeploy の Canary / Blue/Green では新旧のタスクが同じ DB を同時に使うため、1 つ前のバージョンのアプリでも動く後方互換な変更にする（列の削除・名前変更は expand and contract パターンで複数回のリリースに分ける）
+5. `src/migrations/index.ts` の配列の末尾にクラスを追記する（追記しないと適用されない）
+6. `npx prettier --write src/migrations` で整形する
+7. 確認する
+
+   ```bash
+   npm run migration:run      # 適用
+   npm run migration:revert   # 直前の 1 件を戻す（down）
+   npm run migration:run      # 再適用
+   # エンティティとスキーマが一致していれば、次は "No changes in database schema were found" で終了コード 1 になる
+   npm run migration:generate -- src/migrations/Check
+   npm run migration:show     # [X] が適用済み、[ ] が未適用
+   ```
+
+データ投入だけ、または SQL を手で書く場合は `npx typeorm migration:create src/migrations/<Name>` で空のマイグレーションを作る。
+
+#### 以前 `synchronize` でテーブルを作ったローカル DB
+
+Issue #674 より前のコードで起動したローカル DB には、`migrations` テーブルの記録がないまま `routes` テーブルがある。
+この DB に起動すると初回マイグレーションが `relation "routes" already exists` で失敗する。DB を作り直すか、スキーマが初回マイグレーションと同じであることを確認したうえで、適用済みとして記録する。
+
+```bash
+DATABASE_URL="..." npm run migration:run -- --fake
+```
+
+AWS dev の RDS は provisioning のたびに空のため該当しない。
+
+#### AWS 上での適用・確認・ロールバック
+
+- 適用: `deploy.yml` でデプロイしたタスクが起動時に適用する。CloudWatch Logs（`/ecs/nestjs-hannibal-3-api-task`）に `Migration <Name> has been executed successfully.`（適用時）または `No migrations are pending`（適用済み）が出る
+- 確認: `deploy.yml` の `Verify GraphQL routes query via CloudFront` step が、CloudFront 経由で GraphQL の `routes` を確認する
+- ロールバック: [Runbook](../operations/runbook.md) の「スキーマ変更を含むデプロイの rollback」を参照する
 
 ### GraphQLスキーマ設計（実装済み）
 

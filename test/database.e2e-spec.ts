@@ -5,7 +5,8 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 
 // 本番と同じ AppModule（ConfigModule / TypeORM / GraphQL / 各 module）を PostgreSQL に接続して起動し、
-// ES Module として配布される @nestjs/* を CommonJS から読み込めること（require(esm)）と、
+// ES Module として配布される @nestjs/* を CommonJS から読み込めること（require(esm)）、
+// 起動時に TypeORM migrations でスキーマが作られること、
 // GraphQL → TypeORM → PostgreSQL の読み書きを確認する。
 // PostgreSQL が必要なため、E2E_DATABASE_URL が未設定のときはスキップする。
 // 例: E2E_DATABASE_URL=postgresql://user:pass@localhost:5432/db?sslmode=disable npm run test:e2e
@@ -44,7 +45,7 @@ describeWithDatabase('AppModule with PostgreSQL', () => {
   beforeAll(async () => {
     // AppModule は TypeORM の接続設定を import 時に process.env から読むため、
     // 環境変数を設定してから動的に import する。
-    // NODE_ENV が production 以外なので synchronize によりテーブルが作成される。
+    // synchronize は無効で、テーブルは起動時の migrationsRun で作成される（ADR 0035）。
     process.env.NODE_ENV = 'test';
     process.env.DATABASE_URL = databaseUrl;
 
@@ -70,6 +71,18 @@ describeWithDatabase('AppModule with PostgreSQL', () => {
       restoreEnv('NODE_ENV', originalEnv.nodeEnv);
       restoreEnv('DATABASE_URL', originalEnv.databaseUrl);
     }
+  });
+
+  it('applies every migration on startup and leaves none pending', async () => {
+    const { migrations } = await import('../src/migrations');
+    const executed: { name: string }[] = await dataSource.query(
+      'SELECT name FROM migrations ORDER BY id',
+    );
+
+    expect(executed.map((row) => row.name)).toEqual(
+      migrations.map((migration) => migration.name),
+    );
+    expect(await dataSource.showMigrations()).toBe(false);
   });
 
   it('starts the full application and serves /health', async () => {

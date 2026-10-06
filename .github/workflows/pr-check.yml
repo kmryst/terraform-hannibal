@@ -153,6 +153,7 @@ jobs:
           docker run -d \
             --name smoke-app \
             --network smoke-test-net \
+            -p 127.0.0.1:3000:3000 \
             -e NODE_ENV=production \
             -e DATABASE_URL="postgresql://smoke:smoke@smoke-db:5432/smoke?sslmode=disable" \
             hannibal-test
@@ -178,6 +179,15 @@ jobs:
 
           if [ "$app_healthy" != "true" ]; then
             echo "::error::Application did not become healthy"
+            docker logs smoke-app || true
+            exit 1
+          fi
+
+          # /health は DB を通らないため、起動時の migrations で作られた routes テーブルを
+          # GraphQL の routes（読み取りのみ）で確認する（Issue #674）
+          if ! VERIFY_TIMEOUT_SECONDS=60 VERIFY_INTERVAL_SECONDS=2 \
+              ./scripts/deployment/verify-graphql-routes.sh http://127.0.0.1:3000/graphql; then
+            echo "::error::GraphQL routes query failed on the production image"
             docker logs smoke-app || true
             exit 1
           fi
