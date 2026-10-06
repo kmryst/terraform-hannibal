@@ -69,6 +69,9 @@ updates:
       # GraphQL 17 を受け付ける上流リリースがまだ存在しない。
       # 実測: @apollo/server@5.5.1 と @nestjs/graphql@13.4.2 の peer がどちらも
       #       graphql "^16.11.0"（いずれも 2026-08-06 時点で npm latest）。
+      # 追記（2026-10-06、Issue #662）: @nestjs/graphql / @nestjs/apollo 14.0.3 の peer は
+      #       graphql "^16.11.0 || ^17.0.0" / "^16.10.0 || ^17.0.0" で 17 を許容する。
+      #       残る制約は @apollo/server@5.5.1 の peer（"^16.11.0"）だけ。
       # 影響: root は npm ci が ERESOLVE で失敗（PR #541。
       #       "peer graphql@^16.11.0 from @apollo/server@5.5.1" / "Conflicting peer dependency: graphql@16.14.2"）。
       #       markdown-lint も root で npm ci するため連鎖失敗する。

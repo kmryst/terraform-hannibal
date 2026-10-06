@@ -1,0 +1,2 @@
+# @nestjs/graphql が開発モードの起動時に上書き生成するファイル（.eslintrc.js の ignorePatterns と同じ理由）
+src/graphql/graphql.schema.ts

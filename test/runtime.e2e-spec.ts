@@ -118,3 +118,70 @@ describe('Node 24 / Express 5 / Apollo Server 5 runtime', () => {
       .expect(500);
   });
 });
+
+describe('GraphQL runtime in production', () => {
+  let app: INestApplication;
+  const originalEnv = {
+    nodeEnv: process.env.NODE_ENV,
+    clientUrl: process.env.CLIENT_URL,
+  };
+
+  function restoreEnv(name: string, value: string | undefined): void {
+    if (value === undefined) {
+      delete process.env[name];
+      return;
+    }
+
+    process.env[name] = value;
+  }
+
+  beforeAll(async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.CLIENT_URL = 'https://example.com';
+
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [RuntimeTestModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    configureApplication(app, app.get(ConfigService));
+    await app.init();
+  });
+
+  afterAll(async () => {
+    try {
+      await app.close();
+    } finally {
+      restoreEnv('NODE_ENV', originalEnv.nodeEnv);
+      restoreEnv('CLIENT_URL', originalEnv.clientUrl);
+    }
+  });
+
+  it('does not serve GraphiQL', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/graphql')
+      .set('Accept', 'text/html');
+
+    expect(response.text ?? '').not.toContain('graphiql');
+  });
+
+  it('rejects introspection but still executes queries', async () => {
+    const introspection = await request(app.getHttpServer())
+      .post('/graphql')
+      .set('Content-Type', 'application/json')
+      .send({ query: '{ __schema { queryType { name } } }' });
+
+    expect(introspection.body.errors?.[0]?.message).toContain('introspection');
+
+    const response = await request(app.getHttpServer())
+      .post('/graphql')
+      .set('Origin', 'https://example.com')
+      .set('Content-Type', 'application/json')
+      .send({ query: '{ capitalCities { type } }' })
+      .expect(200)
+      .expect('Access-Control-Allow-Origin', 'https://example.com');
+
+    expect(response.body.errors).toBeUndefined();
+    expect(response.body.data.capitalCities.type).toBe('FeatureCollection');
+  });
+});

@@ -9,7 +9,7 @@
 ### 技術スタック
 
 - **Frontend**: React 19 + TypeScript 5.8 + Vite + Mapbox GL JS + Apollo Client
-- **Backend**: Node.js 24 + NestJS 11 + Apollo Server 5 + TypeScript 5.2 + GraphQL (Schema First) + TypeORM
+- **Backend**: Node.js 24 + NestJS 12 + Apollo Server 5 + TypeScript 6.0 + GraphQL (Schema First) + TypeORM
 - **Database**: PostgreSQL 15 (RDS)
 - **Infrastructure**: Terraform 1.14.8 + AWS (ECS Fargate / ALB / CloudFront / Route53)
 - **CI/CD**: GitHub Actions (Blue/Green & Canary Deployment)

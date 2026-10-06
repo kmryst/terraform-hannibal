@@ -442,5 +442,6 @@ Issue #226 の実装時点で、ローカルで実行可能な範囲のチェッ
 | `trivy config --severity HIGH,CRITICAL --exit-code 0 ... .` | pass | findings は review signal として確認 |
 | `npm test -- --runInBand` | pass | 既存 Jest unit test を確認 |
 
-`npm run test:e2e` は現状 `AppModule` が TypeORM 経由で PostgreSQL に接続するため、ローカルDBなしでは失敗します。
-これは今回の品質ゲート追加とは別に、テスト基盤整備の後続課題として扱います。
+`npm run test:e2e` は PostgreSQL なしで実行でき、`AppModule` 全体を PostgreSQL に接続して GraphQL 経由の読み書きを確認する `test/database.e2e-spec.ts` は、環境変数 `E2E_DATABASE_URL` が未設定のときスキップします（Issue #662）。
+PostgreSQL を用意して実行する場合は、`E2E_DATABASE_URL=postgresql://<user>:<password>@localhost:5432/<db>?sslmode=disable npm run test:e2e` のように指定します。テストは `routes` テーブルを空にするため、専用の DB を使ってください。
+e2e は現時点で CI（`pr-check.yml`）では実行していません。
