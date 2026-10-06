@@ -29,8 +29,8 @@ Node.js は `>=24 <25` を application runtime / CI / container の support cont
 
 | 領域 | 採用 version | 用途・制約 | 再検討条件 |
 |---|---:|---|---|
-| NestJS core / common / platform / testing | `11.1.28` | NestJS 11系列を同一patchへ統一する | NestJS 12 stable と周辺moduleの対応後 |
-| NestJS GraphQL / Apollo | `13.4.2` | NestJS 11、GraphQL 16、Apollo Server 5の統合 | 14系stable、またはPlayground依存除去時 |
+| NestJS core / common / platform / testing | core `11.1.28` / common・testing `11.2.1` / platform-express `11.2.7` | NestJS 11系列内に揃える。platform-express は multer の advisory 解消のため lockfile 更新で 11.2.7 に上げた（Issue #651） | NestJS 12 stable と周辺moduleの対応後 |
+| NestJS GraphQL / Apollo | `13.4.5` | NestJS 11、GraphQL 16、Apollo Server 5の統合 | 14系stable、またはPlayground依存除去時 |
 | Apollo Server | `5.5.1` | Apollo Server 4 EOL後のsupported line | 6系stableとNestJS対応後 |
 | Express integration | `@as-integrations/express5@1.1.2` | Nest Apollo 13がruntimeで直接loadする | Nest Apolloのdependency宣言変更時 |
 | GraphQL.js | `16.14.2` | Apollo/Nestのsupported stable major（Dependabotのmajor更新はignoreで抑止、Issue #564で追跡） | GraphQL 17 stableと全peer対応後 |
@@ -70,7 +70,7 @@ root 側の graphql major 更新は、PR #565 で Dependabot の ignore に追�
 | Package | Owner / 制約 | 確認事項 |
 |---|---|---|
 | `express@5.2.1` | `@nestjs/platform-express` のexact dependency | route、query、health、CORSをE2Eで確認する |
-| `multer@2.2.0` | `@nestjs/platform-express` のexact dependency | file uploadは未使用。advisoryと上流更新を追跡する（Issue #514でDoS脆弱性2件を解消） |
+| `multer@2.4.0` | `@nestjs/platform-express` のexact dependency | file uploadは未使用。advisoryと上流更新を追跡する（Issue #514でDoS脆弱性2件、Issue #651で GHSA-535w-7cp7-47q4 ほかを解消） |
 | `cors@2.8.6` | `@nestjs/platform-express` のexact dependency | direct dependencyにせず、preflightをE2Eで確認する |
 | `lodash@4.18.1` | Nest Config / GraphQLの上流依存 | advisory解消版であることをauditで確認する |
 | `graphql-ws@6.0.8` / `ws@8.21.0`（`package.json` の `overrides` で固定） | Nest GraphQLの上流依存 | subscriptions未使用。`@nestjs/graphql@13.4.2` は `ws@8.20.1`（脆弱、GHSA-96hv-2xvq-fx4p）を厳密ピン留めしており、13.4.2が現時点で最新の安定版のため上流修正待ちができない。`overrides` で `@nestjs/graphql` 配下の `ws` のみ `8.21.0`（パッチ済み）に固定する（Issue #515）。`@nestjs/graphql` のバージョン自体は変更しない |
@@ -86,6 +86,7 @@ root の `npm ls --all` で許容する非zero要因は、`@nestjs/apollo@13.4.2
 ## Audit Scope
 
 - root: `npm audit` 0件を維持する
+  - 2026-10-06 時点の例外: `@graphql-tools/utils`（GHSA-7mx3-vvmw-hjmv。修正版未公開で、audit の提示は NestJS 12 系の `@nestjs/graphql@14`）と `braces`（GHSA-vfj7-8cjw-p6xm。修正版未公開、`markdownlint-cli2` 等の devDependency 経由）の high が lockfile 更新では解消できず残る（Issue #651）
 - client: rootとは分離して扱い、既知findingはIssue #365で追跡する
 - repository全体について「脆弱性0件」と表現せず、root / client のscopeを明記する
 
