@@ -83,10 +83,9 @@ while true; do
 	fi
 	echo "Attempt ${attempt}: ${last_reason}"
 
-	if ((SECONDS + interval_seconds > deadline)); then
-		break
-	fi
-	sleep "$interval_seconds"
+	remaining=$((deadline - SECONDS))
+	((remaining > 0)) || break
+	sleep "$((remaining < interval_seconds ? remaining : interval_seconds))"
 done
 
 echo "Error: routes query did not succeed within ${timeout_seconds}s (${attempt} attempts). Last result: ${last_reason}" >&2
