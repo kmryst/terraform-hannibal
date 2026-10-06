@@ -31,9 +31,13 @@ updates:
           - "*"
     ignore:
       # TypeScript 6.1 以降は @typescript-eslint/eslint-plugin が未対応。
-      # 実測: 8.66.0（最新）の peer は typescript ">=4.8.4 <6.1.0"。
+      # 実測: 8.71.1（2026-10-06 時点の最新）の peer は typescript ">=4.8.4 <6.1.0"。
       # 影響: root は npm ci が ERESOLVE で失敗（PR #537）、
       #       client は TS5108 esModuleInterop 廃止でビルド失敗（PR #532、client/tsconfig.json:8）。
+      # root は Issue #663 で 6.0.3（package.json は ~6.0.3）へ手動で更新済み（NestJS 12 系移行の前提）。
+      # 現在の root の ignore は major 更新（7 系。2026-10-06 時点の最新は 7.0.2）だけを止める。
+      # 6.1 系は minor 扱いで止まらないが、2026-10-06 時点で 6.1 系は公開されていない。
+      # 6.1 系が公開され、上記 peer の上限が残っている場合はこの ignore の対象を見直す。
       # 本番影響なし: typescript は devDependency でビルド時のみ。
       # 解除条件: @typescript-eslint/eslint-plugin の peer から <6.1.0 の上限が外れたら。
       # 見直し期限: 2026-11-02（idp-golden-path #134 / #146 の棚卸し時期と揃える）
