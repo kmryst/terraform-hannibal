@@ -96,6 +96,7 @@ root 側の graphql major 更新は、PR #565 で Dependabot の ignore に追�
   - 2026-10-06 時点の残件: `braces`（GHSA-vfj7-8cjw-p6xm、devDependency のみ）の high は、修正版が公開されていないため lockfile の更新では解消できない（Issue #651）。下の「期限付き例外」で扱う
   - 本番依存の `@graphql-tools/utils`（GHSA-7mx3-vvmw-hjmv）は、Issue #658 で `overrides` により修正版に固定して解消した。`@nestjs/graphql@14` への移行で上流の宣言が修正版になったため、Issue #662 で override を外した（上の「Transitive Dependencies」参照）
   - 2026-10-24 時点: 本番依存の `multer`（GHSA-q7qp-rjg7-q26m）と `@graphql-tools/utils`（GHSA-c4qx-w738-7hr3）は、親の `@nestjs/platform-express` / `@nestjs/graphql` が脆弱な版を exact で宣言しており、lockfile の更新では解消できない。本番依存（`--omit=dev`）の audit は期限付き例外を見ずに判定されるため、例外でも扱えない。そこで Issue #698 で、root の `package.json` の `overrides` により `multer@2.5.0` と `@graphql-tools/utils@12.0.3` に固定した。解除条件と確認方法は追跡 Issue #699 に書いてある。`npm audit --omit=dev` は 0 件を維持する
+  - 2026-10-24 時点: devDependency の `markdown-it`（GHSA-r7fv-28h4-cvq7 / GHSA-gfr2-rv44-r23c / GHSA-vfgh-jcmw-g37q）は、`markdownlint-cli2@0.23.3` が `15.0.1` を exact で宣言していたため、修正版の `15.0.3` を宣言する `markdownlint-cli2@0.24.0` に更新して解消した（Issue #698）
 - client: rootとは分離して扱い、既知findingはIssue #365で追跡する
 - repository全体について「脆弱性0件」と表現せず、root / client のscopeを明記する
 
