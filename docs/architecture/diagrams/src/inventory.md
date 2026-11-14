@@ -148,11 +148,11 @@
 | — | GitHub Actions | AWS STS | `AssumeRoleWithWebIdentity`（OpenID Connect。trust policy は main ブランチ） | 一時認証情報の取得 | 描く | operations | `deploy.yml:26-35`、`terraform/foundation/iam.tf:47-70` |
 | — | GitHub Actions | 各 root module のリソース | `terraform apply`（network → database → service → observability → cdn） | インフラの作成・更新 | 描く（GitHub Actions → Region 枠への 1 本にまとめる） | operations | `deploy.yml:150-236` |
 | — | GitHub Actions | S3（frontend） | `aws s3 sync --delete`（cdn の apply の `aws_s3_object` でも配置） | 静的ファイルの配置 | 描く | operations | `deploy.yml:238-242`、`terraform/modules/s3/main.tf:21-49` |
-| — | GitHub Actions | CloudFront | `create-invalidation /*` | キャッシュの無効化 | 描く | operations | `deploy.yml:243-246` |
+| — | GitHub Actions | CloudFront | `CreateInvalidation`（paths `/*`） | キャッシュの無効化 | 描く | operations | `deploy.yml:243-246` |
 | — | GitHub Actions | ECR | `docker push`（コミット SHA タグと `latest`） | イメージの登録 | 描く | operations | `deploy.yml:253-273` |
-| — | GitHub Actions | ECS | `register-task-definition`、古い revision の deregister | task definition の更新 | 描く | operations | `deploy.yml:275-303,376-418` |
+| — | GitHub Actions | ECS | `RegisterTaskDefinition`、古い revision の `DeregisterTaskDefinition` | task definition の更新 | 描く | operations | `deploy.yml:275-303,376-418` |
 | — | GitHub Actions | S3（CodeDeploy 用） | `aws s3 cp`（AppSpec） | AppSpec の配置 | 描く | operations | `deploy.yml:306-311` |
-| — | GitHub Actions | CodeDeploy | `create-deployment` → `wait deployment-successful`（canary / bluegreen モード。provisioning モードは実行しない） | Blue/Green デプロイの開始 | 描く | operations | `deploy.yml:306-339` |
+| — | GitHub Actions | CodeDeploy | `CreateDeployment` → `aws deploy wait deployment-successful`（canary / bluegreen モード。provisioning モードは実行しない） | Blue/Green デプロイの開始 | 描く | operations | `deploy.yml:306-339` |
 | — | CodeDeploy | S3（CodeDeploy 用） | AppSpec の取得（`--s3-location`） | デプロイ定義の読み込み | 描く | operations | `deploy.yml:312-316` |
 | — | CodeDeploy（service role） | ECS | replacement task set の作成・旧 task set の終了 | Blue/Green 切り替え | 描く | operations | `terraform/modules/codedeploy/main.tf:76-112` |
 | — | CodeDeploy（service role） | ALB | production / test listener の forward 先の切り替え（blue / green target group） | トラフィックの移行 | 描く | operations | `terraform/modules/codedeploy/main.tf:95-112` |
