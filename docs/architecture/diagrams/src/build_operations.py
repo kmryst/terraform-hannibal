@@ -98,7 +98,7 @@ y_sts = d.center("sts")[1]
 d.edge("oidc", (0.15, 0), (0, 0.5), points=[(gx(0.15), y_sts)], label_at=(420, y_sts))
 Y2 = 300
 TF = joined("tf", "sync", "inval", "taskdef", "appspec", "canaryruns")
-# 束ねた線の終点は AWS Cloud 枠（create-invalidation の CloudFront が Region の外にあるため）
+# 束ねた線の終点は AWS Cloud 枠（CreateInvalidation の CloudFront が Region の外にあるため）
 d.edge("tf", (0.55, 0), (0, ry(Y2)), points=[(gx(0.55), Y2)], label_at=(150, Y2), line1=TF[0], breaks=TF[1], tgt="aws")
 d.edge("deploy", (1, 0.5), (0, 0.5), label_at=(177, R1))
 y_ecr = d.center("ecr")[1]
