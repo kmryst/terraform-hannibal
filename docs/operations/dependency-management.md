@@ -93,7 +93,7 @@ root 側の graphql major 更新は、PR #565 で Dependabot の ignore に追�
 ## Audit Scope
 
 - root: `npm audit` 0件を維持する
-  - 2026-10-06 時点の残件: `braces`（GHSA-vfj7-8cjw-p6xm、devDependency のみ）の high は、修正版が公開されていないため lockfile の更新では解消できない（Issue #651）。下の「期限付き例外」で扱う
+  - 2026-10-06 時点の残件: `braces`（GHSA-vfj7-8cjw-p6xm、devDependency のみ）の high は、修正版が公開されていないため lockfile の更新では解消できない（Issue #651）。下の「期限付き例外」で扱っていた。advisory が 2026-10-23 に取り下げ（withdrawn）られて検出されなくなったため、2026-11-14 に例外を解除した（Issue #722）。braces 3.0.3 自体は `markdownlint-cli2` → `micromatch` 経由で lockfile に残っている
   - 本番依存の `@graphql-tools/utils`（GHSA-7mx3-vvmw-hjmv）は、Issue #658 で `overrides` により修正版に固定して解消した。`@nestjs/graphql@14` への移行で上流の宣言が修正版になったため、Issue #662 で override を外した（上の「Transitive Dependencies」参照）
   - 2026-10-24 時点: 本番依存の `multer`（GHSA-q7qp-rjg7-q26m）と `@graphql-tools/utils`（GHSA-c4qx-w738-7hr3）は、親の `@nestjs/platform-express` / `@nestjs/graphql` が脆弱な版を exact で宣言しており、lockfile の更新では解消できない。本番依存（`--omit=dev`）の audit は期限付き例外を見ずに判定されるため、例外でも扱えない。そこで Issue #698 で、root の `package.json` の `overrides` により `multer@2.5.0` と `@graphql-tools/utils@12.0.3` に固定した。解除条件と確認方法は追跡 Issue #699 に書いてある。`npm audit --omit=dev` は 0 件を維持する
   - 2026-10-24 時点: devDependency の `markdown-it`（GHSA-r7fv-28h4-cvq7 / GHSA-gfr2-rv44-r23c / GHSA-vfgh-jcmw-g37q）は、`markdownlint-cli2@0.23.3` が `15.0.1` を exact で宣言していたため、修正版の `15.0.3` を宣言する `markdownlint-cli2@0.24.0` に更新して解消した（Issue #698）
@@ -103,11 +103,13 @@ root 側の graphql major 更新は、PR #565 で Dependabot の ignore に追�
 
 ### 期限付き例外（npm-audit-exceptions）
 
-root の `root / Dependency Audit` は、idp-golden-path の reusable workflow（`dependency-audit.yml@v1`）に `npm-audit-exceptions` input を渡し、修正版のない high advisory を GHSA 単位で期限付きの例外にしている（[ADR 0033](../adr/0033-adopt-expiring-npm-audit-exception-for-braces.md)、契約の正本は idp-golden-path ADR 0008 の追記 2026-07-28）。宣言場所は `.github/workflows/dependency-audit.yml` の root job の `with:` である。
+root の `root / Dependency Audit` は、idp-golden-path の reusable workflow（`dependency-audit.yml@v1`）に `npm-audit-exceptions` input を渡すことで、修正版のない high advisory を GHSA 単位で期限付きの例外にできる（[ADR 0033](../adr/0033-adopt-expiring-npm-audit-exception-for-braces.md)、契約の正本は idp-golden-path ADR 0008 の追記 2026-07-28）。宣言場所は `.github/workflows/dependency-audit.yml` の root job の `with:` である。
 
 | GHSA | package | 期限（expires） | 追跡 Issue |
 |---|---|---|---|
-| GHSA-vfj7-8cjw-p6xm | `braces`（`markdownlint-cli2` 経由の devDependency のみ） | 2026-12-31 | [#655](https://github.com/kmryst/terraform-hannibal/issues/655) |
+| ― | ― | ― | ― |
+
+2026-11-14 時点で有効な例外はなく、`npm-audit-exceptions` の input も削除している。最後の例外だった braces（GHSA-vfj7-8cjw-p6xm、追跡 [#655](https://github.com/kmryst/terraform-hannibal/issues/655)）は、advisory の取り下げにより Issue #722 で解除した。
 
 #### 「root は `npm audit` 0件を維持する」との関係
 
@@ -130,7 +132,7 @@ root の `root / Dependency Audit` は、idp-golden-path の reusable workflow�
 
 #### 例外を解除する手順
 
-1. 修正版を取り込む（宣言 range の中なら `npm update <package>` または `npm audit fix --package-lock-only` で lockfile を更新する）か、依存経路がなくなったことを `npm ls <package>` で確認する
+1. 修正版を取り込む（宣言 range の中なら `npm update <package>` または `npm audit fix --package-lock-only` で lockfile を更新する）か、依存経路がなくなったことを `npm ls <package>` で確認する。advisory が取り下げ（withdrawn）られた場合は、GitHub Advisory Database の該当ページ（または `gh api /advisories/<GHSA>` の `withdrawn_at`）で取り下げ日を確認し、PR に根拠として書く（ADR 0033 の追記 2026-11-14）
 2. `dependency-audit.yml` から該当する要素を削除する。例外が 0 件になったら `npm-audit-exceptions` の行ごと削除する（input が未指定または `[]` なら、評価器を使わない従来の `npm audit --audit-level=high` に戻る）
 3. PR で追跡 Issue を `Closes` する。上の表と ADR 0033 の状態も更新する
 

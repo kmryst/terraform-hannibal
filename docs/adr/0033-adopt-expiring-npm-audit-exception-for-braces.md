@@ -101,10 +101,21 @@ idp-golden-path ADR 0016 は、不要になった回避策・例外を撤去す�
 - idp-golden-path#310 が実装され、消費側にも撤去 PR が作られるようになった → 運用を見直す
 - 期限の更新を 2 回以上繰り返しても修正版が出ない → `markdownlint-cli2` の置き換えを再検討する
 - 本番依存で修正版のない high が出て、例外にするかを判断する必要が出た → 本 ADR の対象（devDependency の braces）とは露出が違うため、個別に判断する
+- advisory が取り下げ（withdrawn）られた → 例外を削除する（下の追記 2026-11-14 で追加した条件）
+
+### 追記（2026-11-14）: advisory の取り下げにより braces の例外を解除した（Issue #722）
+
+GHSA-vfj7-8cjw-p6xm は 2026-10-23T12:53:02Z に GitHub Advisory Database で取り下げ（withdrawn）られた（[該当ページ](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)、`GET /advisories/GHSA-vfj7-8cjw-p6xm` の `withdrawn_at`）。取り下げられた advisory は `npm audit` が検出しないため、評価器は以後の実行で Job Summary に stale 警告（`not detected (remove the stale exception)`）を出していた。
+
+上の再検討条件のうち、例外の削除につながる条件はどちらも満たしていない。2026-11-14 時点で braces の最新は 3.0.3 のままで、`markdownlint-cli2@0.24.1` → `micromatch@4.0.8` → `braces@3.0.3` の経路も残っている。本 ADR は、advisory そのものが取り下げられる場合を想定していなかった。
+
+取り下げられた advisory は検出の対象から外れるため、例外として残しても何も外さない。残すと stale 警告が出続け、新しい stale 警告に気づきにくくなる。そこで「advisory の取り下げ」を例外を削除する理由に加え、braces の例外を `.github/workflows/dependency-audit.yml` から削除した（#655 を close）。例外が 0 件になったため `npm-audit-exceptions` の input も削除し、root job は評価器を使わない従来の `npm audit --audit-level=high` 相当の判定に戻った。
+
+期限付き例外の方式（idp-golden-path ADR 0008 の採用）と、上の決定内容・背景・選択肢・採択理由は当時の判断として残す。方式は今後の例外でも使うため、ステータスは Accepted のままとする。取り下げが撤回されて再び検出された場合は、本 ADR の方式で例外を入れ直す（その日から最大 90 日）。
 
 ## 関連
 
-- Issue: [#656](https://github.com/kmryst/terraform-hannibal/issues/656)（作業）、[#655](https://github.com/kmryst/terraform-hannibal/issues/655)（解除条件の追跡）、[#651](https://github.com/kmryst/terraform-hannibal/issues/651)（lockfile で直せる advisory の解消）、[#658](https://github.com/kmryst/terraform-hannibal/issues/658)（`@graphql-tools/utils` を `overrides` で解消）
+- Issue: [#656](https://github.com/kmryst/terraform-hannibal/issues/656)（作業）、[#722](https://github.com/kmryst/terraform-hannibal/issues/722)（例外の解除）、[#655](https://github.com/kmryst/terraform-hannibal/issues/655)（解除条件の追跡）、[#651](https://github.com/kmryst/terraform-hannibal/issues/651)（lockfile で直せる advisory の解消）、[#658](https://github.com/kmryst/terraform-hannibal/issues/658)（`@graphql-tools/utils` を `overrides` で解消）
 - idp-golden-path: [ADR 0008](https://github.com/kmryst/idp-golden-path/blob/main/docs/adr/0008-ci-guardrails-as-reusable-workflows-with-tag-pinning.md)（追記 2026-07-28 / 2026-10-05）、[ADR 0016](https://github.com/kmryst/idp-golden-path/blob/main/docs/adr/0016-automated-removal-pr-for-dependency-workarounds.md)、[#297](https://github.com/kmryst/idp-golden-path/issues/297)、[#310](https://github.com/kmryst/idp-golden-path/issues/310)、`scripts/ci/npm-audit-policy.mjs`、`docs/operations/security-scanning.md`
 - [Dependency Management](../operations/dependency-management.md)
 - [ADR 0032](./0032-keep-dependabot-and-do-not-adopt-renovate.md)
