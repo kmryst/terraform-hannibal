@@ -542,7 +542,7 @@ docs/
 ├── architecture/          # システム設計書
 │   ├── system-design.md   # 全体アーキテクチャ
 │   ├── data-architecture.md
-│   └── aws/              # AWS構成図（自動生成）
+│   └── diagrams/         # AWS構成図（draw.io。作り方は diagram-automation-history.md）
 ├── deployment/           # デプロイ手順
 │   └── codedeploy-blue-green.md  # Blue/Green詳細
 ├── operations/           # 運用手順
