@@ -59,6 +59,19 @@ README の構成図は、観点（view）ごとの draw.io の図 2 枚です（
 - `generate_aws_diagram.py` の出力先が `docs/architecture/diagrams/` で、新しい図の置き場所と重なる。残すと、実行したときに旧形式の画像が新しい図と混ざる。README のキャッシュバスターを書き換える処理もあった
 - `check_image_size.py` は存在しないパスを参照していた
 
+### Mermaid の構成メモ（`docs/architecture/aws/mermaid/`、6 ファイル）
+
+同じ #718 で、Mermaid で書いた構成メモも削除しました（削除前の状態は同じく commit `c3c9501`）。README・docs からのリンクは無く、内容が現行の構成と食い違っていたためです。
+
+| ファイル | 削除した理由（現行との食い違い） |
+| --- | --- |
+| `system-overview.md` | VPC を default VPC、全リソースを public subnet、ALB の security group を Internet からの 80/443/8080 としていた。実際は 3 層の VPC で、ALB は CloudFront の origin-facing managed prefix list からだけ受ける（`terraform/modules/vpc/`） |
+| `architecture.md` | CloudFront → ALB の経路を `/api/*` だけとし（実際は `/graphql`・`/api/*`・`/health`）、ECR を VPC の中に置き、地図表示の API が RDS を通る描き方だった。CodeDeploy・監視も無い。新しい図で置き換えた |
+| `blue-green-deployment.md` | 「ECS ネイティブの Blue/Green で CodeDeploy 不要」としていたが、実装は AWS CodeDeploy（`terraform/modules/codedeploy/`）。正本は `docs/deployment/codedeploy-blue-green.md` |
+| `data-flow.md` | CloudTrail を multi-Region・永続保存としていた（実際は single-Region・S3 は 365 日で失効）。未実装の Redis・DataLoader、CodeQL を `security-scan.yml` で実行する古い記述があった |
+| `iam-architecture.md` | `docs/operations/iam-management.md` への案内だけで、食い違いは無かった。フォルダごと削除するため一緒に削除した（IAM Role の正本は `iam-management.md`） |
+| `README.md` | 上の 5 ファイルの索引 |
+
 ## 旧方式の自動生成 workflow を削除した経緯
 
 This repository previously contained a GitHub Actions workflow intended to regenerate the AWS architecture diagram automatically.
