@@ -38,48 +38,18 @@ GitHub Actions から provisioning / Blue-Green / Canary / destroy を実行で�
 
 ![リクエストの流れ（地図表示 1 回分）: ブラウザから CloudFront、S3、Application Load Balancer、Amazon ECS への流れと、ブラウザから Mapbox への地図タイルの取得](./docs/architecture/diagrams/request-flow.png)
 
-1. ブラウザが Amazon CloudFront から静的ファイル（index.html・JavaScript）を HTTPS で取得する。名前解決では Amazon Route 53 の alias record が CloudFront を返す。HTTP は HTTPS へ redirect する
-2. CloudFront は cache miss のとき、Amazon S3 の frontend 用 bucket へ origin request を送る。S3 へのアクセスは origin access control（OAC）で署名し、bucket policy で読み取りをこの distribution だけに限定している
-3. 画面の表示時に、React SPA（Apollo Client）が同一オリジンの `/graphql` へ GraphQL query `GetMapData`（首都・ハンニバルの進軍ルート・地点）を送る
-4. CloudFront は `/graphql` を Application Load Balancer（ALB）へ HTTPS で転送する（キャッシュしない）。ALB は CloudFront からのアクセスだけを受ける。ALB の security group は CloudFront の origin-facing managed prefix list からの通信だけを許可し、さらに CloudFront が付ける custom header が一致しないリクエストには listener rule が 403 を返す（[ADR 0004](./docs/adr/0004-keep-internet-facing-alb-with-cloudfront-origin-controls.md)）
-5. ALB は private subnet（app）の Amazon ECS（AWS Fargate）の task へ HTTP で転送する。NestJS の resolver はアプリに同梱した GeoJSON を返すため、地図表示の GraphQL は DB を通らない
-6. GraphQL の結果が届いた後、ブラウザの Mapbox GL JS が Mapbox から地図タイル（衛星画像・地形）と style を取得し、地図を描く
-
-番号の無い ECS → Amazon RDS for PostgreSQL の線は、GraphQL query `routes`（Synthetics canary とテストが使う）と、ECS task の起動時の TypeORM migration の通信。RDS は private subnet（data）にあり、security group で ECS からの接続だけを受ける。data subnet の route table にはデフォルトルートが無く、外へ出ない。
+- 地図表示の GraphQL query `GetMapData` はアプリに同梱した GeoJSON を返すため、DB を通りません。番号の無い ECS → RDS の線は、Synthetics canary とテストが使う query `routes` と、ECS task 起動時の TypeORM migration です。
+- ALB は CloudFront からの通信だけを受けます（managed prefix list と custom header。[ADR 0004](./docs/adr/0004-keep-internet-facing-alb-with-cloudfront-origin-controls.md)）。
+- OAC は origin access control の略です。
 
 ### デプロイ・監視・監査・Game Day・バックアップ
 
 ![デプロイ・監視・監査・Game Day・バックアップ: GitHub Actions、AWS CodeDeploy、Amazon CloudWatch、Amazon SNS、CloudWatch Synthetics、AWS FIS、AWS CloudTrail、Amazon Athena](./docs/architecture/diagrams/operations.png)
 
-- **デプロイ**: GitHub Actions の `deploy.yml` を手動実行する。OpenID Connect で AWS Security Token Service（AWS STS）の `AssumeRoleWithWebIdentity` を呼び、一時認証情報で `terraform apply`（network → database → service → observability → cdn）を実行する。続けて frontend を S3 へ同期して CloudFront のキャッシュを無効化し、コンテナイメージを Amazon ECR へ push して ECS の task definition を登録する。`bluegreen` / `canary` モードでは、AWS CodeDeploy が AppSpec file を S3 から読み、ECS の task set を作成・削除して ALB の listener の転送先（target group: blue / green）を切り替える。CodeDeploy はデプロイの失敗、または ALB の 5XX・応答時間の CloudWatch alarm で automatic rollback する。最後に Synthetics canary の実行結果を確認する
-- **監視**: Amazon CloudWatch alarm は 16 個（ECS・RDS・ALB の SLO burn rate・CodeDeploy 用・Synthetics canary の 12 個と、CloudTrail のログの metric filter に対する 4 個）と dashboard。alarm action は Amazon SNS の topic（2 個）で、email へ通知する。Amazon CloudWatch Synthetics の canary が 5 分ごとに CloudFront 経由で frontend → `/health` → GraphQL（`capitalCities`・`routes`）を確認する
-- **監査**: AWS CloudTrail の trail（single-Region: ap-northeast-1）のログを S3（365 日で失効）と CloudWatch Logs（保持 30 日）に配信する。S3 のログは Amazon Athena で分析し、CloudWatch Logs には metric filter 4 個を設定している。監査系は `terraform/foundation` の管理で、destroy 後も残る
-- **Game Day**: 開発者端末から AWS Fault Injection Service（AWS FIS）の実験を開始し、ECS の task を停止する。SLO の error rate の alarm を stop condition にしている（[ADR 0028](./docs/adr/0028-fis-game-day-ecs-task-stop-experiment-design.md)、[ADR 0029](./docs/adr/0029-separate-fis-observability-root-module-for-blast-radius.md)）
-- **バックアップ**: RDS の automated backups（保持 7 日）。dev 環境は final DB snapshot を取らず、deletion protection も無効（通常停止の運用のため）
-- **その他**: DB の認証情報は RDS が管理する AWS Secrets Manager の secret で、ECS の task の起動時に注入する。アプリのログは Amazon CloudWatch Logs（保持 7 日）
+- 監査系（CloudTrail・Athena と、その S3・CloudWatch Logs・alarm・SNS topic）は `terraform/foundation` で手動 apply する常設のリソースで、`deploy.yml` では作られず、destroy 後も残ります。
+- dev 環境は destroy と再構築を繰り返す運用（[ADR 0008](./docs/adr/0008-on-demand-startup-and-routine-destroy-operation.md)）のため、RDS は final DB snapshot を取らず、deletion protection も無効です。
 
-図に描いていないもの:
-
-- コストの通知は AWS Budgets（月額の budget と email 通知）
-- ECS task から ECR・Secrets Manager・CloudWatch Logs の API への通信は NAT gateway を通る（dev は 1 台を 2 AZ で共用。VPC endpoint は無い）
-- TLS 証明書は AWS Certificate Manager（ACM）。CloudFront 用は us-east-1、ALB 用は ap-northeast-1
-- Terraform の state は S3 backend（S3 lockfile でロック）
-
-| 略語・図中の語 | 正式名 |
-| --- | --- |
-| OAC | origin access control（Amazon CloudFront） |
-| ALB | Application Load Balancer（Elastic Load Balancing） |
-| SPA | single-page application |
-| Amazon ECS | Amazon Elastic Container Service |
-| Amazon ECR | Amazon Elastic Container Registry |
-| Amazon RDS | Amazon Relational Database Service |
-| Amazon S3 | Amazon Simple Storage Service |
-| Amazon SNS | Amazon Simple Notification Service |
-| AWS STS | AWS Security Token Service |
-| AWS FIS | AWS Fault Injection Service |
-| AppSpec | AppSpec file（AWS CodeDeploy の application specification file） |
-| `awslogs` | Amazon ECS の awslogs log driver |
-| SLO | service level objective |
+詳細: [デプロイ](./docs/deployment/codedeploy-blue-green.md) / [alarm と初動](./docs/operations/runbook.md) / [Game Day](./docs/adr/0028-fis-game-day-ecs-task-stop-experiment-design.md)
 
 詳細な構成は [Architecture Docs](./docs/architecture/) と [Terraform Modules](./docs/architecture/terraform-modules.md) を参照。図の作り方は [Architecture Diagram History](./docs/architecture/diagram-automation-history.md) を参照。
 
