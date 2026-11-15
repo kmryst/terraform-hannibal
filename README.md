@@ -51,7 +51,7 @@ GitHub Actions から provisioning / Blue-Green / Canary / destroy を実行で�
 
 詳細: [デプロイ](./docs/deployment/codedeploy-blue-green.md) / [alarm と初動](./docs/operations/runbook.md) / [Game Day](./docs/adr/0028-fis-game-day-ecs-task-stop-experiment-design.md)
 
-詳細な構成は [Architecture Docs](./docs/architecture/) と [Terraform Modules](./docs/architecture/terraform-modules.md) を参照。図の作り方は [Architecture Diagram History](./docs/architecture/diagram-automation-history.md) を参照。
+詳細な構成は [Architecture Docs](./docs/architecture/) と [Terraform Modules](./docs/architecture/terraform-modules.md) を参照。図の作り直し手順は [構成図のソースと作り直し手順](./docs/architecture/diagrams/src/README.md)、作り方を変えた経緯は [Architecture Diagram History](./docs/architecture/diagram-automation-history.md) を参照。
 
 ## GitHub運用と品質ゲート
 

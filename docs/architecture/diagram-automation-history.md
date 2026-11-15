@@ -17,19 +17,7 @@ README の構成図は、観点（view）ごとの draw.io の図 2 枚です（
 
 ### 図の作り直し方
 
-1. 構成を変えたら、まず `src/inventory.md` を IaC・workflow・アプリのコードに合わせて更新する
-2. 要素名・ラベルは `src/diagram_common.py` で変え、図ごとのスクリプトで上書きしない
-3. drawio を生成する（Python 3 の標準ライブラリだけで動く）
-
-    ```bash
-    cd docs/architecture/diagrams/src
-    python3 -B build_architecture.py architecture.drawio
-    python3 -B build_request_flow.py ../request-flow.drawio
-    python3 -B build_operations.py ../operations.drawio
-    ```
-
-4. PNG は draw.io で書き出す（draw.io desktop の export、または draw.io viewer を Chromium で描画してスクリーンショットする）。README には PNG を載せる。SVG は閲覧者の環境のフォントで文字を描くため、日本語の配置が崩れる
-5. 全体図と観点ごとの図で、要素・線・ラベルが inventory と一致しているかを確認する
+ファイルの役割、生成・PNG の書き出し・検査の手順と合格の基準、全体図と観点ごとの図の意図した違いは [docs/architecture/diagrams/src/README.md](./diagrams/src/README.md) を正本とする。
 
 ## 作り方を変えた理由とトレードオフ（#718）
 
