@@ -2,6 +2,29 @@
 
 Terraform / AWS / GitHub Actions を使い、ECS Fargate ベースのアプリケーション基盤と、Issue → Branch → PR → CI → Merge の変更管理ガードレールを構築した DevOps / SRE / Platform Engineering 向けポートフォリオ。
 
+## アーキテクチャ概要
+
+対象は dev 環境（Region: ap-northeast-1）。図の元データ（リソース一覧・接続関係と、それぞれの根拠のファイル）は [inventory](./docs/architecture/diagrams/src/inventory.md) にある。
+
+### リクエストの流れ（地図表示 1 回分）
+
+![リクエストの流れ（地図表示 1 回分）: ブラウザから CloudFront、S3、Application Load Balancer、Amazon ECS への流れと、ブラウザから Mapbox への地図タイルの取得](./docs/architecture/diagrams/request-flow.png)
+
+- 地図表示の GraphQL query `GetMapData` はアプリに同梱した GeoJSON を返すため、DB を通りません。番号の無い ECS → RDS の線は、Synthetics canary とテストが使う query `routes` と、ECS task 起動時の TypeORM migration です。
+- ALB は CloudFront からの通信だけを受けます（managed prefix list と custom header。[ADR 0004](./docs/adr/0004-keep-internet-facing-alb-with-cloudfront-origin-controls.md)）。
+- OAC は origin access control の略です。
+
+### デプロイ・監視・監査・Game Day・バックアップ
+
+![デプロイ・監視・監査・Game Day・バックアップ: GitHub Actions、AWS CodeDeploy、Amazon CloudWatch、Amazon SNS、CloudWatch Synthetics、AWS FIS、AWS CloudTrail、Amazon Athena](./docs/architecture/diagrams/operations.png)
+
+- 監査系（CloudTrail・Athena と、その S3・CloudWatch Logs・alarm・SNS topic）は `terraform/foundation` で手動 apply する常設のリソースで、`deploy.yml` では作られず、destroy 後も残ります。
+- dev 環境は destroy と再構築を繰り返す運用（[ADR 0008](./docs/adr/0008-on-demand-startup-and-routine-destroy-operation.md)）のため、RDS は final DB snapshot を取らず、deletion protection も無効です。
+
+詳細: [デプロイ](./docs/deployment/codedeploy-blue-green.md) / [alarm と初動](./docs/operations/runbook.md) / [Game Day](./docs/adr/0028-fis-game-day-ecs-task-stop-experiment-design.md)
+
+詳細な構成は [Architecture Docs](./docs/architecture/) と [Terraform Modules](./docs/architecture/terraform-modules.md) を参照。図の作り方は [Architecture Diagram History](./docs/architecture/diagram-automation-history.md) を参照。
+
 ## 採用担当者向けサマリー（30秒）
 
 - **対象ロール**: DevOps Engineer / SRE / Platform Engineer / インフラエンジニア
@@ -29,29 +52,6 @@ Issue では `目的` / `対象` / `受け入れ条件` と `type` / `area` / `r
 ### 3. セルフサービス運用と品質ゲート
 
 GitHub Actions から provisioning / Blue-Green / Canary / destroy を実行できる。PR では Terraform fmt/validate、TFLint、Trivy Config、Gitleaks、CodeQL、Dependency Audit を実行し、週次/手動の [Security Scan](./.github/workflows/security-scan.yml) で Trivy dependency/container scan を確認する。
-
-## アーキテクチャ概要
-
-対象は dev 環境（Region: ap-northeast-1）。図の元データ（リソース一覧・接続関係と、それぞれの根拠のファイル）は [inventory](./docs/architecture/diagrams/src/inventory.md) にある。
-
-### リクエストの流れ（地図表示 1 回分）
-
-![リクエストの流れ（地図表示 1 回分）: ブラウザから CloudFront、S3、Application Load Balancer、Amazon ECS への流れと、ブラウザから Mapbox への地図タイルの取得](./docs/architecture/diagrams/request-flow.png)
-
-- 地図表示の GraphQL query `GetMapData` はアプリに同梱した GeoJSON を返すため、DB を通りません。番号の無い ECS → RDS の線は、Synthetics canary とテストが使う query `routes` と、ECS task 起動時の TypeORM migration です。
-- ALB は CloudFront からの通信だけを受けます（managed prefix list と custom header。[ADR 0004](./docs/adr/0004-keep-internet-facing-alb-with-cloudfront-origin-controls.md)）。
-- OAC は origin access control の略です。
-
-### デプロイ・監視・監査・Game Day・バックアップ
-
-![デプロイ・監視・監査・Game Day・バックアップ: GitHub Actions、AWS CodeDeploy、Amazon CloudWatch、Amazon SNS、CloudWatch Synthetics、AWS FIS、AWS CloudTrail、Amazon Athena](./docs/architecture/diagrams/operations.png)
-
-- 監査系（CloudTrail・Athena と、その S3・CloudWatch Logs・alarm・SNS topic）は `terraform/foundation` で手動 apply する常設のリソースで、`deploy.yml` では作られず、destroy 後も残ります。
-- dev 環境は destroy と再構築を繰り返す運用（[ADR 0008](./docs/adr/0008-on-demand-startup-and-routine-destroy-operation.md)）のため、RDS は final DB snapshot を取らず、deletion protection も無効です。
-
-詳細: [デプロイ](./docs/deployment/codedeploy-blue-green.md) / [alarm と初動](./docs/operations/runbook.md) / [Game Day](./docs/adr/0028-fis-game-day-ecs-task-stop-experiment-design.md)
-
-詳細な構成は [Architecture Docs](./docs/architecture/) と [Terraform Modules](./docs/architecture/terraform-modules.md) を参照。図の作り方は [Architecture Diagram History](./docs/architecture/diagram-automation-history.md) を参照。
 
 ## GitHub運用と品質ゲート
 
