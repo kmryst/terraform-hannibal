@@ -34,7 +34,7 @@
     "migration:show": "npm run typeorm -- migration:show"
   },
   "dependencies": {
-    "@apollo/server": "^5.5.1",
+    "@apollo/server": "^5.5.2",
     "@as-integrations/express5": "^1.1.2",
     "@nestjs/apollo": "^14.2.0",
     "@nestjs/common": "^12.4.2",
